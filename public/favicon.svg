@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <rect width="64" height="64" rx="14" fill="#C85A32"/>
+  <path d="M32 8C27 15 20 20 20 26C20 32 25 35 32 35C39 35 44 32 44 26C44 20 37 15 32 8Z" fill="#FDE68A" stroke="#1A2B4C" stroke-width="2"/>
+  <circle cx="32" cy="7" r="2.5" fill="#E5A93C"/>
+  <path d="M16 26H48V36H16V26Z" fill="#E5A93C" stroke="#1A2B4C" stroke-width="2"/>
+  <path d="M26 36V48H38V36" fill="#1A2B4C"/>
+  <!-- Dice -->
+  <rect x="14" y="42" width="16" height="16" rx="3" fill="#FDFBF7" stroke="#1A2B4C" stroke-width="2"/>
+  <circle cx="22" cy="50" r="2" fill="#1A2B4C"/>
+  <rect x="34" y="42" width="16" height="16" rx="3" fill="#FDFBF7" stroke="#1A2B4C" stroke-width="2"/>
+  <circle cx="39" cy="46" r="1.5" fill="#1A2B4C"/>
+  <circle cx="45" cy="54" r="1.5" fill="#1A2B4C"/>
+</svg>
