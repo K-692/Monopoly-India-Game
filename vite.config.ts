@@ -5,8 +5,10 @@ import path from 'path';
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
-  // Default to repo name on GitHub Pages, or '/' locally
-  const basePath = env.VITE_APP_BASE_PATH || (mode === 'production' ? '/Monopoly-India-Game/' : '/');
+  // Default to repo name on GitHub Pages for production, or '/' locally in dev
+  const basePath = mode === 'production'
+    ? (env.VITE_APP_BASE_PATH && env.VITE_APP_BASE_PATH !== '/' ? env.VITE_APP_BASE_PATH : '/Monopoly-India-Game/')
+    : '/';
 
   return {
     base: basePath,
