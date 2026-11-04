@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { EmoteReaction, GameCommand, GameEvent, GameState, RoomMember } from '@/domain/game-types';
+import { EmoteReaction, GameCommand, GameEvent, GameState, RoomMember, WalkingAnimationState } from '@/domain/game-types';
 import { createInitialGame } from '@/domain/game-engine/create-initial-game';
 import { applyGameCommand } from '@/domain/game-engine/engine';
 import { sound } from '@/lib/audio/sound-engine';
@@ -10,6 +10,7 @@ interface GameStoreState {
   activeEmotes: EmoteReaction[];
   selectedSpaceIndex: number | null;
   isRolling: boolean;
+  walkingAnimation: WalkingAnimationState | null;
   isLiveMultiplayer: boolean;
   error: string | null;
 
@@ -28,6 +29,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   activeEmotes: [],
   selectedSpaceIndex: null,
   isRolling: false,
+  walkingAnimation: null,
   isLiveMultiplayer: false,
   error: null,
 
@@ -100,8 +102,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   },
 
   dispatchAction: (commandType, payload = {}) => {
-    const { gameState, isRolling } = get();
-    if (!gameState || isRolling) return;
+    const { gameState, isRolling, walkingAnimation } = get();
+    if (!gameState || isRolling || walkingAnimation) return;
 
     sound.play('BUTTON_CLICK');
 
@@ -122,27 +124,85 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
 
           const result = applyGameCommand(gameState, command, gameState.currentPlayerUid);
 
-          sound.play('PAWN_STEP');
+          // Locate starting and target positions
+          const activeP = gameState.players.find((p) => p.uid === gameState.currentPlayerUid);
+          const startPos = activeP?.position ?? 0;
+          const finalPos = result.nextState.players.find((p) => p.uid === gameState.currentPlayerUid)?.position ?? 0;
+          const totalSteps = result.nextState.dice
+            ? (result.nextState.dice.first + result.nextState.dice.second)
+            : ((finalPos - startPos + 40) % 40);
 
-          // Check if passed start
-          if (result.event.summary.includes('Passed START')) {
-            sound.play('PASS_START');
+          // If incarcerated directly (e.g. 3 consecutive doubles)
+          if (result.nextState.players.find((p) => p.uid === gameState.currentPlayerUid)?.inJail && !activeP?.inJail) {
+            sound.play('GO_TO_JAIL');
+            set((s) => ({
+              gameState: result.nextState,
+              events: [result.event, ...s.events].slice(0, 50),
+              selectedSpaceIndex: finalPos,
+              isRolling: false,
+              walkingAnimation: null,
+              error: null,
+            }));
+            return;
           }
 
-          set((s) => ({
-            gameState: result.nextState,
-            events: [result.event, ...s.events].slice(0, 50),
-            selectedSpaceIndex: result.nextState.players.find(
-              (p) => p.uid === result.nextState.currentPlayerUid
-            )?.position ?? s.selectedSpaceIndex,
+          // Step-by-step pawn walking animation along the lane
+          let currentStepPos = startPos;
+          let stepsLeft = totalSteps > 0 ? totalSteps : (finalPos - startPos + 40) % 40;
+
+          set({
             isRolling: false,
-            error: null,
-          }));
+            // Reveal rolled dice face values immediately
+            gameState: {
+              ...gameState,
+              dice: result.nextState.dice,
+            },
+            walkingAnimation: {
+              uid: gameState.currentPlayerUid,
+              currentPos: startPos,
+              targetPos: finalPos,
+              stepsRemaining: stepsLeft,
+            },
+          });
+
+          const walkInterval = setInterval(() => {
+            if (stepsLeft <= 0 || currentStepPos === finalPos) {
+              clearInterval(walkInterval);
+
+              if (result.event.summary.includes('Passed START')) {
+                sound.play('PASS_START');
+              }
+
+              set((s) => ({
+                gameState: result.nextState,
+                events: [result.event, ...s.events].slice(0, 50),
+                selectedSpaceIndex: finalPos,
+                walkingAnimation: null,
+                error: null,
+              }));
+              return;
+            }
+
+            currentStepPos = (currentStepPos + 1) % 40;
+            stepsLeft -= 1;
+            sound.play('PAWN_STEP');
+
+            set({
+              walkingAnimation: {
+                uid: gameState.currentPlayerUid,
+                currentPos: currentStepPos,
+                targetPos: finalPos,
+                stepsRemaining: stepsLeft,
+              },
+              selectedSpaceIndex: currentStepPos,
+            });
+          }, 140);
+
         } catch (err: unknown) {
           const message = err instanceof Error ? err.message : 'Action failed';
-          set({ error: message, isRolling: false });
+          set({ error: message, isRolling: false, walkingAnimation: null });
         }
-      }, 500);
+      }, 400);
       return;
     }
 

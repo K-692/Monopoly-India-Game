@@ -57,20 +57,34 @@ The application navigation is strictly partitioned into two primary views:
 
 ## 3. Universal Responsive & Non-Scrollable Viewport Architecture
 
-### 3.1 Strict Viewport Isolation (`overflow-hidden` Playboard vs. Scrollable Settings/Lobby)
+### 3.1 Strict Viewport Isolation & Board Completeness Guarantee
 Only the active game board canvas is strictly non-scrollable (`h-[calc(100dvh-54px)] overflow-hidden`), preserving strict mathematical alignment across mobile and desktop. Meanwhile, auxiliary views (Settings tab `/settings` and Play lobby `/`) utilize natural dynamic viewport scrolling (`overflow-y-auto min-h-0`), ensuring complete accessibility for configuration controls across all device aspect ratios.
+To prevent bottom-row clipping (such as START, Jaipur, Civic Fund, and Central Jail), the board dimension is constrained using aspect-ratio geometry:
+$$\text{Board Dimension} = \min(\text{Viewport Available Height}, \text{Available Column Width})$$
+Rendered via `h-full max-h-full aspect-square w-auto max-w-full mx-auto`. All 40 spaces remain 100% visible with zero vertical overflow.
 
-### 3.2 Maximized Playboard Footprint & Layout Proportions
-The 12-column grid layout is optimized to dedicate maximum visual hierarchy to the game board:
-- **Left Column (`lg:col-span-2`)**: Reduced, sleek player cards showing token, avatar initial, display name, cash, and turn timer only on the active player.
-- **Center Column (`lg:col-span-7`)**: The board occupies `max-w-[min(88vh,88vw,820px)] aspect-square`, increasing board surface area by over 40% for optimal legibility.
-- **Right Column (`lg:col-span-3`)**: Primary actions at top, followed immediately by "My Info" player portfolio, and contextual Deed inspector below.
+### 3.2 Widened Walk Lane Grid Topology
+The perimeter walk lane width has been widened by 45% using asymmetric CSS Grid templates:
+- **Grid Layout**: `grid-template-columns: 1.5fr repeat(9, 1fr) 1.5fr` and `grid-template-rows: 1.5fr repeat(9, 1fr) 1.5fr`.
+- **Space Legibility**: The 1.5fr outer lanes provide expanded space depth ($1.5 / 12.0 = 12.5\%$ per outer lane), eliminating truncated ellipses and cleanly accommodating multi-line wrapped property titles, prices, and owner identifiers.
 
-### 3.3 Center Decks with Face-Up Card Contents
-Rather than displaying closed card backs, the two central decks (*Civic Fund* in terracotta and *Market Buzz* in teal) permanently present their **active card contents** (title, descriptive text, and amount pill) face-up with authentic Indian iconography and Hindi titles.
+### 3.3 Dynamic Ownership Color Formalism
+To avoid visual confusion with static Monopoly color bands:
+- **Unowned Spaces**: Completely uncolored (clean neutral parchment with white border).
+- **Purchased Spaces**: Dynamically adopt the **purchasing player's assigned token color** (`owner.colorToken`), accompanied by an owner name badge and building count pips (`🏠xN` or `🏢 Tower`).
 
-### 3.4 3D Tumbling Dice Synthesis & Turn Step Acknowledgments
-- **3D Tumbling Dice**: When rolled, the dice execute a 3D perspective rotation (`perspective: 600px; transform: rotateX(...) rotateY(...) rotateZ(...)`) while rapidly cycling pseudo-random face values every 70ms before snapping to server-authoritative numbers.
+### 3.4 Sequential One-by-One Pawn Walking Animation
+Rather than teleporting across the board upon rolling, player pawns advance sequentially along the walk lane:
+$$P_{t+1} = (P_t + 1) \pmod{40}$$
+For each step:
+- The discrete hop executes at a 140 ms cadence.
+- Audio synthesis fires a procedural `PAWN_STEP` frequency sweep (520 Hz $\to$ 260 Hz).
+- Passing START (index 0) triggers the `PASS_START` chime.
+- On reaching the target tile ($S = \text{dice}_1 + \text{dice}_2$), the step terminates and lands on the property decision.
+
+### 3.5 High-Visibility Dice & Persistent Center Decks
+- **High-Contrast 3D Tumbling Dice**: Physical dice rendering uses solid black pips (`bg-black`) inside pure white cubes with a 3D perspective tumbling animation and rapid face cycling during the roll.
+- **Center Decks with Face-Up Card Contents**: The two central decks (*Civic Fund* in terracotta and *Market Buzz* in teal) permanently present their **active card contents** (title, descriptive text, and amount pill) face-up with authentic Indian iconography and Hindi titles.
 - **Turn Step Acknowledgment HUD**: An active breadcrumb pipeline (`1. Roll ➔ 2. Action ➔ 3. Complete`) provides instant visual acknowledgments for rolls, moves, purchases, rents, and turn conclusions.
 - **Player Hover Flyout**: Hovering over any compact player card opens a detailed informational flyout detailing cash, net worth, board position, jail status, full list of owned properties by color group with house/tower levels, mortgaged states, transit lines, and utilities.
 

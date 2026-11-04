@@ -22,6 +22,7 @@ export const PracticeMatchPage: React.FC = () => {
     activeEmotes,
     selectedSpaceIndex,
     isRolling,
+    walkingAnimation,
     isAiThinking,
     error,
     startPracticeMatch,
@@ -162,16 +163,17 @@ export const PracticeMatchPage: React.FC = () => {
           />
         </div>
 
-        {/* Center Column: The 40-Space Board (Enlarged) */}
-        <div className="col-span-1 lg:col-span-7 flex items-center justify-center h-full max-h-full">
+        {/* Center Column: The 40-Space Board (Enlarged and Guaranteed Full Visibility) */}
+        <div className="col-span-1 lg:col-span-7 flex items-center justify-center h-full max-h-full min-h-0 min-w-0 overflow-hidden py-0.5">
           <GameBoard
             gameState={gameState}
             selectedSpaceIndex={selectedSpaceIndex}
             onSelectSpace={selectSpace}
             isRolling={isRolling}
             onRollDice={() => dispatchAction('ROLL_DICE')}
-            isMyTurn={isHumanTurn && !isAiThinking}
+            isMyTurn={isHumanTurn && !isAiThinking && !walkingAnimation}
             lastEvent={events[0]}
+            walkingAnimation={walkingAnimation}
           />
         </div>
 

@@ -19,11 +19,14 @@
 - 🏰 **Authentic Indian Board**: 40 spaces featuring 22 major Indian city properties (from *Jaipur MI Road* to *Mumbai Marine Drive*), 4 transit networks, 2 utilities (*Urja Power Grid* & *Jal Board*), *GST Checkposts*, and 2 persistent center decks (*Civic Fund* & *Market Buzz*).
 - 🔗 **Frictionless Link-Based Multiplayer**: No Google login or password needed. Anyone with the room link can join instantly by simply entering their chosen player name!
 - 🗂️ **Streamlined Two-Tab Interface**: Clean, uncluttered UI featuring only **Play** and **Settings** tabs. Settings and lobby tabs are naturally scrollable; only the active playboard is strictly non-scrollable.
-- 📐 **Maximized Playboard Footprint**: Board auto-scales up to `max-w-[min(88vh,88vw,820px)]`, dedicating 7/12 screen width to high-visibility property tiles and tokens.
+- 📐 **Complete & Viewport-Adaptive Board**: Guaranteed full board visibility—the board scales dynamically to available vertical height (`h-full max-h-full aspect-square w-auto max-w-full`) so START, Central Jail, and bottom tiles are never cut off.
+- 🚶 **Widened Walk Lane**: Perimeter walk lanes are 45% wider (`1.5fr` outer tracks), ensuring property titles, city names, and prices are clearly placed and legible without awkward truncation.
+- 🎨 **Dynamic Buyer-Color Ownership**: Spaces remain clean and uncolored while unowned. Once purchased by a player, the space dynamically adopts that **player's chosen token color** with an owner badge and building pips.
+- 🚶‍♂️ **Step-by-Step Pawn Walking Animation**: Pawns physically hop tile by tile along the lane at a 140ms cadence with synchronized procedural step audio until reaching their destination space.
+- 🎲 **High-Visibility 3D Tumbling Dice**: High-contrast white dice with solid black pips and 3D tumbling animations, accompanied by a rolled total summary pill.
 - 👥 **Compact Player Cards with Hover Flyouts**: Minimalist player rows on the left panel. Hovering over any player reveals a rich portfolio flyout (cash, net worth, board position, jail status, and owned deeds categorized by color groups).
 - 👤 **Right-Panel "My Info" Portfolio**: Placed directly below the "Roll The Dice" button, displaying your personal cash, net worth, position, and property assets at a glance.
 - 📜 **Visible Buzz Card Contents**: The two center decks (*Civic Fund* and *Market Buzz*) permanently display their **actual card contents, titles, and amounts** face-up inside the board center.
-- 🎲 **3D Tumbling Dice Animation**: Realistic 3D tumbling dice with rapid face-cycling during rolls, complemented by zero-latency procedural Web Audio sound synthesis.
 - ⏱️ **Turn Timer on Active Player**: The countdown timer is cleanly integrated directly onto the active player's card in the left panel with pulse warnings under 10s.
 - 🚦 **Turn Step Acknowledgments**: An interactive breadcrumb pipeline (`1. Roll ➔ 2. Action ➔ 3. Complete`) provides instant visual confirmations for rolls, movements, purchases, and rents.
 - ⚙️ **Host-Customizable Rules**: The game host can configure starting cash (₹10,000–₹25,000), pass START rewards (₹1,000–₹3,000), turn timer limits, max players (2–6), jail bail amounts, and monopoly rent multipliers before creating the room.

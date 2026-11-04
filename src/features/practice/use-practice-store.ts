@@ -6,7 +6,7 @@
  */
 
 import { create } from 'zustand';
-import { EmoteReaction, GameCommand, GameEvent, GameState, RoomMember } from '@/domain/game-types';
+import { EmoteReaction, GameCommand, GameEvent, GameState, RoomMember, WalkingAnimationState } from '@/domain/game-types';
 import { createInitialGame } from '@/domain/game-engine/create-initial-game';
 import { applyGameCommand } from '@/domain/game-engine/engine';
 import { sound } from '@/lib/audio/sound-engine';
@@ -19,6 +19,7 @@ interface PracticeStoreState {
   activeEmotes: EmoteReaction[];
   selectedSpaceIndex: number | null;
   isRolling: boolean;
+  walkingAnimation: WalkingAnimationState | null;
   error: string | null;
   isAiThinking: boolean;
 
@@ -36,6 +37,7 @@ export const usePracticeStore = create<PracticeStoreState>((set, get) => ({
   activeEmotes: [],
   selectedSpaceIndex: null,
   isRolling: false,
+  walkingAnimation: null,
   error: null,
   isAiThinking: false,
 
@@ -93,6 +95,7 @@ export const usePracticeStore = create<PracticeStoreState>((set, get) => ({
       activeEmotes: [],
       selectedSpaceIndex: 0,
       isRolling: false,
+      walkingAnimation: null,
       error: null,
       isAiThinking: false,
     });
@@ -104,8 +107,8 @@ export const usePracticeStore = create<PracticeStoreState>((set, get) => ({
   },
 
   dispatchAction: (commandType, payload = {}) => {
-    const { gameState, isRolling } = get();
-    if (!gameState || isRolling) return;
+    const { gameState, isRolling, walkingAnimation } = get();
+    if (!gameState || isRolling || walkingAnimation) return;
 
     sound.play('BUTTON_CLICK');
 
@@ -125,31 +128,94 @@ export const usePracticeStore = create<PracticeStoreState>((set, get) => ({
           };
 
           const result = applyGameCommand(gameState, command, gameState.currentPlayerUid);
-          sound.play('PAWN_STEP');
 
-          if (result.event.summary.includes('Passed START')) {
-            sound.play('PASS_START');
+          // Locate starting and target positions
+          const activeP = gameState.players.find((p) => p.uid === gameState.currentPlayerUid);
+          const startPos = activeP?.position ?? 0;
+          const finalPos = result.nextState.players.find((p) => p.uid === gameState.currentPlayerUid)?.position ?? 0;
+          const totalSteps = result.nextState.dice
+            ? (result.nextState.dice.first + result.nextState.dice.second)
+            : ((finalPos - startPos + 40) % 40);
+
+          // If incarcerated directly (e.g. 3 consecutive doubles)
+          if (result.nextState.players.find((p) => p.uid === gameState.currentPlayerUid)?.inJail && !activeP?.inJail) {
+            sound.play('GO_TO_JAIL');
+            set((s) => ({
+              gameState: result.nextState,
+              events: [result.event, ...s.events].slice(0, 50),
+              selectedSpaceIndex: finalPos,
+              isRolling: false,
+              walkingAnimation: null,
+              error: null,
+            }));
+            if (result.nextState.currentPlayerUid !== 'player_human') {
+              triggerAiTurn();
+            }
+            return;
           }
 
-          set((s) => ({
-            gameState: result.nextState,
-            events: [result.event, ...s.events].slice(0, 50),
-            selectedSpaceIndex: result.nextState.players.find(
-              (p) => p.uid === result.nextState.currentPlayerUid
-            )?.position ?? s.selectedSpaceIndex,
+          // Step-by-step pawn walking animation along the lane
+          let currentStepPos = startPos;
+          let stepsLeft = totalSteps > 0 ? totalSteps : (finalPos - startPos + 40) % 40;
+
+          set({
             isRolling: false,
-            error: null,
-          }));
+            // Reveal rolled dice face values immediately
+            gameState: {
+              ...gameState,
+              dice: result.nextState.dice,
+            },
+            walkingAnimation: {
+              uid: gameState.currentPlayerUid,
+              currentPos: startPos,
+              targetPos: finalPos,
+              stepsRemaining: stepsLeft,
+            },
+          });
 
-          // If turn changed to an AI, trigger AI loop
-          if (result.nextState.currentPlayerUid !== 'player_human') {
-            triggerAiTurn();
-          }
+          const walkInterval = setInterval(() => {
+            if (stepsLeft <= 0 || currentStepPos === finalPos) {
+              clearInterval(walkInterval);
+
+              if (result.event.summary.includes('Passed START')) {
+                sound.play('PASS_START');
+              }
+
+              set((s) => ({
+                gameState: result.nextState,
+                events: [result.event, ...s.events].slice(0, 50),
+                selectedSpaceIndex: finalPos,
+                walkingAnimation: null,
+                error: null,
+              }));
+
+              // If turn changed to an AI, trigger AI loop
+              if (result.nextState.currentPlayerUid !== 'player_human') {
+                triggerAiTurn();
+              }
+              return;
+            }
+
+            currentStepPos = (currentStepPos + 1) % 40;
+            stepsLeft -= 1;
+            sound.play('PAWN_STEP');
+
+            set({
+              walkingAnimation: {
+                uid: gameState.currentPlayerUid,
+                currentPos: currentStepPos,
+                targetPos: finalPos,
+                stepsRemaining: stepsLeft,
+              },
+              selectedSpaceIndex: currentStepPos,
+            });
+          }, 140);
+
         } catch (err: unknown) {
           const message = err instanceof Error ? err.message : 'Action failed';
-          set({ error: message, isRolling: false });
+          set({ error: message, isRolling: false, walkingAnimation: null });
         }
-      }, 500);
+      }, 400);
       return;
     }
 
@@ -255,52 +321,33 @@ function triggerAiTurn() {
 
   setTimeout(() => {
     const s = usePracticeStore.getState().gameState;
-    if (!s || s.currentPlayerUid !== currentUid) {
+    const isWalking = !!usePracticeStore.getState().walkingAnimation;
+    if (!s || s.currentPlayerUid !== currentUid || isWalking) {
       usePracticeStore.setState({ isAiThinking: false });
       return;
     }
 
     try {
-      // Step 1: Roll dice
       if (s.phase === 'AWAIT_ROLL') {
         store.dispatchAction('ROLL_DICE');
       } else if (s.phase === 'JAIL_DECISION') {
         store.dispatchAction('TRY_DOUBLES');
+      } else if (s.phase === 'PROPERTY_DECISION' && s.pendingAction?.spaceIndex !== undefined) {
+        const space = BOARD_SPACES[s.pendingAction.spaceIndex];
+        const price = 'price' in space ? space.price : 99999;
+        const activeAi = s.players.find((p) => p.uid === currentUid);
+        if ((activeAi?.cash ?? 0) >= price + 1000) {
+          store.dispatchAction('BUY_PROPERTY', { spaceIndex: space.spaceIndex });
+        } else {
+          store.dispatchAction('DECLINE_PROPERTY');
+        }
+      } else if (s.phase === 'MANAGEMENT' || s.phase === 'TURN_END') {
+        store.dispatchAction('END_TURN');
       }
-
-      // Step 2: Handle landing decision after brief roll animation
-      setTimeout(() => {
-        const afterRoll = usePracticeStore.getState().gameState;
-        if (!afterRoll || afterRoll.currentPlayerUid !== currentUid) {
-          usePracticeStore.setState({ isAiThinking: false });
-          return;
-        }
-
-        const activeAi = afterRoll.players.find((p) => p.uid === currentUid);
-
-        if (afterRoll.phase === 'PROPERTY_DECISION' && afterRoll.pendingAction?.spaceIndex !== undefined) {
-          const space = BOARD_SPACES[afterRoll.pendingAction.spaceIndex];
-          const price = 'price' in space ? space.price : 99999;
-          // Buy if AI has cash > price + 1500 safety buffer
-          if ((activeAi?.cash ?? 0) >= price + 1500) {
-            store.dispatchAction('BUY_PROPERTY', { spaceIndex: space.spaceIndex });
-          } else {
-            store.dispatchAction('DECLINE_PROPERTY');
-          }
-        }
-
-        // Step 3: End turn
-        setTimeout(() => {
-          const finalState = usePracticeStore.getState().gameState;
-          if (finalState && finalState.currentPlayerUid === currentUid && (finalState.phase === 'MANAGEMENT' || finalState.phase === 'TURN_END')) {
-            store.dispatchAction('END_TURN');
-          }
-          usePracticeStore.setState({ isAiThinking: false });
-        }, 350);
-      }, 450);
+      usePracticeStore.setState({ isAiThinking: false });
     } catch {
       usePracticeStore.setState({ isAiThinking: false });
     }
-  }, 500);
+  }, 450);
 }
 

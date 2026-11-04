@@ -333,3 +333,11 @@ export interface EmoteReaction {
   emote: string; // e.g. "👏", "😂", "🔥", "❤️"
   timestamp: number;
 }
+
+export interface WalkingAnimationState {
+  uid: string;
+  currentPos: number;
+  targetPos: number;
+  stepsRemaining: number;
+}
+
