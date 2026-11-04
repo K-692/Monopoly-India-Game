@@ -42,6 +42,7 @@ export const usePracticeStore = create<PracticeStoreState>((set, get) => ({
   isAiThinking: false,
 
   startPracticeMatch: (playerName = 'You (Maharaja)', customRules = DEFAULT_HOST_RULES) => {
+    // 2-Player Practice Match: Human Player vs AI Opponent
     const demoMembers: Record<string, RoomMember> = {
       player_human: {
         uid: 'player_human',
@@ -49,7 +50,7 @@ export const usePracticeStore = create<PracticeStoreState>((set, get) => ({
         photoURL: null,
         isReady: true,
         joinedAt: Date.now(),
-        colorToken: '#C85A32', // Terracotta
+        colorToken: '#C85A32', // Terracotta Rust
       },
       player_ai_1: {
         uid: 'player_ai_1',
@@ -57,23 +58,7 @@ export const usePracticeStore = create<PracticeStoreState>((set, get) => ({
         photoURL: null,
         isReady: true,
         joinedAt: Date.now() + 1,
-        colorToken: '#1A2B4C', // Navy
-      },
-      player_ai_2: {
-        uid: 'player_ai_2',
-        displayName: 'Vikram (Delhi)',
-        photoURL: null,
-        isReady: true,
-        joinedAt: Date.now() + 2,
-        colorToken: '#E5A93C', // Gold
-      },
-      player_ai_3: {
-        uid: 'player_ai_3',
-        displayName: 'Ananya (Bengaluru)',
-        photoURL: null,
-        isReady: true,
-        joinedAt: Date.now() + 3,
-        colorToken: '#2D6A4F', // Emerald
+        colorToken: '#1A2B4C', // Royal Navy
       },
     };
 

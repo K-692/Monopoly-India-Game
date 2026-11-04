@@ -85,12 +85,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   };
 
   return (
-    <div className="relative w-full h-full max-h-full mx-auto p-1 bg-indian-parchment-200 border-2 border-indian-parchment-400 rounded-xl shadow-board-elevation select-none shrink-0 flex flex-col justify-center">
+    <div className="relative w-full h-full max-h-full mx-auto p-1 bg-indian-parchment-200 border-2 border-indian-parchment-400 rounded-xl shadow-board-elevation select-none flex flex-col justify-center">
       {/* 11x11 Grid with Widened Walk Lane and Wide Board Geometry */}
       <div
         className="w-full h-full grid gap-[1px] bg-indian-parchment-400 rounded-lg overflow-hidden"
         style={{
-          gridTemplateColumns: '1.5fr repeat(9, 1fr) 1.5fr',
+          gridTemplateColumns: '1.4fr repeat(9, 1fr) 1.4fr',
           gridTemplateRows: '1.5fr repeat(9, 1fr) 1.5fr',
         }}
       >

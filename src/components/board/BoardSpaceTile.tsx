@@ -34,19 +34,19 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
 
   // Icon for special spaces
   const renderIcon = () => {
-    if (space.type === 'TRANSIT') return <Train className="w-3.5 h-3.5 text-indian-navy-700" />;
+    if (space.type === 'TRANSIT') return <Train className="w-4 h-4 text-indian-navy-700 dark:text-indian-parchment-200" />;
     if (space.type === 'UTILITY') {
-      if (space.id.includes('power')) return <Zap className="w-3.5 h-3.5 text-amber-500" />;
-      if (space.id.includes('jal') || space.id.includes('water')) return <Droplets className="w-3.5 h-3.5 text-blue-500" />;
-      if (space.id.includes('telecom')) return <Radio className="w-3.5 h-3.5 text-indigo-500" />;
-      return <Flame className="w-3.5 h-3.5 text-orange-500" />;
+      if (space.id.includes('power')) return <Zap className="w-4 h-4 text-amber-500" />;
+      if (space.id.includes('jal') || space.id.includes('water')) return <Droplets className="w-4 h-4 text-blue-500" />;
+      if (space.id.includes('telecom')) return <Radio className="w-4 h-4 text-indigo-500" />;
+      return <Flame className="w-4 h-4 text-orange-500" />;
     }
-    if (space.type === 'TAX') return <ShieldAlert className="w-3.5 h-3.5 text-red-600" />;
+    if (space.type === 'TAX') return <ShieldAlert className="w-4 h-4 text-red-600" />;
     if (space.type === 'CARD') {
       return space.deck === 'CIVIC' ? (
-        <Gift className="w-3.5 h-3.5 text-amber-600" />
+        <Gift className="w-4 h-4 text-amber-600" />
       ) : (
-        <Flame className="w-3.5 h-3.5 text-orange-600" />
+        <Flame className="w-4 h-4 text-orange-600" />
       );
     }
     return null;
@@ -61,7 +61,7 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
         ...(ownerColor ? { borderColor: ownerColor } : {}),
       }}
       className={cn(
-        'relative flex flex-col justify-between border border-indian-parchment-400 bg-white dark:bg-indian-navy-900 text-indian-navy-950 dark:text-white select-none cursor-pointer transition-all duration-300 p-0.5 sm:p-1 overflow-hidden',
+        'relative flex flex-col justify-between border border-indian-parchment-400 bg-white dark:bg-indian-navy-900 text-indian-navy-950 dark:text-white select-none cursor-pointer transition-all duration-200 p-0.5 sm:p-1 overflow-hidden',
         isSelected && 'ring-2 ring-indian-terracotta-500 bg-amber-50 dark:bg-indian-navy-800 z-20',
         isHighlighted && 'ring-4 ring-amber-400 dark:ring-amber-300 scale-105 z-30 shadow-[0_0_20px_rgba(251,191,36,0.9)] animate-pulse',
         propertyState?.isMortgaged && 'opacity-60 bg-gray-200/80',
@@ -102,36 +102,36 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
       {isCorner ? (
         <div className="w-full h-full flex flex-col items-center justify-center text-center p-0.5 sm:p-1 bg-indian-parchment-100 dark:bg-indian-navy-950/60">
           {space.spaceIndex === 0 && (
-            <div className="flex flex-col items-center text-indian-terracotta-600">
-              <span className="font-serif text-[10px] sm:text-xs font-black tracking-wider">START</span>
-              <span className="text-[8px] sm:text-[9px] text-emerald-700 font-extrabold">₹2,000</span>
-              <ArrowLeft className="w-3 h-3 text-indian-terracotta-500 animate-pulse-subtle" />
+            <div className="flex flex-col items-center text-indian-terracotta-600 gap-0.5">
+              <span className="font-serif text-xs sm:text-sm md:text-base font-black tracking-wider">START</span>
+              <span className="text-[10px] sm:text-xs font-black text-emerald-700 dark:text-emerald-400">₹2,000</span>
+              <ArrowLeft className="w-3.5 h-3.5 text-indian-terracotta-500 animate-pulse-subtle" />
             </div>
           )}
           {space.spaceIndex === 10 && (
-            <div className="text-center text-[9px] sm:text-[10px]">
-              <span className="block text-red-700 font-extrabold">JAIL</span>
-              <span className="text-[7px] sm:text-[8px] text-gray-500">Visiting</span>
+            <div className="text-center">
+              <span className="block text-xs sm:text-sm font-black text-red-700">JAIL</span>
+              <span className="text-[9px] sm:text-[10px] text-gray-500 font-bold">Visiting</span>
             </div>
           )}
           {space.spaceIndex === 20 && (
-            <div className="text-center text-[9px] sm:text-[10px] text-amber-700">
-              <span className="block font-extrabold">REST</span>
-              <span className="text-[7px] sm:text-[8px] text-gray-500">House</span>
+            <div className="text-center text-amber-700">
+              <span className="block text-xs sm:text-sm font-black">REST</span>
+              <span className="text-[9px] sm:text-[10px] text-gray-500 font-bold">House</span>
             </div>
           )}
           {space.spaceIndex === 30 && (
-            <div className="text-center text-[9px] sm:text-[10px] text-red-600">
-              <span className="block font-black">GO TO</span>
-              <span className="text-[7px] sm:text-[8px] font-bold">JAIL</span>
+            <div className="text-center text-red-600">
+              <span className="block text-xs sm:text-sm font-black">GO TO</span>
+              <span className="text-[9px] sm:text-[10px] font-extrabold">JAIL</span>
             </div>
           )}
         </div>
       ) : (
-        /* Regular Edge Tile - Expanded Walk Lane with Bold Typography */
+        /* Regular Edge Tile - Expanded Dimensions with Increased Place & Price Fonts */
         <div
           className={cn(
-            'w-full h-full flex flex-col justify-between items-center text-center p-0.5',
+            'w-full h-full flex flex-col justify-between items-center text-center p-0.5 sm:p-1',
             ownerColor && coord.orientation === 'bottom' && 'pt-2.5',
             ownerColor && coord.orientation === 'top' && 'pb-2.5',
             ownerColor && coord.orientation === 'left' && 'pr-2.5',
@@ -139,31 +139,31 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
           )}
         >
           {/* Top/Icon Header */}
-          <div className="w-full flex items-center justify-center min-h-[14px]">
+          <div className="w-full flex items-center justify-center min-h-[16px]">
             {renderIcon()}
             {owner && (
               <span
                 style={{ backgroundColor: owner.colorToken }}
-                className="text-white text-[7px] font-bold px-1 rounded-full shadow-2xs truncate max-w-full"
+                className="text-white text-[8px] sm:text-[9px] font-black px-1.5 py-0.2 rounded-full shadow-2xs truncate max-w-full"
               >
                 {owner.displayName.split(' ')[0]}
               </span>
             )}
           </div>
 
-          {/* Property Name */}
-          <span className="font-bold text-[8px] sm:text-[10px] leading-[1.1] text-center w-full break-words hyphens-auto px-0.5">
+          {/* Place / City Name - Increased Font Size */}
+          <span className="font-extrabold text-[10.5px] sm:text-[11.5px] md:text-[12.5px] leading-[1.15] text-center w-full break-words hyphens-auto tracking-tight px-0.5 text-indian-navy-950 dark:text-white">
             {space.name}
           </span>
 
-          {/* Price / Fine Amount */}
+          {/* Price / Fine Amount - Increased Font Size */}
           {'price' in space && (
-            <span className="text-[8px] sm:text-[9.5px] font-black text-emerald-800 dark:text-emerald-400">
+            <span className="text-[10px] sm:text-[11px] md:text-[12px] font-black text-emerald-800 dark:text-emerald-400">
               ₹{space.price.toLocaleString('en-IN')}
             </span>
           )}
           {'amount' in space && (
-            <span className="text-[8px] sm:text-[9.5px] font-black text-red-600">
+            <span className="text-[10px] sm:text-[11px] md:text-[12px] font-black text-red-600 dark:text-red-400">
               ₹{space.amount.toLocaleString('en-IN')}
             </span>
           )}
@@ -178,7 +178,7 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
               key={p.uid}
               title={p.displayName}
               style={{ backgroundColor: p.colorToken }}
-              className="w-3.5 sm:w-4.5 h-3.5 sm:h-4.5 rounded-full border-2 border-white shadow-token-glow flex items-center justify-center text-[7px] sm:text-[8px] text-white font-black transition-all duration-150 animate-pulse"
+              className="w-4 sm:w-5 h-4 sm:h-5 rounded-full border-2 border-white shadow-token-glow flex items-center justify-center text-[7.5px] sm:text-[8.5px] text-white font-black transition-all duration-150 animate-pulse"
             >
               {p.displayName.charAt(0).toUpperCase()}
             </div>

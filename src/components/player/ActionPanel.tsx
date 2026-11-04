@@ -14,7 +14,6 @@ import {
   MapPin,
   ShieldAlert,
   KeyRound,
-  Info
 } from 'lucide-react';
 import { GROUP_COLOR_MAP } from '../board/board-layout-utils';
 import { GAME_CONSTANTS } from '@/domain/ruleset';
@@ -33,7 +32,7 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({
   isRolling,
   userUid,
 }) => {
-  const [isPortfolioHovered, setIsPortfolioHovered] = useState(false);
+  const [isPortfolioExpanded, setIsPortfolioExpanded] = useState(false);
 
   const activePlayer = gameState.players.find((p) => p.uid === gameState.currentPlayerUid);
   const isMyTurn = !userUid || userUid === gameState.currentPlayerUid || userUid.startsWith('guest_') || userUid === 'player_1';
@@ -249,13 +248,12 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({
             )}
           </div>
 
-          {/* Portfolio: ONLY SHOWN WHEN HOVERED OVER */}
-          <div
-            className="relative mt-2 pt-1.5 border-t border-indian-parchment-300 dark:border-indian-navy-700"
-            onMouseEnter={() => setIsPortfolioHovered(true)}
-            onMouseLeave={() => setIsPortfolioHovered(false)}
-          >
-            <div className="flex items-center justify-between p-1.5 rounded-lg bg-indian-parchment-100 dark:bg-indian-navy-950/60 border border-indian-parchment-300 dark:border-indian-navy-800 cursor-pointer hover:bg-amber-100/60 transition-colors">
+          {/* Portfolio: CLICK TO EXPAND/VIEW (No Hovering) */}
+          <div className="relative mt-2 pt-1.5 border-t border-indian-parchment-300 dark:border-indian-navy-700">
+            <div
+              onClick={() => setIsPortfolioExpanded((prev) => !prev)}
+              className="flex items-center justify-between p-1.5 rounded-lg bg-indian-parchment-100 dark:bg-indian-navy-950/60 border border-indian-parchment-300 dark:border-indian-navy-800 cursor-pointer hover:bg-amber-100/60 transition-colors"
+            >
               <div className="flex items-center gap-1.5 text-[11px] font-bold text-indian-navy-800 dark:text-indian-parchment-200">
                 <Building2 className="w-3.5 h-3.5 text-indian-terracotta-500" />
                 <span>My Portfolio:</span>
@@ -263,52 +261,48 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({
               </div>
 
               <span className="text-[9px] text-gray-500 flex items-center gap-0.5">
-                <Info className="w-2.5 h-2.5" />
-                Hover to view
+                {isPortfolioExpanded ? 'Hide' : 'View'}
               </span>
             </div>
 
-            {/* Hover Floating Card displaying all purchased properties */}
-            {isPortfolioHovered && (
-              <div
-                className="absolute right-0 bottom-full mb-1 z-50 w-72 p-3 bg-white dark:bg-indian-navy-900 border-2 border-indian-terracotta-400 rounded-xl shadow-2xl text-xs space-y-2 pointer-events-none animate-fade-in"
-              >
-                <div className="flex items-center justify-between pb-1 border-b border-indian-parchment-300 dark:border-indian-navy-700">
-                  <span className="font-serif font-black text-xs text-indian-terracotta-600">
-                    Owned Properties Portfolio ({myOwnedProps.length})
+            {/* Expanded Portfolio breakdown */}
+            {isPortfolioExpanded && (
+              <div className="mt-1.5 p-2 bg-white dark:bg-indian-navy-900 border border-indian-terracotta-300 dark:border-indian-navy-700 rounded-lg text-xs space-y-1.5 animate-fade-in">
+                <div className="flex items-center justify-between pb-1 border-b border-indian-parchment-200 dark:border-indian-navy-800">
+                  <span className="font-bold text-[10px] text-indian-navy-800 dark:text-white">
+                    Owned Properties ({myOwnedProps.length})
                   </span>
-                  <span className="text-[9px] text-gray-500">Live Breakdown</span>
                 </div>
 
                 {myOwnedProps.length === 0 ? (
-                  <span className="text-[10px] text-gray-400 italic block py-2 text-center">
+                  <span className="text-[9.5px] text-gray-400 italic block py-1 text-center">
                     No properties purchased yet.
                   </span>
                 ) : (
-                  <div className="flex flex-col gap-1 max-h-48 overflow-y-auto pr-0.5">
+                  <div className="flex flex-col gap-1 max-h-40 overflow-y-auto pr-0.5">
                     {myOwnedProps.map(({ spaceIndex, space, state }) => {
                       const groupColor = 'group' in space && space.group ? GROUP_COLOR_MAP[space.group] : '#888888';
                       return (
                         <div
                           key={spaceIndex}
-                          className="flex items-center justify-between p-1.5 rounded-md border bg-white dark:bg-indian-navy-950 shadow-2xs text-[10px]"
+                          className="flex items-center justify-between p-1 rounded-md border bg-white dark:bg-indian-navy-950 shadow-2xs text-[9.5px]"
                           style={{ borderLeftColor: groupColor, borderLeftWidth: '3.5px' }}
                         >
                           <div className="flex items-center gap-1 min-w-0">
-                            <span className="font-bold text-indian-navy-900 dark:text-white truncate max-w-[120px]">
+                            <span className="font-bold text-indian-navy-900 dark:text-white truncate max-w-[110px]">
                               {space.name}
                             </span>
                             {state.buildings > 0 && (
                               <span className="text-[8px] bg-amber-100 text-amber-800 px-1 py-0.2 rounded font-black">
-                                {state.buildings === 5 ? '🏢 Tower' : `🏠×${state.buildings}`}
+                                {state.buildings === 5 ? '🏢' : `🏠×${state.buildings}`}
                               </span>
                             )}
                           </div>
 
-                          <div className="flex items-center gap-1.5 shrink-0">
+                          <div className="flex items-center gap-1 shrink-0">
                             {state.isMortgaged ? (
-                              <span className="text-[9px] text-red-500 font-bold bg-red-50 px-1 rounded">
-                                Mortgaged
+                              <span className="text-[8.5px] text-red-500 font-bold bg-red-50 px-1 rounded">
+                                [M]
                               </span>
                             ) : (
                               'price' in space && (

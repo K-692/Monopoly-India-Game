@@ -11,7 +11,7 @@
 
 > **Live Game URL:** [https://k-692.github.io/Monopoly-India-Game/](https://k-692.github.io/Monopoly-India-Game/)
 >
-> **Repository Description:** A fast, responsive, Indian-themed multiplayer property trading board game built with React 19, TypeScript, Tailwind CSS, and Cloud Firestore. Features frictionless link-based room joining, 20 unique metropolitan cities with tier-wise ascending prices, 4 national utility grids, 4 intercity transit gateways, wide non-square adaptive board geometry, state-change glowing feedback, in-board animated 3D dice, persistent center buzz cards, host-configurable rule engines, turn countdown timers, zero-latency Web Audio sound synthesis, and a modular practice match sandbox.
+> **Repository Description:** A fast, responsive, Indian-themed multiplayer property trading board game built with React 19, TypeScript, Tailwind CSS, and Cloud Firestore. Features frictionless link-based room joining, 20 unique metropolitan cities with tier-wise ascending prices, 4 national utility grids, 4 intercity transit gateways, edge-to-edge maximum window-stretched board geometry, compact left player panel with click-to-select inspection (zero hover dependencies), bold high-legibility typography, state-change glowing feedback, in-board animated 3D dice, persistent center buzz cards, host-configurable rule engines, turn countdown timers, zero-latency Web Audio sound synthesis, and a 2-player practice match duel sandbox.
 >
 > **GitHub Repository Topics:** `monopoly`, `board-game`, `multiplayer-game`, `react19`, `typescript`, `firebase`, `firestore`, `tailwindcss`, `vite`, `playwright`, `game-engine`, `indian-theme`, `web-audio-api`, `pwa`, `responsive-web-design`, `github-pages`
 
@@ -20,20 +20,22 @@
 ## 🌟 Key Highlights
 
 - 🌐 **Live Web Play**: Share the link [https://k-692.github.io/Monopoly-India-Game/](https://k-692.github.io/Monopoly-India-Game/) with friends to play directly from any modern desktop, tablet, or smartphone web browser!
+- 🤺 **2-Player Practice Match Duel**: Fast, responsive 1v1 practice sandbox against *Priya (Mumbai)* with intelligent autonomous AI decision-making (rolling, property evaluation, bail resolution, and turn cycling).
+- 📐 **Maximum Window-Stretched Board**: The board stretches horizontally left-to-right covering the maximum available window width (`1fr` dynamic allocation between sleek compact panels `[210px_1fr_250px]`), utilizing up to 76% of modern widescreen displays.
+- 🗂️ **Compact Left Panel & Click-to-Select Player Info**: Replaced unstable hover popovers with an intentional, ergonomic click-to-select model. Clicking any player card immediately displays their liquid cash, net worth, board position, jail status, and interactive properties portfolio.
+- 🔤 **High-Legibility Places & Prices Typography**: Large, bold fonts for all spaces (`text-[10.5px] sm:text-[12.5px] font-extrabold` for city names; `text-[10px] sm:text-[12px] font-black` for Rupee amounts) with proportional, balanced cell dimensions.
 - 🏰 **20 Unique Indian Metropolitan Cities**: 40 canonical board spaces featuring 20 unique metropolitan economic centres with strictly ascending tier-wise prices (from *Jaipur* at ₹600 to *Mumbai* at ₹4,000), 4 transit gateways (*CST Mumbai*, *Howrah*, *Chennai Central*, *New Delhi*), 4 public utilities (*Bharat Telecom*, *Urja Power Grid*, *Jal Board*, *National Gas Grid*), *GST Checkposts*, and 2 persistent center decks (*Civic Fund* & *Market Buzz*).
 - 🔗 **Frictionless Link-Based Multiplayer**: No Google login or password needed. Anyone with the room link can join instantly by simply entering their chosen player name!
 - 🗂️ **Streamlined Two-Tab Interface**: Clean, uncluttered UI featuring only **Play** and **Settings** tabs. Settings and lobby tabs are naturally scrollable; only the active playboard is strictly non-scrollable.
-- 📐 **Wide Non-Square Adaptive Board**: The board maxes out the available width and height of the central column (`w-full h-full max-h-full mx-auto`) with no square aspect-ratio limitation, giving expansive horizontal space for crystal-clear city names and prices.
 - 💫 **State-Change Glowing & Zoom Effect**: When game state changes (pawns step or land, deeds are bought, cash transfers occur), affected board tiles and player cards activate an animated amber neon glow ring (`scale-105 animate-pulse`) so every player immediately sees live gameplay updates.
-- 🔍 **Space Deed Inspector on Left Panel**: Positioned directly beneath the compact player list in the left panel. Clicking any space opens its complete deed schedule (purchase price, base/house/tower rent tiers, mortgage values, and owner development controls).
-- ⚡ **Streamlined Action Panel & Hover Portfolio**: The right panel focuses cleanly on active turn operations (Roll The Dice, Buy/Decline, Pay Bail, End Turn) and personal finances. Under "My Info", property assets are cleanly hidden from default view and revealed via an interactive hover card on cursor hover.
+- 🔍 **Space Deed Inspector**: Positioned directly beneath player info on the left panel. Clicking any space opens its complete deed schedule (purchase price, base/house/tower rent tiers, mortgage values, and owner development controls).
+- ⚡ **Streamlined Action Panel & Click Portfolio**: The right panel focuses cleanly on active turn operations (Roll The Dice, Buy/Decline, Pay Bail, End Turn) and personal finances with click-to-expand property portfolios.
 - 🎨 **Dynamic Buyer-Color Ownership**: Spaces remain clean and uncolored while unowned. Once purchased by a player, the space dynamically adopts that **player's assigned token color** with an owner badge and building pips.
 - 🚶‍♂️ **Step-by-Step Pawn Walking Animation**: Pawns physically hop tile by tile along the lane at a 140ms cadence with synchronized procedural step audio until reaching their destination space.
 - 🎲 **High-Visibility 3D Tumbling Dice**: High-contrast white dice with solid black pips and 3D tumbling animations, accompanied by a rolled total summary pill.
 - 📜 **Visible Buzz Card Contents**: The two center decks (*Civic Fund* and *Market Buzz*) permanently display their **actual card contents, titles, and amounts** face-up inside the board center with clean English terminology.
 - ⏱️ **Turn Timer on Active Player**: The countdown timer is cleanly integrated directly onto the active player's card in the left panel with pulse warnings under 10s.
 - ⚙️ **Host-Customizable Rules**: The game host can configure starting cash (₹10,000–₹25,000), pass START rewards (₹1,000–₹3,000), turn timer limits, max players (2–6), jail bail amounts, and monopoly rent multipliers before creating the room.
-- 🎯 **Practice Match (Gameplay Sandbox)**: A dedicated practice match on the Play tab to test the exact gameplay features against 3 simulated opponents. Modular and easily removable in future releases.
 
 ---
 
@@ -98,125 +100,111 @@
 
 ```mermaid
 flowchart TD
-    subgraph Client ["Client Presentation Layer (React 19 + Tailwind)"]
-        UI["Two-Tab Shell: Play & Settings"]
-        LeftPanel["Left Panel: Players List + Selected Space Deed Inspector"]
-        Board["Wide Non-Square GameBoard (w-full h-full)"]
-        Center["Center Area: Dice Arena & Persistent Buzz Cards"]
-        RightPanel["Right Panel: Turn Actions + Personal Finances + Hover Portfolio"]
-        Glow["State-Change Glow & Zoom Engine"]
-        Sound["Web Audio Procedural Sound Engine"]
+    subgraph BrowserClient["Universal Browser Client (React 19 + TypeScript)"]
+        UI["Two-Tab Viewport (Play / Settings)"]
+        Canvas["Non-Scrollable Stretched Canvas (210px / 1fr / 250px)"]
+        Board["40-Space Adaptive GameBoard"]
+        PlayerPanel["PlayerStrip (Click-to-Select, Zero Hovering)"]
+        DeedInspector["SpaceDeedInspector"]
+        ActionControls["ActionPanel & Turn Execution"]
+        Audio["Web Audio Procedural Sound Engine"]
+        UI --> Canvas
+        Canvas --> PlayerPanel
+        Canvas --> DeedInspector
+        Canvas --> Board
+        Canvas --> ActionControls
+        Canvas --> Audio
     end
 
-    subgraph Domain ["Pure Domain Logic (TypeScript Engine)"]
-        State["Immutable GameState"]
-        Reducer["applyGameCommand(state, cmd, rules)"]
-        Rules["HostCustomRules (Cash, Timer, Bail, Multipliers)"]
-        Validation["Action Validators (Zod Schemas)"]
+    subgraph StateManagement["Client State Machines (Zustand)"]
+        RoomStore["useRoomStore"]
+        PracticeStore["usePracticeStore (2-Player Duel)"]
+        GameStore["useGameStore"]
+        AuthStore["useAuthStore (Guest Identity)"]
+        SettingsStore["useSettingsStore (Sound / Theme)"]
     end
 
-    subgraph Backend ["Server & Persistence Layer"]
-        Firestore["Cloud Firestore (Real-Time Subscriptions)"]
-        Auth["Anonymous Name-Based Session Storage"]
+    subgraph CoreEngine["Pure Game Engine (Server-Authoritative Invariants)"]
+        ActionValidator["Action Command Dispatcher"]
+        RentCalculator["Rent & Monopoly Multipliers"]
+        PawnWalking["Step-by-Step Hop Animator"]
+        BoardTopology["40-Space Indian Metro Model"]
+        ActionValidator --> RentCalculator
+        ActionValidator --> PawnWalking
+        ActionValidator --> BoardTopology
     end
 
-    UI --> LeftPanel
-    UI --> Board
-    UI --> RightPanel
-    Board --> Center
-    Board --> Glow
-    LeftPanel --> Reducer
-    RightPanel --> Reducer
-    Reducer --> State
-    State --> Glow
-    State --> Sound
-    State --> Firestore
+    subgraph CloudBackend["Firebase Cloud Infrastructure"]
+        Firestore["Cloud Firestore (Real-Time Document Stream)"]
+        SecurityRules["Security Rules & Version Concurrency"]
+        Hosting["GitHub Pages CDN / HashRouter"]
+    end
+
+    BrowserClient --> StateManagement
+    StateManagement --> CoreEngine
+    StateManagement <--> Firestore
+    Firestore --> SecurityRules
 ```
 
 ---
 
-## 🚀 Quick Start & Installation
+## 🚀 Getting Started
 
 ### Prerequisites
-- **Node.js**: v18.0.0 or later (v20+ recommended)
-- **npm**: v9.0.0 or later
+- Node.js 18.0+ or 20.0+
+- npm 9.0+
 
 ### Installation
 
-```bash
-# Clone the repository
-git clone https://github.com/K-692/Monopoly-India-Game.git
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/K-692/Monopoly-India-Game.git
+   cd Monopoly-India-Game
+   ```
 
-# Enter repository root
-cd Monopoly-India-Game
+2. **Install dependencies:**
+   ```bash
+   npm install
+   ```
 
-# Install all dependencies cleanly
-npm install
-```
+3. **Launch the development server:**
+   ```bash
+   npm run dev
+   ```
+   Open your browser to `http://localhost:5173`.
 
-### Running Locally
+### Running Tests
 
-```bash
-# Start local development server with HMR
-npm run dev
-```
-
-Visit `http://localhost:5173` in your browser.
-
-### Quality Verification & Testing
-
-```bash
-# Run static type checking
-npm run typecheck
-
-# Run ESLint code quality checks
-npm run lint
-
-# Run pure domain engine Vitest unit tests
-npm run test
-
-# Run multi-device Playwright E2E tests (27 device configurations)
-npx playwright test
-
-# Build production bundle
-npm run build
-```
+- **Unit and game engine tests:**
+  ```bash
+  npm test
+  ```
+- **End-to-end browser tests (Playwright):**
+  ```bash
+  npx playwright test
+  ```
+- **Production build check:**
+  ```bash
+  npm run build
+  ```
 
 ---
 
-## 🌐 Enabling GitHub Pages (One-Time Setup)
+## 🤝 Contributing
 
-To enable live hosting on GitHub Pages so anyone with the link can play:
+We warmly welcome contributions from developers, designers, and board game enthusiasts worldwide! 
 
-1. Open your GitHub repository in your browser:
-   `https://github.com/K-692/Monopoly-India-Game/settings/pages`
-2. Under **Build and deployment**:
-   - Set **Source** to **GitHub Actions** (recommended) or choose **Deploy from a branch (`gh-pages` / root)**.
-3. Once enabled, the game is accessible worldwide at:
-   **[https://k-692.github.io/Monopoly-India-Game/](https://k-692.github.io/Monopoly-India-Game/)**
+Whether you are improving AI bot strategies, optimizing responsive CSS grid topologies, adding sound effects, or fixing edge cases in monopoly rent rules:
+1. **Fork the repository** on GitHub.
+2. **Create a descriptive feature branch**: `git checkout -b feature/my-new-feature`
+3. **Commit your changes**: `git commit -m "Add innovative new feature"`
+4. **Push to your branch**: `git push origin feature/my-new-feature`
+5. **Open a Pull Request** with a detailed summary of your improvements.
 
----
-
-## 🤝 Welcoming Contributors
-
-We warmly welcome contributions from the community! Whether you want to improve game mechanics, enhance procedural soundscapes, refine responsive mobile layouts, or report issues:
-
-1. **Fork the Repo**: Click the **Fork** button on GitHub.
-2. **Create a Feature Branch**:
-   ```bash
-   git checkout -b feature/amazing-feature
-   ```
-3. **Commit Your Changes**: Follow clear, conventional commit messages.
-4. **Push to Your Branch**:
-   ```bash
-   git push origin feature/amazing-feature
-   ```
-5. **Open a Pull Request**: Submit your PR with a concise description of the feature or bugfix.
-
-Please ensure all tests and type checks pass prior to opening a PR (`npm run typecheck && npm run test && npm run lint`).
+Please ensure all tests pass (`npm test && npm run build`) before opening a PR!
 
 ---
 
 ## 📄 License
 
-Distributed under the **MIT License**. See `LICENSE` for more information.
+This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for complete details.

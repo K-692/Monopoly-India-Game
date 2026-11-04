@@ -192,5 +192,47 @@ describe('Pure Game Engine', () => {
     state.properties[35].ownerUid = 'user_1';
     expect(calculateRent(5, state.properties)).toBe(2000);
   });
+
+  it('cycles turns strictly between 2 players in a 2-player match', () => {
+    let state = createInitialGame('room_1', 'game_1', mockMembers);
+    expect(state.players).toHaveLength(2);
+    expect(state.currentPlayerUid).toBe('user_1');
+
+    // Turn 1: user_1 ends turn -> switches to user_2
+    state.phase = 'TURN_END';
+    state = applyGameCommand(
+      state,
+      {
+        commandId: 'cmd_end_1',
+        roomId: 'room_1',
+        gameId: 'game_1',
+        expectedVersion: 1,
+        type: 'END_TURN',
+        payload: {},
+      },
+      'user_1'
+    ).nextState;
+
+    expect(state.currentPlayerUid).toBe('user_2');
+    expect(state.phase).toBe('AWAIT_ROLL');
+
+    // Turn 2: user_2 ends turn -> cycles back to user_1
+    state.phase = 'TURN_END';
+    state = applyGameCommand(
+      state,
+      {
+        commandId: 'cmd_end_2',
+        roomId: 'room_1',
+        gameId: 'game_1',
+        expectedVersion: state.version,
+        type: 'END_TURN',
+        payload: {},
+      },
+      'user_2'
+    ).nextState;
+
+    expect(state.currentPlayerUid).toBe('user_1');
+    expect(state.phase).toBe('AWAIT_ROLL');
+  });
 });
 

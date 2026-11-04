@@ -99,7 +99,7 @@ export const GamePage: React.FC = () => {
   const winner = gameState.players.find((p) => p.uid === gameState.winnerUid);
 
   return (
-    <div className="h-[calc(100dvh-54px)] max-h-screen overflow-hidden flex flex-col justify-between w-full max-w-[1600px] mx-auto px-2 sm:px-4 py-1.5 gap-1.5 select-none">
+    <div className="h-[calc(100dvh-54px)] max-h-screen overflow-hidden flex flex-col justify-between w-full max-w-none px-2 sm:px-3 py-1 gap-1 select-none">
       {/* Top Game Bar */}
       <div className="flex items-center justify-between pb-1.5 border-b border-indian-parchment-300 dark:border-indian-navy-700 shrink-0">
         <button
@@ -176,12 +176,12 @@ export const GamePage: React.FC = () => {
         </div>
       )}
 
-      {/* Main 3-Column Non-Scrollable Canvas */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-2 sm:gap-3 items-stretch overflow-hidden min-h-0">
-        {/* Left Column: Player Strip & Space Deed Inspector (Moved from right panel) */}
+      {/* Main 3-Column Non-Scrollable Canvas with Stretched Board and Compact Left Panel */}
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-[210px_1fr_250px] xl:grid-cols-[230px_1fr_270px] gap-2 items-stretch overflow-hidden min-h-0">
+        {/* Left Column: Player Strip & Space Deed Inspector */}
         <div
-          className={`lg:flex lg:flex-col lg:col-span-3 h-full overflow-y-auto pr-1 gap-2.5 ${
-            mobileDrawerOpen ? 'flex flex-col' : 'hidden lg:flex'
+          className={`h-full overflow-y-auto pr-1 gap-2 min-w-0 ${
+            mobileDrawerOpen ? 'flex flex-col' : 'hidden lg:flex lg:flex-col'
           }`}
         >
           <PlayerStrip
@@ -194,6 +194,7 @@ export const GamePage: React.FC = () => {
               const p = gameState.players.find((pl) => pl.uid === uid);
               if (p) selectSpace(p.position);
             }}
+            onSelectSpace={selectSpace}
           />
 
           {/* Selected Space Deed Inspector */}
@@ -209,8 +210,8 @@ export const GamePage: React.FC = () => {
           />
         </div>
 
-        {/* Center Column: The 40-Space Board (Maxed out left-to-right, non-square) */}
-        <div className="col-span-1 lg:col-span-6 flex items-center justify-center h-full max-h-full min-h-0 min-w-0 overflow-hidden py-0.5">
+        {/* Center Column: The 40-Space Board (Stretched Left-to-Right Covering Maximum Window) */}
+        <div className="flex items-center justify-center h-full max-h-full min-h-0 min-w-0 overflow-hidden py-0.5">
           <GameBoard
             gameState={gameState}
             selectedSpaceIndex={selectedSpaceIndex}
@@ -223,8 +224,8 @@ export const GamePage: React.FC = () => {
           />
         </div>
 
-        {/* Right Column: Actions, Live Activity & My Info with Hover Portfolio */}
-        <div className="hidden lg:block lg:col-span-3 h-full overflow-y-auto pl-1">
+        {/* Right Column: Actions, Live Activity & My Info with Click Portfolio */}
+        <div className="hidden lg:block h-full overflow-y-auto pl-1 min-w-0">
           <ActionPanel
             gameState={gameState}
             selectedSpaceIndex={selectedSpaceIndex}
