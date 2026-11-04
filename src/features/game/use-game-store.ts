@@ -15,12 +15,13 @@ interface GameStoreState {
   error: string | null;
 
   // Actions
-  initializeDemoGame: (userName?: string) => void;
+  initializeDemoGame: (userName?: string, userUid?: string) => void;
   initializeGameFromRoom: (roomId: string, gameId: string, members: Record<string, RoomMember>) => void;
   setLiveGameState: (state: GameState) => void;
   selectSpace: (index: number | null) => void;
   dispatchAction: (commandType: GameCommand['type'], payload?: Record<string, unknown>) => void;
   sendEmote: (emote: string, senderName: string) => void;
+  tickTurnTimer: () => void;
   dismissError: () => void;
 }
 
@@ -34,10 +35,11 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   isLiveMultiplayer: false,
   error: null,
 
-  initializeDemoGame: (userName = 'You (Maharaja)') => {
+  initializeDemoGame: (userName = 'You (Maharaja)', userUid = 'player_1') => {
+    const activeUid = userUid || 'player_1';
     const demoMembers: Record<string, RoomMember> = {
-      player_1: {
-        uid: 'player_1',
+      [activeUid]: {
+        uid: activeUid,
         displayName: userName,
         photoURL: null,
         isReady: true,
@@ -280,6 +282,32 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         activeEmotes: state.activeEmotes.filter((e) => e.id !== newReaction.id),
       }));
     }, 5000);
+  },
+
+  tickTurnTimer: () => {
+    const { gameState, isRolling, walkingAnimation } = get();
+    if (!gameState || gameState.status === 'COMPLETED' || isRolling || walkingAnimation) return;
+
+    const remaining = (gameState.turnTimeRemaining ?? 30) - 1;
+
+    if (remaining <= 0) {
+      // Auto-action when timer expires
+      if (gameState.phase === 'AWAIT_ROLL') {
+        get().dispatchAction('ROLL_DICE');
+      } else if (gameState.phase === 'PROPERTY_DECISION') {
+        get().dispatchAction('DECLINE_PROPERTY');
+      } else if (gameState.phase === 'MANAGEMENT' || gameState.phase === 'TURN_END') {
+        get().dispatchAction('END_TURN');
+      } else if (gameState.phase === 'JAIL_DECISION') {
+        get().dispatchAction('TRY_DOUBLES');
+      }
+    } else {
+      set((state) => ({
+        gameState: state.gameState
+          ? { ...state.gameState, turnTimeRemaining: remaining }
+          : null,
+      }));
+    }
   },
 
   dismissError: () => set({ error: null }),

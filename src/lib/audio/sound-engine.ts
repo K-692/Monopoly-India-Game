@@ -6,6 +6,8 @@
 
 type SoundType =
   | 'DICE_ROLL'
+  | 'DICE_TICK'
+  | 'DICE_LAND'
   | 'PAWN_STEP'
   | 'BUY_PROPERTY'
   | 'PAY_RENT'
@@ -90,6 +92,12 @@ class SoundEngine {
         case 'DICE_ROLL':
           this.playDiceRoll(ctx);
           break;
+        case 'DICE_TICK':
+          this.playDiceTumbleTick(ctx);
+          break;
+        case 'DICE_LAND':
+          this.playDiceLand(ctx);
+          break;
         case 'PAWN_STEP':
           this.playPawnStep(ctx);
           break;
@@ -147,6 +155,53 @@ class SoundEngine {
       osc.start(t0 + delay);
       osc.stop(t0 + delay + 0.07);
     }
+  }
+
+  /**
+   * Procedural clicking sound for rapid tumbling dice roll
+   */
+  private playDiceTumbleTick(ctx: AudioContext): void {
+    const t0 = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    // High snappy wooden click
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(650 + Math.random() * 450, t0);
+    osc.frequency.exponentialRampToValueAtTime(120, t0 + 0.025);
+
+    gain.gain.setValueAtTime(this.masterVolume * 0.22, t0);
+    gain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.025);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start(t0);
+    osc.stop(t0 + 0.03);
+  }
+
+  /**
+   * Solid dual-thud landing impact when dice roll settles
+   */
+  private playDiceLand(ctx: AudioContext): void {
+    const t0 = ctx.currentTime;
+    [0, 0.04].forEach((offset) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(220, t0 + offset);
+      osc.frequency.exponentialRampToValueAtTime(40, t0 + offset + 0.06);
+
+      gain.gain.setValueAtTime(this.masterVolume * 0.45, t0 + offset);
+      gain.gain.exponentialRampToValueAtTime(0.001, t0 + offset + 0.06);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(t0 + offset);
+      osc.stop(t0 + offset + 0.07);
+    });
   }
 
   private playPawnStep(ctx: AudioContext): void {

@@ -18,7 +18,7 @@
 ---
 
 > **About the Project:**  
-> Indian Monopoly is a modern, high-performance, zero-scroll online multiplayer property trading board game. Built with React 19, TypeScript, Tailwind CSS, and Cloud Firestore, it features 24 premier Indian metropolitan cities (strictly 6 per side), 4 intercity transit hubs with authentic vector illustrations, 12 Civic Fund and 12 Market Buzz canonical rules indexed symmetrically in the center, 3D tumbling dice, pointed comment boxes for buying/building, in-grid city landmarks, authoritative live turn timers on all popups, and strict tournament bankruptcy rules.
+> Indian Monopoly is a modern, high-performance, zero-scroll online multiplayer property trading board game. Built with React 19, TypeScript, Tailwind CSS, and Cloud Firestore, it features 24 premier Indian metropolitan cities (strictly 6 per side) styled in a 24-step color spectrum from Orange to Green based on price, glowing orange non-city grids with crisp high-opacity vector illustrations, an authentic red glowing barred Central Jail, 12 Civic Fund and 12 Market Buzz canonical rules indexed symmetrically in the center with zero scrolling, 3D tumbling dice with dynamic random dots and realistic Web Audio sound effects, pointed comment boxes for buying/building, in-grid city landmarks, authoritative live turn timers on all popups, private room matchmaking with custom rulesets, and strict tournament bankruptcy rules.
 
 ---
 
@@ -29,14 +29,14 @@ The objective of Indian Monopoly is to accumulate wealth, acquire high-yield Ind
 
 ### 2. Turn Sequence
 1. **Roll the Dice**:
-   - The active player rolls two dice featuring 3D tumbling physics and perspective animations.
-   - The combined total is displayed directly beneath the dice arena (e.g. `🎲 Rolled: 8`).
+   - The active player rolls two 3D dice featuring tumbling physics, dynamic random dots during roll, and realistic Web Audio rattling sounds.
+   - Upon landing, the dice settle with a solid impact sound, and the single combined total is displayed directly beneath the dice arena (e.g. `🎲 Rolled: 8`).
    - Rolling doubles gives you an immediate extra turn! (Rolling doubles 3 consecutive times sends you directly to Central Jail).
 2. **Move Around the 40-Space Board**:
-   - Your token advances clockwise across the board.
-   - Passing or landing on **START** awards you a **₹2,000** salary reward from the Reserve Bank.
+   - Your token advances clockwise across the board with smooth 0.5s step-by-step traversal.
+   - Passing or landing on **START** awards you a **₹2,000** salary reward from the Reserve Bank (the START grid tile displays a clean emblem without in-grid price text).
 3. **Resolve Destination Space**:
-   - **Unowned Property**: An in-board pointed callout box appears near your grid space offering to purchase the deed for the listed price.
+   - **Unowned Property**: An in-board pointed callout box appears near your grid space offering to purchase the deed for the listed price. City grids transition to the owner's player color upon purchase.
    - **Owned Property**: Pay the owner the calculated rent. (If the owner is currently incarcerated in Central Jail, **no rent is collected**).
    - **Civic Fund / Market Buzz**: The dice sum rolled determines which numbered rule (#1 to #12) is executed from the dual indexed center panels.
    - **Statutory Taxes**: Pay ₹2,000 at GST Checkpost or ₹1,000 at Infrastructure Wealth Levy.
@@ -46,7 +46,25 @@ The objective of Indian Monopoly is to accumulate wealth, acquire high-yield Ind
 
 ---
 
-### 3. Buying, Building & Development Rules
+### 3. Visual Grid Identity & Color Ramp
+- **City Grids Price Spectrum (Orange to Green)**:
+  - All 24 cities are color-coded in a continuous gradient based on deed purchase price:
+    - **₹600 - ₹800**: Deep Fiery Orange (`#EA580C`, Jaipur & Jodhpur) to Vivid Orange (`#F97316`, Udaipur)
+    - **₹1,000 - ₹1,600**: Tangerine & Amber (`#FB923C`, `#F59E0B`, Agra, Lucknow, Varanasi) to Sun Gold (`#EAB308`, `#FACC15`, Indore, Bhopal, Surat)
+    - **₹1,800 - ₹2,400**: Lime & Chartreuse (`#D9E74C`, `#A3E635`, `#84CC16`, `#65A30D`, Kochi, Goa, Ahmedabad, Pune, Hyderabad)
+    - **₹2,600 - ₹3,200**: Emerald & Forest Green (`#22C55E`, `#16A34A`, `#15803D`, `#166534`, Bengaluru, Chennai, Kolkata, Chandigarh, Gurugram, Noida)
+    - **₹3,500 - ₹4,000**: Deep Emerald to Supreme Green (`#0F5132`, `#064E3B`, `#047857`, Navi Mumbai, New Delhi, Mumbai)
+  - When a player buys a city, the grid border, background tint, and name banner recolor to the player's personal color token.
+- **Non-City Grids**:
+  - Transits, Utilities, Taxes, Cards, and Rest House are styled with a solid crisp white fill, glowing orange border (`border-2 border-orange-500 shadow-[0_0_12px_rgba(249,115,22,0.65)]`), and high-opacity (90%) illustrations.
+- **Central Jail**:
+  - Features an intense glowing red border and black & white vertical steel jail bars overlay with a red `JAIL / Visiting` plaque.
+- **Center Board Arena**:
+  - Non-scrollable Civic Fund and Market Buzz panels display all 12 canonical rules simultaneously with large, bold text, centered symmetrically around the 3D dice.
+
+---
+
+### 4. Buying, Building & Development Rules
 - **Acquiring Cities**:
   - Landing on an unowned city prompts a pointed comment box. You can purchase the property deed or decline.
   - Upon purchase, the grid space is branded with your player token color and displays your ownership badge.
@@ -61,7 +79,7 @@ The objective of Indian Monopoly is to accumulate wealth, acquire high-yield Ind
 
 ---
 
-### 4. Canonical 1..12 Indexed Rule Decks
+### 5. Canonical 1..12 Indexed Rule Decks
 
 #### 🏛️ Civic Fund (12 Community Treasury Rules)
 | No. | Rule Title | Card Instruction |
@@ -97,7 +115,7 @@ The objective of Indian Monopoly is to accumulate wealth, acquire high-yield Ind
 
 ---
 
-### 5. Central Jail Rules & Zero-Rent Invariant
+### 6. Central Jail Rules & Zero-Rent Invariant
 - **Entering Jail**: Landing on "Go To Jail", rolling 3 consecutive doubles, or drawing rule #10 from Civic Fund / #9 from Market Buzz sends you to Central Jail.
 - **Zero Income Incarceration**: While in jail, **you earn ₹0 in rent** from opponents landing on your properties and collect ₹0 from player cash redistributions.
 - **Exiting Jail**:
@@ -107,7 +125,7 @@ The objective of Indian Monopoly is to accumulate wealth, acquire high-yield Ind
 
 ---
 
-### 6. Universal Mortgages & Complete Bankruptcy
+### 7. Universal Mortgages & Complete Bankruptcy
 - **Mortgaging**: Any player can mortgage any of their unimproved properties on their turn to raise liquid capital (mortgage value is 50% of deed price). Mortgaged properties collect ₹0 rent until redeemed for mortgage value + 10% interest.
 - **Complete Bankruptcy & Victory**:
   - A player is declared completely bankrupt when their cash reaches **₹0** and they have **no unmortgaged properties** left to raise funds.

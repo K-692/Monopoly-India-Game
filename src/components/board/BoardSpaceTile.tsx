@@ -4,8 +4,29 @@ import { getSpaceGridCoord } from './board-layout-utils';
 import { ArrowLeft, Zap, Droplets, ShieldAlert, Gift, Flame } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 
+// Smooth color ramp from Orange (lowest deed price ₹600) to Green (highest deed price ₹4,000)
+export const getCityPriceColor = (price: number): string => {
+  if (price <= 600) return '#EA580C'; // Jaipur, Jodhpur (Deep Orange)
+  if (price <= 800) return '#F97316'; // Udaipur (Vivid Orange)
+  if (price <= 1000) return '#FB923C'; // Agra, Lucknow (Tangerine)
+  if (price <= 1200) return '#F59E0B'; // Varanasi (Golden Amber)
+  if (price <= 1400) return '#EAB308'; // Indore, Bhopal (Warm Gold)
+  if (price <= 1600) return '#FACC15'; // Surat (Bright Gold)
+  if (price <= 1800) return '#D9E74C'; // Visakhapatnam, Kochi (Citron)
+  if (price <= 2000) return '#A3E635'; // Goa (Chartreuse Lime)
+  if (price <= 2200) return '#84CC16'; // Ahmedabad, Pune (Bright Lime)
+  if (price <= 2400) return '#65A30D'; // Hyderabad (Olive Green)
+  if (price <= 2600) return '#22C55E'; // Bengaluru, Chennai (Vibrant Emerald)
+  if (price <= 2800) return '#16A34A'; // Kolkata (Medium Green)
+  if (price <= 3000) return '#15803D'; // Chandigarh (Forest Green)
+  if (price <= 3200) return '#166534'; // Gurugram, Noida (Deep Pine)
+  if (price <= 3500) return '#0F5132'; // Navi Mumbai (Dark Emerald)
+  if (price <= 3800) return '#064E3B'; // New Delhi (Royal Forest)
+  return '#047857'; // Mumbai (₹4,000 Supreme Green)
+};
+
 // Realistic, crisp SVG illustrations for Railways and Airports
-const RailwayImage: React.FC<{ className?: string }> = ({ className = 'w-4 h-4 sm:w-5 sm:h-5' }) => (
+const RailwayImage: React.FC<{ className?: string }> = ({ className = 'w-5 h-5 sm:w-6 sm:h-6' }) => (
   <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
     {/* Express Locomotive Engine */}
     <rect x="11" y="7" width="26" height="26" rx="5" fill="#1E3A8A" stroke="#172554" strokeWidth="2" />
@@ -22,7 +43,7 @@ const RailwayImage: React.FC<{ className?: string }> = ({ className = 'w-4 h-4 s
   </svg>
 );
 
-const AirportImage: React.FC<{ className?: string }> = ({ className = 'w-4 h-4 sm:w-5 sm:h-5' }) => (
+const AirportImage: React.FC<{ className?: string }> = ({ className = 'w-5 h-5 sm:w-6 sm:h-6' }) => (
   <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
     {/* Passenger Airliner Plane */}
     <path
@@ -59,12 +80,20 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
 }) => {
   const coord = getSpaceGridCoord(space.spaceIndex);
   const isCorner = coord.orientation === 'corner';
+  const isCity = space.type === 'PROPERTY';
+  const isJail = space.spaceIndex === 10;
+  const isStart = space.spaceIndex === 0;
+  const isNonCity = !isCity && !isJail && !isStart;
 
   // Find owner player
   const owner = propertyState?.ownerUid
     ? allPlayers.find((p) => p.uid === propertyState.ownerUid)
     : null;
   const ownerColor = owner?.colorToken;
+
+  // City price shade
+  const cityPrice = 'price' in space ? (space as { price: number }).price : 0;
+  const priceColor = isCity ? getCityPriceColor(cityPrice) : null;
 
   // Transit illustration check
   const isRailway =
@@ -82,24 +111,32 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
   const nameLength = space.name.length;
   const nameFontSizeClass =
     nameLength > 13
-      ? 'text-[9.5px] sm:text-[10.5px] md:text-[11.5px]'
+      ? 'text-[9px] sm:text-[10px] md:text-[11px]'
       : nameLength > 8
-        ? 'text-[10.5px] sm:text-[11.5px] md:text-[12.5px]'
-        : 'text-[11.5px] sm:text-[12.5px] md:text-[14px]';
+        ? 'text-[10px] sm:text-[11px] md:text-[12px]'
+        : 'text-[11px] sm:text-[12px] md:text-[13.5px]';
 
-  // Tile ownership styling: When owned, color grid with owner's player color
+  // Dynamic Tile Styling:
+  // 1. Jail: Red glowing border + vertical black/white jail bars
+  // 2. Non-city grids: Glowing orange border + crisp white fill
+  // 3. City grids: Tinted with shade from Orange to Green based on price (or owner player color when purchased)
   const tileStyle: React.CSSProperties = {
     gridRow: coord.row,
     gridColumn: coord.col,
     ...(ownerColor
       ? {
           borderColor: ownerColor,
-          backgroundColor: `${ownerColor}18`, // Subtle translucent player color tint
+          backgroundColor: `${ownerColor}24`, // Color grid with player color when bought
         }
-      : {}),
+      : isCity && priceColor
+        ? {
+            borderColor: priceColor,
+            backgroundColor: `${priceColor}12`, // Subtle shade from orange to green based on city price
+          }
+        : {}),
   };
 
-  // Dedicated Player Tokens Row Component (renders player pawn circles cleanly without overlapping texts)
+  // Dedicated Player Tokens Row Component
   const renderPlayerTokens = (className?: string) => {
     if (playersHere.length === 0) return null;
     return (
@@ -118,13 +155,13 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
     );
   };
 
-  // Owner Accent Bar (displayed along the edge facing the board center)
+  // Owner Accent Bar (displayed along top edge of owned property)
   const renderOwnerAccentBar = () => {
     if (!ownerColor) return null;
     return (
       <div
         style={{ backgroundColor: ownerColor }}
-        className="w-full h-1.5 shrink-0 flex items-center justify-center"
+        className="w-full h-2 shrink-0 flex items-center justify-center"
       >
         <span className="text-[7px] sm:text-[7.5px] font-black text-white leading-none tracking-tighter truncate px-1">
           {owner?.displayName.split(' ')[0]}
@@ -138,37 +175,62 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
       onClick={onSelect}
       style={tileStyle}
       className={cn(
-        'relative flex flex-col justify-between border bg-white dark:bg-indian-navy-900 text-indian-navy-950 dark:text-white select-none cursor-pointer transition-all duration-200 overflow-hidden',
-        !ownerColor && 'border-indian-parchment-400',
-        ownerColor && 'border-2',
+        'relative flex flex-col justify-between border select-none cursor-pointer transition-all duration-200 overflow-hidden',
+        // Non-city grids: Glowing Orange colour effect with white filled color
+        isNonCity && 'bg-white dark:bg-white text-indian-navy-950 border-2 border-orange-500 shadow-[0_0_12px_rgba(249,115,22,0.65)] ring-1 ring-orange-400/50',
+        // Jail grid: Glow red with authentic prison styling
+        isJail && 'border-2 border-red-600 shadow-[0_0_18px_rgba(239,68,68,0.85)] ring-2 ring-red-500/50 bg-white dark:bg-zinc-900',
+        // City grid styling
+        isCity && !ownerColor && 'bg-white dark:bg-indian-navy-900 text-indian-navy-950 dark:text-white border-2',
+        isCity && ownerColor && 'border-2',
+        // Corners fallback
+        isStart && 'bg-indian-parchment-100 dark:bg-indian-navy-950 border-indian-parchment-400 text-indian-navy-950 dark:text-white',
         isSelected && 'ring-2 ring-indian-terracotta-500 bg-amber-50 dark:bg-indian-navy-800 z-20',
         isHighlighted && 'ring-4 ring-amber-400 dark:ring-amber-300 scale-105 z-30 shadow-[0_0_20px_rgba(251,191,36,0.9)] animate-pulse',
         propertyState?.isMortgaged && 'opacity-65 bg-gray-100/90 dark:bg-gray-900/80'
       )}
     >
-      {/* Corner Spaces: Compact Extreme Corner styling with dedicated player token slot */}
+      {/* Corner Spaces: START, JAIL, REST HOUSE, GO TO JAIL */}
       {isCorner ? (
-        <div className="relative z-10 w-full h-full flex flex-col items-center justify-between text-center p-1 bg-indian-parchment-100/70 dark:bg-indian-navy-950/70 overflow-hidden select-none">
-          <div className="flex-1 flex flex-col items-center justify-center text-center">
+        <div className="relative z-10 w-full h-full flex flex-col items-center justify-between text-center p-1 overflow-hidden select-none">
+          {/* Jail Black and White Jail Bars Overlay */}
+          {isJail && (
+            <div
+              className="absolute inset-0 pointer-events-none z-0 opacity-45"
+              style={{
+                background: 'repeating-linear-gradient(90deg, #18181b 0px, #18181b 4px, #ffffff 4px, #ffffff 9px)',
+              }}
+            />
+          )}
+
+          <div className="relative z-10 flex-1 flex flex-col items-center justify-center text-center w-full">
+            {/* START Corner: User requirement: Remove Rs 2000 from start grid */}
             {space.spaceIndex === 0 && (
               <div className="flex flex-col items-center justify-center text-indian-terracotta-600 gap-0.5">
                 <span className="font-serif text-xs sm:text-sm md:text-base font-black tracking-wider whitespace-nowrap">START</span>
-                <span className="text-[10px] sm:text-[11px] md:text-xs font-black text-emerald-700 dark:text-emerald-400 whitespace-nowrap">₹2,000</span>
-                <ArrowLeft className="w-3 h-3 text-indian-terracotta-500 animate-pulse-subtle" />
+                <ArrowLeft className="w-3.5 h-3.5 text-indian-terracotta-500 animate-pulse-subtle" />
               </div>
             )}
+
+            {/* JAIL Corner: User requirement: Glow red with black & white jail bars */}
             {space.spaceIndex === 10 && (
-              <div className="text-center">
-                <span className="block text-xs sm:text-sm md:text-base font-black text-red-700 whitespace-nowrap">JAIL</span>
-                <span className="text-[9px] sm:text-[10px] text-gray-500 font-bold whitespace-nowrap">Visiting</span>
+              <div className="px-2 py-0.5 rounded bg-red-700/95 border border-red-400 text-white shadow-md text-center">
+                <span className="block text-xs sm:text-sm md:text-base font-black tracking-wider leading-none text-white drop-shadow">
+                  JAIL
+                </span>
+                <span className="text-[8px] sm:text-[9px] text-amber-200 font-extrabold tracking-tight block mt-0.5 leading-none">
+                  Visiting
+                </span>
               </div>
             )}
+
             {space.spaceIndex === 20 && (
               <div className="text-center text-amber-700">
                 <span className="block text-xs sm:text-sm md:text-base font-black whitespace-nowrap">REST</span>
                 <span className="text-[9px] sm:text-[10px] text-gray-500 font-bold whitespace-nowrap">House</span>
               </div>
             )}
+
             {space.spaceIndex === 30 && (
               <div className="text-center text-red-600">
                 <span className="block text-xs sm:text-sm md:text-base font-black whitespace-nowrap">GO TO</span>
@@ -179,46 +241,57 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
           {renderPlayerTokens('h-6')}
         </div>
       ) : (
-        /* Regular Edge City & Space Tile: Keep ONLY the city name and show player tokens cleanly */
-        <div className="relative w-full h-full flex flex-col justify-between items-center text-center p-0.5 sm:p-1 overflow-hidden select-none">
-          {/* Subtle Vector Icon Motif positioned BEHIND text */}
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 opacity-15 dark:opacity-25 select-none overflow-hidden p-1">
-            {isRailway && <RailwayImage className="w-9 h-9 sm:w-11 sm:h-11" />}
-            {isAirport && <AirportImage className="w-9 h-9 sm:w-11 sm:h-11" />}
-            {!isRailway && !isAirport && space.type === 'UTILITY' && (
-              space.id.includes('power') ? (
-                <Zap className="w-9 h-9 sm:w-11 sm:h-11 text-amber-500" />
-              ) : (
-                <Droplets className="w-9 h-9 sm:w-11 sm:h-11 text-blue-500" />
-              )
-            )}
-            {!isRailway && !isAirport && space.type === 'TAX' && (
-              <ShieldAlert className="w-9 h-9 sm:w-11 sm:h-11 text-red-600" />
-            )}
-            {!isRailway && !isAirport && space.type === 'CARD' && (
-              space.deck === 'CIVIC' ? (
-                <Gift className="w-9 h-9 sm:w-11 sm:h-11 text-amber-600" />
-              ) : (
-                <Flame className="w-9 h-9 sm:w-11 sm:h-11 text-orange-600" />
-              )
-            )}
-          </div>
+        /* Regular Edge City & Non-City Tile */
+        <div className="relative w-full h-full flex flex-col justify-between items-center text-center p-0.5 overflow-hidden select-none">
+          {/* City Top Price Shade Bar (Orange to Green based on lowest to highest city price) */}
+          {isCity && priceColor && !ownerColor && (
+            <div
+              style={{ backgroundColor: priceColor }}
+              className="w-full h-1.5 sm:h-2 shrink-0 shadow-2xs"
+            />
+          )}
 
-          {/* Owner Accent Bar */}
+          {/* Owner Accent Bar when city is bought */}
           {ownerColor && renderOwnerAccentBar()}
 
-          {/* Core Content: Keep ONLY the name of the city, houses/tower, and active player tokens */}
-          <div className="relative z-10 flex-1 flex flex-col justify-center items-center text-center w-full min-h-0 overflow-hidden px-0.5">
-            {/* City / Place Name (Large, Bold, Fully Legible, Never Disappears) */}
+          {/* Core Content Layout */}
+          <div className="relative z-10 flex-1 flex flex-col justify-between items-center text-center w-full min-h-0 overflow-hidden px-0.5 py-0.5">
+            {/* City / Place Name (Large, Bold, Fully Legible) */}
             <span
               title={space.name}
               className={cn(
                 'font-black leading-tight text-center w-full whitespace-nowrap overflow-hidden text-ellipsis tracking-tight px-0.5 text-indian-navy-950 dark:text-white drop-shadow-2xs',
+                isNonCity && 'text-indian-navy-950 font-black',
                 nameFontSizeClass
               )}
             >
               {space.name}
             </span>
+
+            {/* Non-City High-Opacity (Less Transparent) Crisp Vector Illustrations */}
+            {isNonCity && (
+              <div className="my-auto flex items-center justify-center opacity-90 transition-opacity">
+                {isRailway && <RailwayImage className="w-5 h-5 sm:w-6 sm:h-6" />}
+                {isAirport && <AirportImage className="w-5 h-5 sm:w-6 sm:h-6" />}
+                {!isRailway && !isAirport && space.type === 'UTILITY' && (
+                  space.id.includes('power') ? (
+                    <Zap className="w-5 h-5 sm:w-6 sm:h-6 text-amber-500 fill-amber-400" />
+                  ) : (
+                    <Droplets className="w-5 h-5 sm:w-6 sm:h-6 text-blue-500 fill-blue-400" />
+                  )
+                )}
+                {!isRailway && !isAirport && space.type === 'TAX' && (
+                  <ShieldAlert className="w-5 h-5 sm:w-6 sm:h-6 text-red-600 fill-red-100" />
+                )}
+                {!isRailway && !isAirport && space.type === 'CARD' && (
+                  space.deck === 'CIVIC' ? (
+                    <Gift className="w-5 h-5 sm:w-6 sm:h-6 text-amber-600 fill-amber-300" />
+                  ) : (
+                    <Flame className="w-5 h-5 sm:w-6 sm:h-6 text-orange-600 fill-orange-400" />
+                  )
+                )}
+              </div>
+            )}
 
             {/* In-Grid Development: Built Houses (1-4) or Commercial Tower (5) */}
             {propertyState && propertyState.buildings > 0 && (
@@ -247,9 +320,9 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
               </span>
             )}
 
-            {/* Player Tokens landing on this grid: Positioned neatly below city name with zero overflow */}
+            {/* Player Tokens landing on this grid */}
             {playersHere.length > 0 && (
-              <div className="mt-0.5 shrink-0 flex items-center justify-center gap-1">
+              <div className="mt-auto shrink-0 flex items-center justify-center gap-1">
                 {playersHere.map((p) => (
                   <div
                     key={p.uid}

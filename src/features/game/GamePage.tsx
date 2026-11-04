@@ -24,14 +24,24 @@ export const GamePage: React.FC = () => {
     dispatchAction,
     selectSpace,
     dismissError,
+    tickTurnTimer,
   } = useGameStore();
 
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
 
+  // Turn Countdown Timer ticker
+  useEffect(() => {
+    if (!gameState || gameState.status === 'COMPLETED') return;
+    const interval = setInterval(() => {
+      tickTurnTimer();
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [gameState, tickTurnTimer]);
+
   // Initialize demo game
   useEffect(() => {
     if (!gameState) {
-      initializeDemoGame(player?.displayName || 'Player');
+      initializeDemoGame(player?.displayName || 'Player', player?.uid);
     }
   }, [gameState, initializeDemoGame, player]);
 
@@ -57,7 +67,7 @@ export const GamePage: React.FC = () => {
     );
   }
 
-  const isMyTurn = gameState.currentPlayerUid === player?.uid;
+  const isMyTurn = !player ? (gameState.currentPlayerUid === 'player_1') : (gameState.currentPlayerUid === player.uid);
   const winner = gameState.players.find((p) => p.uid === gameState.winnerUid);
 
   return (
@@ -159,7 +169,7 @@ export const GamePage: React.FC = () => {
             onDismissMoneyAck={() => dispatchAction('DISMISS_MONEY_ACK')}
             onDispatch={dispatchAction}
             isMyTurn={isMyTurn && !walkingAnimation}
-            userUid={player?.uid}
+            userUid={player?.uid || 'player_1'}
             lastEvent={events[0]}
             walkingAnimation={walkingAnimation}
           />

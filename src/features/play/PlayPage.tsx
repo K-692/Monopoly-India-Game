@@ -7,7 +7,7 @@ import { HostCustomRules } from '@/domain/ruleset';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import { Dices, KeyRound, Bot, SlidersHorizontal, Sparkles, ArrowRight } from 'lucide-react';
+import { KeyRound, SlidersHorizontal, Sparkles } from 'lucide-react';
 
 export const PlayPage: React.FC = () => {
   const navigate = useNavigate();
@@ -18,15 +18,6 @@ export const PlayPage: React.FC = () => {
   const [joinCodeInput, setJoinCodeInput] = useState('');
   const [isJoining, setIsJoining] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
-
-  // Practice Match Trigger
-  const handleLaunchPractice = () => {
-    if (!player) {
-      openNamePrompt('/practice');
-      return;
-    }
-    navigate('/practice');
-  };
 
   // Host Create Room with Custom Rules
   const handleOpenCreateModal = () => {
@@ -106,44 +97,7 @@ export const PlayPage: React.FC = () => {
         </div>
       )}
 
-      {/* FEATURED: PRACTICE MATCH (SANDBOX TESTER) */}
-      <Card className="p-5 sm:p-6 mb-8 border-2 border-indian-gold-500 bg-gradient-to-r from-amber-500/10 via-amber-50/60 to-white dark:from-indian-navy-800 dark:to-indian-navy-900 shadow-md relative overflow-hidden">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div className="max-w-xl">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="p-1 rounded-md bg-amber-500 text-white shadow-xs">
-                <Bot className="w-4 h-4" />
-              </span>
-              <span className="text-xs font-extrabold uppercase tracking-widest text-amber-900 dark:text-amber-400">
-                Gameplay Feature Testing
-              </span>
-              <span className="text-[10px] bg-amber-200 text-amber-900 font-bold px-2 py-0.5 rounded-full">
-                Practice Match
-              </span>
-            </div>
-
-            <h3 className="font-serif font-bold text-lg sm:text-xl text-indian-navy-900 dark:text-white mb-1">
-              Launch Solo Practice Match
-            </h3>
-            <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
-              Test all gameplay features on the non-scrollable board: in-board dice rolling, turn timers, Civic & Market buzz cards, property building, and trading with simulated tycoons.
-            </p>
-          </div>
-
-          <Button
-            size="lg"
-            variant="primary"
-            onClick={handleLaunchPractice}
-            className="w-full md:w-auto font-bold px-6 py-3 shadow-md flex items-center justify-center gap-2 bg-gradient-to-r from-indian-gold-600 to-indian-terracotta-500 hover:from-indian-gold-700 hover:to-indian-terracotta-600 shrink-0 text-sm"
-          >
-            <Dices className="w-4 h-4" />
-            <span>Launch Practice Match</span>
-            <ArrowRight className="w-4 h-4" />
-          </Button>
-        </div>
-      </Card>
-
-      {/* MULTIPLAYER ROOMS: HOST & JOIN */}
+      {/* MULTIPLAYER PRIVATE ROOMS: HOST & JOIN */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
         {/* Create Room Card */}
         <Card className="p-5 flex flex-col justify-between border-indian-parchment-300">

@@ -8,6 +8,7 @@ import { getSpaceGridCoord } from './board-layout-utils';
 import { canBuildOnProperty } from '@/domain/ruleset';
 import { TurnStepAcknowledgment } from '@/components/feedback/TurnStepAcknowledgment';
 import { PopupTurnTimer } from '@/components/feedback/PopupTurnTimer';
+import { sound } from '@/lib/audio/sound-engine';
 import { Dices, X, Gift, Flame, Check, ArrowRight, KeyRound } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 
@@ -43,23 +44,37 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   const activePlayer = gameState.players.find((p) => p.uid === gameState.currentPlayerUid);
   const [inspectedCard, setInspectedCard] = useState<CardAction | null>(null);
 
-  // Dynamic rapid tumbling dice faces during roll animation
+  // Dynamic rapid tumbling dice faces & random dots during roll animation
   const [displayDice, setDisplayDice] = useState<[number, number]>([
     gameState.dice?.first ?? 3,
     gameState.dice?.second ?? 4,
   ]);
+  const [rollingPips, setRollingPips] = useState<[number[], number[]]>([[], []]);
 
   useEffect(() => {
     if (isRolling) {
       const interval = setInterval(() => {
+        // Generate random dots on 3x3 grid (positions 0 to 8)
+        const getRandomPips = () => {
+          const count = Math.floor(Math.random() * 5) + 2; // 2 to 6 random dots
+          const positions = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+          return positions.sort(() => 0.5 - Math.random()).slice(0, count);
+        };
+        setRollingPips([getRandomPips(), getRandomPips()]);
         setDisplayDice([
           Math.floor(Math.random() * 6) + 1,
           Math.floor(Math.random() * 6) + 1,
         ]);
-      }, 70);
+        sound.play('DICE_TICK');
+      }, 55);
       return () => clearInterval(interval);
-    } else if (gameState.dice) {
-      setDisplayDice([gameState.dice.first, gameState.dice.second]);
+    } else {
+      if (gameState.dice) {
+        setDisplayDice([gameState.dice.first, gameState.dice.second]);
+      }
+      setRollingPips([[], []]);
+      // Play solid landing impact when dice roll settles
+      sound.play('DICE_LAND');
     }
   }, [isRolling, gameState.dice]);
 
@@ -95,8 +110,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({
       ).allowed
     );
 
-  // Dice dot positions (1 to 6)
-  const renderDiceFace = (val: number) => {
+  // Dice dot positions (1 to 6) or dynamic random dots coming while rolling
+  const renderDiceFace = (val: number, dieIndex: 0 | 1) => {
     const safeVal = val >= 1 && val <= 6 ? val : 3;
     const dots: Record<number, number[]> = {
       1: [4],
@@ -106,14 +121,27 @@ export const GameBoard: React.FC<GameBoardProps> = ({
       5: [0, 2, 4, 6, 8],
       6: [0, 2, 3, 5, 6, 8],
     };
-    const activeDots = dots[safeVal] || [4];
+    // If rolling, display dynamic random dots coming on this die
+    const activeDots = isRolling && rollingPips[dieIndex].length > 0
+      ? rollingPips[dieIndex]
+      : (dots[safeVal] || [4]);
 
     return (
-      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white border-2 border-gray-950 rounded-xl shadow-lg grid grid-cols-3 grid-rows-3 p-1 sm:p-1.5 gap-0.5">
+      <div
+        className={cn(
+          'w-10 h-10 sm:w-12 sm:h-12 bg-white border-2 border-gray-950 rounded-xl shadow-lg grid grid-cols-3 grid-rows-3 p-1 sm:p-1.5 gap-0.5 transition-all duration-75',
+          isRolling && 'shadow-[0_0_16px_rgba(234,88,12,0.7)] scale-105'
+        )}
+      >
         {Array.from({ length: 9 }).map((_, i) => (
           <div key={i} className="flex items-center justify-center">
             {activeDots.includes(i) && (
-              <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-black shadow-xs" />
+              <div
+                className={cn(
+                  'w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full shadow-xs transition-colors duration-75',
+                  isRolling ? 'bg-indian-terracotta-600 animate-pulse' : 'bg-black'
+                )}
+              />
             )}
           </div>
         ))}
@@ -181,23 +209,23 @@ export const GameBoard: React.FC<GameBoardProps> = ({
           </div>
 
           {/* Middle Row: Civic Fund Indexed List, 3D Dice Rolling Arena, and Market Buzz Indexed List */}
-          <div className="w-full flex-1 flex items-center justify-between gap-2 sm:gap-4 my-auto z-10 px-1 sm:px-2 min-h-0 overflow-hidden">
-            {/* Panel 1: Civic Fund (12 Community Treasury Rules Indexed 1..12) */}
-            <div className="w-[36%] max-w-[270px] min-w-[190px] h-full max-h-[290px] sm:max-h-[330px] rounded-xl bg-gradient-to-br from-indian-terracotta-800 via-amber-950 to-stone-900 text-white p-1.5 sm:p-2 border-2 border-amber-400/70 shadow-xl flex flex-col justify-between overflow-hidden shrink-0">
-              <div className="flex items-center justify-between border-b border-amber-300/40 pb-1 shrink-0">
+          <div className="w-full flex-1 flex items-stretch justify-between gap-1.5 sm:gap-3 my-auto z-10 px-1 sm:px-2 min-h-0 overflow-hidden">
+            {/* Panel 1: Civic Fund (All 12 Community Treasury Rules Indexed 1..12 — Non-scrollable) */}
+            <div className="w-[37%] max-w-[280px] min-w-[180px] h-full rounded-xl bg-gradient-to-br from-indian-terracotta-800 via-amber-950 to-stone-900 text-white p-1.5 border-2 border-amber-400/80 shadow-xl flex flex-col justify-between overflow-hidden shrink-0">
+              <div className="flex items-center justify-between border-b border-amber-300/40 pb-0.5 shrink-0">
                 <div className="flex items-center gap-1.5">
-                  <Gift className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-300" />
-                  <span className="font-serif font-black text-[9px] sm:text-[11px] md:text-xs tracking-wide text-amber-100 uppercase">
+                  <Gift className="w-3.5 h-3.5 text-amber-300" />
+                  <span className="font-serif font-black text-[10px] sm:text-[11px] md:text-[12.5px] tracking-wide text-amber-100 uppercase">
                     CIVIC FUND
                   </span>
                 </div>
-                <span className="text-[7.5px] sm:text-[8.5px] font-black text-amber-300 bg-amber-900/80 px-1.5 py-0.5 rounded border border-amber-400/40 shadow-2xs">
+                <span className="text-[7.5px] sm:text-[8.5px] font-black text-amber-300 bg-amber-900/80 px-1.5 py-0.2 rounded border border-amber-400/40 shadow-2xs">
                   12 Rules
                 </span>
               </div>
 
-              {/* Indexed List 1..12 */}
-              <div className="flex-1 overflow-y-auto space-y-1 my-1 pr-0.5 select-none custom-scrollbar min-h-0">
+              {/* All 12 Rules Listed Simultaneously (No Scrollbar, Increased Font Size) */}
+              <div className="flex-1 flex flex-col justify-between py-0.5 select-none overflow-hidden min-h-0">
                 {CIVIC_FUND_CARDS.map((card, idx) => {
                   const ruleNum = idx + 1;
                   const isApplied =
@@ -209,47 +237,40 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                       onClick={() => setInspectedCard(card)}
                       title={`Rule #${ruleNum}: ${card.title} - ${card.description}`}
                       className={cn(
-                        'flex items-start gap-1.5 p-1 rounded-lg cursor-pointer transition-all text-left',
+                        'flex items-center justify-between gap-1 px-1 py-0.2 rounded cursor-pointer transition-all text-left leading-tight',
                         isApplied
-                          ? 'bg-amber-400 text-indian-navy-950 ring-2 ring-white font-bold scale-[1.02] shadow-sm animate-pulse'
-                          : 'hover:bg-white/15 text-amber-100/95'
+                          ? 'bg-amber-400 text-indian-navy-950 ring-2 ring-white font-black scale-[1.02] shadow-sm animate-pulse'
+                          : 'hover:bg-white/20 text-white'
                       )}
                     >
-                      <span
-                        className={cn(
-                          'shrink-0 w-4 h-4 rounded-full flex items-center justify-center text-[8px] sm:text-[9px] font-black leading-none mt-0.5',
-                          isApplied ? 'bg-indian-navy-950 text-white' : 'bg-white/25 text-white'
-                        )}
-                      >
-                        {ruleNum}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-1 leading-tight">
-                          <span className="font-black truncate text-[8px] sm:text-[9px] md:text-[9.5px]">
-                            {card.title}
-                          </span>
-                          {card.amount && (
-                            <span className="shrink-0 text-[7.5px] sm:text-[8.5px] font-black text-amber-300">
-                              ₹{card.amount}
-                            </span>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span
+                          className={cn(
+                            'shrink-0 w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full flex items-center justify-center text-[8px] sm:text-[9px] font-black leading-none',
+                            isApplied ? 'bg-indian-navy-950 text-white' : 'bg-white/25 text-white'
                           )}
-                        </div>
-                        <p className="text-[7px] sm:text-[8px] text-white/85 truncate leading-none mt-0.5">
-                          {card.description}
-                        </p>
+                        >
+                          {ruleNum}
+                        </span>
+                        <span className="font-bold truncate text-[9.5px] sm:text-[10.5px] md:text-[11.5px] leading-tight">
+                          {card.title}
+                        </span>
                       </div>
+                      <span className="shrink-0 text-[8.5px] sm:text-[9.5px] md:text-[10px] font-black text-amber-300 ml-1">
+                        {card.amount ? `₹${card.amount}` : (ruleNum === 9 ? 'Jail Pass' : (ruleNum === 10 ? 'To Jail' : ''))}
+                      </span>
                     </div>
                   );
                 })}
               </div>
 
-              <div className="text-[7px] sm:text-[8px] text-amber-200/90 font-black tracking-wider text-center border-t border-amber-300/30 pt-1 shrink-0 uppercase">
+              <div className="text-[7px] sm:text-[8px] text-amber-200/90 font-black tracking-wider text-center border-t border-amber-300/30 pt-0.5 shrink-0 uppercase">
                 COMMUNITY TREASURY
               </div>
             </div>
 
-            {/* In-Board Dice Roll Arena: Bold, Highly Visible 3D Dice & Turn Action Button at Center */}
-            <div className="flex flex-col items-center justify-center gap-1.5 sm:gap-2 z-20 shrink-0 px-1 [perspective:1000px]">
+            {/* In-Board Dice Roll Arena: Symmetrically Centered 3D Dice & Controls */}
+            <div className="flex-1 flex flex-col items-center justify-center gap-1.5 sm:gap-2 z-20 shrink-0 px-1 [perspective:1000px]">
               {/* Interactive 3D Tumbling Dice with Authentic Perspective Roll Effect */}
               <div
                 onClick={isMyTurn && gameState.phase === 'AWAIT_ROLL' && !isRolling && !walkingAnimation ? onRollDice : undefined}
@@ -261,10 +282,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                 )}
               >
                 <div className={cn('transition-transform duration-200 [transform-style:preserve-3d]', isRolling && 'animate-dice-roll-1')}>
-                  {renderDiceFace(displayDice[0])}
+                  {renderDiceFace(displayDice[0], 0)}
                 </div>
                 <div className={cn('transition-transform duration-200 [transform-style:preserve-3d]', isRolling && 'animate-dice-roll-2')}>
-                  {renderDiceFace(displayDice[1])}
+                  {renderDiceFace(displayDice[1], 1)}
                 </div>
               </div>
 
@@ -329,22 +350,22 @@ export const GameBoard: React.FC<GameBoardProps> = ({
               )}
             </div>
 
-            {/* Panel 2: Market Buzz (12 Fortune & Chance Rules Indexed 1..12) */}
-            <div className="w-[36%] max-w-[270px] min-w-[190px] h-full max-h-[290px] sm:max-h-[330px] rounded-xl bg-gradient-to-br from-teal-900 via-emerald-950 to-stone-900 text-white p-1.5 sm:p-2 border-2 border-emerald-400/70 shadow-xl flex flex-col justify-between overflow-hidden shrink-0">
-              <div className="flex items-center justify-between border-b border-emerald-300/40 pb-1 shrink-0">
+            {/* Panel 2: Market Buzz (All 12 Fortune & Chance Rules Indexed 1..12 — Non-scrollable) */}
+            <div className="w-[37%] max-w-[280px] min-w-[180px] h-full rounded-xl bg-gradient-to-br from-teal-900 via-emerald-950 to-stone-900 text-white p-1.5 border-2 border-emerald-400/80 shadow-xl flex flex-col justify-between overflow-hidden shrink-0">
+              <div className="flex items-center justify-between border-b border-emerald-300/40 pb-0.5 shrink-0">
                 <div className="flex items-center gap-1.5">
-                  <Flame className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-300" />
-                  <span className="font-serif font-black text-[9px] sm:text-[11px] md:text-xs tracking-wide text-emerald-100 uppercase">
+                  <Flame className="w-3.5 h-3.5 text-emerald-300" />
+                  <span className="font-serif font-black text-[10px] sm:text-[11px] md:text-[12.5px] tracking-wide text-emerald-100 uppercase">
                     MARKET BUZZ
                   </span>
                 </div>
-                <span className="text-[7.5px] sm:text-[8.5px] font-black text-emerald-300 bg-emerald-900/80 px-1.5 py-0.5 rounded border border-emerald-400/40 shadow-2xs">
+                <span className="text-[7.5px] sm:text-[8.5px] font-black text-emerald-300 bg-emerald-900/80 px-1.5 py-0.2 rounded border border-emerald-400/40 shadow-2xs">
                   12 Rules
                 </span>
               </div>
 
-              {/* Indexed List 1..12 */}
-              <div className="flex-1 overflow-y-auto space-y-1 my-1 pr-0.5 select-none custom-scrollbar min-h-0">
+              {/* All 12 Rules Listed Simultaneously (No Scrollbar, Increased Font Size) */}
+              <div className="flex-1 flex flex-col justify-between py-0.5 select-none overflow-hidden min-h-0">
                 {MARKET_BUZZ_CARDS.map((card, idx) => {
                   const ruleNum = idx + 1;
                   const isApplied =
@@ -356,41 +377,34 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                       onClick={() => setInspectedCard(card)}
                       title={`Rule #${ruleNum}: ${card.title} - ${card.description}`}
                       className={cn(
-                        'flex items-start gap-1.5 p-1 rounded-lg cursor-pointer transition-all text-left',
+                        'flex items-center justify-between gap-1 px-1 py-0.2 rounded cursor-pointer transition-all text-left leading-tight',
                         isApplied
-                          ? 'bg-emerald-400 text-indian-navy-950 ring-2 ring-white font-bold scale-[1.02] shadow-sm animate-pulse'
-                          : 'hover:bg-white/15 text-emerald-100/95'
+                          ? 'bg-emerald-400 text-indian-navy-950 ring-2 ring-white font-black scale-[1.02] shadow-sm animate-pulse'
+                          : 'hover:bg-white/20 text-white'
                       )}
                     >
-                      <span
-                        className={cn(
-                          'shrink-0 w-4 h-4 rounded-full flex items-center justify-center text-[8px] sm:text-[9px] font-black leading-none mt-0.5',
-                          isApplied ? 'bg-indian-navy-950 text-white' : 'bg-white/25 text-white'
-                        )}
-                      >
-                        {ruleNum}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-1 leading-tight">
-                          <span className="font-black truncate text-[8px] sm:text-[9px] md:text-[9.5px]">
-                            {card.title}
-                          </span>
-                          {card.amount && (
-                            <span className="shrink-0 text-[7.5px] sm:text-[8.5px] font-black text-emerald-300">
-                              ₹{card.amount}
-                            </span>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span
+                          className={cn(
+                            'shrink-0 w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full flex items-center justify-center text-[8px] sm:text-[9px] font-black leading-none',
+                            isApplied ? 'bg-indian-navy-950 text-white' : 'bg-white/25 text-white'
                           )}
-                        </div>
-                        <p className="text-[7px] sm:text-[8px] text-white/85 truncate leading-none mt-0.5">
-                          {card.description}
-                        </p>
+                        >
+                          {ruleNum}
+                        </span>
+                        <span className="font-bold truncate text-[9.5px] sm:text-[10.5px] md:text-[11.5px] leading-tight">
+                          {card.title}
+                        </span>
                       </div>
+                      <span className="shrink-0 text-[8.5px] sm:text-[9.5px] md:text-[10px] font-black text-emerald-300 ml-1">
+                        {card.amount ? `₹${card.amount}` : (ruleNum === 5 ? '-3 Spaces' : (ruleNum === 9 ? 'To Jail' : (ruleNum === 2 ? 'To Start' : (ruleNum === 3 ? 'To CP' : (ruleNum === 12 ? 'To Marine' : '')))))}
+                      </span>
                     </div>
                   );
                 })}
               </div>
 
-              <div className="text-[7px] sm:text-[8px] text-teal-200/90 font-black tracking-wider text-center border-t border-emerald-300/30 pt-1 shrink-0 uppercase">
+              <div className="text-[7px] sm:text-[8px] text-teal-200/90 font-black tracking-wider text-center border-t border-emerald-300/30 pt-0.5 shrink-0 uppercase">
                 FORTUNE & CHANCE
               </div>
             </div>

@@ -37,7 +37,7 @@ The property trading paradigm is mapped onto the contemporary Indian urban-econo
   - Airports: Chennai Airport (#25) and IGI Airport (#35) equipped with dedicated in-grid passenger jetliner illustrations.
 - **2 National Public Utilities**: Urja Power Grid (#17) and Jal Board Grid (#28).
 - **2 Taxation Checkposts**: GST Tax (#8) and Infra Levy (#37).
-- **4 Corner Anchors**: START (#0, collect ₹2,000), Central Jail / Just Visiting (#10), Rest House (#20, Free Parking), and Go to Jail (#30).
+- **4 Corner Anchors**: START (#0, clean name & directional arrow without in-grid price text), Central Jail / Just Visiting (#10, red glow & black/white jail bars), Rest House (#20, Free Parking), and Go to Jail (#30).
 - **Total Board Invariant**:
   $$\text{Total Spaces} = 24 \text{ (Cities)} + 4 \text{ (Transit)} + 2 \text{ (Civic)} + 2 \text{ (Market)} + 2 \text{ (Utilities)} + 2 \text{ (Taxes)} + 4 \text{ (Corners)} = 40$$
 
@@ -170,11 +170,45 @@ The card engine manages two authoritative 12-rule indexed decks:
   - `inspectedCard` (Rule inspection dialogs).
 - Features live countdown seconds (`30s`), active player token avatar, and pulse warnings when $t \le 10\text{s}$.
 
-### 2.14 3D Rolling Dice Arena & Single Combined Result Indicator
+### 2.14 3D Rolling Dice Arena with Dynamic Random Dots & Web Audio Sound Engine
 - Two 3D dice cubes feature individual rotation, perspective skew, and pitch keyframe animations (`animate-dice-roll-1`, `animate-dice-roll-2`).
+- **Dynamic Random Dots During Roll**: While rolling (`isRolling = true`), both cubes rapidly cycle random active dot configurations (2 to 6 dots across the $3\times3$ grid positions) and perspective shifts every 55ms, simulating fast tumbling motion blur with procedural wooden rattle clicking sounds (`DICE_TICK`).
+- **Clean Settled Landing Impact**: Upon roll completion, the dice cubes snap instantly into their authoritative rolled states (`dice.first`, `dice.second`) in solid black, accompanied by a solid dual-thud landing impact sound (`DICE_LAND`).
 - Outcome badge underneath presents strictly the single combined total (`🎲 Rolled: {first + second}`), removing breakdown noise.
 
-### 2.15 Scrollable Official Rulebook Tab & Distraction-Free Header
+### 2.15 Jail Space Barred Cell & Glowing Red Prison Plaque
+- The Central Jail corner grid (Space #10) features an authentic prison visual aesthetic:
+  - **Glowing Red Outer Frame**: `border-2 border-red-600 shadow-[0_0_18px_rgba(239,68,68,0.85)] ring-2 ring-red-500/50`.
+  - **Black & White Vertical Jail Bars**: CSS repeating linear gradient (`repeating-linear-gradient(90deg, #18181b 0px, #18181b 4px, #ffffff 4px, #ffffff 9px)`) spanning the entire background.
+  - **Centered Plaque**: High-contrast red badge (`bg-red-700/95 border border-red-400 text-white`) with prominent `JAIL` and `Visiting` text.
+
+### 2.16 Non-City Grids: Glowing Orange Frame, Solid White Fill & High-Opacity Vector Motifs
+- All non-city grid spaces (Transits #5, #15, #25, #35; Utilities #17, #28; Taxes #8, #37; Cards #2, #12, #22, #32; Rest House #20):
+  - **Solid White Fill**: High-contrast, clean white backdrop (`bg-white text-indian-navy-950`).
+  - **Glowing Orange Accent**: `border-2 border-orange-500 shadow-[0_0_12px_rgba(249,115,22,0.65)] ring-1 ring-orange-400/50`.
+  - **High-Opacity Crisp Vector Icons**: Increased illustration opacity from 15% to 90% (`opacity-90`), rendering locomotives, airplanes, lightning bolts, water droplets, and event icons in rich, vivid detail without text overlap.
+
+### 2.17 24-Step Continuous City Price Spectrum (Orange to Green)
+- The 24 metropolitan city properties feature a mathematically continuous color ramp mapped directly to property deed value:
+  - **Lowest Value (₹600 - ₹800)**: Deep Orange (`#EA580C`, Jaipur & Jodhpur) to Vivid Orange (`#F97316`, Udaipur).
+  - **Moderate Value (₹1,000 - ₹1,600)**: Tangerine/Amber (`#FB923C`, `#F59E0B`, Agra, Lucknow, Varanasi) to Warm Gold (`#EAB308`, `#FACC15`, Indore, Bhopal, Surat).
+  - **Mid-Tier Metropolitan (₹1,800 - ₹2,400)**: Lime/Citron (`#D9E74C`, `#A3E635`, `#84CC16`, `#65A30D`, Kochi, Goa, Ahmedabad, Pune, Hyderabad).
+  - **High-Value Tech Hubs (₹2,600 - ₹3,200)**: Vibrant Emerald to Forest Green (`#22C55E`, `#16A34A`, `#15803D`, `#166534`, Bengaluru, Chennai, Kolkata, Chandigarh, Gurugram, Noida).
+  - **Premier Tier (₹3,500 - ₹4,000)**: Dark Emerald to Supreme Green (`#0F5132`, `#064E3B`, `#047857`, Navi Mumbai, New Delhi, Mumbai).
+- Unowned city grids display a top colored header bar and border corresponding to their price shade.
+- Upon purchase, the grid dynamically adopts the owner's player color token and branding banner.
+
+### 2.18 Non-Scrollable Symmetrical Center Arena with All 12 Rules in Enlarged Font
+- Both the **Civic Fund** and **Market Buzz** center panels have been engineered to fit all 12 indexed canonical rules simultaneously with **zero scrollbars** (`overflow-hidden`).
+- Positioned symmetrically on opposite sides of the central 3D dice arena.
+- Increased rule title typography to `text-[10px] sm:text-[11px] md:text-[12.5px] font-black` for effortless legibility across all screen sizes.
+- Symmetrical flex alignment guarantees perfect center balance.
+
+### 2.19 Unification into Online Multiplayer Private Rooms
+- Streamlined the game hub by focusing on **Host Multiplayer Room** (custom rulesets, turn timer, starting capital) and **Join with Room Code**.
+- Retired the isolated single-player sandbox practice route, standardizing all state synchronization, 0.5s pawn traversal, and bankruptcy checking across online private rooms (`/room/:roomId` and `/game/:gameId`).
+
+### 2.20 Scrollable Official Rulebook Tab & Distraction-Free Header
 - A dedicated **Rules** tab (`/rules`) is accessible from the main navigation between **Play** and **Settings**.
 - Built with a full-viewport, smooth-scrolling container (`h-full w-full overflow-y-auto custom-scrollbar`) providing seamless navigation across all 4 rule categories (Core Flow, 12 Civic Fund rules, 12 Market Buzz rules, Bankruptcy & Jail).
 - Removed the black/white theme toggle button from the header, standardizing the aesthetic around the warm Indian parchment palette.

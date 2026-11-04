@@ -4,7 +4,6 @@ import { App } from './App';
 import { PlayPage } from '@/features/play/PlayPage';
 import { LobbyPage } from '@/features/rooms/LobbyPage';
 import { GamePage } from '@/features/game/GamePage';
-import { PracticeMatchPage } from '@/features/practice/PracticeMatchPage';
 import { RulesPage } from '@/features/rules/RulesPage';
 import { SettingsPage } from '@/features/settings/SettingsPage';
 
@@ -20,8 +19,8 @@ export const AppRouter: React.FC = () => {
           {/* Official Game Rules */}
           <Route path="rules" element={<RulesPage />} />
 
-          {/* Practice Match Sandbox (modular, easy to remove later) */}
-          <Route path="practice" element={<PracticeMatchPage />} />
+          {/* Practice Match route redirected to main play */}
+          <Route path="practice" element={<Navigate to="/" replace />} />
 
           {/* Multiplayer Room Routes */}
           <Route path="room/:roomId" element={<LobbyPage />} />
