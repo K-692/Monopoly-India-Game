@@ -90,8 +90,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({
       <div
         className="w-full h-full grid gap-[1px] bg-indian-parchment-400 rounded-lg overflow-hidden"
         style={{
-          gridTemplateColumns: '1.25fr repeat(9, 1fr) 1.25fr',
-          gridTemplateRows: '1.45fr repeat(9, 1fr) 1.45fr',
+          gridTemplateColumns: '1.15fr repeat(9, 1fr) 1.15fr',
+          gridTemplateRows: '1.1fr repeat(9, 1fr) 1.1fr',
         }}
       >
         {BOARD_SPACES.map((space) => {

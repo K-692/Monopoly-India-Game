@@ -7,31 +7,39 @@ This document chronicles the design, formal state transitions, mathematical mode
 
 ## 1. Project Genesis & Domain Specification
 
-### 1.1 Canonical 40-Space Topology: 28 Cities (7 Per Side), 2 Civic Fund, 2 Market Buzz, 4 Transit Gateways, 4 Corners
+### 1.1 Canonical 40-Space Topology: 24 Cities (Strictly 6 Per Side), 4 Transit Gateways (2 Railways & 2 Airports), 2 Civic Fund, 2 Market Buzz, 2 Utilities, 2 Taxes, 4 Corners
 The property trading paradigm is mapped onto the contemporary Indian urban-economic landscape. The board features an exact 40-space clockwise topology with **zero Hindi text**, featuring:
-- **28 Purchasable City Properties (Strictly 7 Cities on Each Side)**: 100% authentic Indian metropolitan centres grouped into 8 color bands with strictly ascending tier-wise pricing across the 4 sides:
+- **24 Purchasable City Properties (Strictly 6 Cities on Each Side)**: 100% authentic Indian metropolitan centres grouped into 8 color bands (3 cities per band) with strictly ascending tier-wise pricing across the 4 sides:
   - **Bottom Side (Spaces 0 to 10)**:
-    - 7 Cities: Jaipur (₹600, Brown), Jodhpur (₹600, Brown), Udaipur (₹800, Brown), Agra (₹1,000, Light Blue), Lucknow (₹1,000, Light Blue), Amritsar (₹1,200, Light Blue), Varanasi (₹1,200, Light Blue).
+    - 6 Cities: Jaipur (₹600, Brown), Jodhpur (₹600, Brown), Udaipur (₹800, Brown), Agra (₹1,000, Light Blue), Lucknow (₹1,000, Light Blue), Varanasi (₹1,200, Light Blue).
     - 1 Civic Fund space (Space 2).
-    - 1 Transit Gateway: CST Mumbai (Space 5).
+    - 1 Transit Gateway: CST Mumbai (Space 5, Railway).
+    - 1 Tax Checkpost: GST Tax (Space 8).
   - **Left Side (Spaces 10 to 20)**:
-    - 7 Cities: Indore (₹1,400, Pink), Bhopal (₹1,400, Pink), Surat (₹1,600, Pink), Nagpur (₹1,600, Pink), Visakhapatnam (₹1,800, Orange), Kochi (₹1,800, Orange), Goa (₹2,000, Orange).
+    - 6 Cities: Indore (₹1,400, Pink), Bhopal (₹1,400, Pink), Surat (₹1,600, Pink), Visakhapatnam (₹1,800, Orange), Kochi (₹1,800, Orange), Goa (₹2,000, Orange).
     - 1 Market Buzz space (Space 12).
-    - 1 Transit Gateway: Howrah Junction (Space 15).
+    - 1 Transit Gateway: Howrah Railway (Space 15, Railway).
+    - 1 Utility Grid: Urja Power Grid (Space 17).
   - **Top Side (Spaces 20 to 30)**:
-    - 7 Cities: Ahmedabad (₹2,200, Red), Pune (₹2,200, Red), Hyderabad (₹2,400, Red), Coimbatore (₹2,600, Yellow), Bengaluru (₹2,600, Yellow), Chennai (₹2,600, Yellow), Kolkata (₹2,800, Yellow).
+    - 6 Cities: Ahmedabad (₹2,200, Red), Pune (₹2,200, Red), Hyderabad (₹2,400, Red), Bengaluru (₹2,600, Yellow), Chennai (₹2,600, Yellow), Kolkata (₹2,800, Yellow).
     - 1 Civic Fund space (Space 22).
-    - 1 Transit Gateway: Chennai Central (Space 25).
+    - 1 Transit Gateway: Chennai Airport (Space 25, Airport).
+    - 1 Utility Grid: Jal Board Grid (Space 28).
   - **Right Side (Spaces 30 to 40/0)**:
-    - 7 Cities: Chandigarh (₹3,000, Green), Gurugram (₹3,200, Green), Noida (₹3,000, Green), Dehradun (₹3,200, Green), Navi Mumbai (₹3,500, Dark Blue), New Delhi (₹3,800, Dark Blue), Mumbai (₹4,000, Dark Blue).
+    - 6 Cities: Chandigarh (₹3,000, Green), Gurugram (₹3,200, Green), Noida (₹3,200, Green), Navi Mumbai (₹3,500, Dark Blue), New Delhi (₹3,800, Dark Blue), Mumbai (₹4,000, Dark Blue).
     - 1 Market Buzz space (Space 32).
-    - 1 Transit Gateway: New Delhi Terminal (Space 35).
-- **Exact 2 Civic Fund Deck Spaces**: Spaces 2 and 22 (Community Treasury events), distributed across opposite sides.
-- **Exact 2 Market Buzz Deck Spaces**: Spaces 12 and 32 (Fortune & Chance events), distributed across opposite sides.
-- **4 Intercity Transit Gateways**: CST Mumbai (#5), Howrah Junction (#15), Chennai Central (#25), New Delhi Terminal (#35).
+    - 1 Transit Gateway: IGI Airport (Space 35, Airport).
+    - 1 Tax Checkpost: Infra Levy (Space 37).
+- **Exact 2 Civic Fund Deck Spaces**: Spaces 2 and 22 (Community Treasury events), distributed symmetrically across opposite sides.
+- **Exact 2 Market Buzz Deck Spaces**: Spaces 12 and 32 (Fortune & Chance events), distributed symmetrically across opposite sides.
+- **4 Intercity Transit Gateways (2 Railways & 2 Airports)**: 
+  - Railways: CST Mumbai (#5) and Howrah Railway (#15) equipped with dedicated in-grid express locomotive illustrations.
+  - Airports: Chennai Airport (#25) and IGI Airport (#35) equipped with dedicated in-grid passenger jetliner illustrations.
+- **2 National Public Utilities**: Urja Power Grid (#17) and Jal Board Grid (#28).
+- **2 Taxation Checkposts**: GST Tax (#8) and Infra Levy (#37).
 - **4 Corner Anchors**: START (#0, collect ₹2,000), Central Jail / Just Visiting (#10), Rest House (#20, Free Parking), and Go to Jail (#30).
 - **Total Board Invariant**:
-  $$\text{Total Spaces} = 28 \text{ (Cities)} + 2 \text{ (Civic)} + 2 \text{ (Market)} + 4 \text{ (Transit)} + 4 \text{ (Corners)} = 40$$
+  $$\text{Total Spaces} = 24 \text{ (Cities)} + 4 \text{ (Transit)} + 2 \text{ (Civic)} + 2 \text{ (Market)} + 2 \text{ (Utilities)} + 2 \text{ (Taxes)} + 4 \text{ (Corners)} = 40$$
 
 ### 1.2 Mathematical Formulations & Rule Invariants
 - **Discrete Currency Resolution**: All transactions are discrete integer values in Indian Rupees ($\mathbb{Z}^+$). Fractional money (paise) is strictly disallowed:
@@ -41,30 +49,37 @@ The property trading paradigm is mapped onto the contemporary Indian urban-econo
   Direct incarceration movement to Jail ($p = 10$) bypasses index 0 and explicitly yields 0 reward.
 - **Rent Multiplier Formalism**:
   - Unimproved property rent: Base rent $R_0$.
-  - Monopolized group (all properties of color set $C$ owned by single entity, no buildings): $2 \times R_0$.
+  - Monopolized group (all 3 properties of color set $C$ owned by single entity, no buildings): $2 \times R_0$.
   - Developed tiers (1 to 4 blocks): $R_1, R_2, R_3, R_4$.
   - Commercial Skyscraper Tower tier: $R_5$.
   - Transit spaces owned ($k \in \{1, 2, 3, 4\}$):
     $$\text{Rent}_{\text{transit}}(k) = 250 \times 2^{k-1}$$
+  - Utility rent scaling: $4 \times (\text{dice}_1 + \text{dice}_2)$ for 1 utility owned; $10 \times (\text{dice}_1 + \text{dice}_2)$ for both utilities owned.
 
 ---
 
 ## 2. Information Architecture, Board Geometry & Visual Hierarchy
 
-### 2.1 Compact Extreme Corners (`1.25fr × 1.45fr`) & Two-Line City Grids
-To provide maximum space for city names and prices on top and bottom:
+### 2.1 Compact Extreme Corners, Asymmetrical Grid & Two-Line Decreased Typography
+To maximize cell readability and eliminate word wrapping:
 - **Grid Proportions**:
-  $$\text{grid-template-columns: } 1.25\text{fr repeat}(9, 1\text{fr}) 1.25\text{fr}$$
-  $$\text{grid-template-rows: } 1.45\text{fr repeat}(9, 1\text{fr}) 1.45\text{fr}$$
+  $$\text{grid-template-columns: } 1.15\text{fr repeat}(9, 1\text{fr}) 1.15\text{fr}$$
+  $$\text{grid-template-rows: } 1.1\text{fr repeat}(9, 1\text{fr}) 1.1\text{fr}$$
 - **Corner Compression & Extreme Placement**:
-  - The four corner spaces (Rest House at #20, Jail at #10, START at #0, and Go To Jail at #30) are contained in compact boxes at the extreme four corners ($1.25\text{fr} \times 1.45\text{fr}$, occupying only ~10.8% of board width).
-  - This liberates **78.3% of the total board width** exclusively for the 9 city columns along the top and bottom lanes.
-  - Each top and bottom city grid gains a generous **~84px–92px width** by **~80px–88px height** (nearly square dimensions), providing ample room to elaborate names and prices.
-- **Two-Line City Grid Architecture**:
-  - All city grids are formatted strictly across **two distinct lines**:
-    - **Line 1 (Top)**: City / Place Name (`text-[11px] sm:text-[12px] md:text-[12.5px] font-extrabold whitespace-nowrap overflow-hidden text-ellipsis`).
-    - **Line 2 (Bottom)**: Price / Fine Amount (`text-[10px] sm:text-[11px] md:text-[11.5px] font-black text-emerald-700 dark:text-emerald-400`).
-  - City names never wrap or hyphenate, and prices enjoy prominent vertical clearance.
+  - The four corner spaces (Rest House at #20, Jail at #10, START at #0, and Go To Jail at #30) are contained in compact boxes at the extreme four corners ($1.15\text{fr} \times 1.1\text{fr}$).
+  - This liberates maximum area exclusively for the 9 inner columns along top and bottom lanes, and the 9 inner rows along left and right lanes.
+- **Two-Line Grid Architecture**:
+  - Every city and edge grid is formatted strictly across **two distinct lines**:
+    - **Line 1 (Top)**: City / Place Name.
+    - **Line 2 (Bottom)**: Price / Rupee Amount or Card Category.
+- **Decreased Adaptive Typography**:
+  - String-length-based dynamic font scaling prevents awkward mid-word breaking or truncation:
+    $$\text{Font Size} = \begin{cases} \text{text-[7px] sm:text-[7.5px] md:text-[8px]} & \text{if } \text{length} > 12 \\ \text{text-[7.5px] sm:text-[8px] md:text-[8.5px]} & \text{if } \text{length} > 8 \\ \text{text-[8.5px] sm:text-[9px] md:text-[9.5px]} & \text{otherwise} \end{cases}$$
+  - Prices render in crisp `text-[8px] sm:text-[8.5px] md:text-[9px] font-black`.
+  - Every place name (e.g., "Visakhapatnam", "Chennai Airport", "Jal Board Grid", "Ahmedabad") fits on a single line without wrapping.
+- **In-Grid Railway & Airport Vector Illustrations**:
+  - Express locomotive engine with headlights and railway track ties on CST Mumbai (#5) and Howrah Railway (#15).
+  - High-altitude passenger jetliner airliner on Chennai Airport (#25) and IGI Airport (#35).
 - **Non-Obscuring Corner Player Tokens**:
   - Player tokens sit as compact floating badges in the tile corners, keeping the two centered lines (Name & Price) 100% visible and unblocked at all times.
 
@@ -77,7 +92,7 @@ To provide maximum space for city names and prices on top and bottom:
   - Stretched board spanning 100% of available viewport width and height.
   - Center area houses face-up Civic Fund and Market Buzz cards and 3D tumbling dice arena.
 - **Right Column (`250px` / `xl:270px`)**:
-  - Action panel and "My Info" section with compact property chips (`max-h-24 overflow-hidden`), completely eliminating vertical scrolling.
+  - Action panel and "My Info" section with compact property chips, completely eliminating vertical scrolling.
 
 ### 2.3 2-Player Practice Match State Machine Formalism
 The Practice Match sandbox is configured strictly as a **2-Player Head-to-Head Duel**:
@@ -85,8 +100,7 @@ The Practice Match sandbox is configured strictly as a **2-Player Head-to-Head D
 - **Turn Transition Cycle**:
   $$\text{Turn}_{k+1} = \begin{cases} \text{player\_ai\_1} & \text{if } \text{Turn}_k = \text{player\_human} \\ \text{player\_human} & \text{if } \text{Turn}_k = \text{player\_ai\_1} \end{cases}$$
 - **Direct Destination Arrival**:
-  - When rolling the dice, pawns do not step through intermediate spaces on the board.
-  - On roll resolution, the pawn lands directly at the destination space:
+  - When rolling the dice, pawns land directly at the destination space:
     $$P_{\text{final}} = (P_{\text{start}} + \text{dice}_1 + \text{dice}_2) \pmod{40}$$
   - UI focus immediately updates to the destination deed in `SpaceDeedInspector`.
 

@@ -11,7 +11,7 @@
 
 > **Live Game URL:** [https://k-692.github.io/Monopoly-India-Game/](https://k-692.github.io/Monopoly-India-Game/)
 >
-> **Repository Description:** A fast, responsive, zero-scroll Indian-themed multiplayer property trading board game built with React 19, TypeScript, Tailwind CSS, and Cloud Firestore. Features 28 authentic Indian metropolitan cities (strictly 7 per side), 2 Civic Fund spaces, 2 Market Buzz spaces, 4 intercity transit gateways, decreased center area with enlarged perimeter cells, single-line non-wrapping city typography (`whitespace-nowrap`), non-obscuring corner pawn tokens, frictionless link-based room joining, direct final destination presentation without walkover flicker, compact left player panel with click-to-select inspection (zero hover dependencies), in-board animated 3D dice, persistent center buzz cards, host-configurable rule engines, turn countdown timers, zero-latency Web Audio sound synthesis, and a 2-player practice match duel sandbox.
+> **Repository Description:** A fast, responsive, zero-scroll Indian-themed multiplayer property trading board game built with React 19, TypeScript, Tailwind CSS, and Cloud Firestore. Features 24 authentic Indian metropolitan cities (strictly 6 per side), 4 intercity transit gateways (2 Railways & 2 Airports with in-grid vector illustrations), 2 Civic Fund spaces, 2 Market Buzz spaces, 2 national utilities, 2 taxes, compact extreme corners, two-line non-wrapping city typography with adaptive font sizing, non-obscuring floating corner pawn tokens, frictionless link-based room joining, direct destination arrival, compact left player panel with click-to-select inspection (zero hover dependencies), in-board animated 3D dice, persistent center buzz cards, host-configurable rule engines, turn countdown timers, zero-latency Web Audio sound synthesis, and a 2-player practice match duel sandbox.
 >
 > **GitHub Repository Topics:** `monopoly`, `board-game`, `multiplayer-game`, `react19`, `typescript`, `firebase`, `firestore`, `tailwindcss`, `vite`, `playwright`, `game-engine`, `indian-theme`, `web-audio-api`, `pwa`, `responsive-web-design`, `zero-scroll`, `github-pages`
 
@@ -21,15 +21,18 @@
 
 - 🌐 **Live Web Play**: Share the link [https://k-692.github.io/Monopoly-India-Game/](https://k-692.github.io/Monopoly-India-Game/) with friends to play directly from any modern desktop, tablet, or smartphone web browser!
 - 🚫 **Zero-Scroll Game Tab Guarantee**: The entire game tab is strictly non-scrollable (`h-[calc(100dvh-54px)] overflow-hidden`). No board scroll, no left panel scroll, no right panel scroll, and no inner container scrollbars.
-- 📐 **Compact Extreme Corners & Spacious City Grids**: Asymmetrical grid geometry (`1.25fr repeat(9, 1fr) 1.25fr` and `1.45fr repeat(9, 1fr) 1.45fr`) places Rest House, Jail, START, and Go To Jail in compact boxes at the extreme four corners, liberating **78.3% of the board width** for the top and bottom city lanes (~84px–92px wide each).
-- 🔤 **Two-Line City Grid Architecture**: Every city grid is cleanly formatted across exactly **two distinct lines**:
-  - **First Line**: City / Place Name (`text-[11px] sm:text-[12px] md:text-[12.5px] font-extrabold whitespace-nowrap overflow-hidden text-ellipsis`).
-  - **Second Line**: Price / Fine Amount (`text-[10px] sm:text-[11px] md:text-[11.5px] font-black text-emerald-700 dark:text-emerald-400`).
-- 🏙️ **28 Authentic Indian Cities (7 Cities on Each Side)**:
-  - **Bottom Side**: Jaipur, Jodhpur, Udaipur, Agra, Lucknow, Amritsar, Varanasi (7 cities) + 1 Civic Fund + 1 Transit (CST Mumbai).
-  - **Left Side**: Indore, Bhopal, Surat, Nagpur, Visakhapatnam, Kochi, Goa (7 cities) + 1 Market Buzz + 1 Transit (Howrah Junction).
-  - **Top Side**: Ahmedabad, Pune, Hyderabad, Coimbatore, Bengaluru, Chennai, Kolkata (7 cities) + 1 Civic Fund + 1 Transit (Chennai Central).
-  - **Right Side**: Chandigarh, Gurugram, Noida, Dehradun, Navi Mumbai, New Delhi, Mumbai (7 cities) + 1 Market Buzz + 1 Transit (New Delhi Terminal).
+- 📐 **Compact Extreme Corners & Spacious Perimeter Cells**: Asymmetrical grid geometry (`1.15fr repeat(9, 1fr) 1.15fr` and `1.1fr repeat(9, 1fr) 1.1fr`) places Rest House, Jail, START, and Go To Jail in compact boxes at the extreme four corners, providing generous square dimensions for perimeter city cells.
+- 🔤 **Two-Line Non-Wrapping Typography**: Every city and transit grid is formatted strictly across **two distinct lines**:
+  - **Line 1 (Top)**: City / Place Name with dynamic length-based font scaling (`text-[7px]` to `text-[9.5px]`), guaranteeing **zero text wrap and zero truncation**.
+  - **Line 2 (Bottom)**: Price / Fine Amount in bold emerald or crimson (`text-[8px]` to `text-[9px] font-black`).
+- 🚂 ✈️ **In-Grid Railway & Airport Vector Illustrations**:
+  - **Railways**: CST Mumbai (#5) and Howrah Railway (#15) feature crisp, vector express locomotive engine illustrations with headlights and track ties.
+  - **Airports**: Chennai Airport (#25) and IGI Airport (#35) feature streamlined high-altitude passenger jetliner airliner illustrations.
+- 🏙️ **24 Authentic Indian Cities (Strictly 6 Cities on Each Side)**:
+  - **Bottom Side**: Jaipur, Jodhpur, Udaipur, Agra, Lucknow, Varanasi (6 cities) + 1 Civic Fund + 1 Railway (CST Mumbai) + 1 Tax (GST Tax).
+  - **Left Side**: Indore, Bhopal, Surat, Visakhapatnam, Kochi, Goa (6 cities) + 1 Market Buzz + 1 Railway (Howrah Railway) + 1 Utility (Urja Power Grid).
+  - **Top Side**: Ahmedabad, Pune, Hyderabad, Bengaluru, Chennai, Kolkata (6 cities) + 1 Civic Fund + 1 Airport (Chennai Airport) + 1 Utility (Jal Board Grid).
+  - **Right Side**: Chandigarh, Gurugram, Noida, Navi Mumbai, New Delhi, Mumbai (6 cities) + 1 Market Buzz + 1 Airport (IGI Airport) + 1 Tax (Infra Levy).
 - 🎁 **2 Civic Fund & 2 Market Buzz Placements**: Symmetrically balanced on opposite sides of the board (Civic Fund on Spaces 2 & 22, Market Buzz on Spaces 12 & 32).
 - ♟️ **Non-Obscuring Corner Pawn Tokens**: Player tokens sit as compact floating badges in the tile corners, ensuring player pawns never obscure or block city names or Rupee prices.
 - 🎯 **Direct Destination Arrival & Final City Presentation**: When dice roll, pawns land directly at the destination tile rather than displaying confusing intermediate walkover steps. The final city is immediately highlighted and selected in the deed inspector.
@@ -48,13 +51,13 @@
 
 ---
 
-## 🎲 40-Space Canonical Board Topology (7 Cities Per Side)
+## 🎲 40-Space Canonical Board Topology (6 Cities Per Side)
 
 ```
 +--------------------------------------------------------------------------------------------------------------------+
-| REST      | AHMEDABAD | CIVIC     | PUNE      | HYDERABAD | CHENNAI   | COIMBA-   | BENGALURU | CHENNAI   | KOLKATA   | GO TO     |
-| HOUSE     | (₹2,200)  | FUND      | (₹2,200)  | (₹2,400)  | CENTRAL   | TORE      | (₹2,600)  | (₹2,600)  | (₹2,800)  | JAIL      |
-| (20)      | (21)      | (22)      | (23)      | (24)      | (25)      | (26)      | (27)      | (28)      | (29)      | (30)      |
+| REST      | AHMEDABAD | CIVIC     | PUNE      | HYDERABAD | CHENNAI   | BENGALURU | CHENNAI   | JAL BOARD | KOLKATA   | GO TO     |
+| HOUSE     | (₹2,200)  | FUND      | (₹2,200)  | (₹2,400)  | AIRPORT   | (₹2,600)  | (₹2,600)  | GRID      | (₹2,800)  | JAIL      |
+| (20)      | (21)      | (22)      | (23)      | (24)      | [✈️] (25)  | (26)      | (27)      | (28)      | (29)      | (30)      |
 +-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+
 | GOA (19)  |                                                                                                           | CHANDI-   |
 | ₹2,000    |                                                                                                           | GARH (31) |
@@ -63,25 +66,25 @@
 | (18)      |                                  Real-Time Universal Multiplayer Web App                                  | MARKET    |
 | ₹1,800    |                                                                                                           | BUZZ (32) |
 |-----------+                                                                                                           +-----------|
-| VISAKHA-  |                                                                                                           | GURUGRAM  |
-| PATNAM(17)|                                                                                                           | (33)      |
+| URJA      |                                                                                                           | GURUGRAM  |
+| POWER(17) |                                                                                                           | (33)      |
+| ₹1,500    |                                                                                                           | ₹3,200    |
+|-----------+                                                                                                           +-----------|
+| VISAKHA-  |                                                                                                           | NOIDA     |
+| PATNAM(16)|                                                                                                           | (34)      |
 | ₹1,800    |                                                                                                           | ₹3,200    |
 |-----------+                                                                                                           +-----------|
-| NAGPUR    |                                                                                                           | NOIDA     |
-| (16)      |                                                                                                           | (34)      |
-| ₹1,600    |                                                                                                           | ₹3,000    |
+| HOWRAH    |                                                                                                           | IGI       |
+| RAILWAY   |                                                                                                           | AIRPORT   |
+| [🚂] (15) |                                                                                                           | [✈️] (35)  |
 |-----------+                                                                                                           +-----------|
-| HOWRAH    |                                                                                                           | NEW DELHI |
-| JUNCTION  |                                                                                                           | TERMINAL  |
-| (15)      |                                                                                                           | (35)      |
+| SURAT     |                                                                                                           | NAVI      |
+| (14)      |                                                                                                           | MUMBAI(36)|
+| ₹1,600    |                                                                                                           | ₹3,500    |
 |-----------+                                                                                                           +-----------|
-| SURAT     |                                                                                                           | DEHRADUN  |
-| (14)      |                                                                                                           | (36)      |
-| ₹1,600    |                                                                                                           | ₹3,200    |
-|-----------+                                                                                                           +-----------|
-| BHOPAL    |                                                                                                           | NAVI      |
-| (13)      |                                                                                                           | MUMBAI(37)|
-| ₹1,400    |                                                                                                           | ₹3,500    |
+| BHOPAL    |                                                                                                           | INFRA     |
+| (13)      |                                                                                                           | LEVY (37) |
+| ₹1,400    |                                                                                                           | ₹1,000    |
 |-----------+                                                                                                           +-----------|
 | MARKET    |                                                                                                           | NEW DELHI |
 | BUZZ (12) |                                                                                                           | (38)      |
@@ -91,9 +94,9 @@
 | (11)      |                                                                                                           | (39)      |
 | ₹1,400    |                                                                                                           | ₹4,000    |
 +-----------+-----------------------------------------------------------------------------------------------------------+-----------+
-| JAIL /    | VARANASI  | AMRITSAR  | LUCKNOW   | AGRA      | CST       | UDAIPUR   | JODHPUR   | CIVIC     | JAIPUR    | START     |
+| JAIL /    | VARANASI  | GST TAX   | LUCKNOW   | AGRA      | CST       | UDAIPUR   | JODHPUR   | CIVIC     | JAIPUR    | START     |
 | VISITING  | (9)       | (8)       | (7)       | (6)       | MUMBAI(5) | (4)       | (3)       | FUND (2)  | (1)       | (0)       |
-| (10)      | ₹1,200    | ₹1,200    | ₹1,000    | ₹1,000    | ₹2,000    | ₹800      | ₹600      |           | ₹600      | Collect   |
+| (10)      | ₹1,200    | ₹2,000    | ₹1,000    | ₹1,000    | [🚂]₹2,000| ₹800      | ₹600      | Treasury  | ₹600      | Collect   |
 |           |           |           |           |           |           |           |           |           |           | ₹2,000    |
 +-----------------------------------------------------------------------------------------------------------------------------------+
 ```
@@ -107,7 +110,7 @@ flowchart TD
     subgraph BrowserClient["Universal Browser Client (React 19 + TypeScript)"]
         UI["Two-Tab Viewport (Play / Settings)"]
         Canvas["Zero-Scroll Stretched Canvas (210px / 1fr / 250px)"]
-        Board["40-Space Adaptive GameBoard (3.4fr / 1fr / 3.4fr)"]
+        Board["40-Space Adaptive GameBoard (1.15fr / 1fr / 1.15fr)"]
         PlayerPanel["PlayerStrip (Click-to-Select, Zero Hovering)"]
         DeedInspector["SpaceDeedInspector (2-Column Rent Grid)"]
         ActionControls["ActionPanel & Turn Execution"]
@@ -132,7 +135,7 @@ flowchart TD
         ActionValidator["Action Command Dispatcher"]
         RentCalculator["Rent & Monopoly Multipliers"]
         DirectDestination["Authoritative Final City Arrival"]
-        BoardTopology["28-City 40-Space Indian Metro Model"]
+        BoardTopology["24-City 40-Space Indian Metro Model (6 Per Side)"]
         ActionValidator --> RentCalculator
         ActionValidator --> DirectDestination
         ActionValidator --> BoardTopology
