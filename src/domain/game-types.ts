@@ -240,7 +240,7 @@ export interface GameState {
     turnTimerSeconds: number;
     maxPlayers: number;
     jailBail: number;
-    doubleRentMonopoly: boolean;
+    doubleRentMonopoly?: boolean;
     allowAuctions: boolean;
     gameMode: string;
   };
@@ -337,7 +337,7 @@ export interface RoomState {
     turnTimerSeconds: number;
     maxPlayers: number;
     jailBail: number;
-    doubleRentMonopoly: boolean;
+    doubleRentMonopoly?: boolean;
     allowAuctions: boolean;
     gameMode: string;
   };

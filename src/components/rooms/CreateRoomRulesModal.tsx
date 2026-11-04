@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { HostCustomRules, DEFAULT_HOST_RULES } from '@/domain/ruleset';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { X, Sliders, Check } from 'lucide-react';
+import { X, Sliders } from 'lucide-react';
 
 interface CreateRoomRulesModalProps {
   isOpen: boolean;
@@ -166,29 +166,6 @@ export const CreateRoomRulesModal: React.FC<CreateRoomRulesModalProps> = ({
                 </button>
               ))}
             </div>
-          </div>
-
-          {/* Double Rent Monopoly Toggle */}
-          <div className="flex items-center justify-between p-3 rounded-lg bg-indian-parchment-100 dark:bg-indian-navy-800 border border-indian-parchment-300">
-            <div>
-              <span className="font-bold text-indian-navy-900 dark:text-white block">
-                Double Rent for Monopolies
-              </span>
-              <span className="text-[10px] text-gray-500">
-                2x base rent on undeveloped properties when whole color set is owned
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setRules({ ...rules, doubleRentMonopoly: !rules.doubleRentMonopoly })}
-              className={`w-6 h-6 rounded flex items-center justify-center border ${
-                rules.doubleRentMonopoly
-                  ? 'bg-indian-terracotta-500 text-white border-indian-terracotta-600'
-                  : 'bg-white border-gray-400'
-              }`}
-            >
-              {rules.doubleRentMonopoly && <Check className="w-4 h-4" />}
-            </button>
           </div>
 
           <div className="pt-2 flex gap-2">

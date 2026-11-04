@@ -213,6 +213,10 @@ The card engine manages two authoritative 12-rule indexed decks:
 - Built with a full-viewport, smooth-scrolling container (`h-full w-full overflow-y-auto custom-scrollbar`) providing seamless navigation across all 4 rule categories (Core Flow, 12 Civic Fund rules, 12 Market Buzz rules, Bankruptcy & Jail).
 - Removed the black/white theme toggle button from the header, standardizing the aesthetic around the warm Indian parchment palette.
 
+### 2.21 Retirement of Color-Set Monopoly Double Rent
+- With the transition of metropolitan cities from legacy color groupings to an individual price spectrum from Orange to Green based on property deed value (₹600 to ₹4,000), color-set monopoly grouping was retired.
+- Base rent calculation on undeveloped properties no longer doubles based on color-group sets; rent on unimproved deeds is the listed base rent ($p.\text{baseRent}$), while development progression is driven by residential blocks (1-4 houses) and commercial skyscraper towers.
+
 ---
 
 ## 3. Production Deployment & Verification

@@ -13,7 +13,7 @@ export interface HostCustomRules {
   turnTimerSeconds: number; // 15, 30, 45, 60, 90
   maxPlayers: number; // 2..6
   jailBail: number;
-  doubleRentMonopoly: boolean;
+  doubleRentMonopoly?: boolean;
   allowAuctions: boolean;
   gameMode: 'STANDARD' | 'TIMED_45' | 'TIMED_60';
 }
@@ -24,7 +24,6 @@ export const DEFAULT_HOST_RULES: HostCustomRules = {
   turnTimerSeconds: 30,
   maxPlayers: 4,
   jailBail: 500,
-  doubleRentMonopoly: true,
   allowAuctions: true,
   gameMode: 'STANDARD',
 };
@@ -68,7 +67,7 @@ export function calculateRent(
   spaceIndex: number,
   properties: Record<number, PropertyState>,
   diceTotal: number = 7,
-  rules: HostCustomRules = DEFAULT_HOST_RULES,
+  _rules: HostCustomRules = DEFAULT_HOST_RULES,
   isOwnerInJail: boolean = false
 ): number {
   // User Rule: If the player is in jail, he/she should not earn any money from other players
@@ -95,10 +94,7 @@ export function calculateRent(
     if (propState.buildings === 2) return p.rentHouse2;
     if (propState.buildings === 1) return p.rentHouse1;
 
-    // Unimproved: double rent if whole group owned and host rule enabled
-    if (rules.doubleRentMonopoly && hasFullColorGroup(p.group, ownerUid, properties)) {
-      return p.baseRent * 2;
-    }
+    // Unimproved property rent
     return p.baseRent;
   }
 

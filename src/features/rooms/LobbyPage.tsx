@@ -40,7 +40,6 @@ export const LobbyPage: React.FC = () => {
       turnTimerSeconds: 30,
       maxPlayers: 4,
       jailBail: 500,
-      doubleRentMonopoly: true,
       allowAuctions: true,
       gameMode: 'STANDARD',
     },
