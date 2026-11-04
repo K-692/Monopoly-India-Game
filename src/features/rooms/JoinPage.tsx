@@ -29,7 +29,6 @@ export const JoinPage: React.FC = () => {
   useEffect(() => {
     if (!cleanCode || !player || isJoining || joinAttemptedRef.current) return;
 
-    let isMounted = true;
     joinAttemptedRef.current = true;
 
     const performJoin = async () => {
@@ -44,8 +43,6 @@ export const JoinPage: React.FC = () => {
           photoURL: null,
         });
 
-        if (!isMounted) return;
-
         if (result.ok && result.roomId) {
           navigate(`/room/${result.roomId}`, { replace: true });
         } else {
@@ -53,20 +50,15 @@ export const JoinPage: React.FC = () => {
           joinAttemptedRef.current = false;
         }
       } catch (err: unknown) {
-        if (!isMounted) return;
         const msg = err instanceof Error ? err.message : 'Error joining room.';
         setJoinFailedError(msg);
         joinAttemptedRef.current = false;
       } finally {
-        if (isMounted) setIsJoining(false);
+        setIsJoining(false);
       }
     };
 
     performJoin();
-
-    return () => {
-      isMounted = false;
-    };
   }, [cleanCode, player, isJoining, joinRoom, navigate, setError]);
 
   if (!cleanCode) {

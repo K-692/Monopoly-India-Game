@@ -46,22 +46,18 @@ export const GamePage: React.FC = () => {
   useEffect(() => {
     // 1. Practice Mode
     if (!gameId || gameId === 'sandbox' || gameId === 'demo_game') {
-      if (!gameState || gameState.gameId !== 'demo_game') {
-        initializeDemoGame(player?.displayName || 'Player', player?.uid);
-      }
+      initializeDemoGame(player?.displayName || 'Player', player?.uid);
       return;
     }
 
     // 2. Multiplayer Match: requires real room members
     if (currentRoom && currentRoom.members && Object.keys(currentRoom.members).length >= 1) {
-      if (!gameState || gameState.gameId !== gameId) {
-        initializeGameFromRoom(
-          currentRoom.roomId,
-          gameId,
-          currentRoom.members,
-          currentRoom.customRules
-        );
-      }
+      return initializeGameFromRoom(
+        currentRoom.roomId,
+        gameId,
+        currentRoom.members,
+        currentRoom.customRules
+      );
     } else if (!currentRoom) {
       // Rehydrate room from gameId if user refreshed or arrived directly
       const derivedRoomId = 'room_' + gameId.replace('game_', '');
@@ -70,15 +66,8 @@ export const GamePage: React.FC = () => {
         unsubscribe();
       };
     }
-  }, [
-    gameId,
-    currentRoom,
-    gameState,
-    initializeDemoGame,
-    initializeGameFromRoom,
-    subscribeToRoom,
-    player,
-  ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameId, currentRoom?.roomId]);
 
   // Trigger celebration on victory
   useEffect(() => {

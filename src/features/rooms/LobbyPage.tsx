@@ -5,7 +5,21 @@ import { useAuthStore } from '@/features/auth/use-auth-store';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import { Copy, Check, Users, Play, Crown, ArrowLeft, Sliders, AlertCircle, Loader2 } from 'lucide-react';
+import {
+  Copy,
+  Check,
+  Users,
+  Play,
+  Crown,
+  ArrowLeft,
+  Sliders,
+  AlertCircle,
+  Loader2,
+  QrCode,
+  Wifi,
+  ChevronDown,
+} from 'lucide-react';
+import QRCode from 'qrcode';
 
 export const LobbyPage: React.FC = () => {
   const { roomId } = useParams<{ roomId: string }>();
@@ -15,6 +29,9 @@ export const LobbyPage: React.FC = () => {
     currentRoom,
     isLoading,
     error: roomError,
+    lanInfo,
+    selectedLanAddress,
+    setSelectedLanAddress,
     subscribeToRoom,
     toggleReady,
     startGame,
@@ -25,6 +42,8 @@ export const LobbyPage: React.FC = () => {
   const [copiedLink, setCopiedLink] = useState(false);
   const [isTogglingReady, setIsTogglingReady] = useState(false);
   const [isStartingGame, setIsStartingGame] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  const [showQrModal, setShowQrModal] = useState(false);
 
   // If user has not set their name yet, prompt immediately
   useEffect(() => {
@@ -33,7 +52,7 @@ export const LobbyPage: React.FC = () => {
     }
   }, [player, openNamePrompt]);
 
-  // Subscribe to real-time Firestore room document & members subcollection
+  // Subscribe to real-time room state
   useEffect(() => {
     if (!roomId) return;
     const unsubscribe = subscribeToRoom(roomId);
@@ -49,6 +68,52 @@ export const LobbyPage: React.FC = () => {
     }
   }, [currentRoom?.status, currentRoom?.gameId, navigate]);
 
+  // Determine authoritative shareable LAN URL (never localhost for other devices)
+  const getShareableUrl = (): string => {
+    if (!currentRoom) return '';
+    const port = lanInfo?.port || (typeof window !== 'undefined' ? window.location.port || '4173' : '4173');
+    const targetIp =
+      selectedLanAddress ||
+      lanInfo?.primaryLanAddress ||
+      (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1'
+        ? window.location.hostname
+        : null);
+
+    if (targetIp) {
+      return `http://${targetIp}:${port}/#/join/${currentRoom.inviteCode}`;
+    }
+
+    // Fallback if no LAN interface detected
+    const base = typeof window !== 'undefined' ? window.location.href.split('#')[0] : '';
+    return `${base}#/join/${currentRoom.inviteCode}`;
+  };
+
+  const shareableUrl = getShareableUrl();
+
+  // Generate QR code data URL whenever shareable URL changes
+  useEffect(() => {
+    if (!shareableUrl) return;
+    let isMounted = true;
+    QRCode.toDataURL(shareableUrl, {
+      margin: 1,
+      width: 220,
+      color: {
+        dark: '#1A2B4C',
+        light: '#FFFFFF',
+      },
+    })
+      .then((url) => {
+        if (isMounted) setQrDataUrl(url);
+      })
+      .catch((err) => {
+        console.warn('QR code generation failed:', err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [shareableUrl]);
+
   const handleCopyCode = () => {
     if (!currentRoom) return;
     navigator.clipboard.writeText(currentRoom.inviteCode);
@@ -57,10 +122,8 @@ export const LobbyPage: React.FC = () => {
   };
 
   const handleCopyLink = () => {
-    if (!currentRoom) return;
-    const base = window.location.href.split('#')[0];
-    const inviteUrl = `${base}#/join/${currentRoom.inviteCode}`;
-    navigator.clipboard.writeText(inviteUrl);
+    if (!shareableUrl) return;
+    navigator.clipboard.writeText(shareableUrl);
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 2000);
   };
@@ -102,10 +165,10 @@ export const LobbyPage: React.FC = () => {
       <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
         <Loader2 className="w-10 h-10 text-indian-terracotta-500 animate-spin mb-4" />
         <h2 className="font-serif font-black text-xl text-indian-navy-900 dark:text-white mb-2">
-          Entering Multiplayer Lobby...
+          Entering LAN Lobby...
         </h2>
         <p className="text-xs text-gray-500 max-w-sm">
-          Establishing real-time connection with Cloud Firestore for Room #{roomId?.replace('room_', '').slice(0, 8)}
+          Connecting to authoritative LAN server for Room #{roomId?.replace('room_', '').slice(0, 8)}
         </p>
       </div>
     );
@@ -159,9 +222,17 @@ export const LobbyPage: React.FC = () => {
           <ArrowLeft className="w-4 h-4" /> Back to Play
         </button>
 
-        <Badge variant={room.status === 'LOBBY' ? 'gold' : 'emerald'} className="text-xs">
-          Room Status: {room.status}
-        </Badge>
+        <div className="flex items-center gap-2">
+          {lanInfo?.primaryLanAddress && (
+            <Badge variant="neutral" className="text-[11px] font-mono hidden sm:inline-flex items-center gap-1">
+              <Wifi className="w-3 h-3 text-emerald-600" />
+              <span>{lanInfo.primaryLanAddress}:{lanInfo.port}</span>
+            </Badge>
+          )}
+          <Badge variant={room.status === 'LOBBY' ? 'gold' : 'emerald'} className="text-xs">
+            Status: {room.status}
+          </Badge>
+        </div>
       </div>
 
       {roomError && (
@@ -175,16 +246,42 @@ export const LobbyPage: React.FC = () => {
         <span className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-1">
           Share Room Link / Code
         </span>
-        <div className="text-3xl sm:text-4xl font-mono font-black tracking-widest text-indian-terracotta-600 dark:text-indian-terracotta-400 mb-4 select-all">
+        <div className="text-3xl sm:text-5xl font-mono font-black tracking-widest text-indian-terracotta-600 dark:text-indian-terracotta-400 mb-2 select-all">
           {room.inviteCode}
         </div>
+
+        {/* Shareable URL display */}
+        <div className="max-w-md mx-auto mb-4 bg-indian-parchment-200 dark:bg-indian-navy-950 rounded-lg p-2 text-xs font-mono text-indian-navy-900 dark:text-indian-parchment-200 break-all border border-indian-parchment-300 dark:border-indian-navy-800">
+          {shareableUrl}
+        </div>
+
+        {/* Multi-interface address selector if server detected multiple LAN IPs */}
+        {lanInfo && lanInfo.lanAddresses.length > 1 && isHost && (
+          <div className="mb-4 inline-flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
+            <span>Share via IP:</span>
+            <div className="relative inline-block">
+              <select
+                value={selectedLanAddress || lanInfo.primaryLanAddress || ''}
+                onChange={(e) => setSelectedLanAddress(e.target.value)}
+                className="bg-white dark:bg-indian-navy-900 border border-gray-300 dark:border-gray-700 rounded px-2 py-1 pr-6 text-xs font-mono appearance-none cursor-pointer"
+              >
+                {lanInfo.lanAddresses.map((ip) => (
+                  <option key={ip} value={ip}>
+                    {ip}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="w-3 h-3 absolute right-1.5 top-2 pointer-events-none text-gray-400" />
+            </div>
+          </div>
+        )}
 
         <div className="flex flex-wrap items-center justify-center gap-2">
           <Button
             size="sm"
             variant="outline"
             onClick={handleCopyCode}
-            className="text-xs flex items-center gap-1.5"
+            className="text-xs flex items-center gap-1.5 cursor-pointer"
           >
             {copiedCode ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
             <span>{copiedCode ? 'Copied Code!' : 'Copy Code'}</span>
@@ -194,12 +291,36 @@ export const LobbyPage: React.FC = () => {
             size="sm"
             variant="outline"
             onClick={handleCopyLink}
-            className="text-xs flex items-center gap-1.5"
+            className="text-xs flex items-center gap-1.5 cursor-pointer"
           >
             {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Users className="w-3.5 h-3.5" />}
             <span>{copiedLink ? 'Copied Link!' : 'Copy Invite Link'}</span>
           </Button>
+
+          {qrDataUrl && (
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => setShowQrModal(!showQrModal)}
+              className="text-xs flex items-center gap-1.5 cursor-pointer"
+            >
+              <QrCode className="w-3.5 h-3.5" />
+              <span>{showQrModal ? 'Hide QR' : 'Show Phone QR'}</span>
+            </Button>
+          )}
         </div>
+
+        {/* QR Code Reveal Panel */}
+        {showQrModal && qrDataUrl && (
+          <div className="mt-4 pt-4 border-t border-indian-parchment-300 dark:border-indian-navy-700 flex flex-col items-center">
+            <div className="p-3 bg-white rounded-xl shadow-md border border-gray-200">
+              <img src={qrDataUrl} alt="LAN Join QR Code" className="w-44 h-44" />
+            </div>
+            <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-2">
+              Scan with phone camera connected to the same Wi-Fi network to join immediately!
+            </p>
+          </div>
+        )}
       </Card>
 
       {/* Host Configured Rules Summary */}

@@ -37,3 +37,4 @@ export const getCityBorderColor = (price: number): string => {
   }
   return '#064E3B'; // Deep emerald border for dark green grids
 };
+

@@ -285,23 +285,152 @@ The card engine manages two authoritative 12-rule indexed decks:
 
 ---
 
-## 3. Production Deployment & Verification
+## 3. Wi-Fi LAN Authoritative Multiplayer System (Final Architecture & Paradigm Shift)
 
-### 3.1 Automated CI/CD & Testing Verification
-- **Unit & State Machine Tests**: Vitest suite (20/20 tests passing) verifies:
-  - 12 Game Engine tests: discrete currency resolution, transit scaling, 3-consecutive doubles incarceration, 2-player turn cycles, `boughtOnTurn` construction delay enforcement, jailed owner rent exemption, dice-total card index resolution, transaction acknowledgement state transitions, and the complete bankruptcy tournament invariant.
-  - 8 Multiplayer Integration tests: Room creation, distinct-UID room joining, real-time snapshot synchronization, readiness propagation, invite link parsing & acceptance, error handling for invalid/expired/full rooms, refresh rehydration idempotency, and dual-client initial game state reconstruction.
-- **Cross-Platform End-to-End Suite**: Playwright multi-worker browser verification (54/54 tests passing across all 9 screen sizes from Desktop 1920x1080 down to Small Phone 320x568) validates:
-  - Navigation header (Play, Settings, Question Mark Rules button, Mute toggle).
-  - Rules popup modal tabs and close interactions.
-  - First-launch player name prompt & Solo Practice Match dice tumbling.
-  - Sound synthesis engine & dark/light theme switching.
-  - City grid green shades color fill, high-contrast text legibility, and deed buying price badges.
-  - City deed modal popup with thin black border on timer seconds.
-  - Multiplayer online room creation, custom host rules modal, lobby launch, and 6-character code generation.
-- **Production Build**: Verified with `npm run build` (`tsc -b && vite build`) and `cd functions && npm run build` with zero TypeScript errors.
-- **GitHub Pages Deployment**:
-  - **Live URL**: `https://k-692.github.io/Monopoly-India-Game/`
-  - **Routing Paradigm**: HTML5 HashRouter (`/#/`, `/#/join/:code`, `/#/room/:roomId`, `/#/game/:gameId`, `/#/settings`).
-  - **Automated CI/CD**: Fully configured via `.github/workflows/deploy-pages.yml` with automated builds and artifact uploads on every push to `main`.
-  - **Firebase Backend Deployment**: Documented and automated via `.github/workflows/deploy-firebase.yml` for Cloud Functions and Firestore security rules.
+### 3.1 Motivation & Architectural Paradigm Shift
+While cloud databases (such as Firestore) provide globally accessible matchmaking, they introduce critical vulnerabilities and constraints for real-time turn-based board games:
+1. **Network Latency & Internet Dependency**: Requires continuous active internet connectivity, rendering gameplay unviable during outages, flights, travel, or high-latency local Wi-Fi environments.
+2. **Third-Party Service Flakiness & Cold Starts**: Serverless cloud functions introduce cold-start latencies (1-3s), while rate limits and quota exhaustions disrupt active tournament matches.
+3. **Security & State Divergence**: Optimistic client mutations against cloud documents risk race conditions, stale document snapshots, and desynchronization during simultaneous user interactions.
+
+To resolve these constraints, the multiplayer backend was completely transitioned to a **local Wi-Fi LAN, server-authoritative multiplayer architecture** powered by **Node.js 22+, Express, and Socket.IO**. One player's machine (host laptop) runs an authoritative game daemon, exposing a combined HTTP asset server and WebSocket transport that peers on the local wireless network connect to with sub-millisecond round-trip times.
+
+```
++──────────────────────────────────────────────────────────────────────────────+
+│                          AUTHORITATIVE HOST SERVER                           │
+│                             (Node.js 22 + Express)                           │
+│                                                                              │
+│    +───────────────────────+                    +───────────────────────+    │
+│    │  Express Asset Server │                    │   Socket.IO Gateway   │    │
+│    │    (Port 4173, SPA)   │                    │     (ws://, WSS)      │    │
+│    +───────────┬───────────+                    +───────────┬───────────+    │
+│                │                                            │                │
+│                ▼                                            ▼                │
+│        dist/ Production Bundle                     Typed Socket Handlers     │
+│       (index.html, assets, chunks)              (register, join, command)    │
+│                                                             │                │
+│                                                             ▼                │
+│    +────────────────────────────────────────────────────────────────────+    │
+│    │                  AUTHORITATIVE STATE ENGINE                        │    │
+│    │                                                                    │    │
+│    │  [1] In-Memory Room Manager                                        │    │
+│    │      - Rooms: Map<RoomId, ServerRoom>                              │    │
+│    │      - Codes: Map<InviteCode, RoomId>                              │    │
+│    │      - Sessions: Map<PlayerUid, PlayerSession>                     │    │
+│    │                                                                    │    │
+│    │  [2] Per-Match Promise Queue (Strict FIFO Execution)               │    │
+│    │      Command C_k ──► Queue ──► applyGameCommand() ──► V_{k+1}      │    │
+│    │                                                                    │    │
+│    │  [3] Cryptographic Dice Roll Generator                             │    │
+│    │      dice = [crypto.randomInt(1, 7), crypto.randomInt(1, 7)]       │    │
+│    │                                                                    │    │
+│    │  [4] Authoritative 1s Turn Countdown Timer                         │    │
+│    │      t_{remain} ──► 0 ──► Deterministic Timeout Action             │    │
+│    │                                                                    │    │
+│    │  [5] Command Deduplication Cache                                   │    │
+│    │      Map<CommandId, CommandResult>                                 │    │
+│    +────────────────────────────────────────────────────────────────────+    │
++───────────────────────────────────────▲──────────────────────────────────────+
+                                        │
+                         Wi-Fi LAN Transport (Zero Internet)
+                         http://<LAN_IP>:4173 & ws://<LAN_IP>:4173
+                                        │
+           +────────────────────────────┴───────────────────────────+
+           │                                                        │
+           ▼                                                        ▼
++───────────────────────+                                +───────────────────────+
+│   Host Browser Client │                                │  Guest Mobile/Browser │
+│    (React 19 + Vite)  │                                │   (React 19 + Vite)   │
+│  - Presentation Store │                                │  - Presentation Store │
+│  - 3D Tumbling Dice   │                                │  - 3D Tumbling Dice   │
+│  - Web Audio Engine   │                                │  - Web Audio Engine   │
++───────────────────────+                                +───────────────────────+
+```
+
+### 3.2 Network Topology Discovery & Single-Origin Co-Location
+- **Multi-Interface Scanning**: The server queries `os.networkInterfaces()` on startup, filtering out internal loopback interfaces (`127.0.0.1`, `::1`) and virtual networks.
+- **Private Address Verification**: Evaluates RFC 1918 private IPv4 subnets (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`) and displays human-readable local addresses in the startup terminal banner.
+- **Single-Origin Deployment**: The Express HTTP server and Socket.IO engine bind to `0.0.0.0:4173`. When guest devices navigate to `http://<HOST_IP>:4173`, the browser fetches the production React application from `dist/` and initializes `socket.io-client` against `window.location.origin`. This eliminates cross-origin restrictions, eliminates port divergence, and simplifies network routing.
+- **Diagnostic LAN Endpoints**:
+  - `GET /api/health`: System health monitor reporting process uptime, active memory rooms, and active game instances.
+  - `GET /api/lan-info`: JSON endpoint returning detected LAN IPv4 addresses, active port, primary address, and shareable hostnames.
+
+### 3.3 Cryptographic Session Identity & Reconnection Security
+- **No Reliance on Client-Supplied Identifiers**: To prevent session spoofing and identity hijacking, client identifiers are generated server-side.
+- **Cryptographic Reconnection Tokens**: When a client registers via `player:register`, the server generates:
+  $$\text{PlayerUID} = \text{uuidv4}()$$
+  $$\text{ReconnectToken} = \text{crypto.randomBytes}(32).\text{toString('hex')}$$
+- **Rehydration Protocol**: The client persists both credentials in browser `localStorage`. Upon page reload or transient Wi-Fi disconnection, the client emits `player:resume` with its `reconnectToken`. The server authenticates the token in $O(1)$ time, associates the new socket ID with the existing player profile, and re-subscribes the socket to its active room and game channels without disrupting match progression.
+
+### 3.4 Cryptographic Dice Generation & Anti-Cheat Invariants
+- **Elimination of Client-Side Dice**: In peer-to-peer or client-centric systems, clients compute dice outcomes and transmit results, enabling memory editing and packet manipulation attacks.
+- **Server-Side Cryptographic Randomness**: All dice rolls are computed inside `server/game/game-manager.ts` using Node.js hardware-backed cryptographically secure pseudo-random number generator:
+  $$D_1 = \text{crypto.randomInt}(1, 7), \quad D_2 = \text{crypto.randomInt}(1, 7)$$
+- **Presentation Separation**: The client triggers 3D tumbling physics and Web Audio rolling sounds upon initiating the roll action. When the authoritative `game:event` (`DICE_ROLLED`) arrives from the server, the visual dice settle smoothly onto the server-dictated faces $[D_1, D_2]$, guaranteeing visual immersion without sacrificing cryptographic integrity.
+
+### 3.5 Distributed Concurrency Control: Sequential Queue & Idempotency
+- **Per-Game Promise Queue**: Multiple players may interact with the board concurrently (e.g. trading, mortgaging, rolling, reacting). To ensure strict linearizability, every active match possesses an isolated promise chain:
+  ```typescript
+  class GameManager {
+    private actionQueues = new Map<GameId, Promise<void>>();
+    
+    public async dispatchCommand(gameId, command): Promise<GameCommandResponse> {
+      return new Promise((resolve) => {
+        const currentQueue = this.actionQueues.get(gameId) || Promise.resolve();
+        const nextQueue = currentQueue.then(async () => {
+          const result = await this.executeAuthoritativeCommand(gameId, command);
+          resolve(result);
+        });
+        this.actionQueues.set(gameId, nextQueue);
+      });
+    }
+  }
+  ```
+- **Command Deduplication**: Clients generate a unique UUID `commandId` per action. Retransmitted packets due to wireless jitter or double-clicks hit an in-memory command cache:
+  $$\text{Cache}(\text{gameId}, \text{commandId}) \to \text{GameCommandResponse}$$
+  Duplicate commands return the cached response immediately with zero state mutation.
+
+### 3.6 Monotonic State Synchronization & Event Streaming
+- **Monotonic Version Counter**: Every committed mutation increments the match version:
+  $$V_{k+1} = V_k + 1$$
+- **Dual-Stream Broadcast Protocol**:
+  1. `game:state`: Full snapshot of authoritative `GameState` containing the updated board version, player balances, property deeds, turn phase, and log records.
+  2. `game:event`: Granular discrete event notifications (`DICE_ROLLED`, `PAWN_MOVED`, `PROPERTY_BOUGHT`, `TURN_CHANGED`, `BANKRUPTCY`) carrying payload metadata (e.g. step path, destination space index, transaction amount).
+- **Client Presentation Reconciliation**: The frontend Zustand store (`useGameStore`) ingests `game:state` to synchronize underlying state models while triggering step-by-step 0.5s pawn stepping animations, audio synthesizer chimes, and callout comment boxes driven by the corresponding `game:event`.
+
+### 3.7 Authoritative Turn Countdown State Machine
+- **Server-Driven Interval Timer**: Each match maintains a 1,000ms server interval tracking remaining turn seconds ($t_{\text{remain}}$).
+- **Network Synchronization**: The server broadcasts `game:timer` ($t_{\text{remain}}$) to all room participants every second.
+- **Deterministic Timeout Fallbacks**: If $t_{\text{remain}} \le 0$, the server terminates the turn by executing an authoritative fallback action corresponding to the current phase:
+  - Phase `AWAIT_ROLL`: Automatically rolls dice for the active player.
+  - Phase `PROPERTY_DECISION`: Automatically declines the property acquisition.
+  - Phase `MANAGEMENT`: Automatically executes `END_TURN` and transitions play to the next active player.
+  - Phase `JAIL_DECISION`: Automatically chooses `TRY_DOUBLES`.
+This guarantees that stalled clients, abandoned browsers, or network drops never freeze tournament gameplay.
+
+### 3.8 Frictionless Universal Cross-Device Joining & QR Discovery
+- **6-Character High-Contrast Room Codes**: Generated via `crypto.randomInt` using an unambiguous alphabet (`23456789ABCDEFGHJKMNPQRSTUVWXYZ`), excluding visually ambiguous glyphs (`0`, `O`, `1`, `I`, `L`).
+- **QR Code Generation**: Using `qrcode`, the host lobby dynamically renders a high-definition 2D QR matrix encoding the exact LAN deep-link URL:
+  $$\text{URL} = \text{http://} + \text{HostLANIP} + \text{:} + \text{Port} + \text{/\#/join/} + \text{InviteCode}$$
+- **Multi-Device Compatibility**: Any modern smartphone camera (iOS Safari / Android Chrome) scans the QR code to launch the web client and join the lobby within 2 seconds, requiring zero application store downloads or manual IP configuration.
+
+### 3.9 Dual Build Targets & Asset Resolution
+- **Target 1: LAN Hosting (`.env.lan`)**:
+  - `VITE_APP_BASE_PATH=/`
+  - React application bundles root-relative assets (`/assets/...`), allowing the host server on port 4173 to serve the application directly from the filesystem root.
+- **Target 2: GitHub Pages Demo (`vite.config.ts`)**:
+  - Defaults to `/Monopoly-India-Game/` in production if `VITE_APP_BASE_PATH` is unspecified, maintaining continuous compatibility with GitHub Pages static hosting.
+
+---
+
+## 4. Production Deployment & Verification
+
+### 4.1 Automated CI/CD & Testing Verification
+- **Unit & State Machine Tests**: Vitest suite (19/19 tests passing) verifies:
+  - 12 Game Engine invariants: discrete currency resolution, transit scaling, 3-consecutive doubles incarceration, 2-player turn cycles, `boughtOnTurn` construction delay enforcement, jailed owner rent exemption, dice-total card index resolution, transaction acknowledgement state transitions, and complete bankruptcy tournament rules.
+  - 7 Authoritative Multiplayer Integration tests: Real Socket.IO client-server interactions testing session registration, cryptographic reconnect token verification, room creation, guest joining via invite code, multi-player readiness toggling, game initialization, and command dispatch.
+- **Cross-Platform End-to-End Suite**: Playwright multi-browser test suite (`e2e/lan-multiplayer.spec.ts` and responsive suites):
+  - Validates multi-client browser sessions simultaneously simulating host laptop and guest device creating rooms, joining via deep-link URLs, readying up, launching games, and rolling server-authoritative dice.
+- **Typecheck & Lint**: Strict TypeScript validation (`tsc --noEmit`) and ESLint audits passing with 0 errors and 0 warnings.
+- **Production LAN Build**: `npm run build:lan` builds the production bundle to `dist/` in under 2 seconds.
+

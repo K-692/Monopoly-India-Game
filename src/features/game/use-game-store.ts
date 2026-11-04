@@ -1,9 +1,24 @@
+/**
+ * Indian Monopoly - Game State Store (Client)
+ * Authoritative Server Synchronization for Multiplayer & Offline Sandbox for Practice.
+ * Dispatches multiplayer game actions to the LAN Node.js server and drives presentation
+ * animations (dice roll, stepping pawn, audio triggers) based on server-broadcasted events.
+ */
+
 import { create } from 'zustand';
-import { EmoteReaction, GameCommand, GameEvent, GameState, RoomMember, WalkingAnimationState } from '@/domain/game-types';
+import {
+  EmoteReaction,
+  GameCommand,
+  GameEvent,
+  GameState,
+  RoomMember,
+  WalkingAnimationState,
+} from '@/domain/game-types';
 import { createInitialGame } from '@/domain/game-engine/create-initial-game';
 import { applyGameCommand } from '@/domain/game-engine/engine';
 import { sound } from '@/lib/audio/sound-engine';
 import { HostCustomRules } from '@/domain/ruleset';
+import { getSocket } from '@/lib/socket/socket-client';
 
 interface GameStoreState {
   gameState: GameState | null;
@@ -22,7 +37,7 @@ interface GameStoreState {
     gameId: string,
     members: Record<string, RoomMember>,
     customRules?: HostCustomRules
-  ) => void;
+  ) => () => void;
   setLiveGameState: (state: GameState) => void;
   selectSpace: (index: number | null) => void;
   dispatchAction: (commandType: GameCommand['type'], payload?: Record<string, unknown>) => void;
@@ -30,6 +45,8 @@ interface GameStoreState {
   tickTurnTimer: () => void;
   dismissError: () => void;
 }
+
+let activeWalkingTimer: NodeJS.Timeout | null = null;
 
 export const useGameStore = create<GameStoreState>((set, get) => ({
   gameState: null,
@@ -40,6 +57,10 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   walkingAnimation: null,
   isLiveMultiplayer: false,
   error: null,
+
+  // ==========================================
+  // PRACTICE / SANDBOX INITIALIZATION
+  // ==========================================
 
   initializeDemoGame: (userName = 'You (Maharaja)', userUid = 'player_1') => {
     const activeUid = userUid || 'player_1';
@@ -101,33 +122,175 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     });
   },
 
-  initializeGameFromRoom: (
-    roomId: string,
-    gameId: string,
-    members: Record<string, RoomMember>,
-    customRules?: HostCustomRules
-  ) => {
-    const initial = createInitialGame(roomId, gameId, members, customRules);
-    const welcomeEvent: GameEvent = {
-      sequence: 1,
-      commandId: 'init_' + Date.now(),
-      actorUid: 'system',
-      type: 'START_GAME',
-      summary: `Welcome to Indian Monopoly! ${Object.keys(members).length} tycoons assembled in Room #${roomId.slice(-6).toUpperCase()}. Let the trading begin!`,
-      payload: {},
-      createdAt: Date.now(),
-      versionAfter: 1,
+  // ==========================================
+  // LIVE MULTIPLAYER INITIALIZATION & SOCKET SYNC
+  // ==========================================
+
+  initializeGameFromRoom: (roomId, gameId, members, customRules) => {
+    const socket = getSocket();
+
+    // Check if initial state is already cached
+    const current = get().gameState;
+    if (!current || current.gameId !== gameId) {
+      const initial = createInitialGame(roomId, gameId, members, customRules);
+      const welcomeEvent: GameEvent = {
+        sequence: 1,
+        commandId: 'init_' + Date.now(),
+        actorUid: 'system',
+        type: 'START_GAME',
+        summary: `Welcome to Indian Monopoly! ${Object.keys(members).length} tycoons assembled in Room #${roomId.slice(-6).toUpperCase()}. Let the trading begin!`,
+        payload: {},
+        createdAt: Date.now(),
+        versionAfter: 1,
+      };
+
+      set({
+        gameState: initial,
+        events: [welcomeEvent],
+        activeEmotes: [],
+        selectedSpaceIndex: null,
+        isRolling: false,
+        isLiveMultiplayer: true,
+        error: null,
+      });
+    }
+
+    // Handle authoritative game state broadcast from server
+    const handleServerGameState = (nextState: GameState) => {
+      // If we are currently running a walking animation, hold committing position until animation finishes
+      const { walkingAnimation } = get();
+      if (walkingAnimation) {
+        // Queue latest state to commit when animation completes
+        return;
+      }
+      set({ gameState: nextState, isLiveMultiplayer: true });
     };
 
-    set({
-      gameState: initial,
-      events: [welcomeEvent],
-      activeEmotes: [],
-      selectedSpaceIndex: null,
-      isRolling: false,
-      isLiveMultiplayer: true,
-      error: null,
-    });
+    // Handle authoritative game event broadcast from server
+    const handleServerGameEvent = (event: GameEvent) => {
+      set((s) => ({
+        events: [event, ...s.events].slice(0, 50),
+      }));
+
+      // Presentation triggers based on authoritative event
+      if (event.type === 'ROLL_DICE') {
+        const { gameState } = get();
+        if (!gameState) return;
+
+        const payload = event.payload as { d1?: number; d2?: number } | undefined;
+        const actorUid = event.actorUid;
+        const player = gameState.players.find((p) => p.uid === actorUid);
+        const startPos = player?.position ?? 0;
+
+        sound.play('DICE_ROLL');
+        set({ isRolling: true });
+
+        setTimeout(() => {
+          set({ isRolling: false });
+          const totalSteps = payload?.d1 && payload?.d2 ? payload.d1 + payload.d2 : 0;
+          if (totalSteps <= 0) return;
+
+          const targetPos = (startPos + totalSteps) % 40;
+          let currentStep = 0;
+
+          if (activeWalkingTimer) clearInterval(activeWalkingTimer);
+
+          activeWalkingTimer = setInterval(() => {
+            currentStep++;
+            const nextPos = (startPos + currentStep) % 40;
+            const stepsRemaining = totalSteps - currentStep;
+
+            if (nextPos === 0) {
+              sound.play('PASS_START');
+            } else {
+              sound.play('PAWN_STEP');
+            }
+
+            set({
+              walkingAnimation: {
+                uid: actorUid,
+                currentPos: nextPos,
+                targetPos,
+                stepsRemaining,
+              },
+            });
+
+            if (currentStep >= totalSteps) {
+              if (activeWalkingTimer) clearInterval(activeWalkingTimer);
+              activeWalkingTimer = null;
+              setTimeout(() => {
+                set({ walkingAnimation: null });
+              }, 400);
+            }
+          }, 450);
+        }, 350);
+      } else if (event.type === 'BUY_PROPERTY') {
+        sound.play('BUY_PROPERTY');
+      } else if (event.type === 'PAY_BAIL') {
+        sound.play('PAY_RENT');
+      } else if (event.type === 'START_GAME') {
+        sound.play('VICTORY');
+      }
+    };
+
+    // Handle authoritative server turn timer ticks
+    const handleServerTimer = (data: { remaining: number; activeUid: string }) => {
+      set((s) => {
+        if (!s.gameState) return s;
+        return {
+          gameState: {
+            ...s.gameState,
+            turnTimeRemaining: data.remaining,
+          },
+        };
+      });
+    };
+
+    // Handle incoming emote reactions
+    const handleReaction = (reaction: {
+      id: string;
+      roomId: string;
+      senderUid: string;
+      senderName: string;
+      emote: string;
+      timestamp: number;
+    }) => {
+      sound.play('EMOTE');
+      const emoteObj: EmoteReaction = {
+        id: reaction.id,
+        roomId: reaction.roomId,
+        senderUid: reaction.senderUid,
+        senderName: reaction.senderName,
+        emote: reaction.emote,
+        timestamp: reaction.timestamp,
+      };
+
+      set((s) => ({
+        activeEmotes: [...s.activeEmotes, emoteObj],
+      }));
+
+      setTimeout(() => {
+        set((s) => ({
+          activeEmotes: s.activeEmotes.filter((e) => e.id !== emoteObj.id),
+        }));
+      }, 5000);
+    };
+
+    socket.on('game:state', handleServerGameState);
+    socket.on('game:event', handleServerGameEvent);
+    socket.on('game:timer', handleServerTimer);
+    socket.on('reaction:received', handleReaction);
+
+    return () => {
+      socket.off('game:state', handleServerGameState);
+      socket.off('game:event', handleServerGameEvent);
+      socket.off('game:timer', handleServerTimer);
+      socket.off('reaction:received', handleReaction);
+      if (activeWalkingTimer) {
+        clearInterval(activeWalkingTimer);
+        activeWalkingTimer = null;
+      }
+    };
   },
 
   setLiveGameState: (state: GameState) => {
@@ -139,37 +302,56 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     set({ selectedSpaceIndex: index });
   },
 
+  // ==========================================
+  // DISPATCH ACTION (LAN MULTIPLAYER vs PRACTICE)
+  // ==========================================
+
   dispatchAction: (commandType, payload = {}) => {
-    const { gameState, isRolling, walkingAnimation } = get();
+    const { gameState, isRolling, walkingAnimation, isLiveMultiplayer } = get();
     if (!gameState || isRolling || walkingAnimation) return;
 
     sound.play('BUTTON_CLICK');
 
+    const command: GameCommand = {
+      commandId: 'cmd_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+      roomId: gameState.roomId,
+      gameId: gameState.gameId,
+      expectedVersion: gameState.version,
+      type: commandType,
+      payload,
+    };
+
+    // 1. LIVE MULTIPLAYER: Authoritative Server Execution
+    if (isLiveMultiplayer) {
+      const socket = getSocket();
+      socket.emit('game:command', command, (response) => {
+        if (!response.ok) {
+          const errMsg = response.error || 'Server rejected action';
+          sound.play('GO_TO_JAIL');
+          set({ error: errMsg });
+        }
+      });
+      return;
+    }
+
+    // 2. OFFLINE PRACTICE MODE: Local Sandbox Execution
     if (commandType === 'ROLL_DICE') {
       set({ isRolling: true });
       sound.play('DICE_ROLL');
 
       setTimeout(() => {
         try {
-          const command: GameCommand = {
-            commandId: 'cmd_' + Date.now(),
-            roomId: gameState.roomId,
-            gameId: gameState.gameId,
-            expectedVersion: gameState.version,
-            type: 'ROLL_DICE',
-            payload,
-          };
-
           const result = applyGameCommand(gameState, command, gameState.currentPlayerUid);
-
-          // Locate active player
           const activeUid = gameState.currentPlayerUid;
           const activeP = gameState.players.find((p) => p.uid === activeUid);
           const startPos = activeP?.position ?? 0;
-          const endPos = result.nextState.players.find((p) => p.uid === activeUid)?.position ?? startPos;
+          const endPos =
+            result.nextState.players.find((p) => p.uid === activeUid)?.position ?? startPos;
 
-          // If incarcerated directly (e.g. 3 consecutive doubles)
-          if (result.nextState.players.find((p) => p.uid === activeUid)?.inJail && !activeP?.inJail) {
+          if (
+            result.nextState.players.find((p) => p.uid === activeUid)?.inJail &&
+            !activeP?.inJail
+          ) {
             sound.play('GO_TO_JAIL');
             set((s) => ({
               gameState: result.nextState,
@@ -181,12 +363,10 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
             return;
           }
 
-          // Calculate total steps taken
           const totalSteps = result.nextState.dice
             ? result.nextState.dice.first + result.nextState.dice.second
-            : ((endPos - startPos + 40) % 40);
+            : (endPos - startPos + 40) % 40;
 
-          // Stop rolling physics and reveal rolled dice outcome
           set({ isRolling: false });
 
           if (totalSteps <= 0) {
@@ -199,7 +379,6 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
             return;
           }
 
-          // User Requirement: Animate piece moving one by one across the grids, 0.5 seconds per step
           let currentStep = 0;
           const stepInterval = setInterval(() => {
             currentStep++;
@@ -223,7 +402,6 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
 
             if (currentStep >= totalSteps) {
               clearInterval(stepInterval);
-              // Hold at destination grid for 0.5s before finalizing state and actions
               setTimeout(() => {
                 set((s) => ({
                   gameState: result.nextState,
@@ -231,28 +409,18 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
                   walkingAnimation: null,
                   error: null,
                 }));
-              }, 500);
+              }, 400);
             }
-          }, 500);
-
+          }, 450);
         } catch (err: unknown) {
           const message = err instanceof Error ? err.message : 'Action failed';
           set({ error: message, isRolling: false, walkingAnimation: null });
         }
-      }, 400);
+      }, 350);
       return;
     }
 
     try {
-      const command: GameCommand = {
-        commandId: 'cmd_' + Date.now(),
-        roomId: gameState.roomId,
-        gameId: gameState.gameId,
-        expectedVersion: gameState.version,
-        type: commandType,
-        payload,
-      };
-
       const result = applyGameCommand(gameState, command, gameState.currentPlayerUid);
 
       if (commandType === 'BUY_PROPERTY') {
@@ -273,11 +441,20 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   },
 
   sendEmote: (emote: string, senderName: string) => {
+    const { gameState, isLiveMultiplayer } = get();
     sound.play('EMOTE');
+
+    if (isLiveMultiplayer) {
+      const socket = getSocket();
+      socket.emit('reaction:send', { emote });
+      return;
+    }
+
+    // Local Practice Mode reaction
     const newReaction: EmoteReaction = {
       id: 'reaction_' + Date.now() + Math.random(),
-      roomId: get().gameState?.roomId || 'global',
-      senderUid: get().gameState?.currentPlayerUid || 'me',
+      roomId: gameState?.roomId || 'practice',
+      senderUid: gameState?.currentPlayerUid || 'me',
       senderName,
       emote,
       timestamp: Date.now(),
@@ -287,7 +464,6 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       activeEmotes: [...state.activeEmotes, newReaction],
     }));
 
-    // Auto expire reaction after 5 seconds
     setTimeout(() => {
       set((state) => ({
         activeEmotes: state.activeEmotes.filter((e) => e.id !== newReaction.id),
@@ -296,13 +472,15 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   },
 
   tickTurnTimer: () => {
-    const { gameState, isRolling, walkingAnimation } = get();
-    if (!gameState || gameState.status === 'COMPLETED' || isRolling || walkingAnimation) return;
+    const { gameState, isRolling, walkingAnimation, isLiveMultiplayer } = get();
+    // Do NOT run local timer ticker during live multiplayer (authoritative server manages it)
+    if (isLiveMultiplayer || !gameState || gameState.status === 'COMPLETED' || isRolling || walkingAnimation) {
+      return;
+    }
 
     const remaining = (gameState.turnTimeRemaining ?? 30) - 1;
 
     if (remaining <= 0) {
-      // Auto-action when timer expires
       if (gameState.phase === 'AWAIT_ROLL') {
         get().dispatchAction('ROLL_DICE');
       } else if (gameState.phase === 'PROPERTY_DECISION') {
@@ -323,4 +501,3 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
 
   dismissError: () => set({ error: null }),
 }));
-

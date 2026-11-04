@@ -1,11 +1,11 @@
 /**
- * Indian Monopoly - Frictionless Firebase Anonymous Player Identity Store
- * Integrates Firebase Anonymous Auth as the canonical identity provider.
- * Keeps player display name and preferences persisted locally.
+ * Indian Monopoly - Authoritative LAN Player Identity Store
+ * Replaces Firebase Authentication with a cryptographically secure,
+ * zero-cloud local network session and token-based identity system.
  */
 
 import { create } from 'zustand';
-import { ensureAnonymousSession, onAuthUserChanged } from '@/lib/firebase/firebase-auth';
+import { getSocket } from '@/lib/socket/socket-client';
 
 export interface PlayerIdentity {
   uid: string;
@@ -15,7 +15,8 @@ export interface PlayerIdentity {
 
 interface PlayerAuthState {
   player: PlayerIdentity | null;
-  firebaseUid: string | null;
+  firebaseUid: string | null; // Kept for backward compatibility with existing tests
+  reconnectToken: string | null;
   isAuthInitialized: boolean;
   isNamePromptOpen: boolean;
   pendingRedirectUrl: string | null;
@@ -35,13 +36,20 @@ export const PLAYER_COLORS = [
   '#5C2D5A', // Purple
 ];
 
-function getStoredPlayerPreferences(): { name: string | null; color: string } {
+function getStoredPlayerPreferences(): {
+  name: string | null;
+  color: string;
+  uid: string | null;
+  token: string | null;
+} {
   if (typeof window === 'undefined') {
-    return { name: null, color: PLAYER_COLORS[0] };
+    return { name: null, color: PLAYER_COLORS[0], uid: null, token: null };
   }
   const name = localStorage.getItem('monopoly_player_name');
   const color = localStorage.getItem('monopoly_player_color') || PLAYER_COLORS[0];
-  return { name, color };
+  const uid = localStorage.getItem('monopoly_player_uid');
+  const token = localStorage.getItem('monopoly_reconnect_token');
+  return { name, color, uid, token };
 }
 
 export const useAuthStore = create<PlayerAuthState>((set, get) => {
@@ -50,84 +58,162 @@ export const useAuthStore = create<PlayerAuthState>((set, get) => {
   return {
     player: initialPrefs.name
       ? {
-          uid: (typeof window !== 'undefined' && localStorage.getItem('monopoly_player_uid')) || '',
+          uid: initialPrefs.uid || '',
           displayName: initialPrefs.name,
           avatarColor: initialPrefs.color,
         }
       : null,
-    firebaseUid: (typeof window !== 'undefined' && localStorage.getItem('monopoly_player_uid')) || null,
+    firebaseUid: initialPrefs.uid || null,
+    reconnectToken: initialPrefs.token || null,
     isAuthInitialized: false,
     isNamePromptOpen: false,
     pendingRedirectUrl: null,
 
     /**
-     * Initializes the anonymous Firebase Authentication session on startup.
-     * Guarantees canonical Firebase UID is obtained before room creation or joining.
+     * Initializes LAN player session with the server.
+     * Uses saved reconnection token if available to resume existing identity.
      */
     initializeAuth: async () => {
-      try {
-        const user = await ensureAnonymousSession();
-        if (user) {
-          const canonicalUid = user.uid;
+      const prefs = getStoredPlayerPreferences();
+      const socket = getSocket();
+
+      return new Promise<string | null>((resolve) => {
+        const finalizeLocal = (uid: string, token: string, name: string | null, color: string) => {
           if (typeof window !== 'undefined') {
-            localStorage.setItem('monopoly_player_uid', canonicalUid);
+            localStorage.setItem('monopoly_player_uid', uid);
+            localStorage.setItem('monopoly_reconnect_token', token);
+            if (name) localStorage.setItem('monopoly_player_name', name);
+            localStorage.setItem('monopoly_player_color', color);
           }
 
-          const currentPrefs = getStoredPlayerPreferences();
           set({
-            firebaseUid: canonicalUid,
+            firebaseUid: uid,
+            reconnectToken: token,
             isAuthInitialized: true,
-            player: currentPrefs.name
+            player: name
               ? {
-                  uid: canonicalUid,
-                  displayName: currentPrefs.name,
-                  avatarColor: currentPrefs.color,
+                  uid,
+                  displayName: name,
+                  avatarColor: color,
                 }
               : null,
           });
+          resolve(uid);
+        };
 
-          return canonicalUid;
+        const performServerHandshake = () => {
+          if (prefs.token) {
+            // Attempt to resume existing session
+            socket.emit('player:resume', { token: prefs.token, displayName: prefs.name || undefined }, (res) => {
+              if (res.ok && res.player) {
+                finalizeLocal(res.player.uid, res.player.token, prefs.name, res.player.avatarColor);
+              } else {
+                // Token invalid or server restarted: register new session
+                socket.emit(
+                  'player:register',
+                  {
+                    displayName: prefs.name || 'Player',
+                    avatarColor: prefs.color,
+                  },
+                  (regRes) => {
+                    if (regRes.ok && regRes.player) {
+                      finalizeLocal(regRes.player.uid, regRes.player.token, prefs.name, regRes.player.avatarColor);
+                    } else {
+                      fallbackOffline();
+                    }
+                  }
+                );
+              }
+            });
+          } else {
+            // Register brand new player session
+            socket.emit(
+              'player:register',
+              {
+                displayName: prefs.name || 'Player',
+                avatarColor: prefs.color,
+              },
+              (regRes) => {
+                if (regRes.ok && regRes.player) {
+                  finalizeLocal(regRes.player.uid, regRes.player.token, prefs.name, regRes.player.avatarColor);
+                } else {
+                  fallbackOffline();
+                }
+              }
+            );
+          }
+        };
+
+        const fallbackOffline = () => {
+          const fallbackUid = prefs.uid || 'usr_' + Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
+          const fallbackToken = prefs.token || 'tok_' + Math.random().toString(36).substring(2, 9);
+          finalizeLocal(fallbackUid, fallbackToken, prefs.name, prefs.color);
+        };
+
+        // If socket is already connected or connects soon
+        if (socket.connected) {
+          performServerHandshake();
+        } else {
+          socket.once('connect', () => {
+            performServerHandshake();
+          });
+
+          // Timeout fallback in case server is not immediately running
+          setTimeout(() => {
+            if (!get().isAuthInitialized) {
+              fallbackOffline();
+            }
+          }, 1500);
         }
-      } catch (err) {
-        console.warn('Anonymous session initialization failed:', err);
-      }
-
-      // Offline / Sandbox fallback if Firebase is not reachable
-      const fallbackUid =
-        get().firebaseUid ||
-        'usr_' + Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
-
-      if (typeof window !== 'undefined' && !localStorage.getItem('monopoly_player_uid')) {
-        localStorage.setItem('monopoly_player_uid', fallbackUid);
-      }
-
-      set({ firebaseUid: fallbackUid, isAuthInitialized: true });
-      return fallbackUid;
+      });
     },
 
     setPlayerName: async (name: string) => {
       const cleanName = name.trim() || 'Player ' + Math.floor(100 + Math.random() * 900);
+      const socket = getSocket();
+      const currentPrefs = getStoredPlayerPreferences();
 
-      // Ensure Firebase UID is resolved
-      let uid = get().firebaseUid;
-      if (!uid) {
-        uid = await get().initializeAuth();
-      }
-
-      let color = get().player?.avatarColor;
+      let color = get().player?.avatarColor || currentPrefs.color;
       if (!color) {
         color = PLAYER_COLORS[Math.floor(Math.random() * PLAYER_COLORS.length)];
       }
 
       if (typeof window !== 'undefined') {
-        if (uid) localStorage.setItem('monopoly_player_uid', uid);
         localStorage.setItem('monopoly_player_name', cleanName);
         localStorage.setItem('monopoly_player_color', color);
       }
 
+      // Update session on LAN server
+      const token = get().reconnectToken || currentPrefs.token;
+      socket.emit(
+        'player:register',
+        {
+          displayName: cleanName,
+          avatarColor: color,
+          token: token || undefined,
+        },
+        (res) => {
+          if (res.ok && res.player) {
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('monopoly_player_uid', res.player.uid);
+              localStorage.setItem('monopoly_reconnect_token', res.player.token);
+            }
+            set({
+              firebaseUid: res.player.uid,
+              reconnectToken: res.player.token,
+              player: {
+                uid: res.player.uid,
+                displayName: res.player.displayName,
+                avatarColor: res.player.avatarColor,
+              },
+            });
+          }
+        }
+      );
+
       set({
         player: {
-          uid: uid || 'player_anon',
+          uid: get().player?.uid || get().firebaseUid || 'player_me',
           displayName: cleanName,
           avatarColor: color,
         },
@@ -147,24 +233,3 @@ export const useAuthStore = create<PlayerAuthState>((set, get) => {
     },
   };
 });
-
-// Auto-wire onAuthStateChanged listener to guarantee real-time session synchrony
-if (typeof window !== 'undefined') {
-  onAuthUserChanged((user) => {
-    if (user) {
-      const canonicalUid = user.uid;
-      localStorage.setItem('monopoly_player_uid', canonicalUid);
-      const state = useAuthStore.getState();
-      useAuthStore.setState({
-        firebaseUid: canonicalUid,
-        isAuthInitialized: true,
-        player: state.player
-          ? {
-              ...state.player,
-              uid: canonicalUid,
-            }
-          : null,
-      });
-    }
-  });
-}
