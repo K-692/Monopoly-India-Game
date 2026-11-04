@@ -68,8 +68,14 @@ export function calculateRent(
   spaceIndex: number,
   properties: Record<number, PropertyState>,
   diceTotal: number = 7,
-  rules: HostCustomRules = DEFAULT_HOST_RULES
+  rules: HostCustomRules = DEFAULT_HOST_RULES,
+  isOwnerInJail: boolean = false
 ): number {
+  // User Rule: If the player is in jail, he/she should not earn any money from other players
+  if (isOwnerInJail) {
+    return 0;
+  }
+
   const space = BOARD_SPACES[spaceIndex];
   if (!space) return 0;
 

@@ -119,6 +119,16 @@ export function applyGameCommand(
       if (newPos < oldPos && oldPos + steps >= 40) {
         player.cash += passReward;
         summary += ` — Passed START, collected ₹${passReward}!`;
+        state.activeMoneyTransaction = {
+          id: `start_${Date.now()}`,
+          type: 'START_REWARD',
+          payerName: 'Bank',
+          payerUid: 'BANK',
+          recipientName: player.displayName,
+          recipientUid: player.uid,
+          amount: passReward,
+          description: `${player.displayName} collected ₹${passReward.toLocaleString('en-IN')} reward for passing START!`,
+        };
       }
 
       // Resolve destination space
@@ -157,6 +167,17 @@ export function applyGameCommand(
       state.pendingAction = null;
       state.phase = 'MANAGEMENT';
 
+      state.activeMoneyTransaction = {
+        id: `buy_${Date.now()}`,
+        type: 'BUY_PROPERTY',
+        payerName: player.displayName,
+        payerUid: player.uid,
+        recipientName: 'Bank',
+        recipientUid: 'BANK',
+        amount: price,
+        description: `${player.displayName} purchased ${space.name} for ₹${price.toLocaleString('en-IN')}.`,
+      };
+
       summary = `${player.displayName} bought ${space.name} for ₹${price}`;
       eventPayload = { spaceIndex: space.spaceIndex, price };
       break;
@@ -187,6 +208,16 @@ export function applyGameCommand(
       player.inJail = false;
       player.jailTurns = 0;
       state.phase = 'AWAIT_ROLL';
+      state.activeMoneyTransaction = {
+        id: `bail_${Date.now()}`,
+        type: 'BAIL',
+        payerName: player.displayName,
+        payerUid: player.uid,
+        recipientName: 'Court / Bank',
+        recipientUid: 'BANK',
+        amount: bailAmount,
+        description: `${player.displayName} paid ₹${bailAmount.toLocaleString('en-IN')} bail and was released from Central Jail.`,
+      };
       summary = `${player.displayName} paid ₹${bailAmount} bail and is free`;
       break;
     }
@@ -271,6 +302,16 @@ export function applyGameCommand(
 
       const level = state.properties[spaceIdx].buildings;
       const buildingName = level === 5 ? 'Commercial Tower' : `House #${level}`;
+      state.activeMoneyTransaction = {
+        id: `build_${Date.now()}`,
+        type: 'BUILD',
+        payerName: player.displayName,
+        payerUid: player.uid,
+        recipientName: 'Bank',
+        recipientUid: 'BANK',
+        amount: space.buildingCost,
+        description: `${player.displayName} constructed ${buildingName} on ${space.name} for ₹${space.buildingCost.toLocaleString('en-IN')}.`,
+      };
       summary = `${player.displayName} built a ${buildingName} on ${space.name}`;
       eventPayload = { spaceIndex: spaceIdx, level };
       break;
@@ -357,6 +398,12 @@ export function applyGameCommand(
       break;
     }
 
+    case 'DISMISS_MONEY_ACK': {
+      state.activeMoneyTransaction = null;
+      summary = 'Acknowledged money transaction.';
+      break;
+    }
+
     default:
       throw new GameEngineError('INVALID_ACTION', `Unsupported action ${command.type}`);
   }
@@ -419,27 +466,44 @@ function resolveLandingSpace(
           spaceIndex,
         };
       } else if (propState.ownerUid !== player.uid && !propState.isMortgaged) {
-        // Rent owed to owner
-        let rentDue = calculateRent(spaceIndex, state.properties, diceTotal);
+        const owner = state.players.find((p) => p.uid === propState.ownerUid);
+        const isOwnerInJail = Boolean(owner?.inJail);
+
+        // User Rule: If the player is in jail, he/she should not earn any money from other players
+        let rentDue = calculateRent(spaceIndex, state.properties, diceTotal, undefined, isOwnerInJail);
         if (options?.rentMultiplier) {
           rentDue *= options.rentMultiplier;
         }
-        const owner = state.players.find((p) => p.uid === propState.ownerUid);
 
-        if (player.cash >= rentDue) {
-          player.cash -= rentDue;
-          if (owner) owner.cash += rentDue;
-          state.phase = 'MANAGEMENT';
+        if (rentDue > 0) {
+          if (player.cash >= rentDue) {
+            player.cash -= rentDue;
+            if (owner) owner.cash += rentDue;
+            state.phase = 'MANAGEMENT';
+            state.activeMoneyTransaction = {
+              id: `rent_${Date.now()}`,
+              type: 'RENT',
+              payerName: player.displayName,
+              payerUid: player.uid,
+              recipientName: owner?.displayName,
+              recipientUid: owner?.uid,
+              amount: rentDue,
+              description: `${player.displayName} paid ₹${rentDue.toLocaleString('en-IN')} rent to ${owner?.displayName} for landing on ${space.name}.`,
+            };
+          } else {
+            // Insufficient funds: liquidation needed
+            state.phase = 'ACTION_REQUIRED';
+            state.pendingAction = {
+              type: 'RAISE_FUNDS_DEBT',
+              playerUid: player.uid,
+              amountDue: rentDue,
+              creditorUid: owner?.uid ?? null,
+              spaceIndex,
+            };
+          }
         } else {
-          // Insufficient funds: liquidation needed
-          state.phase = 'ACTION_REQUIRED';
-          state.pendingAction = {
-            type: 'RAISE_FUNDS_DEBT',
-            playerUid: player.uid,
-            amountDue: rentDue,
-            creditorUid: owner?.uid ?? null,
-            spaceIndex,
-          };
+          // Zero rent (e.g. owner in jail or rent is 0)
+          state.phase = 'MANAGEMENT';
         }
       } else {
         // Owned by current player or mortgaged
@@ -453,6 +517,16 @@ function resolveLandingSpace(
       if (player.cash >= taxAmount) {
         player.cash -= taxAmount;
         state.phase = 'MANAGEMENT';
+        state.activeMoneyTransaction = {
+          id: `tax_${Date.now()}`,
+          type: 'TAX',
+          payerName: player.displayName,
+          payerUid: player.uid,
+          recipientName: 'Bank',
+          recipientUid: 'BANK',
+          amount: taxAmount,
+          description: `${player.displayName} paid ₹${taxAmount.toLocaleString('en-IN')} tax for landing on ${space.name}.`,
+        };
       } else {
         state.phase = 'ACTION_REQUIRED';
         state.pendingAction = {
@@ -514,6 +588,8 @@ function applyCardEffect(state: GameState, player: PlayerState, card: CardAction
       player.cash = Math.max(0, player.cash - (card.amount ?? 0));
       break;
     case 'CASH_PLAYERS': {
+      // User Rule: If the player is in jail, he/she should not earn any money from other players
+      if (player.inJail) break;
       const perPlayer = card.amount ?? 0;
       for (const other of state.players) {
         if (other.uid !== player.uid && !other.isBankrupt) {
@@ -527,7 +603,8 @@ function applyCardEffect(state: GameState, player: PlayerState, card: CardAction
     case 'PAY_PLAYERS': {
       const perPlayer = card.amount ?? 0;
       for (const other of state.players) {
-        if (other.uid !== player.uid && !other.isBankrupt) {
+        // User Rule: If the player is in jail, he/she should not earn any money from other players
+        if (other.uid !== player.uid && !other.isBankrupt && !other.inJail) {
           player.cash = Math.max(0, player.cash - perPlayer);
           other.cash += perPlayer;
         }

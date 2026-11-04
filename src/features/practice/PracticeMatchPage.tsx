@@ -3,17 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { usePracticeStore } from './use-practice-store';
 import { useAuthStore } from '@/features/auth/use-auth-store';
 import { GameBoard } from '@/components/board/GameBoard';
-import { BOARD_SPACES } from '@/domain/board-config';
-import { SpaceDeedInspector } from '@/components/board/SpaceDeedInspector';
 import { PlayerStrip } from '@/components/player/PlayerStrip';
-import { ActionPanel } from '@/components/player/ActionPanel';
-import { EventTicker } from '@/components/feedback/EventTicker';
-import { ReactionTray } from '@/components/feedback/ReactionTray';
-import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { Trophy, ArrowLeft, AlertCircle, Bot } from 'lucide-react';
-import confetti from 'canvas-confetti';
+import { Trophy, ArrowLeft, Bot, AlertCircle } from 'lucide-react';
 
 export const PracticeMatchPage: React.FC = () => {
   const navigate = useNavigate();
@@ -21,27 +15,27 @@ export const PracticeMatchPage: React.FC = () => {
   const {
     gameState,
     events,
-    activeEmotes,
     selectedSpaceIndex,
     isRolling,
     walkingAnimation,
-    isAiThinking,
     error,
+    isAiThinking,
     startPracticeMatch,
-    selectSpace,
     dispatchAction,
-    sendEmote,
-    tickTurnTimer,
+    selectSpace,
     dismissError,
+    tickTurnTimer,
   } = usePracticeStore();
 
+  // Initialize Practice Match once on mount
   useEffect(() => {
     if (!gameState) {
-      startPracticeMatch(player?.displayName || 'Maharaja Player');
+      const defaultName = player?.displayName || 'Maharaja Player';
+      startPracticeMatch(defaultName);
     }
   }, [gameState, player?.displayName, startPracticeMatch]);
 
-  // Turn timer countdown interval
+  // Turn Countdown Timer ticker
   useEffect(() => {
     if (!gameState || gameState.status === 'COMPLETED') return;
     const interval = setInterval(() => {
@@ -50,26 +44,11 @@ export const PracticeMatchPage: React.FC = () => {
     return () => clearInterval(interval);
   }, [gameState, tickTurnTimer]);
 
-  // Victory fireworks
-  useEffect(() => {
-    if (gameState?.status === 'COMPLETED' && gameState.winnerUid) {
-      try {
-        confetti({
-          particleCount: 120,
-          spread: 70,
-          origin: { y: 0.6 },
-        });
-      } catch {
-        // Ignored
-      }
-    }
-  }, [gameState?.status, gameState?.winnerUid]);
-
   if (!gameState) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-8">
         <div className="w-10 h-10 border-4 border-indian-terracotta-500 border-t-transparent rounded-full animate-spin mb-4" />
-        <p className="text-sm font-semibold text-indian-navy-800">
+        <p className="text-sm font-semibold text-indian-navy-800 dark:text-white">
           Preparing the Practice Match...
         </p>
       </div>
@@ -80,12 +59,12 @@ export const PracticeMatchPage: React.FC = () => {
   const winner = gameState.players.find((p) => p.uid === gameState.winnerUid);
 
   return (
-    <div className="h-[calc(100dvh-54px)] max-h-screen overflow-hidden flex flex-col justify-between w-full max-w-none px-2 sm:px-3 py-1 gap-1 select-none">
+    <div className="h-[calc(100dvh-50px)] max-h-screen overflow-hidden flex flex-col justify-between w-full max-w-none px-2 sm:px-3 py-1 gap-1 select-none">
       {/* Top Header Bar */}
-      <div className="flex items-center justify-between pb-1.5 border-b border-indian-parchment-300 dark:border-indian-navy-700 shrink-0">
+      <div className="flex items-center justify-between pb-1 border-b border-indian-parchment-300 dark:border-indian-navy-700 shrink-0">
         <button
           onClick={() => navigate('/')}
-          className="flex items-center gap-1.5 text-xs font-bold text-indian-navy-700 dark:text-indian-parchment-300 hover:text-indian-terracotta-600 transition-colors"
+          className="flex items-center gap-1.5 text-xs font-bold text-indian-navy-700 dark:text-indian-parchment-300 hover:text-indian-terracotta-600 transition-colors cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" /> Exit Practice Match
         </button>
@@ -94,7 +73,7 @@ export const PracticeMatchPage: React.FC = () => {
           <Badge variant="terracotta" className="text-xs font-bold flex items-center gap-1">
             <Bot className="w-3.5 h-3.5" /> Practice Match (Sandbox)
           </Badge>
-          <span className="text-xs text-gray-500 font-mono">
+          <span className="text-xs text-gray-500 font-mono font-bold">
             Turn #{gameState.turnNumber}
           </span>
         </div>
@@ -107,7 +86,7 @@ export const PracticeMatchPage: React.FC = () => {
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{error}</span>
           </div>
-          <button onClick={dismissError} className="font-bold underline ml-2">
+          <button onClick={dismissError} className="font-bold underline ml-2 cursor-pointer">
             Dismiss
           </button>
         </div>
@@ -148,39 +127,23 @@ export const PracticeMatchPage: React.FC = () => {
         </div>
       )}
 
-      {/* Main 3-Column Non-Scrollable Game Canvas with Stretched Board and Compact Left Panel */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-[210px_1fr_250px] xl:grid-cols-[230px_1fr_270px] gap-2 items-stretch overflow-hidden min-h-0">
-        {/* Left Column: Player Strip (Compact Width, Select to View Info) & Space Deed Inspector */}
-        <div className="hidden lg:flex lg:flex-col justify-between h-full overflow-hidden pr-0.5 gap-1.5 min-w-0">
+      {/* Main Game Canvas: Slim Left Panel + Maximized Full-Screen Game Board (No Right Container, No Footer) */}
+      <div className="flex-1 flex gap-2 items-stretch overflow-hidden min-h-0 w-full">
+        {/* Left Column: Slim Player Strip (Select to View Info) */}
+        <div className="hidden sm:flex flex-col justify-start h-full overflow-hidden w-32 sm:w-36 md:w-40 shrink-0">
           <PlayerStrip
             players={gameState.players}
             currentPlayerUid={gameState.currentPlayerUid}
             properties={gameState.properties}
             turnTimeRemaining={gameState.turnTimeRemaining}
             turnTimeLimit={gameState.turnTimeLimit}
-            onSelectPlayer={(uid) => {
-              const p = gameState.players.find((pl) => pl.uid === uid);
-              if (p) selectSpace(p.position);
-            }}
+            onSelectPlayer={() => {}}
             onSelectSpace={selectSpace}
-          />
-
-          {/* Selected Space Deed Inspector */}
-          <SpaceDeedInspector
-            space={selectedSpaceIndex !== null ? BOARD_SPACES[selectedSpaceIndex] : null}
-            propertyState={selectedSpaceIndex !== null ? gameState.properties[selectedSpaceIndex] : null}
-            players={gameState.players}
-            isOwner={
-              selectedSpaceIndex !== null &&
-              gameState.properties[selectedSpaceIndex]?.ownerUid === 'player_human'
-            }
-            turnNumber={gameState.turnNumber}
-            onDispatch={dispatchAction}
           />
         </div>
 
-        {/* Center Column: The 40-Space Board (Stretched Left-to-Right Covering Maximum Window) */}
-        <div className="flex items-center justify-center h-full max-h-full min-h-0 min-w-0 overflow-hidden py-0.5">
+        {/* Center Canvas: Full-Size Game Board (Enlarged across all available screen space) */}
+        <div className="flex-1 flex items-center justify-center h-full max-h-full min-h-0 min-w-0 overflow-hidden">
           <GameBoard
             gameState={gameState}
             selectedSpaceIndex={selectedSpaceIndex}
@@ -188,37 +151,15 @@ export const PracticeMatchPage: React.FC = () => {
             isRolling={isRolling}
             onRollDice={() => dispatchAction('ROLL_DICE')}
             onDismissCardPopup={() => dispatchAction('DISMISS_CARD_POPUP')}
+            onDismissMoneyAck={() => dispatchAction('DISMISS_MONEY_ACK')}
+            onDispatch={dispatchAction}
             isMyTurn={isHumanTurn && !isAiThinking && !walkingAnimation}
+            userUid="player_human"
             lastEvent={events[0]}
             walkingAnimation={walkingAnimation}
-          />
-        </div>
-
-        {/* Right Column: Turn Actions, Live Activity & My Info with Click Portfolio */}
-        <div className="hidden lg:flex lg:flex-col justify-between h-full overflow-hidden pl-0.5 min-w-0">
-          <ActionPanel
-            gameState={gameState}
-            selectedSpaceIndex={selectedSpaceIndex}
-            onDispatch={dispatchAction}
-            isRolling={isRolling}
-            userUid="player_human"
-          />
-        </div>
-      </div>
-
-      {/* Bottom Tray: Event Ticker & Reaction Tray */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-1.5 shrink-0 pt-1">
-        <div className="w-full sm:flex-1">
-          <EventTicker events={events} />
-        </div>
-        <div className="shrink-0">
-          <ReactionTray
-            onSendEmote={(emote) => sendEmote(emote, player?.displayName || 'Player')}
-            activeEmotes={activeEmotes}
           />
         </div>
       </div>
     </div>
   );
 };
-

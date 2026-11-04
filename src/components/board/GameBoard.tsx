@@ -1,19 +1,26 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { BOARD_SPACES, CIVIC_FUND_CARDS, MARKET_BUZZ_CARDS } from '@/domain/board-config';
-import { CardAction, GameEvent, GameState, WalkingAnimationState } from '@/domain/game-types';
+import { CardAction, GameActionType, GameEvent, GameState, PropertyDefinition, WalkingAnimationState } from '@/domain/game-types';
 import { BoardSpaceTile } from './BoardSpaceTile';
+import { CityDeedModal } from './CityDeedModal';
+import { getSpaceGridCoord } from './board-layout-utils';
+import { canBuildOnProperty } from '@/domain/ruleset';
 import { TurnStepAcknowledgment } from '@/components/feedback/TurnStepAcknowledgment';
-import { Dices, X, Gift, Flame, Check } from 'lucide-react';
+import { Dices, X, Gift, Flame, Check, ArrowRight, KeyRound } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 
 interface GameBoardProps {
   gameState: GameState;
   selectedSpaceIndex: number | null;
-  onSelectSpace: (index: number) => void;
+  onSelectSpace: (index: number | null) => void;
   isRolling: boolean;
   onRollDice?: () => void;
   onDismissCardPopup?: () => void;
+  onDismissMoneyAck?: () => void;
+  onDispatch?: (type: GameActionType, payload?: Record<string, unknown>) => void;
   isMyTurn?: boolean;
+  userUid?: string;
   lastEvent?: GameEvent;
   walkingAnimation?: WalkingAnimationState | null;
 }
@@ -25,7 +32,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   isRolling,
   onRollDice,
   onDismissCardPopup,
+  onDismissMoneyAck,
+  onDispatch,
   isMyTurn = true,
+  userUid,
   lastEvent,
   walkingAnimation,
 }) => {
@@ -56,6 +66,34 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   const highlightedSpaceIndex =
     walkingAnimation ? walkingAnimation.currentPos : (activePlayer?.position ?? null);
 
+  // Active player location & Pointed Comment Box computations
+  const playerPos = activePlayer ? activePlayer.position : 0;
+  const playerCoord = getSpaceGridCoord(playerPos);
+  const playerSpace = BOARD_SPACES[playerPos];
+  const playerPropState = gameState.properties[playerPos];
+
+  const isPropertyDecision =
+    isMyTurn &&
+    gameState.phase === 'PROPERTY_DECISION' &&
+    !walkingAnimation;
+
+  const canBuildHere =
+    Boolean(
+      isMyTurn &&
+      gameState.phase === 'MANAGEMENT' &&
+      !walkingAnimation &&
+      activePlayer &&
+      playerSpace?.type === 'PROPERTY' &&
+      canBuildOnProperty(
+        playerPos,
+        activePlayer.uid,
+        gameState.properties,
+        activePlayer.cash,
+        playerPos,
+        gameState.turnNumber
+      ).allowed
+    );
+
   // Dice dot positions (1 to 6)
   const renderDiceFace = (val: number) => {
     const safeVal = val >= 1 && val <= 6 ? val : 3;
@@ -70,7 +108,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     const activeDots = dots[safeVal] || [4];
 
     return (
-      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white border-2 border-gray-950 rounded-xl shadow-lg grid grid-cols-3 grid-rows-3 p-1 sm:p-1.5 gap-0.5 transform-gpu">
+      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white border-2 border-gray-950 rounded-xl shadow-lg grid grid-cols-3 grid-rows-3 p-1 sm:p-1.5 gap-0.5">
         {Array.from({ length: 9 }).map((_, i) => (
           <div key={i} className="flex items-center justify-center">
             {activeDots.includes(i) && (
@@ -84,9 +122,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({
 
   return (
     <div className="relative w-full h-full max-h-full mx-auto p-0.5 sm:p-1 bg-indian-parchment-200 border-2 border-indian-parchment-400 rounded-xl shadow-board-elevation select-none flex flex-col justify-center overflow-hidden">
-      {/* 11x11 Grid with Spacious City Grids and Non-Overlapping Dimensions */}
+      {/* 11x11 Grid with Expanded Perimeter Dimensions and Spacious City Grids */}
       <div
-        className="w-full h-full grid gap-[1px] bg-indian-parchment-400 rounded-lg overflow-hidden"
+        className="w-full h-full grid gap-[1px] bg-indian-parchment-400 rounded-lg overflow-hidden relative"
         style={{
           gridTemplateColumns: '1.35fr repeat(9, 1fr) 1.35fr',
           gridTemplateRows: '1.4fr repeat(9, 1fr) 1.4fr',
@@ -209,7 +247,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
               </div>
             </div>
 
-            {/* In-Board Dice Roll Arena: Bold, Highly Visible Dice at Center */}
+            {/* In-Board Dice Roll Arena: Bold, Highly Visible Dice & Turn Action Button at Center */}
             <div className="flex flex-col items-center justify-center gap-1 sm:gap-1.5 z-20 shrink-0 px-0.5">
               {/* Interactive 3D Tumbling Dice with Bold Black Dots */}
               <div
@@ -236,17 +274,45 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                 </div>
               )}
 
-              {/* In-Board Dice Action Button */}
+              {/* Center Controls: Roll Dice / End Turn / Jail Actions */}
               {isMyTurn && gameState.phase === 'AWAIT_ROLL' && !walkingAnimation ? (
                 <button
                   type="button"
                   disabled={isRolling}
                   onClick={onRollDice}
-                  className="px-3.5 py-1.5 rounded-full font-bold text-[11px] text-white bg-gradient-to-r from-indian-terracotta-500 to-indian-terracotta-600 hover:from-indian-terracotta-600 hover:to-indian-terracotta-700 shadow-md active:scale-95 transition-all flex items-center gap-1.5 border border-indian-terracotta-400 animate-pulse-subtle cursor-pointer"
+                  className="px-4 py-2 rounded-full font-black text-xs text-white bg-gradient-to-r from-indian-terracotta-500 to-indian-terracotta-600 hover:from-indian-terracotta-600 hover:to-indian-terracotta-700 shadow-md active:scale-95 transition-all flex items-center gap-1.5 border border-indian-terracotta-400 animate-pulse-subtle cursor-pointer"
                 >
-                  <Dices className="w-3.5 h-3.5" />
+                  <Dices className="w-4 h-4" />
                   <span>{isRolling ? 'Rolling...' : 'ROLL DICE'}</span>
                 </button>
+              ) : isMyTurn && (gameState.phase === 'MANAGEMENT' || gameState.phase === 'TURN_END') && !walkingAnimation ? (
+                <button
+                  type="button"
+                  onClick={() => onDispatch?.('END_TURN')}
+                  className="px-4 py-1.5 rounded-full font-bold text-xs text-white bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 shadow-md active:scale-95 transition-all flex items-center gap-1.5 border border-emerald-400 cursor-pointer"
+                >
+                  <span>END TURN</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              ) : isMyTurn && gameState.phase === 'JAIL_DECISION' && !walkingAnimation ? (
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => onDispatch?.('PAY_BAIL')}
+                    className="px-2.5 py-1 rounded-full font-bold text-[10px] text-white bg-red-600 hover:bg-red-500 shadow-xs cursor-pointer flex items-center gap-1"
+                  >
+                    <KeyRound className="w-3 h-3" />
+                    <span>Pay ₹500 Bail</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onDispatch?.('TRY_DOUBLES')}
+                    className="px-2.5 py-1 rounded-full font-bold text-[10px] text-white bg-amber-600 hover:bg-amber-500 shadow-xs cursor-pointer flex items-center gap-1"
+                  >
+                    <Dices className="w-3 h-3" />
+                    <span>Try Doubles</span>
+                  </button>
+                </div>
               ) : walkingAnimation ? (
                 <span className="text-[8.5px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-300 animate-pulse">
                   🚶 Stepping along lane...
@@ -334,18 +400,139 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             Turn #{gameState.turnNumber} • Phase: {gameState.phase}
           </div>
         </div>
+
+        {/* POINTED COMMENT BOX: Pops near the player's current position to Buy or Build on the city */}
+        {(isPropertyDecision || canBuildHere) && (
+          <div
+            style={{
+              gridRow: playerCoord.row,
+              gridColumn: playerCoord.col,
+            }}
+            className="relative z-50 pointer-events-none"
+          >
+            <div
+              className={cn(
+                'absolute pointer-events-auto w-60 sm:w-68 p-3.5 rounded-2xl bg-[#070A12] text-white border-2 border-amber-400 shadow-[0_12px_36px_rgba(0,0,0,0.85)] flex flex-col gap-2.5 animate-scale-in text-xs',
+                playerCoord.orientation === 'bottom' && 'bottom-[calc(100%+14px)] left-1/2 -translate-x-1/2',
+                playerCoord.orientation === 'top' && 'top-[calc(100%+14px)] left-1/2 -translate-x-1/2',
+                playerCoord.orientation === 'left' && 'left-[calc(100%+14px)] top-1/2 -translate-y-1/2',
+                playerCoord.orientation === 'right' && 'right-[calc(100%+14px)] top-1/2 -translate-y-1/2',
+                playerCoord.orientation === 'corner' && (
+                  playerPos === 0 ? 'bottom-[calc(100%+14px)] right-0' :
+                  playerPos === 10 ? 'bottom-[calc(100%+14px)] left-0' :
+                  playerPos === 20 ? 'top-[calc(100%+14px)] left-0' :
+                  'top-[calc(100%+14px)] right-0'
+                )
+              )}
+            >
+              {/* Pointer Triangle pointing directly at the city tile */}
+              {playerCoord.orientation === 'bottom' && (
+                <div className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-t-[10px] border-t-amber-400" />
+              )}
+              {playerCoord.orientation === 'top' && (
+                <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-b-[10px] border-b-amber-400" />
+              )}
+              {playerCoord.orientation === 'left' && (
+                <div className="absolute -left-2.5 top-1/2 -translate-y-1/2 w-0 h-0 border-t-[8px] border-t-transparent border-b-[8px] border-b-transparent border-r-[10px] border-r-amber-400" />
+              )}
+              {playerCoord.orientation === 'right' && (
+                <div className="absolute -right-2.5 top-1/2 -translate-y-1/2 w-0 h-0 border-t-[8px] border-t-transparent border-b-[8px] border-b-transparent border-l-[10px] border-l-amber-400" />
+              )}
+              {playerCoord.orientation === 'corner' && playerPos === 0 && (
+                <div className="absolute -bottom-2.5 right-6 w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-t-[10px] border-t-amber-400" />
+              )}
+              {playerCoord.orientation === 'corner' && playerPos === 10 && (
+                <div className="absolute -bottom-2.5 left-6 w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-t-[10px] border-t-amber-400" />
+              )}
+              {playerCoord.orientation === 'corner' && playerPos === 20 && (
+                <div className="absolute -top-2.5 left-6 w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-b-[10px] border-b-amber-400" />
+              )}
+              {playerCoord.orientation === 'corner' && playerPos === 30 && (
+                <div className="absolute -top-2.5 right-6 w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-b-[10px] border-b-amber-400" />
+              )}
+
+              {/* Pointed Box Content: Buy Property Prompt */}
+              {isPropertyDecision && 'price' in playerSpace && (
+                <>
+                  <div className="flex items-center justify-between border-b border-white/20 pb-1.5">
+                    <span className="font-serif font-black text-xs text-amber-200">
+                      🏙️ Buy Property?
+                    </span>
+                    <span className="font-black text-emerald-400 text-xs">
+                      ₹{playerSpace.price.toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-gray-200 leading-tight">
+                    Acquire <strong className="text-white">{playerSpace.name}</strong> for ₹{playerSpace.price.toLocaleString('en-IN')}? (Mortgage: ₹{('mortgageValue' in playerSpace ? playerSpace.mortgageValue : Math.floor((playerSpace as { price: number }).price / 2)).toLocaleString('en-IN')})
+                  </p>
+                  <div className="flex items-center gap-1.5 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => onDispatch?.('BUY_PROPERTY', { spaceIndex: playerPos })}
+                      className="flex-1 py-1.5 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-500 text-white shadow-md active:scale-95 transition-all flex items-center justify-center gap-1 cursor-pointer"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Buy City</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onDispatch?.('DECLINE_PROPERTY')}
+                      className="px-3 py-1.5 rounded-xl font-bold text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 active:scale-95 transition-all cursor-pointer"
+                    >
+                      Decline
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {/* Pointed Box Content: Build Development Prompt */}
+              {canBuildHere && playerSpace.type === 'PROPERTY' && (
+                <>
+                  <div className="flex items-center justify-between border-b border-white/20 pb-1.5">
+                    <span className="font-serif font-black text-xs text-amber-200">
+                      🔨 Build Development?
+                    </span>
+                    <span className="font-black text-emerald-400 text-xs">
+                      ₹{(playerSpace as PropertyDefinition).buildingCost.toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-gray-200 leading-tight">
+                    Construct {playerPropState?.buildings === 4 ? 'Commercial Tower' : `House #${(playerPropState?.buildings ?? 0) + 1}`} on <strong className="text-white">{playerSpace.name}</strong>?
+                  </p>
+                  <div className="flex items-center gap-1.5 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => onDispatch?.('BUILD', { spaceIndex: playerPos })}
+                      className="flex-1 py-1.5 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-500 text-white shadow-md active:scale-95 transition-all flex items-center justify-center gap-1 cursor-pointer"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      <span>{playerPropState?.buildings === 4 ? 'Build Tower' : 'Build House'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onDispatch?.('END_TURN')}
+                      className="px-3 py-1.5 rounded-xl font-bold text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 active:scale-95 transition-all cursor-pointer"
+                    >
+                      Done
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Pop-up Window for Applied Card Rule (Triggered when landing on Civic Fund or Market Buzz) */}
-      {gameState.activeCardPopup && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
+      {/* Pop-up Window for Applied Card Rule (Fixed with High-Visibility Acknowledge Button per Screenshot) */}
+      {gameState.activeCardPopup && createPortal(
+        <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in select-none">
           <div
             onClick={(e) => e.stopPropagation()}
             className={cn(
               'w-full max-w-sm sm:max-w-md rounded-2xl p-5 shadow-2xl border-2 space-y-4 animate-scale-in text-white',
               gameState.activeCardPopup.deck === 'CIVIC'
-                ? 'bg-gradient-to-br from-indian-terracotta-900 via-amber-950 to-stone-900 border-amber-400'
-                : 'bg-gradient-to-br from-teal-950 via-emerald-950 to-stone-900 border-emerald-400'
+                ? 'bg-gradient-to-br from-[#3b1208] via-[#541c0a] to-[#1a0a05] border-amber-400'
+                : 'bg-gradient-to-br from-[#062c26] via-[#094137] to-[#041714] border-emerald-400'
             )}
           >
             {/* Header with Rule Index and Dice Total */}
@@ -364,7 +551,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                 </div>
               </div>
 
-              <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/20 text-xs font-black font-mono">
+              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 text-xs font-black font-mono">
                 <span>🎲 Dice Total:</span>
                 <span className="text-amber-300 font-black text-sm">{gameState.activeCardPopup.ruleIndex}</span>
               </div>
@@ -389,8 +576,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({
               )}
             </div>
 
-            {/* Action / Dismiss Button */}
-            <div className="pt-2 flex justify-end">
+            {/* Acknowledgment Button with Proper Visibility */}
+            <div className="pt-3 flex justify-end w-full">
               <button
                 type="button"
                 onClick={() => {
@@ -398,29 +585,128 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                     onDismissCardPopup();
                   }
                 }}
-                className="w-full sm:w-auto px-5 py-2.5 rounded-xl font-bold text-xs bg-white text-indian-navy-950 hover:bg-amber-100 active:scale-95 transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full sm:w-auto min-w-[170px] px-6 py-2.5 rounded-xl font-black text-sm bg-amber-400 hover:bg-amber-300 text-indian-navy-950 active:scale-95 transition-all shadow-xl flex items-center justify-center gap-2 border-2 border-white ring-2 ring-amber-500/40 cursor-pointer"
               >
-                <Check className="w-4 h-4 text-emerald-600" />
-                <span>Acknowledge Rule</span>
+                <Check className="w-5 h-5 text-indian-navy-950 stroke-[3]" />
+                <span className="tracking-wide uppercase">Acknowledge Rule</span>
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
+      )}
+
+      {/* MONEY TRANSACTION ACKNOWLEDGEMENT POP-UP MODAL */}
+      {gameState.activeMoneyTransaction && createPortal(
+        <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in select-none">
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-sm sm:max-w-md rounded-2xl p-5 shadow-2xl border-2 border-amber-400 bg-gradient-to-br from-[#070A12] via-[#111A2E] to-[#1F1610] text-white space-y-4 animate-scale-in"
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-white/20 pb-3">
+              <div className="flex items-center gap-2.5">
+                <span className="text-2xl">
+                  {gameState.activeMoneyTransaction.type === 'RENT'
+                    ? '💸'
+                    : gameState.activeMoneyTransaction.type === 'START_REWARD'
+                    ? '🎁'
+                    : gameState.activeMoneyTransaction.type === 'TAX'
+                    ? '🏛️'
+                    : '💰'}
+                </span>
+                <div>
+                  <h3 className="font-serif font-black text-sm sm:text-base tracking-wide text-amber-200 uppercase">
+                    {gameState.activeMoneyTransaction.type === 'RENT'
+                      ? 'Rent Payment'
+                      : gameState.activeMoneyTransaction.type === 'START_REWARD'
+                      ? 'START Reward'
+                      : gameState.activeMoneyTransaction.type === 'TAX'
+                      ? 'Statutory Tax'
+                      : gameState.activeMoneyTransaction.type === 'BUY_PROPERTY'
+                      ? 'Property Purchase'
+                      : gameState.activeMoneyTransaction.type === 'BUILD'
+                      ? 'Construction Expense'
+                      : 'Financial Notice'}
+                  </h3>
+                  <span className="text-[10px] text-gray-300">
+                    Transaction Notice & Receipt
+                  </span>
+                </div>
+              </div>
+
+              {/* Amount Badge */}
+              <div className="px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/50 text-emerald-300 font-mono font-black text-xs sm:text-sm">
+                ₹{gameState.activeMoneyTransaction.amount.toLocaleString('en-IN')}
+              </div>
+            </div>
+
+            {/* Transaction Parties & Breakdown */}
+            <div className="p-3 rounded-xl bg-white/5 border border-white/10 space-y-2 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-gray-400">Payer (Spent):</span>
+                <span className="font-bold text-red-400">
+                  {gameState.activeMoneyTransaction.payerName || 'Player'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-gray-400">Recipient (Earned):</span>
+                <span className="font-bold text-emerald-400">
+                  {gameState.activeMoneyTransaction.recipientName || 'Bank'}
+                </span>
+              </div>
+              <div className="pt-1.5 border-t border-white/10 text-xs text-amber-100 leading-relaxed">
+                {gameState.activeMoneyTransaction.description}
+              </div>
+            </div>
+
+            {/* Acknowledgement Button with Proper Visibility */}
+            <div className="pt-2 flex justify-end w-full">
+              <button
+                type="button"
+                onClick={() => {
+                  if (onDismissMoneyAck) {
+                    onDismissMoneyAck();
+                  }
+                }}
+                className="w-full sm:w-auto min-w-[200px] px-8 py-3 rounded-xl font-black text-sm bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-indian-navy-950 shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 border-2 border-white ring-2 ring-amber-500/50 cursor-pointer"
+              >
+                <Check className="w-5 h-5 text-indian-navy-950 stroke-[3]" />
+                <span className="tracking-wide uppercase">Acknowledge</span>
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* CITY INFORMATION MODAL POP-UP (Opens when any person clicks a city grid) */}
+      {selectedSpaceIndex !== null && (
+        <CityDeedModal
+          space={BOARD_SPACES[selectedSpaceIndex]}
+          propertyState={gameState.properties[selectedSpaceIndex]}
+          players={gameState.players}
+          isMyTurn={isMyTurn}
+          currentUserUid={userUid}
+          turnNumber={gameState.turnNumber}
+          onClose={() => onSelectSpace(null)}
+          onDispatch={onDispatch}
+        />
       )}
 
       {/* Card Inspection Modal if clicked from the indexed list */}
-      {inspectedCard && (
+      {inspectedCard && createPortal(
         <div
           onClick={() => setInspectedCard(null)}
-          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in"
+          className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in select-none"
         >
           <div
             onClick={(e) => e.stopPropagation()}
             className={cn(
               'w-full max-w-sm rounded-2xl p-5 text-white shadow-2xl border-2 space-y-3',
               inspectedCard.deck === 'CIVIC'
-                ? 'bg-gradient-to-br from-indian-terracotta-700 to-amber-900 border-amber-300'
-                : 'bg-gradient-to-br from-teal-800 to-emerald-950 border-emerald-300'
+                ? 'bg-gradient-to-br from-[#3b1208] to-[#1a0a05] border-amber-300'
+                : 'bg-gradient-to-br from-[#062c26] to-[#041714] border-emerald-300'
             )}
           >
             <div className="flex items-center justify-between border-b border-white/20 pb-2">
@@ -451,7 +737,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({
               </div>
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

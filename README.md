@@ -11,7 +11,7 @@
 
 > **Live Game URL:** [https://k-692.github.io/Monopoly-India-Game/](https://k-692.github.io/Monopoly-India-Game/)
 >
-> **Repository Description:** A fast, responsive, zero-scroll Indian-themed multiplayer property trading board game built with React 19, TypeScript, Tailwind CSS, and Cloud Firestore. Features 24 authentic Indian metropolitan cities (strictly 6 per side), 4 intercity transit gateways (2 Railways & 2 Airports with in-grid vector illustrations), 12 Market Buzz & 12 Civic Fund canonical rules displayed in dual indexed center panels (#1 to #12), central 3D tumbling dice, dice-total card rule trigger with an in-board pop-up modal, player-colored grid theming upon purchase (colored border, tinted background, and owner banner), next-turn delayed building logic, universal mortgaging at first or action step, dismissible left panel player inspector with cross button, enlarged player pawns with dedicated non-overlapping slots, compact extreme corners, two-line non-wrapping city typography with adaptive font sizing, frictionless link-based room joining, host-configurable rule engines, turn countdown timers, zero-latency Web Audio sound synthesis, and a 2-player practice match duel sandbox.
+> **Repository Description:** A fast, responsive, zero-scroll Indian-themed multiplayer property trading board game built with React 19, TypeScript, Tailwind CSS, and Cloud Firestore. Features a maximized full-screen board, 24 authentic Indian metropolitan cities (strictly 6 per side) formatted in two non-wrapping lines with prices and mortgage values, 4 intercity transit gateways (2 Railways & 2 Airports with in-grid vector illustrations), 12 Market Buzz & 12 Civic Fund canonical rules displayed in dual indexed center panels (#1 to #12), central 3D tumbling dice and in-board roll button, in-board pointed comment boxes for buying cities and constructing houses/towers, interactive City Deed Inspection Modals on city click, Player Financial Dossier Modals on player click, jailed player rent exemption, money transaction acknowledgement receipts, player-colored grid theming upon purchase, next-turn delayed building logic, universal mortgaging, frictionless link-based room joining, host-configurable rule engines, turn countdown timers, zero-latency Web Audio procedural sound synthesis, and a 2-player practice match duel sandbox.
 >
 > **GitHub Repository Topics:** `monopoly`, `board-game`, `multiplayer-game`, `react19`, `typescript`, `firebase`, `firestore`, `tailwindcss`, `vite`, `playwright`, `game-engine`, `indian-theme`, `web-audio-api`, `pwa`, `responsive-web-design`, `zero-scroll`, `github-pages`
 
@@ -20,29 +20,28 @@
 ## 🌟 Key Highlights
 
 - 🌐 **Live Web Play**: Share the link [https://k-692.github.io/Monopoly-India-Game/](https://k-692.github.io/Monopoly-India-Game/) with friends to play directly from any modern desktop, tablet, or smartphone web browser!
-- 🚫 **Zero-Scroll Game Tab Guarantee**: The entire game tab is strictly non-scrollable (`h-[calc(100dvh-54px)] overflow-hidden`). No board scroll, no left panel scroll, no right panel scroll, and no inner container scrollbars.
-- 📐 **Spacious Grid Proportions & Compact Extreme Corners**: Perimeter grid geometry (`1.35fr repeat(9, 1fr) 1.35fr` and `1.4fr repeat(9, 1fr) 1.4fr`) expands top/bottom cells by 40% and left/right cells by 35%, while placing Rest House, Jail, START, and Go To Jail in compact boxes at the extreme four corners.
+- 🚫 **Zero-Scroll Full-Screen Board**: The board stretches horizontally and vertically across all available viewport space (`h-[calc(100dvh-50px)]`, `flex-1`). No page scrolling, no right panel clutter, and no bottom footer.
+- 🎯 **Pointed Comment Box for Buy & Build**: Replaced bulky side panels with an elegant in-board callout box anchored directly to the player's position on the perimeter grid. Features an exact geometric pointer triangle directed straight at the player's active tile for purchasing properties or constructing houses and commercial towers.
+- 🏙️ **City Deed Inspection Modal (Click Any City)**: Clicking any city grid on the board opens a deed inspection modal showing space index, color band, ownership status, purchase price, mortgage value, unmortgage cost, complete rent schedule (Base, House 1-4, Commercial Tower), and direct mortgage/unmortgage controls.
+- 👤 **Player Financial Dossier Modal (Click Any Player)**: Clicking any player's name card in the slim left panel opens an in-depth financial dossier showing liquid cash, total net worth, current position, jail status, and their complete portfolio of owned deeds with current rent yields.
+- 🧾 **Money Transaction Acknowledgement Modal**: Whenever money changes hands (rent payments, property deeds, construction costs, statutory taxes, START rewards), a financial receipt modal appears with payer, recipient, amount, description, and an explicit, high-contrast, gold `✓ ACKNOWLEDGE` button.
+- ⚖️ **Jailed Player Rent & Card Exemption**: Incarcerated players in Central Jail earn **₹0 rent** when opponents land on their properties and receive **₹0** from card payment redistributions until bailed or released.
+- 🎲 **Central Roll Dice Button & 3D Tumbling Dice**: Interactive 3D dice faces with tumbling animations and the primary action button (`ROLL DICE`, `END TURN`, `TRY DOUBLES`, `PAY BAIL`) placed directly at the center of the board.
 - 📜 **Dual 1..12 Indexed Rule Panels in Board Center**: In place of static card backs or single face-up cards, the center of the board features two structured panels:
   - **Left Panel (Civic Fund)**: All 12 Community Treasury rules indexed #1 to #12 with titles, descriptions, and currency awards.
   - **Right Panel (Market Buzz)**: All 12 Fortune & Chance rules indexed #1 to #12 with titles, descriptions, and currency amounts.
-  - Active rules light up with a vibrant pulse ring matching the rolled dice total.
-- 🎲 **Dice-Total Card Rule Selection & Pop-up Modal Window**:
-  - Landing on Civic Fund or Market Buzz selects the exact rule matching the player's rolled `diceTotal` (index 1 to 12).
-  - A modal dialog appears displaying the deck name, rule title, description, currency amount, and explicit `🎲 Dice Total: X` badge with an "Acknowledge Rule" button.
+  - Landing on Civic Fund or Market Buzz resolves the applied rule index strictly from the player's rolled `diceTotal` ($1 \le \text{diceTotal} \le 12$) with an in-board pop-up modal featuring a prominent, high-visibility `✓ ACKNOWLEDGE RULE` button.
 - 🎨 **Player-Colored Grid Theming on Purchase**:
   - When a player buys a city, the grid tile adopts that player's token color:
     - **Solid Border**: 2px border in the player's token color.
     - **Tinted Background**: Alpha-blended wash in the player's color (`${colorToken}18`).
     - **Owner Accent Bar**: Header strip displaying the owner's name.
     - **Houses/Tower Badges**: Direct in-grid house badges (`🏠`) or golden Commercial Tower (`🏢 TOWER`).
-  - Unowned properties maintain clean, neutral parchment aesthetics.
 - 🏗️ **Delayed Building Logic (Next Turn Construction Constraint)**:
   - House/tower construction is strictly prohibited on the turn a city is purchased. Building is permitted starting from subsequent turns (`turnNumber > boughtOnTurn`) when the owner visits their city with sufficient funds.
-- ♟️ **Dedicated Non-Overlapping Player Pawn Slots**:
-  - Player pawns sit in dedicated flex rows facing the board center, separated from city names, transit illustrations, and price tags. Overlap is mathematically impossible.
-- 🔤 **Two-Line Non-Wrapping Typography**: Every city and transit grid is formatted strictly across **two distinct lines**:
-  - **Line 1 (Top)**: City / Place Name with dynamic length-based font scaling (`text-[7px]` to `text-[9.5px]`), guaranteeing **zero text wrap and zero truncation**.
-  - **Line 2 (Bottom)**: Price / Fine Amount in bold emerald or crimson (`text-[8px]` to `text-[9px] font-black`).
+- 🔤 **Two-Line Non-Wrapping Typography with Mortgage Values**: Every city and transit grid is formatted strictly across **two distinct lines**:
+  - **Line 1 (Top)**: City / Place Name with dynamic length-based font scaling (`text-[7px]` to `text-[9.5px]`), guaranteeing zero text wrap and zero truncation.
+  - **Line 2 (Bottom)**: Price alongside Mortgage Value (`M: ₹{mortgageValue}`) in bold, legible typography.
 - 🚂 ✈️ **In-Grid Railway & Airport Vector Illustrations**:
   - **Railways**: CST Mumbai (#5) and Howrah Railway (#15) feature crisp, vector express locomotive engine illustrations with headlights and track ties.
   - **Airports**: Chennai Airport (#25) and IGI Airport (#35) feature streamlined high-altitude passenger jetliner airliner illustrations.
@@ -51,16 +50,9 @@
   - **Left Side**: Indore, Bhopal, Surat, Visakhapatnam, Kochi, Goa (6 cities) + 1 Market Buzz + 1 Railway (Howrah Railway) + 1 Utility (Urja Power Grid).
   - **Top Side**: Ahmedabad, Pune, Hyderabad, Bengaluru, Chennai, Kolkata (6 cities) + 1 Civic Fund + 1 Airport (Chennai Airport) + 1 Utility (Jal Board Grid).
   - **Right Side**: Chandigarh, Gurugram, Noida, Navi Mumbai, New Delhi, Mumbai (6 cities) + 1 Market Buzz + 1 Airport (IGI Airport) + 1 Tax (Infra Levy).
-- 🎁 **2 Civic Fund & 2 Market Buzz Placements**: Symmetrically balanced on opposite sides of the board (Civic Fund on Spaces 2 & 22, Market Buzz on Spaces 12 & 32).
-- 🎯 **Direct Destination Arrival & Final City Presentation**: When dice roll, pawns land directly at the destination tile. The final city is immediately highlighted and selected in the deed inspector.
 - 🤺 **2-Player Practice Match Duel**: Fast, responsive 1v1 practice sandbox against *Priya (Mumbai)* with intelligent autonomous AI decision-making (rolling, property evaluation, bail resolution, and turn cycling).
-- 🗂️ **Compact Left Panel & Click-to-Select Player Info**: Replaced unstable hover popovers with an intentional, ergonomic click-to-select model with a dedicated cross button (`X`) to close the player inspector.
-- 💰 **Universal Mortgaging at First or Action Step**: Any player can mortgage or redeem any city they own whenever they hold the turn, whether in the first step (`AWAIT_ROLL`) or during action resolution (`MANAGEMENT`, `PROPERTY_DECISION`).
 - 🔗 **Frictionless Link-Based Multiplayer**: No Google login or password needed. Anyone with the room link can join instantly by simply entering their chosen player name!
 - 🗂️ **Streamlined Two-Tab Interface**: Clean, uncluttered UI featuring only **Play** and **Settings** tabs.
-- 💫 **State-Change Glowing & Zoom Effect**: When game state changes (deeds are bought, upgraded, or landed upon), affected board tiles activate an animated amber neon glow ring (`scale-105 animate-pulse`).
-- 🔍 **Space Deed Inspector**: Space-saving 2-column rent schedule displaying complete deed details (purchase price, base/house/tower rent tiers, mortgage values, and owner development controls).
-- ⚙️ **Host-Customizable Rules**: The game host can configure starting cash (₹10,000–₹25,000), pass START rewards (₹1,000–₹3,000), turn timer limits, max players (2–6), jail bail amounts, and monopoly rent multipliers.
 
 ---
 
@@ -122,17 +114,19 @@
 flowchart TD
     subgraph BrowserClient["Universal Browser Client (React 19 + TypeScript)"]
         UI["Two-Tab Viewport (Play / Settings)"]
-        Canvas["Zero-Scroll Stretched Canvas (210px / 1fr / 250px)"]
-        Board["40-Space Adaptive GameBoard (1.15fr / 1fr / 1.15fr)"]
-        PlayerPanel["PlayerStrip (Click-to-Select, Zero Hovering)"]
-        DeedInspector["SpaceDeedInspector (2-Column Rent Grid)"]
-        ActionControls["ActionPanel & Turn Execution"]
+        Canvas["Zero-Scroll Stretched Canvas (Slim Left Panel + Full Game Board)"]
+        Board["Maximized 40-Space Adaptive GameBoard"]
+        PointedBox["In-Board Pointed Comment Box (Buy / Build Callout)"]
+        DeedModal["CityDeedModal (Full Rent Schedule & Mortgages)"]
+        PlayerModal["PlayerDetailModal (Net Worth, Deeds, Liquid Cash)"]
+        MoneyModal["MoneyTransactionAcknowledgement (Financial Receipts)"]
         Audio["Web Audio Procedural Sound Engine"]
         UI --> Canvas
-        Canvas --> PlayerPanel
-        Canvas --> DeedInspector
         Canvas --> Board
-        Canvas --> ActionControls
+        Board --> PointedBox
+        Board --> DeedModal
+        Canvas --> PlayerModal
+        Board --> MoneyModal
         Canvas --> Audio
     end
 
@@ -146,12 +140,12 @@ flowchart TD
 
     subgraph CoreEngine["Pure Game Engine (Server-Authoritative Invariants)"]
         ActionValidator["Action Command Dispatcher"]
-        RentCalculator["Rent & Monopoly Multipliers"]
-        DirectDestination["Authoritative Final City Arrival"]
-        BoardTopology["24-City 40-Space Indian Metro Model (6 Per Side)"]
+        RentCalculator["Rent & Monopoly Multipliers (Jail Exemption)"]
+        TurnDelay["Next-Turn Building Invariants"]
+        TransactionRecorder["Active Transaction Receipts"]
         ActionValidator --> RentCalculator
-        ActionValidator --> DirectDestination
-        ActionValidator --> BoardTopology
+        ActionValidator --> TurnDelay
+        ActionValidator --> TransactionRecorder
     end
 
     subgraph CloudBackend["Firebase Cloud Infrastructure"]
@@ -196,17 +190,17 @@ flowchart TD
 ### Running Tests
 
 - **Unit and game engine tests:**
-  ```bash
-  npm test
-  ```
+   ```bash
+   npm test
+   ```
 - **End-to-end browser tests (Playwright):**
-  ```bash
-  npx playwright test
-  ```
+   ```bash
+   npx playwright test
+   ```
 - **Production build check:**
-  ```bash
-  npm run build
-  ```
+   ```bash
+   npm run build
+   ```
 
 ---
 

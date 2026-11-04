@@ -85,7 +85,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       gameState: initial,
       events: [welcomeEvent],
       activeEmotes: [],
-      selectedSpaceIndex: 0,
+      selectedSpaceIndex: null,
       isRolling: false,
       isLiveMultiplayer: false,
       error: null,
@@ -124,9 +124,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
 
           const result = applyGameCommand(gameState, command, gameState.currentPlayerUid);
 
-          // Locate target final position
+          // Locate active player
           const activeP = gameState.players.find((p) => p.uid === gameState.currentPlayerUid);
-          const finalPos = result.nextState.players.find((p) => p.uid === gameState.currentPlayerUid)?.position ?? 0;
 
           // If incarcerated directly (e.g. 3 consecutive doubles)
           if (result.nextState.players.find((p) => p.uid === gameState.currentPlayerUid)?.inJail && !activeP?.inJail) {
@@ -134,7 +133,6 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
             set((s) => ({
               gameState: result.nextState,
               events: [result.event, ...s.events].slice(0, 50),
-              selectedSpaceIndex: finalPos,
               isRolling: false,
               walkingAnimation: null,
               error: null,
@@ -153,7 +151,6 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
             isRolling: false,
             gameState: result.nextState,
             events: [result.event, ...s.events].slice(0, 50),
-            selectedSpaceIndex: finalPos,
             walkingAnimation: null,
             error: null,
           }));

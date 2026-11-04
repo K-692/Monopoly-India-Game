@@ -81,61 +81,69 @@ The card engine manages two authoritative 12-rule indexed decks:
     - **Right Panel**: Market Buzz (12 Fortune & Chance Rules, indexed #1 to #12) with emerald/teal theme.
   - All 12 rules are visible simultaneously with index numbers, titles, and amounts.
   - Active rules light up with a vibrant pulse highlight matching the rolled dice total.
-- **Central 3D Tumbling Dice Arena**:
+- **Central 3D Tumbling Dice Arena & Center Turn Controls**:
   - Located directly between the two indexed panels.
-  - Houses interactive 3D dice faces with rolling animations, roll button, rolled total badge, and doubles alert.
+  - Houses interactive 3D dice faces with tumbling animations and rolled total indicator.
+  - Features the primary action button (`ROLL DICE`, `END TURN`, `TRY DOUBLES`, `PAY BAIL`) right at the center of the board, eliminating the need for disconnected side control panels.
 
-### 2.2 Dice-Total Rule Selection & Applied Card Rule Pop-up Modal
-- **Deterministic Dice-to-Rule Resolution**:
-  - Landing on Civic Fund or Market Buzz resolves the applied rule index strictly from the player's rolled `diceTotal` ($1 \le \text{diceTotal} \le 12$).
-- **Applied Card Rule Pop-up Window**:
-  - A modal window displays:
-    - Deck type badge (`CIVIC FUND` or `MARKET BUZZ`)
-    - Exact Rule Index (`RULE #X`)
-    - Explicit `🎲 Dice Total: X` badge linking the roll directly to the selected rule
-    - Rule title, description, and currency amount
-    - "Acknowledge Rule" button that dispatches `DISMISS_CARD_POPUP` to resume turn flow smoothly.
+### 2.2 Two-Line City Grids with In-Grid Prices and Mortgage Values
+- Each city cell presents a structured, two-line vertical hierarchy:
+  - **Line 1**: Full City Name (single line without wrapping, dynamic length-adaptive font sizing).
+  - **Line 2**: Purchase Price alongside Mortgage Value (`M: ₹{mortgageValue}`) in a clean, legible font.
+- Extreme corner cells (`START`, `JAIL`, `REST`, `GO TO JAIL`) are styled compactly, preserving perimeter grid width and height for metropolitan city cells.
 
-### 2.3 Delayed Building Logic (Next Turn Construction Constraint)
-- **Turn-Delay Invariant**:
-  - When a player purchases a property, the engine records `propState.boughtOnTurn = state.turnNumber`.
-  - Construction of houses or towers on that property is strictly prohibited during the turn of purchase (`currentTurnNumber <= propState.boughtOnTurn`).
-  - Building is permitted starting from subsequent turns (`currentTurnNumber > propState.boughtOnTurn`) when the owner visits their city with sufficient funds.
-  - UI action buttons clearly indicate `"Build Allowed Next Turn (Turn #X)"` when the property was acquired on the current turn.
+### 2.3 Pointed Comment Box (Callout Tooltip for Buy & Build Actions)
+- Replaced cumbersome right-side action panels with a floating in-board **Pointed Comment Box**.
+- Positioned dynamically adjacent to the active player's space on the perimeter grid.
+- Features an exact geometric pointer triangle directed straight at the player's active tile.
+- Handles context-sensitive turn operations:
+  - **Buy Property Decision**: Displays property name, purchase price, mortgage value, and action buttons (`Buy City`, `Decline`).
+  - **House / Tower Construction**: Displays construction cost, building level target, and action buttons (`Build House/Tower`, `Done`).
 
-### 2.4 Purchased City Ownership Grid Coloring
-- **Player Color Theming on Purchase**:
-  - When a player purchases a city, utility, or transit space, the entire grid cell adopts the player's theme:
-    - **Cell Border**: 2px solid border styled with `owner.colorToken`.
-    - **Cell Background**: Tinted with an alpha-blended wash of `owner.colorToken + '18'` (light mode) / `'28'` (dark mode).
-    - **Accent Header**: Sleek top/inner banner colored with `owner.colorToken` displaying the owner's display name.
-    - **In-Grid Development**: Up to 4 green house icons (`🏠`) or golden commercial tower (`🏢 TOWER`).
-  - Unowned properties maintain clean, neutral parchment aesthetics with standard borders.
+### 2.4 City Deed Modal & Player Detail Modal via Top-Level Portals
+- **CityDeedModal (Triggered on City Grid Click)**:
+  - Clicking any space on the board opens a deed inspection modal showing space index, color band, ownership status, purchase price, mortgage value, unmortgage cost, and complete rent schedule (Base, House 1-4, Commercial Tower).
+  - Owners can mortgage or unmortgage directly from this dialog.
+- **PlayerDetailModal (Triggered on Player Card Click)**:
+  - Clicking any player's name card in the slim left panel opens an in-depth financial dossier showing liquid cash, total net worth, current position, jail status, and their complete portfolio of owned deeds with current rent yields.
+- **Full-Screen React Portal Architecture**:
+  - Both modals, along with the card rule popup and transaction acknowledgements, are rendered via `createPortal(..., document.body)` with `z-[100]` and `bg-black/70 backdrop-blur-sm`, guaranteeing zero stacking-context conflicts with board grid elements.
 
-### 2.5 Non-Overlapping Perimeter Geometry & Dedicated Player Pawn Slots
-- **Expanded Perimeter Dimensions**:
-  - Perimeter grid layout configured as `gridTemplateColumns: '1.35fr repeat(9, 1fr) 1.35fr'` and `gridTemplateRows: '1.4fr repeat(9, 1fr) 1.4fr'`.
-  - Gives 40% more vertical space to top/bottom cells and 35% more width to left/right cells.
-- **Dedicated Non-Overlapping Token Slots**:
-  - Bottom edge tiles: Player pawns sit in a dedicated top flex row facing the board center, above city names and prices.
-  - Top edge tiles: Player pawns sit in a dedicated bottom flex row facing the board center, below city names and prices.
-  - Left & Right tiles: Dedicated inner slots ensure zero overlap.
-  - Sequential flex layout guarantees 100% mathematical impossibility of player pawns or icons colliding with city names or price tags.
-- **Zero Scrolling Guarantee**: Entire game view adapts to desktop and laptop screens with zero scrollbars.
+### 2.5 Jailed Player Economic Exemption Rule
+- **Incarceration Rule Invariant**:
+  - Incarcerated players located in Central Jail earn **₹0 rent** when opponents land on their properties (`calculateRent(..., isOwnerInJail = true) => 0`).
+  - Incarcerated players receive **₹0** from card payment redistributions (`CASH_PLAYERS` / `PAY_PLAYERS`).
+  - Economic earnings resume immediately upon release via bail or rolling doubles.
 
-### 2.6 Universal Mortgaging at First or Action Step
-- Active players can mortgage or redeem any city they own at either:
-  - **First Step**: Before rolling dice (`AWAIT_ROLL`).
-  - **Action Step**: During post-roll resolution (`PROPERTY_DECISION`, `MANAGEMENT`, `ACTION_REQUIRED`, `TURN_END`).
-- Accessible directly from `SpaceDeedInspector` and the `ActionPanel` portfolio list.
+### 2.6 Money Transaction Acknowledgement Receipt Modal
+- Whenever currency changes hands (rent payments, property deeds, construction costs, statutory taxes, START rewards), a dedicated transaction acknowledgement modal appears:
+  - Displays transaction type icon, payer name (spent, highlighted in red), recipient name (earned, highlighted in emerald), formatted amount, and explanatory description.
+  - Requires explicit confirmation via a prominent, high-contrast, gold `✓ ACKNOWLEDGE` button, ensuring both players have full awareness of financial state updates.
+
+### 2.7 Delayed Building Logic (Next Turn Construction Constraint)
+- When a player purchases a property, the engine records `propState.boughtOnTurn = state.turnNumber`.
+- Construction of houses or towers on that property is strictly prohibited during the turn of purchase (`currentTurnNumber <= propState.boughtOnTurn`).
+- Building is permitted starting from subsequent turns (`currentTurnNumber > propState.boughtOnTurn`) when the owner visits their city with sufficient funds.
+
+### 2.8 Purchased City Ownership Grid Coloring
+- When a player purchases a city, utility, or transit space, the entire grid cell adopts the player's theme:
+  - **Cell Border**: 2px solid border styled with `owner.colorToken`.
+  - **Cell Background**: Tinted with an alpha-blended wash of `owner.colorToken + '18'` (light mode) / `'28'` (dark mode).
+  - **Accent Header**: Sleek top/inner banner colored with `owner.colorToken` displaying the owner's display name.
+  - **In-Grid Development**: Up to 4 house icons (`🏠`) or golden commercial tower (`🏢 TOWER`).
+
+### 2.9 Maximized Full-Screen Board with Slim Left Panel & Zero Footer
+- Removed the right action container (`ActionPanel`) and bottom footer/emoji reaction bar entirely.
+- Slimmed the left panel to `w-32 sm:w-36 md:w-40`.
+- Maximized board canvas across `flex-1` width and `h-[calc(100dvh-50px)]`, providing expansive, comfortable grid cells with zero page scrolling.
 
 ---
 
 ## 3. Production Deployment & Verification
 
 ### 3.1 Automated CI/CD & Testing Verification
-- **Unit & State Machine Tests**: Vitest suite (9/9 tests passing) verifies discrete currency resolution, rent scaling, 3-consecutive doubles incarceration, 2-player turn cycles, `boughtOnTurn` construction delay enforcement, and dice-total card index resolution.
-- **Cross-Platform End-to-End Suite**: Playwright multi-worker browser verification (27/27 tests passing) validates two-tab navigation, practice match launching, dice rolling, sound synthesis toggles, and responsive layouts across Chromium, WebKit, and mobile viewport simulations.
+- **Unit & State Machine Tests**: Vitest suite (11/11 tests passing) verifies discrete currency resolution, transit scaling, 3-consecutive doubles incarceration, 2-player turn cycles, `boughtOnTurn` construction delay enforcement, jailed owner rent exemption, dice-total card index resolution, and transaction acknowledgement state transitions.
+- **Cross-Platform End-to-End Suite**: Playwright multi-worker browser verification validates navigation, practice match launching, dice rolling, sound synthesis toggles, and responsive layouts across Chromium, WebKit, and mobile viewport simulations.
 - **Production Build**: Verified with `npm run build` (`tsc -b && vite build`) with zero TypeScript errors.
 - **GitHub Pages Deployment**:
   - **Live URL**: `https://k-692.github.io/Monopoly-India-Game/`

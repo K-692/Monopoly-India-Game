@@ -197,6 +197,17 @@ export interface DiceState {
   rolledAt: number;
 }
 
+export interface MoneyTransactionAcknowledgment {
+  id: string;
+  type: 'RENT' | 'TAX' | 'START_REWARD' | 'CARD' | 'BUY_PROPERTY' | 'BUILD' | 'BAIL';
+  payerName?: string;
+  payerUid?: string;
+  recipientName?: string;
+  recipientUid?: string;
+  amount: number;
+  description: string;
+}
+
 export interface GameState {
   roomId: string;
   gameId: string;
@@ -216,6 +227,7 @@ export interface GameState {
     ruleIndex: number;
     playerUid: string;
   } | null;
+  activeMoneyTransaction?: MoneyTransactionAcknowledgment | null;
   dice: DiceState | null;
   auction: AuctionState | null;
   activeTrade: TradeOffer | null;
@@ -254,6 +266,7 @@ export type GameActionType =
   | 'ACCEPT_TRADE'
   | 'REJECT_TRADE'
   | 'DISMISS_CARD_POPUP'
+  | 'DISMISS_MONEY_ACK'
   | 'END_TURN';
 
 export interface GameCommand {

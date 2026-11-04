@@ -78,7 +78,7 @@ export const usePracticeStore = create<PracticeStoreState>((set, get) => ({
       gameState: initial,
       events: [welcomeEvent],
       activeEmotes: [],
-      selectedSpaceIndex: 0,
+      selectedSpaceIndex: null,
       isRolling: false,
       walkingAnimation: null,
       error: null,
@@ -114,9 +114,8 @@ export const usePracticeStore = create<PracticeStoreState>((set, get) => ({
 
           const result = applyGameCommand(gameState, command, gameState.currentPlayerUid);
 
-          // Locate target final position
+          // Locate active player
           const activeP = gameState.players.find((p) => p.uid === gameState.currentPlayerUid);
-          const finalPos = result.nextState.players.find((p) => p.uid === gameState.currentPlayerUid)?.position ?? 0;
 
           // If incarcerated directly (e.g. 3 consecutive doubles)
           if (result.nextState.players.find((p) => p.uid === gameState.currentPlayerUid)?.inJail && !activeP?.inJail) {
@@ -124,7 +123,6 @@ export const usePracticeStore = create<PracticeStoreState>((set, get) => ({
             set((s) => ({
               gameState: result.nextState,
               events: [result.event, ...s.events].slice(0, 50),
-              selectedSpaceIndex: finalPos,
               isRolling: false,
               walkingAnimation: null,
               error: null,
@@ -146,7 +144,6 @@ export const usePracticeStore = create<PracticeStoreState>((set, get) => ({
             isRolling: false,
             gameState: result.nextState,
             events: [result.event, ...s.events].slice(0, 50),
-            selectedSpaceIndex: finalPos,
             walkingAnimation: null,
             error: null,
           }));
@@ -289,6 +286,9 @@ function triggerAiTurn() {
       } else if (s.phase === 'MANAGEMENT' || s.phase === 'TURN_END') {
         if (s.activeCardPopup && s.activeCardPopup.playerUid === currentUid) {
           store.dispatchAction('DISMISS_CARD_POPUP');
+        }
+        if (s.activeMoneyTransaction && s.activeMoneyTransaction.payerUid === currentUid && s.activeMoneyTransaction.recipientUid === 'BANK') {
+          store.dispatchAction('DISMISS_MONEY_ACK');
         }
         store.dispatchAction('END_TURN');
       }

@@ -254,11 +254,16 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
               )
             )}
 
-            {/* Line 2: Price / Category */}
+            {/* Line 2: Purchase Price & Mortgage Value */}
             {'price' in space && (
-              <span className="text-[8px] sm:text-[8.5px] md:text-[9px] font-black text-emerald-700 dark:text-emerald-400 whitespace-nowrap leading-none">
-                ₹{space.price.toLocaleString('en-IN')}
-              </span>
+              <div className="flex items-center justify-center gap-1 leading-none flex-wrap">
+                <span className="text-[7.5px] sm:text-[8px] md:text-[8.5px] font-black text-emerald-700 dark:text-emerald-400 whitespace-nowrap leading-none">
+                  ₹{space.price.toLocaleString('en-IN')}
+                </span>
+                <span className="text-[6.5px] sm:text-[7px] font-bold text-gray-500 dark:text-gray-400 whitespace-nowrap leading-none">
+                  M: ₹{('mortgageValue' in space ? space.mortgageValue : Math.floor((space as { price: number }).price / 2)).toLocaleString('en-IN')}
+                </span>
+              </div>
             )}
             {'amount' in space && (
               <span className="text-[8px] sm:text-[8.5px] md:text-[9px] font-black text-red-600 dark:text-red-400 whitespace-nowrap leading-none">

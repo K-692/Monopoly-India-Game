@@ -32,6 +32,7 @@ export default {
             700: '#1A2B4C', // Deep ink navy
             800: '#121C31',
             900: '#0C111E',
+            950: '#070A12', // Deepest obsidian navy
           },
           gold: {
             50: '#FEFAF0',
@@ -97,11 +98,16 @@ export default {
         'pulse-subtle': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
         'bounce-short': 'bounce 0.6s ease-in-out 2',
         'fade-in': 'fadeIn 0.25s ease-out forwards',
+        'scale-in': 'scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards',
         'slide-up': 'slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards',
       },
       keyframes: {
         fadeIn: {
           '0%': { opacity: '0', transform: 'scale(0.98)' },
+          '100%': { opacity: '1', transform: 'scale(1)' },
+        },
+        scaleIn: {
+          '0%': { opacity: '0', transform: 'scale(0.92)' },
           '100%': { opacity: '1', transform: 'scale(1)' },
         },
         slideUp: {

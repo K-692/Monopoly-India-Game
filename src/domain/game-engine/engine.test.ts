@@ -352,5 +352,91 @@ describe('Pure Game Engine', () => {
 
     expect(dismissedState.activeCardPopup).toBeNull();
   });
+
+  it('prohibits jailed owner from earning any rent when another player lands on their property', () => {
+    let state = createInitialGame('room_1', 'game_1', mockMembers);
+
+    // User 2 owns Space 1 (Jaipur MI Road, base rent 50)
+    state.properties[1].ownerUid = 'user_2';
+
+    // User 2 is in jail
+    state.players[1].inJail = true;
+
+    const user1CashBefore = state.players[0].cash;
+    const user2CashBefore = state.players[1].cash;
+
+    // User 1 rolls 1+0 -> lands on Space 1
+    state = applyGameCommand(
+      state,
+      {
+        commandId: 'cmd_roll_rent',
+        roomId: 'room_1',
+        gameId: 'game_1',
+        expectedVersion: state.version,
+        type: 'ROLL_DICE',
+        payload: {},
+      },
+      'user_1',
+      [1, 0]
+    ).nextState;
+
+    expect(state.players[0].position).toBe(1);
+    // User 2 is in jail, so User 1 pays 0 rent and User 2 earns 0!
+    expect(state.players[0].cash).toBe(user1CashBefore);
+    expect(state.players[1].cash).toBe(user2CashBefore);
+  });
+
+  it('records activeMoneyTransaction on property buy and clears on DISMISS_MONEY_ACK', () => {
+    let state = createInitialGame('room_1', 'game_1', mockMembers);
+
+    // Roll 1+0 -> Space 1
+    state = applyGameCommand(
+      state,
+      {
+        commandId: 'cmd_roll_buy',
+        roomId: 'room_1',
+        gameId: 'game_1',
+        expectedVersion: state.version,
+        type: 'ROLL_DICE',
+        payload: {},
+      },
+      'user_1',
+      [1, 0]
+    ).nextState;
+
+    // Buy space 1
+    state = applyGameCommand(
+      state,
+      {
+        commandId: 'cmd_buy_prop',
+        roomId: 'room_1',
+        gameId: 'game_1',
+        expectedVersion: state.version,
+        type: 'BUY_PROPERTY',
+        payload: { spaceIndex: 1 },
+      },
+      'user_1'
+    ).nextState;
+
+    expect(state.activeMoneyTransaction).toBeDefined();
+    expect(state.activeMoneyTransaction?.type).toBe('BUY_PROPERTY');
+    expect(state.activeMoneyTransaction?.amount).toBe(600);
+
+    // Dismiss money acknowledgment
+    state = applyGameCommand(
+      state,
+      {
+        commandId: 'cmd_dismiss_money',
+        roomId: 'room_1',
+        gameId: 'game_1',
+        expectedVersion: state.version,
+        type: 'DISMISS_MONEY_ACK',
+        payload: {},
+      },
+      'user_1'
+    ).nextState;
+
+    expect(state.activeMoneyTransaction).toBeNull();
+  });
 });
 

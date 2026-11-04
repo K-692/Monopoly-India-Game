@@ -21,6 +21,7 @@ export const GameActionTypeSchema = z.enum([
   'ACCEPT_TRADE',
   'REJECT_TRADE',
   'DISMISS_CARD_POPUP',
+  'DISMISS_MONEY_ACK',
   'END_TURN',
 ]);
 
