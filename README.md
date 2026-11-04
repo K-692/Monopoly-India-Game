@@ -21,15 +21,17 @@
 
 - 🌐 **Live Web Play**: Share the link [https://k-692.github.io/Monopoly-India-Game/](https://k-692.github.io/Monopoly-India-Game/) with friends to play directly from any modern desktop, tablet, or smartphone web browser!
 - 🚫 **Zero-Scroll Game Tab Guarantee**: The entire game tab is strictly non-scrollable (`h-[calc(100dvh-54px)] overflow-hidden`). No board scroll, no left panel scroll, no right panel scroll, and no inner container scrollbars.
-- 📐 **Decreased Center Area & Enlarged Perimeter Cells**: Asymmetrical grid geometry (`3.4fr repeat(9, 1fr) 3.4fr` and `3.2fr repeat(9, 1fr) 3.2fr`) significantly shrinks empty center space while expanding outer cell width and height, maximizing typography legibility.
+- 📐 **Compact Extreme Corners & Spacious City Grids**: Asymmetrical grid geometry (`1.25fr repeat(9, 1fr) 1.25fr` and `1.45fr repeat(9, 1fr) 1.45fr`) places Rest House, Jail, START, and Go To Jail in compact boxes at the extreme four corners, liberating **78.3% of the board width** for the top and bottom city lanes (~84px–92px wide each).
+- 🔤 **Two-Line City Grid Architecture**: Every city grid is cleanly formatted across exactly **two distinct lines**:
+  - **First Line**: City / Place Name (`text-[11px] sm:text-[12px] md:text-[12.5px] font-extrabold whitespace-nowrap overflow-hidden text-ellipsis`).
+  - **Second Line**: Price / Fine Amount (`text-[10px] sm:text-[11px] md:text-[11.5px] font-black text-emerald-700 dark:text-emerald-400`).
 - 🏙️ **28 Authentic Indian Cities (7 Cities on Each Side)**:
   - **Bottom Side**: Jaipur, Jodhpur, Udaipur, Agra, Lucknow, Amritsar, Varanasi (7 cities) + 1 Civic Fund + 1 Transit (CST Mumbai).
   - **Left Side**: Indore, Bhopal, Surat, Nagpur, Visakhapatnam, Kochi, Goa (7 cities) + 1 Market Buzz + 1 Transit (Howrah Junction).
   - **Top Side**: Ahmedabad, Pune, Hyderabad, Coimbatore, Bengaluru, Chennai, Kolkata (7 cities) + 1 Civic Fund + 1 Transit (Chennai Central).
   - **Right Side**: Chandigarh, Gurugram, Noida, Dehradun, Navi Mumbai, New Delhi, Mumbai (7 cities) + 1 Market Buzz + 1 Transit (New Delhi Terminal).
 - 🎁 **2 Civic Fund & 2 Market Buzz Placements**: Symmetrically balanced on opposite sides of the board (Civic Fund on Spaces 2 & 22, Market Buzz on Spaces 12 & 32).
-- 🔤 **Single-Line Non-Wrapping Typography**: City names strictly render on a **single line without text-wrap** (`whitespace-nowrap overflow-hidden text-ellipsis`), preventing awkward hyphenation. Left and right cells utilize a horizontal layout (`flex-row items-center justify-between`) providing over 190px–220px of width.
-- ♟️ **Non-Obscuring Corner Pawn Tokens**: Player tokens float at the corners of tiles, ensuring player pawns never obscure or block city names or Rupee prices.
+- ♟️ **Non-Obscuring Corner Pawn Tokens**: Player tokens sit as compact floating badges in the tile corners, ensuring player pawns never obscure or block city names or Rupee prices.
 - 🎯 **Direct Destination Arrival & Final City Presentation**: When dice roll, pawns land directly at the destination tile rather than displaying confusing intermediate walkover steps. The final city is immediately highlighted and selected in the deed inspector.
 - 🤺 **2-Player Practice Match Duel**: Fast, responsive 1v1 practice sandbox against *Priya (Mumbai)* with intelligent autonomous AI decision-making (rolling, property evaluation, bail resolution, and turn cycling).
 - 🗂️ **Compact Left Panel & Click-to-Select Player Info**: Replaced unstable hover popovers with an intentional, ergonomic click-to-select model. Clicking any player card immediately displays their liquid cash, net worth, board position, jail status, and interactive properties portfolio.

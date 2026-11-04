@@ -51,21 +51,22 @@ The property trading paradigm is mapped onto the contemporary Indian urban-econo
 
 ## 2. Information Architecture, Board Geometry & Visual Hierarchy
 
-### 2.1 Center Compression & Enlarged Cell Geometry (`3.4fr repeat(9, 1fr) 3.4fr`)
-To address empty space in the center and maximize cell readability:
-- **Perimeter Lane Expansion**:
-  $$\text{grid-template-columns: } 3.4\text{fr repeat}(9, 1\text{fr}) 3.4\text{fr}$$
-  $$\text{grid-template-rows: } 3.2\text{fr repeat}(9, 1\text{fr}) 3.2\text{fr}$$
-- **Proportional Gain**:
-  - Center width decreases from 66% down to 57% of board width.
-  - Left & Right lane depth expands to 3.4fr, offering over 190px–220px of horizontal cell width.
-  - Top & Bottom lane depth expands to 3.2fr, offering 120px–145px of vertical cell depth.
-- **Orientation-Specific Cell Layouts**:
-  - **Left & Right Edge Tiles (`flex-row items-center justify-between`)**: Uses a horizontal inline layout (`[Icon/Owner] [City Name] [Price]`). With ~200px of width, long names like "Visakhapatnam", "Navi Mumbai", and "Chandigarh" render on a single line with `text-[12px] font-extrabold` without wrapping or truncation.
-  - **Top & Bottom Edge Tiles (`flex-col justify-between items-center`)**: Deep vertical layout providing ample space for color bars, owner badges, single-line city names, and distinct price tags.
-- **Non-Obscuring Floating Player Tokens**:
-  - Player token badges are placed in tile corners (`right-3.5 top-1/2` for left edge, `left-3.5 top-1/2` for right edge, `bottom-3 right-0.5` for top edge, `top-3 right-0.5` for bottom edge).
-  - Pawns never sit directly on top of city names or price numbers, ensuring 100% text visibility at all times.
+### 2.1 Compact Extreme Corners (`1.25fr × 1.45fr`) & Two-Line City Grids
+To provide maximum space for city names and prices on top and bottom:
+- **Grid Proportions**:
+  $$\text{grid-template-columns: } 1.25\text{fr repeat}(9, 1\text{fr}) 1.25\text{fr}$$
+  $$\text{grid-template-rows: } 1.45\text{fr repeat}(9, 1\text{fr}) 1.45\text{fr}$$
+- **Corner Compression & Extreme Placement**:
+  - The four corner spaces (Rest House at #20, Jail at #10, START at #0, and Go To Jail at #30) are contained in compact boxes at the extreme four corners ($1.25\text{fr} \times 1.45\text{fr}$, occupying only ~10.8% of board width).
+  - This liberates **78.3% of the total board width** exclusively for the 9 city columns along the top and bottom lanes.
+  - Each top and bottom city grid gains a generous **~84px–92px width** by **~80px–88px height** (nearly square dimensions), providing ample room to elaborate names and prices.
+- **Two-Line City Grid Architecture**:
+  - All city grids are formatted strictly across **two distinct lines**:
+    - **Line 1 (Top)**: City / Place Name (`text-[11px] sm:text-[12px] md:text-[12.5px] font-extrabold whitespace-nowrap overflow-hidden text-ellipsis`).
+    - **Line 2 (Bottom)**: Price / Fine Amount (`text-[10px] sm:text-[11px] md:text-[11.5px] font-black text-emerald-700 dark:text-emerald-400`).
+  - City names never wrap or hyphenate, and prices enjoy prominent vertical clearance.
+- **Non-Obscuring Corner Player Tokens**:
+  - Player tokens sit as compact floating badges in the tile corners, keeping the two centered lines (Name & Price) 100% visible and unblocked at all times.
 
 ### 2.2 Strict Zero-Scroll Architecture Across Game Tab
 - **Zero Scrollbars Policy**: The entire game tab is engineered to fit strictly within `h-[calc(100dvh-54px)]` with `overflow-hidden` across all top-level wrappers and columns.

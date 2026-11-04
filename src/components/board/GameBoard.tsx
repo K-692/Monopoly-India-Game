@@ -86,12 +86,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({
 
   return (
     <div className="relative w-full h-full max-h-full mx-auto p-0.5 sm:p-1 bg-indian-parchment-200 border-2 border-indian-parchment-400 rounded-xl shadow-board-elevation select-none flex flex-col justify-center overflow-hidden">
-      {/* 11x11 Grid with Widened Perimeter Cells and Compact Center Area */}
+      {/* 11x11 Grid with Compact Extreme Corners and Spacious City Grids */}
       <div
         className="w-full h-full grid gap-[1px] bg-indian-parchment-400 rounded-lg overflow-hidden"
         style={{
-          gridTemplateColumns: '3.4fr repeat(9, 1fr) 3.4fr',
-          gridTemplateRows: '3.2fr repeat(9, 1fr) 3.2fr',
+          gridTemplateColumns: '1.25fr repeat(9, 1fr) 1.25fr',
+          gridTemplateRows: '1.45fr repeat(9, 1fr) 1.45fr',
         }}
       >
         {BOARD_SPACES.map((space) => {
