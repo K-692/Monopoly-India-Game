@@ -2,69 +2,37 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function signedIn() {
-      return request.auth != null;
-    }
-
-    function isRoomMember(roomId) {
-      return signedIn() &&
-        exists(/databases/$(database)/documents/rooms/$(roomId)/members/$(request.auth.uid));
-    }
-
-    // Public / authenticated user profile
-    match /users/{uid} {
-      allow read: if signedIn();
-      allow write: if signedIn() && request.auth.uid == uid
-        && request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['displayName', 'photoURL', 'updatedAt', 'privacy']);
-    }
-
-    // Friend requests
-    match /friendRequests/{requestId} {
-      allow read: if signedIn() &&
-        (resource.data.senderUid == request.auth.uid || resource.data.recipientUid == request.auth.uid);
-      allow write: if false; // Managed via Cloud Functions
-    }
-
-    // Active friendships
-    match /friendships/{pairId} {
-      allow read: if signedIn() &&
-        (resource.data.user1Uid == request.auth.uid || resource.data.user2Uid == request.auth.uid);
-      allow write: if false;
-    }
-
-    // Game Rooms & Lobbies
+    // Game Rooms & Lobbies (accessible via room link/code)
     match /rooms/{roomId} {
-      allow read: if signedIn();
+      allow read: if true;
       allow write: if false; // All room mutations via callable Functions
 
-      match /members/{uid} {
-        allow read: if signedIn();
+      match /members/{memberId} {
+        allow read: if true;
         allow write: if false;
       }
     }
 
     // Live Authoritative Game State
     match /games/{gameId} {
-      allow read: if signedIn();
+      allow read: if true;
       allow write: if false; // Strictly server-authoritative
 
       match /events/{eventId} {
-        allow read: if signedIn();
+        allow read: if true;
         allow write: if false;
       }
 
       match /reactions/{reactionId} {
-        allow read: if signedIn();
-        allow create: if signedIn(); // Ephemeral reactions rate-limited
+        allow read: if true;
+        allow create: if true;
         allow update, delete: if false;
       }
     }
 
     // Completed Immutable Game Archives
     match /gameArchives/{archiveId} {
-      allow read: if signedIn() &&
-        request.auth.uid in resource.data.participantUids;
+      allow read: if true;
       allow write: if false;
     }
 
@@ -73,7 +41,7 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Default deny
+    // Default deny all other paths
     match /{document=**} {
       allow read, write: if false;
     }

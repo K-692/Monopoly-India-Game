@@ -22,3 +22,4 @@ export const EventTicker: React.FC<EventTickerProps> = ({ events }) => {
     </div>
   );
 };
+

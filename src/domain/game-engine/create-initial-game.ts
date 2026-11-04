@@ -1,10 +1,10 @@
 /**
- * Indian Monopoly - Pure Initial State Generator
+ * Indian Monopoly - Pure Initial State Generator with Host Rules
  */
 
 import { BOARD_SPACES } from '../board-config';
 import { GameState, PlayerState, PropertyState, RoomMember } from '../game-types';
-import { GAME_CONSTANTS, RULESET_VERSION } from '../ruleset';
+import { DEFAULT_HOST_RULES, HostCustomRules, RULESET_VERSION } from '../ruleset';
 
 const PLAYER_COLORS = [
   '#C85A32', // Terracotta Rust
@@ -18,7 +18,8 @@ const PLAYER_COLORS = [
 export function createInitialGame(
   roomId: string,
   gameId: string,
-  members: Record<string, RoomMember>
+  members: Record<string, RoomMember>,
+  customRules: HostCustomRules = DEFAULT_HOST_RULES
 ): GameState {
   const memberList = Object.values(members);
   const playerOrder = memberList.map((m) => m.uid);
@@ -41,13 +42,16 @@ export function createInitialGame(
     }
   }
 
-  // Initialize players with starting cash ₹15,000
+  // Initialize players with host-configured starting cash
+  const startingCash = customRules.startingCash || DEFAULT_HOST_RULES.startingCash;
+  const timerLimit = customRules.turnTimerSeconds || DEFAULT_HOST_RULES.turnTimerSeconds;
+
   const players: PlayerState[] = memberList.map((m, index) => ({
     uid: m.uid,
     displayName: m.displayName || `Player ${index + 1}`,
     photoURL: m.photoURL || null,
-    cash: GAME_CONSTANTS.STARTING_CASH,
-    netWorth: GAME_CONSTANTS.STARTING_CASH,
+    cash: startingCash,
+    netWorth: startingCash,
     position: 0, // START
     inJail: false,
     jailTurns: 0,
@@ -76,6 +80,9 @@ export function createInitialGame(
     auction: null,
     activeTrade: null,
     winnerUid: null,
+    turnTimeRemaining: timerLimit,
+    turnTimeLimit: timerLimit,
+    rules: customRules,
     startedAt: now,
     updatedAt: now,
     completedAt: null,

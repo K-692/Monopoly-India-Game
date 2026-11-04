@@ -6,33 +6,49 @@ import { useGameStore } from '@/features/game/use-game-store';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import { Copy, Check, Users, Play, Crown, ArrowLeft } from 'lucide-react';
+import { Copy, Check, Users, Play, Crown, ArrowLeft, Sliders } from 'lucide-react';
 
 export const LobbyPage: React.FC = () => {
   const { roomId } = useParams<{ roomId: string }>();
   const navigate = useNavigate();
-  const { user } = useAuthStore();
+  const { player, openNamePrompt } = useAuthStore();
   const { currentRoom, toggleReady, leaveRoom } = useRoomStore();
   const { initializeDemoGame } = useGameStore();
 
   const [copiedCode, setCopiedCode] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
 
-  // If no live room in store, fallback to simulated room
+  // If user has not set their name yet, prompt immediately
+  React.useEffect(() => {
+    if (!player) {
+      openNamePrompt();
+    }
+  }, [player, openNamePrompt]);
+
   const room = currentRoom || {
     roomId: roomId || 'room_default',
-    inviteCode: 'IND789',
+    inviteCode: roomId?.replace('room_', '').toUpperCase() || 'IND789',
     inviteCodeHash: 'IND789',
-    hostUid: user?.uid || 'host_1',
+    hostUid: player?.uid || 'host_1',
     status: 'LOBBY' as const,
     maxPlayers: 4,
-    turnTimerSeconds: 45 as const,
+    turnTimerSeconds: 30 as const,
     gameMode: 'STANDARD' as const,
+    customRules: {
+      startingCash: 15000,
+      passStartReward: 2000,
+      turnTimerSeconds: 30,
+      maxPlayers: 4,
+      jailBail: 500,
+      doubleRentMonopoly: true,
+      allowAuctions: true,
+      gameMode: 'STANDARD',
+    },
     members: {
-      [user?.uid || 'host_1']: {
-        uid: user?.uid || 'host_1',
-        displayName: user?.displayName || 'Host Player',
-        photoURL: user?.photoURL || null,
+      [player?.uid || 'host_1']: {
+        uid: player?.uid || 'host_1',
+        displayName: player?.displayName || 'Host Player',
+        photoURL: null,
         isReady: true,
         joinedAt: Date.now(),
         colorToken: '#C85A32',
@@ -46,14 +62,14 @@ export const LobbyPage: React.FC = () => {
         colorToken: '#1A2B4C',
       },
     },
-    memberUids: [user?.uid || 'host_1', 'player_2'],
+    memberUids: [player?.uid || 'host_1', 'player_2'],
     createdAt: Date.now(),
     updatedAt: Date.now(),
     expiresAt: Date.now() + 86400000,
   };
 
-  const isHost = user && room.hostUid === user.uid;
-  const currentMember = user ? room.members[user.uid] : null;
+  const isHost = player && room.hostUid === player.uid;
+  const currentMember = player ? room.members[player.uid] : null;
   const memberList = Object.values(room.members);
   const canStart = memberList.length >= 2 && memberList.every((m) => m.isReady);
 
@@ -64,31 +80,31 @@ export const LobbyPage: React.FC = () => {
   };
 
   const handleCopyLink = () => {
-    const inviteUrl = `${window.location.origin}${window.location.pathname}#/home?join=${room.inviteCode}`;
+    const inviteUrl = `${window.location.origin}${window.location.pathname}#/room/${room.roomId}`;
     navigator.clipboard.writeText(inviteUrl);
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 2000);
   };
 
   const handleStartGame = () => {
-    initializeDemoGame(user?.displayName || 'Maharaja Player');
+    initializeDemoGame(player?.displayName || 'Host Player');
     navigate(`/game/${room.roomId}`);
   };
 
   const handleLeave = () => {
     leaveRoom();
-    navigate('/home');
+    navigate('/');
   };
 
   return (
     <div className="flex-1 max-w-3xl mx-auto w-full px-4 py-6">
-      {/* Lobby Header */}
+      {/* Header */}
       <div className="flex items-center justify-between pb-4 mb-6 border-b border-indian-parchment-300 dark:border-indian-navy-700">
         <button
           onClick={handleLeave}
           className="flex items-center gap-1.5 text-xs font-semibold text-indian-navy-700 dark:text-indian-parchment-300 hover:text-indian-terracotta-600 transition-colors"
         >
-          <ArrowLeft className="w-4 h-4" /> Back to Dashboard
+          <ArrowLeft className="w-4 h-4" /> Back to Play
         </button>
 
         <Badge variant="gold" className="text-xs">
@@ -99,7 +115,7 @@ export const LobbyPage: React.FC = () => {
       {/* Invite Code & Share Card */}
       <Card className="p-5 mb-6 text-center border-indian-terracotta-300 bg-gradient-to-b from-white to-indian-parchment-100 dark:from-indian-navy-800 dark:to-indian-navy-900">
         <span className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-1">
-          Room Invitation Code
+          Share Room Link / Code
         </span>
         <div className="text-3xl sm:text-4xl font-mono font-black tracking-widest text-indian-terracotta-600 dark:text-indian-terracotta-400 mb-4 select-all">
           {room.inviteCode}
@@ -127,6 +143,22 @@ export const LobbyPage: React.FC = () => {
           </Button>
         </div>
       </Card>
+
+      {/* Host Configured Rules Summary */}
+      {room.customRules && (
+        <Card className="p-3.5 mb-6 border-indian-parchment-300 bg-amber-50/50 dark:bg-indian-navy-800">
+          <div className="flex items-center gap-2 mb-2 text-xs font-bold text-indian-navy-800 dark:text-indian-parchment-200">
+            <Sliders className="w-4 h-4 text-indian-terracotta-500" />
+            <span>Host Rules for this Match:</span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs text-gray-600 dark:text-gray-300">
+            <div>Starting Cash: <strong className="text-indian-navy-900 dark:text-white">₹{room.customRules.startingCash.toLocaleString('en-IN')}</strong></div>
+            <div>Turn Timer: <strong className="text-indian-navy-900 dark:text-white">{room.customRules.turnTimerSeconds}s</strong></div>
+            <div>Pass START: <strong className="text-indian-navy-900 dark:text-white">₹{room.customRules.passStartReward.toLocaleString('en-IN')}</strong></div>
+            <div>Max Players: <strong className="text-indian-navy-900 dark:text-white">{room.customRules.maxPlayers}</strong></div>
+          </div>
+        </Card>
+      )}
 
       {/* Player Seats Grid */}
       <div className="mb-6">
@@ -160,7 +192,7 @@ export const LobbyPage: React.FC = () => {
                     )}
                   </div>
                   <span className="text-[10px] text-gray-500">
-                    {m.uid === user?.uid ? 'You' : 'Member'}
+                    {m.uid === player?.uid ? 'You' : 'Member'}
                   </span>
                 </div>
               </div>
@@ -180,7 +212,7 @@ export const LobbyPage: React.FC = () => {
               key={i}
               className="border-2 border-dashed border-indian-parchment-300 dark:border-indian-navy-700 rounded-xl p-3.5 flex items-center justify-center text-xs text-gray-400 font-medium"
             >
-              Waiting for player to join...
+              Waiting for player to join with link...
             </div>
           ))}
         </div>
@@ -188,11 +220,11 @@ export const LobbyPage: React.FC = () => {
 
       {/* Start / Ready Actions */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-indian-parchment-300 dark:border-indian-navy-700">
-        {user && currentMember && (
+        {player && currentMember && (
           <Button
             size="lg"
             variant={currentMember.isReady ? 'outline' : 'secondary'}
-            onClick={() => toggleReady(user.uid)}
+            onClick={() => toggleReady(player.uid)}
             className="w-full sm:w-auto font-bold px-6"
           >
             {currentMember.isReady ? 'Toggle Not Ready' : 'Ready Up'}

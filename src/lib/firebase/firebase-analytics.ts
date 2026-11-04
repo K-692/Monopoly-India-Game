@@ -7,7 +7,7 @@ export async function initAnalytics(): Promise<Analytics | null> {
   if (typeof window === 'undefined') return null;
   try {
     const supported = await isSupported();
-    if (supported) {
+    if (supported && app) {
       analytics = getAnalytics(app);
     }
   } catch {
@@ -16,3 +16,4 @@ export async function initAnalytics(): Promise<Analytics | null> {
   }
   return analytics;
 }
+

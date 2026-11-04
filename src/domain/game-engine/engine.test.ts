@@ -193,3 +193,4 @@ describe('Pure Game Engine', () => {
     expect(calculateRent(5, state.properties)).toBe(2000);
   });
 });
+

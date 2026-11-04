@@ -1,38 +1,71 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSettingsStore } from './use-settings-store';
 import { useAuthStore } from '@/features/auth/use-auth-store';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Volume2, VolumeX, Moon, Sun, ArrowLeft, LogOut, ShieldCheck, Sparkles } from 'lucide-react';
+import { Volume2, VolumeX, Moon, Sun, ArrowLeft, Sparkles, User, Check } from 'lucide-react';
 import { sound } from '@/lib/audio/sound-engine';
 
 export const SettingsPage: React.FC = () => {
   const navigate = useNavigate();
   const { soundMuted, soundVolume, toggleSound, setVolume, theme, toggleTheme, reducedMotion, toggleReducedMotion } =
     useSettingsStore();
-  const { user, signOutUser } = useAuthStore();
+  const { player, setPlayerName } = useAuthStore();
+
+  const [editName, setEditName] = useState(player?.displayName || '');
+  const [savedMsg, setSavedMsg] = useState(false);
 
   const handleTestSound = () => {
     sound.play('DICE_ROLL');
+  };
+
+  const handleSaveName = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editName.trim()) return;
+    setPlayerName(editName.trim());
+    setSavedMsg(true);
+    setTimeout(() => setSavedMsg(false), 2500);
   };
 
   return (
     <div className="flex-1 max-w-2xl mx-auto w-full px-4 py-6">
       <div className="flex items-center justify-between pb-4 mb-6 border-b border-indian-parchment-300 dark:border-indian-navy-700">
         <button
-          onClick={() => navigate('/home')}
+          onClick={() => navigate('/')}
           className="flex items-center gap-1.5 text-xs font-semibold text-indian-navy-700 dark:text-indian-parchment-300 hover:text-indian-terracotta-600 transition-colors"
         >
-          <ArrowLeft className="w-4 h-4" /> Back to Dashboard
+          <ArrowLeft className="w-4 h-4" /> Back to Play
         </button>
 
         <h1 className="font-serif font-bold text-lg text-indian-navy-900 dark:text-indian-parchment-100">
-          Preferences & Settings
+          Game Settings
         </h1>
       </div>
 
       <div className="space-y-4">
+        {/* Player Profile & Name */}
+        <Card className="p-4 border-indian-parchment-300">
+          <h3 className="text-xs font-bold text-indian-navy-800 dark:text-indian-parchment-200 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+            <User className="w-4 h-4 text-indian-terracotta-500" /> Player Profile
+          </h3>
+
+          <form onSubmit={handleSaveName} className="flex gap-2 items-center">
+            <input
+              type="text"
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              placeholder="Enter your name"
+              maxLength={20}
+              className="flex-1 bg-indian-parchment-100 dark:bg-indian-navy-800 border border-indian-parchment-400 dark:border-indian-navy-700 rounded-lg px-3 py-2 text-xs font-semibold text-indian-navy-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indian-terracotta-500"
+            />
+            <Button type="submit" size="sm" variant="primary" className="text-xs font-bold px-4">
+              {savedMsg ? <Check className="w-3.5 h-3.5 mr-1" /> : null}
+              {savedMsg ? 'Saved!' : 'Save Name'}
+            </Button>
+          </form>
+        </Card>
+
         {/* Audio Settings */}
         <Card className="p-4 border-indian-parchment-300">
           <h3 className="text-xs font-bold text-indian-navy-800 dark:text-indian-parchment-200 uppercase tracking-wider mb-3 flex items-center gap-1.5">
@@ -45,7 +78,7 @@ export const SettingsPage: React.FC = () => {
                 Procedural Sound Effects
               </span>
               <span className="text-[10px] text-gray-500">
-                Web Audio procedural dice rolls, pawn hops, coin chimes & jail locks
+                Web Audio procedural dice rolls, pawn steps, coin chimes & jail locks
               </span>
             </div>
 
@@ -56,7 +89,7 @@ export const SettingsPage: React.FC = () => {
               className="text-xs font-bold px-3"
             >
               {soundMuted ? <VolumeX className="w-4 h-4 mr-1 text-red-500" /> : <Volume2 className="w-4 h-4 mr-1" />}
-              {soundMuted ? 'Unmute' : 'Muted: Off'}
+              {soundMuted ? 'Unmute' : 'Mute'}
             </Button>
           </div>
 
@@ -77,16 +110,16 @@ export const SettingsPage: React.FC = () => {
             />
             <div className="mt-2 text-right">
               <Button size="sm" variant="ghost" onClick={handleTestSound} className="text-xs text-indian-terracotta-600">
-                Test Dice Sound
+                Test Sound
               </Button>
             </div>
           </div>
         </Card>
 
-        {/* Visual & Accessibility */}
+        {/* Visual & Theme */}
         <Card className="p-4 border-indian-parchment-300">
           <h3 className="text-xs font-bold text-indian-navy-800 dark:text-indian-parchment-200 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-            <Sparkles className="w-4 h-4 text-indian-navy-600" /> Interface & Accessibility
+            <Sparkles className="w-4 h-4 text-indian-navy-600" /> Interface Appearance
           </h3>
 
           <div className="flex items-center justify-between py-2 border-b border-indian-parchment-200 dark:border-indian-navy-700">
@@ -125,33 +158,6 @@ export const SettingsPage: React.FC = () => {
             </Button>
           </div>
         </Card>
-
-        {/* Account Details & Sign Out */}
-        {user && (
-          <Card className="p-4 border-indian-parchment-300">
-            <h3 className="text-xs font-bold text-indian-navy-800 dark:text-indian-parchment-200 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-              <ShieldCheck className="w-4 h-4 text-emerald-600" /> User Profile & Identity
-            </h3>
-
-            <div className="text-xs space-y-1 text-gray-600 dark:text-gray-300 mb-4">
-              <div>Display Name: <strong className="text-indian-navy-900 dark:text-white">{user.displayName}</strong></div>
-              <div>User ID (UID): <span className="font-mono text-[11px] text-gray-500">{user.uid}</span></div>
-              <div>Friend Code: <span className="font-mono font-bold text-indian-terracotta-600">{user.friendCode}</span></div>
-            </div>
-
-            <Button
-              size="sm"
-              variant="danger"
-              onClick={() => {
-                signOutUser();
-                navigate('/');
-              }}
-              className="text-xs font-bold flex items-center gap-1.5"
-            >
-              <LogOut className="w-3.5 h-3.5" /> Sign Out
-            </Button>
-          </Card>
-        )}
       </div>
     </div>
   );

@@ -19,3 +19,4 @@ export const Card: React.FC<CardProps> = ({ children, className, ornate = false,
     </div>
   );
 };
+

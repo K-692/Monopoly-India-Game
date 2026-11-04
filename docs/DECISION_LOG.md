@@ -84,3 +84,4 @@ This document records the foundational architectural decisions made for Indian M
 - **Context**: Rule balances or prices may be tuned in future releases.
 - **Decision**: Store ruleset configuration with an explicit semantic version (e.g. `1.0.0`). Every active game and archive stores `rulesetVersion: "1.0.0"`.
 - **Rationale**: Full backwards compatibility for past game archives when viewing historical records.
+

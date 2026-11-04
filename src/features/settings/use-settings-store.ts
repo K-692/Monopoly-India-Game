@@ -48,3 +48,4 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     set({ reducedMotion: !get().reducedMotion });
   },
 }));
+

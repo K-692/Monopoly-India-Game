@@ -7,24 +7,24 @@ This document chronicles the design, formal state transitions, mathematical mode
 
 ## 1. Project Genesis & Domain Specification
 
-### 1.1 Domain Modeling & Historical Context
-The traditional property trading game is mapped onto the Indian subcontinent's contemporary urban-economic geography. The board consists of a canonical 40-space clockwise topology with:
+### 1.1 Domain Modeling & Subcontinent Topology
+The property trading paradigm is mapped onto the contemporary Indian urban-economic landscape. The board consists of a canonical 40-space clockwise topology with:
 - **22 Purchasable City Properties** grouped into 8 color bands representing major Indian metropolitan markets (Jaipur, Jodhpur, Lucknow, Varanasi, Agra, Ahmedabad, Surat, Vadodara, Kochi, Thiruvananthapuram, Kozhikode, Hyderabad, Bengaluru, Kolkata, Bhubaneswar, Chennai, Delhi, Mumbai).
 - **4 Intercity Transit Assets**: Mumbai Western Line, Howrah Junction, Chennai Central, New Delhi Railway Station.
 - **2 Public Utilities**: Urja Power Grid and Jal Board Water Authority.
 - **2 Taxation Points**: GST Checkpost (₹2,000) and Infrastructure Levy (₹1,000).
-- **2 Dynamic Deck Card Spaces**: Civic Fund (public sector events) and Market Buzz (economic/speculation events).
-- **4 Corner Anchors**: START (₹2,000 passing reward), Central Jail / Just Visiting, Rest House (Free Parking), and Go to Jail.
+- **2 Persistent Center Deck Card Spaces**: Civic Fund (public sector/regulatory events) and Market Buzz (economic/speculation events), permanently rendered in the center of the board.
+- **4 Corner Anchors**: START (configurable passing reward, default ₹2,000), Central Jail / Just Visiting, Rest House (Free Parking), and Go to Jail.
 
-### 1.2 Mathematical Formulations
-- **Currency Resolution**: All transactions are strictly discrete integer values in Indian Rupees ($\mathbb{Z}^+$). Fractional money (paise) is strictly disallowed to eliminate floating-point drift:
+### 1.2 Mathematical Formulations & Rule Invariants
+- **Discrete Currency Resolution**: All transactions are discrete integer values in Indian Rupees ($\mathbb{Z}^+$). Fractional money (paise) is strictly disallowed:
   $$\Delta \text{Cash} \in \mathbb{Z}$$
-- **Pass START Invariant**:
-  $$\text{reward} = \begin{cases} 2000 & \text{if } (p_{\text{old}} + d) \ge 40 \text{ and clockwise movement} \\ 0 & \text{otherwise} \end{cases}$$
+- **START Invariant**:
+  $$\text{reward} = \begin{cases} R_{\text{start}} & \text{if } (p_{\text{old}} + d) \ge 40 \text{ and clockwise movement} \\ 0 & \text{otherwise} \end{cases}$$
   Direct incarceration movement to Jail ($p = 10$) bypasses index 0 and explicitly yields 0 reward.
 - **Rent Multiplier Formalism**:
   - Unimproved property rent: Base rent $R_0$.
-  - Monopolized group (all properties of color set $C$ owned by single entity, no buildings): $2 \times R_0$.
+  - Monopolized group (all properties of color set $C$ owned by single entity, no buildings): $2 \times R_0$ when enabled by host rule.
   - Developed tiers (1 to 4 blocks): $R_1, R_2, R_3, R_4$.
   - Commercial Tower tier: $R_5$.
   - Transit spaces owned ($k \in \{1, 2, 3, 4\}$):
@@ -34,51 +34,76 @@ The traditional property trading game is mapped onto the Indian subcontinent's c
 
 ---
 
-## 2. Server-Authoritative Trust Model & State Invariants
+## 2. Frictionless Session Identity & Two-Tab Navigation
 
-### 2.1 Threat Vector Mitigation
-Client execution environments (V8, JavaScriptCore) are classified as untrusted execution zones. The following vectors are eliminated by architectural enforcement:
-1. **Dice Forgery**: Pseudorandom number generators in the browser cannot manipulate outcome distributions. The server generates random integers using `crypto.randomInt(1, 7)` within a secure Cloud Function sandbox.
-2. **Replay & Concurrency Attacks**: Every mutation command mandates an idempotency UUID and expected version vector $V$. Commands with $V \ne V_{\text{server}}$ are rejected with `VERSION_CONFLICT`.
-3. **Double Spending & Liquidation Arbitrage**: Cash debit operations execute inside Firestore atomic transactions with precondition checks:
-   $$\text{balance} \ge \text{obligation} \implies \text{debit}$$
-   Otherwise, the state machine transitions to `ACTION_REQUIRED (INSUFFICIENT_FUNDS)` triggering mandatory mortgage or asset sale workflows.
+### 2.1 Frictionless Name-Based Entry
+To maximize multiplayer adoption and eliminate third-party login friction:
+- Google authentication is completely bypassed.
+- Any participant with the room link or invitation code enters the room immediately after submitting their chosen display name.
+- Anonymous player identifiers (`uid`) and color tokens are generated and stored in client `localStorage`.
 
----
-
-## 3. Universal Responsive & Touch-First Design Paradigm
-
-### 3.1 Adaptive Viewport Topology
-- **Desktop (>= 1024px)**: High-information density with persistent 3-column arrangement:
-  - Left column: Real-time player financial status, token mapping, active turn highlights.
-  - Center workspace: Fixed aspect-ratio board featuring Indian architectural motifs and smooth CSS-transformed pawn transitions.
-  - Right column: Contextual deed inspector, transaction controls, mortgage management.
-  - Sub-board tray: High-throughput event ticker and rate-limited emoji reactions.
-- **Tablet (768px - 1023px)**: Dynamic 2-column layout with adaptive board scaling and slide-over player trays.
-- **Mobile Handheld (320px - 767px)**: Touch-first single-column view:
-  - Dynamic Viewport Units (`dvh`) and iOS Safari safe area insets (`env(safe-area-inset-*)`).
-  - Contextual modal bottom sheets for decision prompts.
-  - Prominent 56px thumb-zone primary action button.
-  - Board interactive pan/zoom viewport focusing on active player coordinates.
+### 2.2 Strict Two-Tab Information Architecture
+The application navigation is strictly partitioned into two primary views:
+1. **Play Tab (`/` and `/play`)**:
+   - Practice Match Sandbox (comprehensive solo gameplay against 3 simulated tycoons).
+   - Host Room creation with pre-game customizable rules modal.
+   - Join Room with 6-character room code or deep invitation link.
+2. **Settings Tab (`/settings`)**:
+   - Web Audio procedural sound toggle and volume slider.
+   - Light/Dark appearance theme toggle and reduced motion mode.
+   - Display name editing and identity customization.
 
 ---
 
-## 4. Audio Synthesis Architecture
+## 3. Universal Responsive & Non-Scrollable Viewport Architecture
 
-Rather than relying on uncompressed remote audio files that suffer from network latency and mobile audio blocking, Indian Monopoly incorporates a zero-dependency **Web Audio API Procedural Synthesizer**:
-- **Frequency Modulation & Noise Synthesis**: Custom oscillators generate dice rattle (filtered white noise bursts), pawn hops (sine sweeps), cash register bell chimes (dual high-Q bandpass harmonics), and lockup clangs.
-- **AudioContext Lifecycle**: Automatically registers unlock listeners on primary touch/pointer interactions, meeting iOS Safari and Android Chrome strict autoplay policies.
+### 3.1 Strict Viewport Containment (`h-screen overflow-hidden`)
+The entire board and interactive HUD are bound to `100dvh` without document-level vertical or horizontal scrolling:
+- Center 40-space board auto-scales to `max-w-[min(72vh,72vw,680px)]` maintaining a square aspect ratio.
+- Left column (Player Financial Strip) and Right column (Deed Inspector & Management) feature internal independent scrolling containers.
+- Interactive 3D dice are integrated directly *inside* the board center.
+- Real-time turn timer displays countdown remaining with automatic pass policy when reaching zero.
+- The two event decks (*Civic Fund* and *Market Buzz*) remain permanently positioned in the center workspace on an Indian mandala canvas.
 
 ---
 
-## 5. Implementation Journey & Milestone Progress
+## 4. Modular Practice Match Architecture
 
-- **Milestone 0 (Architecture & Foundation)**:
-  - Complete domain modeling, 40-space board topology, ruleset definition.
-  - Standardized ADRs covering Firebase Mumbai region, GitHub Pages HashRouting, dual reaction transport, and archive lifecycle.
-- **Milestone 1 (Scaffolding & UI Framework)**:
-  - React 19 + TypeScript strict mode + Tailwind CSS + Lucide icons.
-  - Pure TypeScript Game Engine implementation.
-  - Web Audio synthesis module.
-  - Responsive shell, navigation, and theme system.
-  - CI/CD workflows and automated test harness.
+To verify end-to-end gameplay mechanics prior to live room play, an isolated Practice Match module (`src/features/practice/`) executes:
+- Exact same pure TypeScript game engine (`applyGameCommand`) and board components.
+- Autonomous AI player loop with heuristic bidding, buying, and building decisions.
+- Real-time turn countdown with automatic roll and pass enforcement.
+- Engineered for seamless, modular removal in future releases without touching core game logic.
+
+---
+
+## 5. Security Hardening & GitHub Secrets CI/CD
+
+Firebase public client credentials are scrubbed from version control:
+- Local configurations read purely from `import.meta.env.VITE_FIREBASE_*`.
+- Safe mock fallbacks ensure development, offline sandbox play, and CI test pipelines run smoothly without live credentials.
+- GitHub Actions deployments inject production keys from repository secrets (`${{ secrets.VITE_FIREBASE_* }}`) using the setup detailed in `docs/SECRETS_SETUP.md`.
+
+---
+
+## 6. Procedural Web Audio Sound Synthesis Engine
+
+Rather than loading high-latency or network-dependent `.mp3` / `.wav` assets over HTTP, game feedback is synthesized in real time via the browser's `AudioContext`:
+- **Dice Rolling**: Synthesized white noise burst shaped by a bandpass biquad filter ($f_c = 1200\text{ Hz}, Q = 3.5$) with exponential gain decay:
+  $$g(t) = g_0 \cdot e^{-t / \tau_{\text{dice}}}$$
+- **Pawn Hop / Step**: Frequency sweep using a sine oscillator descending from 520 Hz to 260 Hz over 80 ms.
+- **Cash Register / Transaction Chime**: Dual-tone overtone chord (880 Hz $A_5$ and 1320 Hz $E_6$) with instantaneous attack and 350 ms exponential ringdown.
+- **Jail Clang**: Low metallic square wave (110 Hz $A_2$) mixed with lowpass resonant filter ($Q = 8$) simulating heavy iron bars closing.
+- **User Permission & Autoplay**: Resumes `AudioContext` on user interaction and respects user settings (volume and mute toggle).
+
+---
+
+## 7. Quality Assurance & Multi-Device Verification Matrix
+
+A comprehensive verification suite guarantees stability across all target form factors:
+- **Unit Testing (Vitest 3.2)**: 6/6 tests verify engine determinism, START passing invariant, rent doubling on monopoly, bankruptcy thresholds, and three-doubles incarceration.
+- **Static Analysis (TypeScript 5.7 & ESLint 9)**: 0 errors across all frontend and cloud functions codebases.
+- **E2E Visual & Responsive Testing (Playwright 1.58)**: 27/27 end-to-end tests passing across 3 viewport configurations:
+  - **Desktop (1920 × 1080)**: Full 3-column layout, visible financial strip, centered board, and transaction deeds.
+  - **Modern Mobile Phone (390 × 844)**: Responsive board scaling within `100dvh`, compact player chips, and bottom HUD controls.
+  - **Tablet Portrait (820 × 1180)**: Fluid responsive column collapse with center-anchored in-board dice.

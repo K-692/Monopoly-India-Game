@@ -34,3 +34,4 @@ export const GROUP_COLOR_MAP: Record<PropertyColorGroup, string> = {
   GREEN: '#22C55E',
   DARKBLUE: '#1E40AF',
 };
+

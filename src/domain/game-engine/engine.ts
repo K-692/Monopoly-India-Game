@@ -114,10 +114,11 @@ export function applyGameCommand(
       const newPos = (oldPos + steps) % 40;
       player.position = newPos;
 
-      // Passing or landing on START awards ₹2,000
+      // Passing or landing on START awards host-configured reward (default ₹2,000)
+      const passReward = state.rules?.passStartReward ?? GAME_CONSTANTS.START_REWARD;
       if (newPos < oldPos && oldPos + steps >= 40) {
-        player.cash += GAME_CONSTANTS.START_REWARD;
-        summary += ` — Passed START, collected ₹${GAME_CONSTANTS.START_REWARD}!`;
+        player.cash += passReward;
+        summary += ` — Passed START, collected ₹${passReward}!`;
       }
 
       // Resolve destination space
@@ -173,18 +174,19 @@ export function applyGameCommand(
 
     case 'PAY_BAIL': {
       const player = state.players.find((p) => p.uid === actorUid);
+      const bailAmount = state.rules?.jailBail ?? GAME_CONSTANTS.JAIL_BAIL;
       if (!player || !player.inJail) {
         throw new GameEngineError('INVALID_ACTION', 'Player is not in jail');
       }
-      if (player.cash < GAME_CONSTANTS.JAIL_BAIL) {
-        throw new GameEngineError('INSUFFICIENT_FUNDS', `Need ₹${GAME_CONSTANTS.JAIL_BAIL} for bail`);
+      if (player.cash < bailAmount) {
+        throw new GameEngineError('INSUFFICIENT_FUNDS', `Need ₹${bailAmount} for bail`);
       }
 
-      player.cash -= GAME_CONSTANTS.JAIL_BAIL;
+      player.cash -= bailAmount;
       player.inJail = false;
       player.jailTurns = 0;
       state.phase = 'AWAIT_ROLL';
-      summary = `${player.displayName} paid ₹${GAME_CONSTANTS.JAIL_BAIL} bail and is free`;
+      summary = `${player.displayName} paid ₹${bailAmount} bail and is free`;
       break;
     }
 
@@ -539,6 +541,7 @@ function advanceTurn(state: GameState): void {
       state.phase = player.inJail ? 'JAIL_DECISION' : 'AWAIT_ROLL';
       state.dice = null;
       state.pendingAction = null;
+      state.turnTimeRemaining = state.turnTimeLimit || 30;
       return;
     }
   }

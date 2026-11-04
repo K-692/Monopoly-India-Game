@@ -1,11 +1,33 @@
 /**
- * Indian Monopoly - Ruleset Baseline & Mathematical Formulas
+ * Indian Monopoly - Ruleset Baseline & Host Custom Rules
  */
 
 import { BOARD_SPACES, PROPERTY_GROUPS, TRANSIT_SPACES, UTILITY_SPACES } from './board-config';
 import { PropertyDefinition, PropertyState } from './game-types';
 
 export const RULESET_VERSION = '1.0.0';
+
+export interface HostCustomRules {
+  startingCash: number;
+  passStartReward: number;
+  turnTimerSeconds: number; // 15, 30, 45, 60, 90
+  maxPlayers: number; // 2..6
+  jailBail: number;
+  doubleRentMonopoly: boolean;
+  allowAuctions: boolean;
+  gameMode: 'STANDARD' | 'TIMED_45' | 'TIMED_60';
+}
+
+export const DEFAULT_HOST_RULES: HostCustomRules = {
+  startingCash: 15000,
+  passStartReward: 2000,
+  turnTimerSeconds: 30,
+  maxPlayers: 4,
+  jailBail: 500,
+  doubleRentMonopoly: true,
+  allowAuctions: true,
+  gameMode: 'STANDARD',
+};
 
 export const GAME_CONSTANTS = {
   MIN_PLAYERS: 2,
@@ -22,7 +44,7 @@ export const GAME_CONSTANTS = {
   UNMORTGAGE_INTEREST: 0.1, // 10% premium on mortgage redemption
   EMOTE_RATE_LIMIT_COUNT: 3,
   EMOTE_RATE_LIMIT_WINDOW_MS: 5000,
-  EMOTE_DISPLAY_DURATION_MS: 6000,
+  EMOTE_DISPLAY_DURATION_MS: 5000,
 };
 
 /**
@@ -45,7 +67,8 @@ export function hasFullColorGroup(
 export function calculateRent(
   spaceIndex: number,
   properties: Record<number, PropertyState>,
-  diceTotal: number = 7
+  diceTotal: number = 7,
+  rules: HostCustomRules = DEFAULT_HOST_RULES
 ): number {
   const space = BOARD_SPACES[spaceIndex];
   if (!space) return 0;
@@ -66,15 +89,14 @@ export function calculateRent(
     if (propState.buildings === 2) return p.rentHouse2;
     if (propState.buildings === 1) return p.rentHouse1;
 
-    // Unimproved: double rent if whole group owned
-    if (hasFullColorGroup(p.group, ownerUid, properties)) {
+    // Unimproved: double rent if whole group owned and host rule enabled
+    if (rules.doubleRentMonopoly && hasFullColorGroup(p.group, ownerUid, properties)) {
       return p.baseRent * 2;
     }
     return p.baseRent;
   }
 
   if (space.type === 'TRANSIT') {
-    // Count active (unmortgaged) transit spaces owned by same player
     const ownedCount = TRANSIT_SPACES.filter(
       (idx) => properties[idx]?.ownerUid === ownerUid && !properties[idx]?.isMortgaged
     ).length;
@@ -129,7 +151,6 @@ export function canBuildOnProperty(
   }
 
   const groupIndices = PROPERTY_GROUPS[space.group];
-  // Any mortgaged property in the group prevents development
   const hasMortgagedInGroup = groupIndices.some((idx) => properties[idx]?.isMortgaged);
   if (hasMortgagedInGroup) {
     return { allowed: false, reason: 'Cannot build while any property in the group is mortgaged' };
@@ -143,7 +164,6 @@ export function canBuildOnProperty(
     return { allowed: false, reason: `Insufficient cash (needs ₹${space.buildingCost})` };
   }
 
-  // Enforce even-building rule: difference between max and min buildings in group <= 1
   const currentLevel = propState.buildings;
   const groupLevels = groupIndices.map((idx) => properties[idx]?.buildings ?? 0);
   const minLevel = Math.min(...groupLevels);
@@ -156,7 +176,7 @@ export function canBuildOnProperty(
 }
 
 /**
- * Calculates net worth of a player (cash + unmortgaged property value + half mortgaged value + buildings value).
+ * Calculates net worth of a player.
  */
 export function calculateNetWorth(
   playerUid: string,

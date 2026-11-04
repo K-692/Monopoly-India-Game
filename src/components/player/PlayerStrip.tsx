@@ -105,3 +105,4 @@ export const PlayerStrip: React.FC<PlayerStripProps> = ({
     </div>
   );
 };
+

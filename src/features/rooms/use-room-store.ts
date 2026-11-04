@@ -1,13 +1,17 @@
 import { create } from 'zustand';
 import { RoomState, RoomMember } from '@/domain/game-types';
 import { sound } from '@/lib/audio/sound-engine';
+import { DEFAULT_HOST_RULES, HostCustomRules } from '@/domain/ruleset';
 
 interface RoomStoreState {
   currentRoom: RoomState | null;
   isLoading: boolean;
   error: string | null;
 
-  createRoom: (hostUser: { uid: string; displayName: string; photoURL: string | null }) => Promise<string>;
+  createRoom: (
+    hostUser: { uid: string; displayName: string; photoURL: string | null },
+    customRules?: HostCustomRules
+  ) => Promise<string>;
   joinRoom: (code: string, user: { uid: string; displayName: string; photoURL: string | null }) => Promise<boolean>;
   toggleReady: (uid: string) => void;
   leaveRoom: () => void;
@@ -29,7 +33,7 @@ export const useRoomStore = create<RoomStoreState>((set, get) => ({
   isLoading: false,
   error: null,
 
-  createRoom: async (hostUser) => {
+  createRoom: async (hostUser, customRules = DEFAULT_HOST_RULES) => {
     set({ isLoading: true, error: null });
     sound.play('BUTTON_CLICK');
 
@@ -50,9 +54,10 @@ export const useRoomStore = create<RoomStoreState>((set, get) => ({
       inviteCodeHash: inviteCode,
       hostUid: hostUser.uid,
       status: 'LOBBY',
-      maxPlayers: 4,
-      turnTimerSeconds: 45,
+      maxPlayers: customRules.maxPlayers || 4,
+      turnTimerSeconds: (customRules.turnTimerSeconds as 0 | 30 | 45 | 60) || 30,
       gameMode: 'STANDARD',
+      customRules,
       members: { [hostUser.uid]: hostMember },
       memberUids: [hostUser.uid],
       createdAt: Date.now(),
@@ -168,3 +173,4 @@ export const useRoomStore = create<RoomStoreState>((set, get) => ({
 
   setError: (err) => set({ error: err }),
 }));
+

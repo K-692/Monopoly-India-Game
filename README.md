@@ -4,32 +4,31 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-amber.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7+-blue.svg)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-19-61dafb.svg)](https://react.dev/)
-[![Firebase](https://img.shields.io/badge/Firebase-Auth%20%7C%20Firestore%20%7C%20Functions-orange.svg)](https://firebase.google.com/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4+-38b2ac.svg)](https://tailwindcss.com/)
 [![Vite](https://img.shields.io/badge/Vite-6.0+-646cff.svg)](https://vite.dev/)
 [![Playwright](https://img.shields.io/badge/Playwright-Multi--Device%20E2E-green.svg)](https://playwright.dev/)
 
-A modern, responsive, real-time multiplayer property trading board game celebrating India's iconic cities, transit systems, and commerce. Built with a **server-authoritative** architecture, Google authentication, instant room codes, procedural Web Audio sound effects, and an Indian palace-inspired visual design.
+> **Repository Description:** A fast, responsive, Indian-themed multiplayer property trading board game built with React 19, TypeScript, Tailwind CSS, and Cloud Firestore. Features frictionless link-based room joining, in-board animated 3D dice, persistent center buzz cards, host-configurable rule engines, turn countdown timers, zero-latency Web Audio sound synthesis, and a modular practice match.
+>
+> **GitHub Repository Topics:** `monopoly`, `board-game`, `multiplayer-game`, `react19`, `typescript`, `firebase`, `firestore`, `tailwindcss`, `vite`, `playwright`, `game-engine`, `indian-theme`, `web-audio-api`, `pwa`, `responsive-web-design`
 
 ---
 
 ## 🌟 Key Highlights
 
-- 🏰 **Authentic Indian Board**: 40 spaces featuring 22 major Indian city properties (from *Jaipur MI Road* to *Mumbai Marine Drive*), 4 transit networks, 2 utilities (*Urja Power Grid* & *Jal Board*), *GST Checkposts*, and dynamic *Civic Fund* & *Market Buzz* cards.
-- 🔒 **Server-Authoritative Game Engine**: The client never decides dice rolls, rents, or money. Every state change is validated and committed via atomic transactions in Firebase Cloud Functions.
-- 📱 **Universal Cross-Device Responsive**:
-  - **Desktop & Mac**: Full 3-column panoramic interface with player financial boards, deed inspections, and live event ticker.
-  - **Tablets & iPads**: Adaptive 2-column layout respecting orientation changes and touch inputs.
-  - **Mobile (iPhone & Android)**: Bottom-sheet action trays, thumb-friendly floating roll controls, and zoomable board navigation with iOS safe-area handling.
-- 🎵 **Procedural Web Audio Sound FX**: Zero remote audio lag. Rich, synthesized dice rolls, pawn steps, coin register jingles, jail lock clangs, and reaction pops.
-- 🤝 **Social & Room Management**: Google Sign-In, 6-character human-readable invite codes (unambiguous charset), friend requests, and pre-game lobbies supporting 2 to 6 players.
-- ⚡ **Real-Time Multiplayer & Reconnection**: Firestore live snapshots with optimistic UI feedback and seamless reconnection if mobile network momentarily drops.
-- 👏 **Curated Emote Reactions**: Express yourself with rate-limited, auto-expiring in-game reactions without toxic chat text.
-- 📜 **Post-Game Archival**: Two-stage verified session archival retaining player rankings, net-worth metrics, and summary timelines.
+- 🏰 **Authentic Indian Board**: 40 spaces featuring 22 major Indian city properties (from *Jaipur MI Road* to *Mumbai Marine Drive*), 4 transit networks, 2 utilities (*Urja Power Grid* & *Jal Board*), *GST Checkposts*, and 2 persistent center decks (*Civic Fund* & *Market Buzz*).
+- 🔗 **Frictionless Link-Based Multiplayer**: No Google login or password needed. Anyone with the room link can join instantly by simply entering their chosen player name!
+- 🗂️ **Streamlined Two-Tab Interface**: Clean, uncluttered UI featuring only **Play** and **Settings** tabs.
+- 📺 **Non-Scrollable Viewport**: The entire board, player financial strip, action controls, and event ticker are contained within the screen (`100dvh`) without page scrolling!
+- 🎲 **In-Board Interactive Dice**: Dice roll controls and animated tumbling 3D dice are integrated directly *inside* the board center.
+- ⏱️ **Player Turn Timers**: Real-time turn timer countdown (15s, 30s, 45s, 60s) with automated roll/pass fallback when time expires.
+- ⚙️ **Host-Customizable Rules**: The game host can configure starting cash (₹10,000–₹25,000), pass START rewards (₹1,000–₹3,000), turn timer limits, max players (2–6), jail bail amounts, and monopoly rent multipliers before creating the room.
+- 🎯 **Practice Match (Gameplay Sandbox)**: A dedicated practice match on the Play tab to test the exact gameplay features against 3 simulated opponents. Modular and easily removable in future releases.
+- 🎵 **Procedural Web Audio Sound FX**: Zero remote audio lag. Rich, synthesized dice rolls, pawn steps, coin register jingles, and jail lock clangs.
 
 ---
 
-## 🎲 Board Layout & Properties
+## 🎲 Board Layout & Topology
 
 ```
 +---------------------------------------------------------------------------------------------+
@@ -77,18 +76,77 @@ A modern, responsive, real-time multiplayer property trading board game celebrat
 
 ---
 
+## 🏗️ System Architecture & Workflow
+
+```mermaid
+flowchart TD
+    subgraph Client ["Client Presentation Layer (React 19 + Tailwind)"]
+        UI["Two-Tab Shell: Play & Settings"]
+        Board["Non-Scrollable GameBoard (100dvh)"]
+        Center["Center Area: Dice & Persistent Buzz Cards"]
+        Timer["Turn Countdown Timer (15-60s)"]
+        Sound["Web Audio Procedural Sound Engine"]
+    end
+
+    subgraph Domain ["Pure Domain Logic (TypeScript Engine)"]
+        State["Immutable GameState"]
+        Reducer["applyGameCommand(state, cmd, rules)"]
+        Rules["HostCustomRules (Cash, Timer, Bail, Multipliers)"]
+        AI["Practice Match Heuristic Tycoon Loop"]
+    end
+
+    subgraph Backend ["Server-Authoritative Backend"]
+        Firestore["Cloud Firestore / Emulators"]
+        Rooms["rooms/{roomId} & games/{gameId}"]
+        Presence["Player Real-Time Presence"]
+    end
+
+    UI --> Board
+    Board --> Center
+    Board --> Timer
+    Center -->|User Roll/Action| Reducer
+    Reducer -->|State Invariants Check| State
+    Rules --> Reducer
+    AI -->|Simulated Turn| Reducer
+    Reducer -->|Synthesized FX| Sound
+    Reducer -->|State Commit| Firestore
+    Firestore -->|Snapshot Sync| Board
+```
+
+---
+
+## 🔐 Storing Firebase Credentials in GitHub Secrets
+
+To keep credentials completely secure and prevent committing keys to Git history:
+
+1. Open your repository on GitHub: `https://github.com/K-692/Monopoly-India-Game`
+2. Go to **Settings** > **Secrets and variables** > **Actions**.
+3. Click **New repository secret** and add:
+   - `VITE_FIREBASE_API_KEY`: Your Firebase Web API key
+   - `VITE_FIREBASE_AUTH_DOMAIN`: `your-project.firebaseapp.com`
+   - `VITE_FIREBASE_PROJECT_ID`: `your-project-id`
+   - `VITE_FIREBASE_STORAGE_BUCKET`: `your-project.firebasestorage.app`
+   - `VITE_FIREBASE_MESSAGING_SENDER_ID`: `your-sender-id`
+   - `VITE_FIREBASE_APP_ID`: `1:your-app-id:web:...`
+   - `VITE_FIREBASE_MEASUREMENT_ID`: `G-XXXXXXXXXX`
+   - `VITE_FIREBASE_DATABASE_URL`: `https://your-project.firebasedatabase.app`
+4. The GitHub Actions workflow ([`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml)) injects these secrets into the production build during deployment.
+5. See [docs/SECRETS_SETUP.md](docs/SECRETS_SETUP.md) for full step-by-step instructions.
+
+---
+
 ## 🛠️ Tech Stack
 
 | Layer | Technologies |
 |---|---|
 | **Frontend Framework** | [React 19](https://react.dev/) + [TypeScript 5.7](https://www.typescriptlang.org/) |
-| **Build & Dev Tooling** | [Vite 6](https://vite.dev/) |
+| **Build & Tooling** | [Vite 6](https://vite.dev/) |
 | **Styling & Tokens** | [Tailwind CSS 3.4](https://tailwindcss.com/) + CSS Custom Properties |
 | **UI Primitives** | [Radix UI](https://www.radix-ui.com/) + [Lucide Icons](https://lucide.dev/) |
 | **Audio Engine** | Web Audio API (procedural synthesis for zero-latency cross-platform sound) |
-| **Routing** | [React Router 7](https://reactrouter.com/) (with HashRouter for GitHub Pages compatibility) |
-| **State Management** | [Zustand](https://github.com/pmndrs/zustand) + [TanStack Query](https://tanstack.com/query) |
-| **Backend & Realtime** | [Firebase Authentication](https://firebase.google.com/docs/auth), [Cloud Firestore](https://firebase.google.com/docs/firestore), [Cloud Functions](https://firebase.google.com/docs/functions) |
+| **Routing** | [React Router 7](https://reactrouter.com/) (HashRouter for GitHub Pages deep linking) |
+| **State Management** | [Zustand](https://github.com/pmndrs/zustand) |
+| **Backend & Cloud** | [Cloud Firestore](https://firebase.google.com/docs/firestore), [Cloud Functions](https://firebase.google.com/docs/functions) |
 | **Testing** | [Vitest](https://vitest.dev/), [React Testing Library](https://testing-library.com/), [Playwright](https://playwright.dev/) |
 | **Deployment** | GitHub Pages (Frontend) + GitHub Actions CI/CD |
 
@@ -96,12 +154,7 @@ A modern, responsive, real-time multiplayer property trading board game celebrat
 
 ## 🚀 Getting Started
 
-### Prerequisites
-- Node.js 20.x or 22.x LTS (or recent Node version)
-- npm 10+
-- Optional: [Firebase CLI](https://firebase.google.com/docs/cli) (`npm install -g firebase-tools`) for local emulator integration
-
-### 1. Clone the repository
+### 1. Clone repository
 ```bash
 git clone https://github.com/K-692/Monopoly-India-Game.git
 cd Monopoly-India-Game
@@ -112,24 +165,15 @@ cd Monopoly-India-Game
 npm install
 ```
 
-### 3. Configure environment variables
-Copy `.env.example` to `.env`:
-```bash
-cp .env.example .env
-```
-Default public web configuration for project `monopoly-india-f9700` is pre-populated for client access.
-
-### 4. Run local development server
+### 3. Start local development server
 ```bash
 npm run dev
 ```
-Open your browser at `http://localhost:5173`.
+Open `http://localhost:5173`. You can immediately launch the **Practice Match** or host/join rooms!
 
 ---
 
 ## 🧪 Testing & Quality Gates
-
-Run the automated test suites:
 
 ```bash
 # Run unit tests
@@ -150,51 +194,33 @@ npm run build
 
 ---
 
-## 📂 Repository Structure
+## 🤝 Contributing to Indian Monopoly
 
-```text
-├── .github/
-│   └── workflows/
-│       ├── ci.yml                 # Continuous Integration pipeline
-│       └── deploy-pages.yml       # Automated GitHub Pages static deployment
-├── docs/
-│   ├── ARCHITECTURE.md            # Detailed system architecture and state machine
-│   ├── DECISION_LOG.md            # Architectural Decision Records (ADRs)
-│   ├── DEVELOPMENT_STATUS.md      # Live milestone tracking & test results
-│   └── IMPLEMENTATION_PLAN.md     # 13-milestone implementation plan
-├── functions/                     # Firebase Cloud Functions (backend domain authority)
-│   ├── src/
-│   │   ├── index.ts
-│   │   ├── callable/
-│   │   └── game-engine/
-├── public/
-│   ├── assets/                    # Optimized visual assets
-│   ├── manifest.webmanifest       # PWA manifest
-│   └── 404.html                   # SPA routing fallback for GitHub Pages
-├── src/
-│   ├── app/                       # Application shell and routing
-│   ├── components/                # Modular UI primitives, board views, player cards
-│   ├── domain/                    # Pure TypeScript game rules, board config, action schemas
-│   ├── features/                  # Auth, Dashboard, Lobby, Game, Friends, History, Settings
-│   ├── lib/                       # Firebase services, Audio engine, Validation
-│   └── styles/                    # Tailwind CSS custom utilities and design tokens
-├── flow.md                        # Implementation journey and academic record
-├── firestore.rules                # Strict Firestore security rules
-└── vite.config.ts                 # Vite bundler configuration
-```
+We welcome contributions from developers, designers, and board-game enthusiasts! To contribute:
 
----
-
-## 🤝 Contributing
-
-Contributions, issues, and feature requests are welcome!
-Feel free to check out [issues](https://github.com/K-692/Monopoly-India-Game/issues).
-
-1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+1. **Fork the Repository**: Click the `Fork` button at the top right of the GitHub page.
+2. **Clone your fork**:
+   ```bash
+   git clone https://github.com/<your-username>/Monopoly-India-Game.git
+   cd Monopoly-India-Game
+   ```
+3. **Create a Feature Branch**:
+   ```bash
+   git checkout -b feat/your-awesome-feature
+   ```
+4. **Adhere to Code Standards**:
+   - Write clean, type-safe TypeScript code.
+   - Add comments explaining non-trivial business logic or mathematical algorithms.
+   - Keep domain logic strictly isolated in pure functions within `src/domain/`.
+5. **Verify Quality Gates**:
+   - Run `npm run test` (Vitest must pass 100%).
+   - Run `npm run typecheck` (0 TypeScript errors).
+   - Run `npm run lint` (0 ESLint errors/warnings).
+   - Run `npm run build` (production build must succeed).
+   - Run `npm run test:e2e` (Playwright tests must pass across all screen sizes).
+6. **Submit a Pull Request**:
+   - Push your branch to GitHub: `git push origin feat/your-awesome-feature`
+   - Open a Pull Request with a clear title and description of your enhancements.
 
 ---
 

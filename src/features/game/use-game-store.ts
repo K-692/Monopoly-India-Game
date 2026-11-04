@@ -200,3 +200,4 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
 
   dismissError: () => set({ error: null }),
 }));
+

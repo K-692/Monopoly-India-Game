@@ -1,105 +1,91 @@
-import { create } from 'zustand';
-import { subscribeAuthState, signInWithGoogle, logOut } from '@/lib/firebase/firebase-auth';
+/**
+ * Indian Monopoly - Frictionless Player Identity Store
+ * No Google authentication required.
+ * Players identify by display name, with UID persisted in localStorage.
+ */
 
-export interface AuthUser {
+import { create } from 'zustand';
+
+export interface PlayerIdentity {
   uid: string;
   displayName: string;
-  photoURL: string | null;
-  email: string | null;
-  friendCode: string;
-  isGuest?: boolean;
+  avatarColor: string;
 }
 
-interface AuthState {
-  user: AuthUser | null;
-  isLoading: boolean;
-  error: string | null;
-  loginWithGoogle: () => Promise<void>;
-  loginAsGuest: (name?: string) => void;
-  signOutUser: () => Promise<void>;
-  setUser: (user: AuthUser | null) => void;
+interface PlayerAuthState {
+  player: PlayerIdentity | null;
+  isNamePromptOpen: boolean;
+  pendingRedirectUrl: string | null;
+
+  setPlayerName: (name: string) => void;
+  openNamePrompt: (redirectUrl?: string) => void;
+  closeNamePrompt: () => void;
 }
 
-function generateFriendCode(uid: string): string {
-  // Generate short readable 6-character code
-  const clean = uid.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-  return clean.slice(0, 6).padEnd(6, 'X');
+const PLAYER_COLORS = [
+  '#C85A32', // Terracotta
+  '#1A2B4C', // Navy
+  '#E5A93C', // Gold
+  '#2D6A4F', // Emerald
+  '#9D0208', // Crimson
+  '#5C2D5A', // Purple
+];
+
+function getStoredPlayer(): PlayerIdentity | null {
+  if (typeof window === 'undefined') return null;
+  const uid = localStorage.getItem('monopoly_player_uid');
+  const name = localStorage.getItem('monopoly_player_name');
+  const color = localStorage.getItem('monopoly_player_color');
+
+  if (uid && name) {
+    return {
+      uid,
+      displayName: name,
+      avatarColor: color || PLAYER_COLORS[0],
+    };
+  }
+  return null;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
-  user: null,
-  isLoading: true,
-  error: null,
+export const useAuthStore = create<PlayerAuthState>((set, get) => ({
+  player: getStoredPlayer(),
+  isNamePromptOpen: false,
+  pendingRedirectUrl: null,
 
-  loginWithGoogle: async () => {
-    set({ isLoading: true, error: null });
-    try {
-      const fbUser = await signInWithGoogle();
-      if (fbUser) {
-        set({
-          user: {
-            uid: fbUser.uid,
-            displayName: fbUser.displayName || 'Indian Tycoon',
-            photoURL: fbUser.photoURL || null,
-            email: fbUser.email || null,
-            friendCode: generateFriendCode(fbUser.uid),
-            isGuest: false,
-          },
-          isLoading: false,
-        });
-      }
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Sign-in failed';
-      set({ error: message, isLoading: false });
+  setPlayerName: (name: string) => {
+    const cleanName = name.trim() || 'Player ' + Math.floor(100 + Math.random() * 900);
+    let uid = get().player?.uid;
+    let color = get().player?.avatarColor;
+
+    if (!uid) {
+      uid = 'usr_' + Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
+      color = PLAYER_COLORS[Math.floor(Math.random() * PLAYER_COLORS.length)];
     }
-  },
 
-  loginAsGuest: (name: string = 'Maharaja Player') => {
-    const guestUid = 'guest_' + Math.random().toString(36).substring(2, 9);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('monopoly_player_uid', uid);
+      localStorage.setItem('monopoly_player_name', cleanName);
+      localStorage.setItem('monopoly_player_color', color!);
+    }
+
     set({
-      user: {
-        uid: guestUid,
-        displayName: name,
-        photoURL: null,
-        email: null,
-        friendCode: generateFriendCode(guestUid),
-        isGuest: true,
+      player: {
+        uid,
+        displayName: cleanName,
+        avatarColor: color!,
       },
-      isLoading: false,
-      error: null,
+      isNamePromptOpen: false,
     });
   },
 
-  signOutUser: async () => {
-    try {
-      await logOut();
-    } catch {
-      // Ignored
-    }
-    set({ user: null, isLoading: false });
+  openNamePrompt: (redirectUrl) => {
+    set({
+      isNamePromptOpen: true,
+      pendingRedirectUrl: redirectUrl || null,
+    });
   },
 
-  setUser: (user) => set({ user, isLoading: false }),
+  closeNamePrompt: () => {
+    set({ isNamePromptOpen: false, pendingRedirectUrl: null });
+  },
 }));
-
-// Initialize reactive listener
-if (typeof window !== 'undefined') {
-  subscribeAuthState((fbUser) => {
-    if (fbUser) {
-      useAuthStore.getState().setUser({
-        uid: fbUser.uid,
-        displayName: fbUser.displayName || 'Indian Tycoon',
-        photoURL: fbUser.photoURL || null,
-        email: fbUser.email || null,
-        friendCode: generateFriendCode(fbUser.uid),
-        isGuest: false,
-      });
-    } else {
-      // If currently not a guest, mark as null
-      const current = useAuthStore.getState().user;
-      if (!current?.isGuest) {
-        useAuthStore.getState().setUser(null);
-      }
-    }
-  });
-}

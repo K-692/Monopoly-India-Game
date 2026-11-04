@@ -16,7 +16,7 @@ import confetti from 'canvas-confetti';
 export const GamePage: React.FC = () => {
   const { gameId } = useParams<{ gameId: string }>();
   const navigate = useNavigate();
-  const { user } = useAuthStore();
+  const { player } = useAuthStore();
   const {
     gameState,
     events,
@@ -35,9 +35,36 @@ export const GamePage: React.FC = () => {
 
   useEffect(() => {
     if (!gameState) {
-      initializeDemoGame(user?.displayName || 'Maharaja Player');
+      initializeDemoGame(player?.displayName || 'Player');
     }
-  }, [gameState, initializeDemoGame, user]);
+  }, [gameState, initializeDemoGame, player]);
+
+  // Turn timer interval
+  useEffect(() => {
+    if (!gameState || gameState.status === 'COMPLETED') return;
+    const interval = setInterval(() => {
+      const remaining = (gameState.turnTimeRemaining ?? 30) - 1;
+      if (remaining <= 0) {
+        // Auto-action on timer expiry
+        if (gameState.phase === 'AWAIT_ROLL') {
+          dispatchAction('ROLL_DICE');
+        } else if (gameState.phase === 'PROPERTY_DECISION') {
+          dispatchAction('DECLINE_PROPERTY');
+        } else {
+          dispatchAction('END_TURN');
+        }
+      } else {
+        useGameStore.setState({
+          gameState: {
+            ...gameState,
+            turnTimeRemaining: remaining,
+          },
+        });
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [gameState, dispatchAction]);
 
   // Victory celebration trigger
   useEffect(() => {
@@ -59,32 +86,33 @@ export const GamePage: React.FC = () => {
       <div className="flex-1 flex flex-col items-center justify-center p-8">
         <div className="w-10 h-10 border-4 border-indian-terracotta-500 border-t-transparent rounded-full animate-spin mb-4" />
         <p className="text-sm font-semibold text-indian-navy-800">
-          Preparing the Indian board...
+          Loading Board...
         </p>
       </div>
     );
   }
 
+  const isMyTurn = !player || player.uid === gameState.currentPlayerUid || gameState.currentPlayerUid === 'player_1';
   const winner = gameState.players.find((p) => p.uid === gameState.winnerUid);
 
   return (
-    <div className="flex-1 flex flex-col justify-between w-full max-w-[1600px] mx-auto px-2 sm:px-4 py-2 sm:py-4 gap-2">
+    <div className="h-[calc(100dvh-54px)] max-h-screen overflow-hidden flex flex-col justify-between w-full max-w-[1600px] mx-auto px-2 sm:px-4 py-1.5 gap-1.5 select-none">
       {/* Top Game Bar */}
-      <div className="flex items-center justify-between pb-2 border-b border-indian-parchment-300 dark:border-indian-navy-700">
+      <div className="flex items-center justify-between pb-1.5 border-b border-indian-parchment-300 dark:border-indian-navy-700 shrink-0">
         <button
-          onClick={() => navigate('/home')}
-          className="flex items-center gap-1.5 text-xs font-semibold text-indian-navy-700 dark:text-indian-parchment-300 hover:text-indian-terracotta-600 transition-colors"
+          onClick={() => navigate('/')}
+          className="flex items-center gap-1.5 text-xs font-bold text-indian-navy-700 dark:text-indian-parchment-300 hover:text-indian-terracotta-600 transition-colors"
         >
-          <ArrowLeft className="w-4 h-4" /> Leave Game
+          <ArrowLeft className="w-4 h-4" /> Exit Room
         </button>
 
         <div className="flex items-center gap-2">
           <Badge variant="terracotta" className="text-xs font-bold">
-            Live Game: {gameId || 'Demo Match'}
+            Room: {gameId || 'Match'}
           </Badge>
-          <Badge variant="neutral" className="text-xs">
-            v{gameState.version}
-          </Badge>
+          <span className="text-xs text-gray-500 font-mono">
+            Turn #{gameState.turnNumber}
+          </span>
         </div>
 
         {/* Mobile Toggle Player List */}
@@ -99,7 +127,7 @@ export const GamePage: React.FC = () => {
 
       {/* Error Notification Banner */}
       {error && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-xs flex items-center justify-between animate-fade-in">
+        <div className="p-2 bg-red-50 border border-red-200 rounded-lg text-red-700 text-xs flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{error}</span>
@@ -125,51 +153,32 @@ export const GamePage: React.FC = () => {
               👑 {winner?.displayName || 'A Player'} is the Sovereign Tycoon!
             </p>
 
-            <div className="mb-6 space-y-2 text-left bg-indian-parchment-100 dark:bg-indian-navy-800 p-3 rounded-lg border border-indian-parchment-300">
-              <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                Final Standings
-              </h4>
-              {gameState.players
-                .slice()
-                .sort((a, b) => b.netWorth - a.netWorth)
-                .map((p, idx) => (
-                  <div key={p.uid} className="flex justify-between items-center text-xs">
-                    <span className="font-semibold text-indian-navy-900 dark:text-indian-parchment-100">
-                      #{idx + 1} {p.displayName}
-                    </span>
-                    <span className="font-bold text-emerald-700">
-                      ₹{p.netWorth.toLocaleString('en-IN')}
-                    </span>
-                  </div>
-                ))}
-            </div>
-
             <div className="flex gap-2">
               <Button
                 variant="primary"
-                onClick={() => initializeDemoGame(user?.displayName)}
+                onClick={() => initializeDemoGame(player?.displayName)}
                 className="flex-1 font-bold"
               >
                 Rematch
               </Button>
               <Button
                 variant="outline"
-                onClick={() => navigate('/home')}
+                onClick={() => navigate('/')}
                 className="flex-1 font-bold"
               >
-                Return to Dashboard
+                Back to Play
               </Button>
             </div>
           </Card>
         </div>
       )}
 
-      {/* Main 3-Column Responsive Workspace */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 items-start">
+      {/* Main 3-Column Non-Scrollable Canvas */}
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-2 sm:gap-4 items-center overflow-hidden min-h-0">
         {/* Left Column: Player Strip (Desktop persistent, Mobile collapsible drawer) */}
         <div
-          className={`lg:col-span-3 lg:block ${
-            mobileDrawerOpen ? 'block' : 'hidden'
+          className={`lg:col-span-3 h-full overflow-y-auto pr-1 ${
+            mobileDrawerOpen ? 'block' : 'hidden lg:block'
           }`}
         >
           <PlayerStrip
@@ -183,36 +192,38 @@ export const GamePage: React.FC = () => {
           />
         </div>
 
-        {/* Center Column: The 40-Space Board */}
-        <div className="col-span-1 lg:col-span-6 flex flex-col items-center justify-center">
+        {/* Center Column: The 40-Space Board with in-board dice and buzz cards */}
+        <div className="col-span-1 lg:col-span-6 flex items-center justify-center h-full max-h-full">
           <GameBoard
             gameState={gameState}
             selectedSpaceIndex={selectedSpaceIndex}
             onSelectSpace={selectSpace}
             isRolling={isRolling}
+            onRollDice={() => dispatchAction('ROLL_DICE')}
+            isMyTurn={isMyTurn}
           />
         </div>
 
-        {/* Right Column: Actions, Property Deed Details & Management */}
-        <div className="col-span-1 lg:col-span-3 w-full">
+        {/* Right Column: Actions & Property Deed Details */}
+        <div className="hidden lg:block lg:col-span-3 h-full overflow-y-auto pl-1">
           <ActionPanel
             gameState={gameState}
             selectedSpaceIndex={selectedSpaceIndex}
             onDispatch={dispatchAction}
             isRolling={isRolling}
-            userUid={user?.uid}
+            userUid={player?.uid}
           />
         </div>
       </div>
 
       {/* Bottom Tray: Live Activity Ticker & Reaction Tray */}
-      <div className="mt-2 flex flex-col sm:flex-row items-center justify-between gap-2">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-1.5 shrink-0 pt-1">
         <div className="w-full sm:flex-1">
           <EventTicker events={events} />
         </div>
         <div className="shrink-0">
           <ReactionTray
-            onSendEmote={(emote) => sendEmote(emote, user?.displayName || 'Player')}
+            onSendEmote={(emote) => sendEmote(emote, player?.displayName || 'Player')}
             activeEmotes={activeEmotes}
           />
         </div>

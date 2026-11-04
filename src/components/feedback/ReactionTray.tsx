@@ -59,3 +59,4 @@ export const ReactionTray: React.FC<ReactionTrayProps> = ({ onSendEmote, activeE
     </div>
   );
 };
+

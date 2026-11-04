@@ -210,6 +210,18 @@ export interface GameState {
   auction: AuctionState | null;
   activeTrade: TradeOffer | null;
   winnerUid: string | null;
+  turnTimeRemaining: number;
+  turnTimeLimit: number;
+  rules?: {
+    startingCash: number;
+    passStartReward: number;
+    turnTimerSeconds: number;
+    maxPlayers: number;
+    jailBail: number;
+    doubleRentMonopoly: boolean;
+    allowAuctions: boolean;
+    gameMode: string;
+  };
   startedAt: number;
   updatedAt: number;
   completedAt: number | null;
@@ -295,6 +307,16 @@ export interface RoomState {
   maxPlayers: number;
   turnTimerSeconds: 0 | 30 | 45 | 60;
   gameMode: 'STANDARD' | 'TIMED';
+  customRules?: {
+    startingCash: number;
+    passStartReward: number;
+    turnTimerSeconds: number;
+    maxPlayers: number;
+    jailBail: number;
+    doubleRentMonopoly: boolean;
+    allowAuctions: boolean;
+    gameMode: string;
+  };
   members: Record<string, RoomMember>;
   memberUids: string[];
   gameId?: string;

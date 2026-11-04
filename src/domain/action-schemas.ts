@@ -1,5 +1,5 @@
 /**
- * Indian Monopoly - Zod Validation Schemas for Callable Actions
+ * Indian Monopoly - Zod Validation Schemas
  */
 
 import { z } from 'zod';
@@ -32,7 +32,6 @@ export const GameCommandSchema = z.object({
   payload: z.record(z.unknown()).default({}),
 });
 
-// Specific action payload schemas
 export const BuyPropertyPayloadSchema = z.object({
   spaceIndex: z.number().int().min(0).max(39),
 });
@@ -49,22 +48,16 @@ export const MortgagePayloadSchema = z.object({
   spaceIndex: z.number().int().min(0).max(39),
 });
 
-export const ProposeTradePayloadSchema = z.object({
-  targetPlayerUid: z.string().min(1),
-  offeredCash: z.number().int().nonnegative().default(0),
-  offeredProperties: z.array(z.number().int().min(0).max(39)).default([]),
-  requestedCash: z.number().int().nonnegative().default(0),
-  requestedProperties: z.array(z.number().int().min(0).max(39)).default([]),
-});
-
 export const CreateRoomPayloadSchema = z.object({
   maxPlayers: z.number().int().min(2).max(6).default(4),
-  turnTimerSeconds: z.union([z.literal(0), z.literal(30), z.literal(45), z.literal(60)]).default(45),
-  gameMode: z.enum(['STANDARD', 'TIMED']).default('STANDARD'),
+  turnTimerSeconds: z.number().int().positive().default(30),
+  gameMode: z.enum(['STANDARD', 'TIMED_45', 'TIMED_60']).default('STANDARD'),
+  customRules: z.record(z.unknown()).optional(),
 });
 
 export const JoinRoomPayloadSchema = z.object({
   inviteCode: z.string().min(4).max(10),
+  displayName: z.string().min(1).max(30),
 });
 
 export const SendReactionPayloadSchema = z.object({

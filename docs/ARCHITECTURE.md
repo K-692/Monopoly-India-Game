@@ -148,3 +148,4 @@ Built directly on the **Web Audio API** with zero external asset dependencies:
   - `BUTTON_CLICK`: Micro haptic click.
 - **Browser Autoplay Compliance**: Unlocks `AudioContext` on first user touch/click.
 - **Volume & Mute**: Persisted in local settings with instant UI toggle.
+

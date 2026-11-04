@@ -2,20 +2,27 @@ import {
   getFunctions,
   httpsCallable,
   connectFunctionsEmulator,
+  type Functions,
 } from 'firebase/functions';
 import { app } from './firebase-app';
 import { isEmulatorEnabled } from './firebase-config';
 
-export const functions = getFunctions(app, 'asia-south1');
+let functions: Functions | null = null;
 
-if (isEmulatorEnabled && typeof window !== 'undefined') {
+if (app) {
   try {
-    connectFunctionsEmulator(functions, 'localhost', 5001);
+    functions = getFunctions(app, 'asia-south1');
+    if (isEmulatorEnabled && typeof window !== 'undefined') {
+      connectFunctionsEmulator(functions, 'localhost', 5001);
+    }
   } catch {
-    // Emulator already connected
+    functions = null;
   }
 }
 
 export function getCallable<TReq, TRes>(functionName: string) {
+  if (!functions) {
+    throw new Error('Firebase Functions not configured');
+  }
   return httpsCallable<TReq, TRes>(functions, functionName);
 }

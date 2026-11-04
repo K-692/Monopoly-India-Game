@@ -12,7 +12,7 @@ import { firebaseConfig, isEmulatorEnabled } from './firebase-config';
 
 let rtdb: Database | null = null;
 
-if (firebaseConfig.databaseURL) {
+if (app && firebaseConfig.databaseURL) {
   try {
     rtdb = getDatabase(app, firebaseConfig.databaseURL);
     if (isEmulatorEnabled && typeof window !== 'undefined') {
@@ -24,3 +24,4 @@ if (firebaseConfig.databaseURL) {
 }
 
 export { rtdb, ref, onValue, set, onDisconnect };
+

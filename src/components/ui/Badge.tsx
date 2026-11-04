@@ -29,3 +29,4 @@ export const Badge: React.FC<BadgeProps> = ({ children, variant = 'terracotta', 
     </span>
   );
 };
+
