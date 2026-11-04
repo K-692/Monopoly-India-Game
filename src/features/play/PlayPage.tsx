@@ -7,7 +7,8 @@ import { HostCustomRules } from '@/domain/ruleset';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import { KeyRound, SlidersHorizontal, Sparkles } from 'lucide-react';
+import { KeyRound, SlidersHorizontal, Sparkles, AlertCircle, Dices, Bot, ArrowRight } from 'lucide-react';
+import { isFirebaseConfigured, firebaseConfigError } from '@/lib/firebase/firebase-config';
 
 export const PlayPage: React.FC = () => {
   const navigate = useNavigate();
@@ -19,8 +20,21 @@ export const PlayPage: React.FC = () => {
   const [isJoining, setIsJoining] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
 
+  // Practice Match Trigger (Isolated Sandbox Mode)
+  const handleLaunchPractice = () => {
+    if (!player) {
+      openNamePrompt('/practice');
+      return;
+    }
+    navigate('/practice');
+  };
+
   // Host Create Room with Custom Rules
   const handleOpenCreateModal = () => {
+    if (!isFirebaseConfigured) {
+      setError(firebaseConfigError || 'Firebase configuration is incomplete.');
+      return;
+    }
     if (!player) {
       openNamePrompt();
       return;
@@ -42,6 +56,8 @@ export const PlayPage: React.FC = () => {
       );
       setIsRulesModalOpen(false);
       navigate(`/room/${roomId}`);
+    } catch {
+      // Error is set in room store
     } finally {
       setIsCreating(false);
     }
@@ -50,22 +66,28 @@ export const PlayPage: React.FC = () => {
   // Join Room with Code
   const handleJoinWithCode = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!joinCodeInput.trim()) return;
+    const cleanCode = joinCodeInput.trim().toUpperCase();
+    if (!cleanCode) return;
+
+    if (!isFirebaseConfigured) {
+      setError(firebaseConfigError || 'Firebase configuration is incomplete.');
+      return;
+    }
 
     if (!player) {
-      openNamePrompt(`/room/room_${joinCodeInput.trim().toUpperCase()}`);
+      openNamePrompt(`/join/${cleanCode}`);
       return;
     }
 
     setIsJoining(true);
     try {
-      const success = await joinRoom(joinCodeInput, {
+      const result = await joinRoom(cleanCode, {
         uid: player.uid,
         displayName: player.displayName,
         photoURL: null,
       });
-      if (success) {
-        navigate(`/room/room_${joinCodeInput.trim().toUpperCase()}`);
+      if (result.ok && result.roomId) {
+        navigate(`/room/${result.roomId}`);
       }
     } finally {
       setIsJoining(false);
@@ -96,6 +118,52 @@ export const PlayPage: React.FC = () => {
           </button>
         </div>
       )}
+
+      {!isFirebaseConfigured && (
+        <div className="mb-4 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-xs flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 shrink-0 text-amber-600" />
+          <span>
+            <strong>Multiplayer Backend Notice:</strong> {firebaseConfigError} Offline Sandbox Practice match below is fully playable.
+          </span>
+        </div>
+      )}
+
+      {/* FEATURED: PRACTICE MATCH (SANDBOX TESTER) */}
+      <Card className="p-5 sm:p-6 mb-8 border-2 border-indian-gold-500 bg-gradient-to-r from-amber-500/10 via-amber-50/60 to-white dark:from-indian-navy-800 dark:to-indian-navy-900 shadow-md relative overflow-hidden">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="max-w-xl">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="p-1 rounded-md bg-amber-500 text-white shadow-xs">
+                <Bot className="w-4 h-4" />
+              </span>
+              <span className="text-xs font-extrabold uppercase tracking-widest text-amber-900 dark:text-amber-400">
+                Gameplay Sandbox
+              </span>
+              <span className="text-[10px] bg-amber-200 text-amber-900 font-bold px-2 py-0.5 rounded-full">
+                Practice Match
+              </span>
+            </div>
+
+            <h3 className="font-serif font-bold text-lg sm:text-xl text-indian-navy-900 dark:text-white mb-1">
+              Launch Solo Practice Match
+            </h3>
+            <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
+              Test all gameplay features on the non-scrollable board: in-board dice rolling, turn timers, Civic & Market buzz cards, property building, and trading with simulated tycoons.
+            </p>
+          </div>
+
+          <Button
+            size="lg"
+            variant="primary"
+            onClick={handleLaunchPractice}
+            className="w-full md:w-auto font-bold px-6 py-3 shadow-md flex items-center justify-center gap-2 bg-gradient-to-r from-indian-gold-600 to-indian-terracotta-500 hover:from-indian-gold-700 hover:to-indian-terracotta-600 shrink-0 text-sm cursor-pointer"
+          >
+            <Dices className="w-4 h-4" />
+            <span>Launch Practice Match</span>
+            <ArrowRight className="w-4 h-4" />
+          </Button>
+        </div>
+      </Card>
 
       {/* MULTIPLAYER PRIVATE ROOMS: HOST & JOIN */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">

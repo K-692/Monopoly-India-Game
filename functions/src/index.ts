@@ -1,6 +1,7 @@
 /**
  * Indian Monopoly - Firebase Cloud Functions
  * Server-authoritative domain boundary with frictionless room access.
+ * All mutations verified against request.auth.uid.
  */
 
 import * as admin from 'firebase-admin';
@@ -9,7 +10,9 @@ import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { z } from 'zod';
 import * as crypto from 'crypto';
 
-admin.initializeApp();
+if (admin.apps.length === 0) {
+  admin.initializeApp();
+}
 const db = admin.firestore();
 
 // -------------------------------------------------------------
@@ -17,42 +20,41 @@ const db = admin.firestore();
 // -------------------------------------------------------------
 
 const CreateRoomSchema = z.object({
-  uid: z.string().min(1),
   displayName: z.string().min(1).max(30),
-  customRules: z.object({
-    startingCash: z.number().int().positive().default(15000),
-    passStartReward: z.number().int().positive().default(2000),
-    turnTimerSeconds: z.number().int().positive().default(30),
-    maxPlayers: z.number().int().min(2).max(6).default(4),
-    jailBail: z.number().int().positive().default(500),
-    doubleRentMonopoly: z.boolean().default(true),
-    allowAuctions: z.boolean().default(true),
-    gameMode: z.string().default('STANDARD'),
-  }).optional(),
+  colorToken: z.string().optional(),
+  customRules: z
+    .object({
+      startingCash: z.number().int().positive().default(15000),
+      passStartReward: z.number().int().positive().default(2000),
+      turnTimerSeconds: z.number().int().positive().default(30),
+      maxPlayers: z.number().int().min(2).max(6).default(4),
+      jailBail: z.number().int().positive().default(500),
+      doubleRentMonopoly: z.boolean().default(true),
+      allowAuctions: z.boolean().default(true),
+      gameMode: z.string().default('STANDARD'),
+    })
+    .optional(),
 });
 
 const JoinRoomSchema = z.object({
-  uid: z.string().min(1),
   displayName: z.string().min(1).max(30),
   inviteCode: z.string().min(4).max(10),
+  colorToken: z.string().optional(),
 });
 
 const SetReadySchema = z.object({
   roomId: z.string().min(1),
-  uid: z.string().min(1),
   isReady: z.boolean(),
 });
 
 const StartGameSchema = z.object({
   roomId: z.string().min(1),
-  uid: z.string().min(1),
 });
 
 const SubmitActionSchema = z.object({
   commandId: z.string().min(1),
   roomId: z.string().min(1),
   gameId: z.string().min(1),
-  actorUid: z.string().min(1),
   expectedVersion: z.number().int().nonnegative(),
   type: z.string().min(1),
   payload: z.record(z.unknown()).default({}),
@@ -60,7 +62,6 @@ const SubmitActionSchema = z.object({
 
 const SendReactionSchema = z.object({
   roomId: z.string().min(1),
-  senderUid: z.string().min(1),
   senderName: z.string().min(1),
   emote: z.string().min(1).max(8),
   nonce: z.string().min(1),
@@ -79,126 +80,207 @@ function generateCode(): string {
 // 1. Create Room Callable
 // -------------------------------------------------------------
 export const createRoom = onCall({ region: 'asia-south1' }, async (request) => {
+  if (!request.auth || !request.auth.uid) {
+    throw new HttpsError('unauthenticated', 'User must be authenticated to create a room.');
+  }
+
   const parsed = CreateRoomSchema.safeParse(request.data);
   if (!parsed.success) {
     throw new HttpsError('invalid-argument', parsed.error.message);
   }
 
-  const { uid, displayName, customRules } = parsed.data;
+  const callerUid = request.auth.uid;
+  const { displayName, colorToken, customRules } = parsed.data;
   const roomId = 'room_' + crypto.randomUUID();
   const inviteCode = generateCode();
-  const inviteCodeHash = crypto.createHash('sha256').update(inviteCode).digest('hex');
+  const inviteCodeHash = crypto.createHash('sha256').update(inviteCode.toUpperCase()).digest('hex');
 
   const now = admin.firestore.FieldValue.serverTimestamp();
-  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  const expiresAt = admin.firestore.Timestamp.fromMillis(Date.now() + 24 * 60 * 60 * 1000);
 
+  const batch = db.batch();
   const roomRef = db.collection('rooms').doc(roomId);
+  const hostMemberRef = roomRef.collection('members').doc(callerUid);
 
-  await roomRef.set({
+  batch.set(roomRef, {
     roomId,
     inviteCode,
     inviteCodeHash,
-    hostUid: uid,
+    hostUid: callerUid,
     status: 'LOBBY',
     maxPlayers: customRules?.maxPlayers ?? 4,
     turnTimerSeconds: customRules?.turnTimerSeconds ?? 30,
     gameMode: customRules?.gameMode ?? 'STANDARD',
-    customRules: customRules ?? null,
-    memberUids: [uid],
+    customRules: customRules ?? {
+      startingCash: 15000,
+      passStartReward: 2000,
+      turnTimerSeconds: 30,
+      maxPlayers: 4,
+      jailBail: 500,
+      doubleRentMonopoly: true,
+      allowAuctions: true,
+      gameMode: 'STANDARD',
+    },
+    memberUids: [callerUid],
     createdAt: now,
     updatedAt: now,
     expiresAt,
   });
 
-  await roomRef.collection('members').doc(uid).set({
-    uid,
+  batch.set(hostMemberRef, {
+    uid: callerUid,
     displayName,
     photoURL: null,
     isReady: true,
     joinedAt: now,
-    colorToken: '#C85A32',
+    colorToken: colorToken || '#C85A32',
   });
+
+  await batch.commit();
 
   return { ok: true, roomId, inviteCode };
 });
 
 // -------------------------------------------------------------
-// 2. Join Room Callable
+// 2. Join Room Callable (Atomic & Concurrency-Safe)
 // -------------------------------------------------------------
 export const joinRoom = onCall({ region: 'asia-south1' }, async (request) => {
+  if (!request.auth || !request.auth.uid) {
+    throw new HttpsError('unauthenticated', 'User must be authenticated to join a room.');
+  }
+
   const parsed = JoinRoomSchema.safeParse(request.data);
   if (!parsed.success) {
     throw new HttpsError('invalid-argument', parsed.error.message);
   }
 
-  const { uid, displayName, inviteCode } = parsed.data;
+  const callerUid = request.auth.uid;
+  const { displayName, inviteCode, colorToken } = parsed.data;
   const cleanCode = inviteCode.trim().toUpperCase();
   const codeHash = crypto.createHash('sha256').update(cleanCode).digest('hex');
 
   const querySnap = await db
     .collection('rooms')
     .where('inviteCodeHash', '==', codeHash)
-    .where('status', '==', 'LOBBY')
     .limit(1)
     .get();
 
   if (querySnap.empty) {
-    throw new HttpsError('not-found', 'Room not found or game already in progress.');
+    throw new HttpsError('not-found', 'Invalid invitation code. No room found.');
   }
 
   const roomDoc = querySnap.docs[0];
-  const room = roomDoc.data();
-
-  if (room.memberUids.length >= room.maxPlayers && !room.memberUids.includes(uid)) {
-    throw new HttpsError('resource-exhausted', 'Room is currently full.');
-  }
-
-  const now = admin.firestore.FieldValue.serverTimestamp();
   const roomRef = roomDoc.ref;
 
   await db.runTransaction(async (transaction) => {
-    transaction.update(roomRef, {
-      memberUids: admin.firestore.FieldValue.arrayUnion(uid),
-      updatedAt: now,
-    });
+    const currentSnap = await transaction.get(roomRef);
+    if (!currentSnap.exists) {
+      throw new HttpsError('not-found', 'Room no longer exists.');
+    }
 
-    const memberRef = roomRef.collection('members').doc(uid);
-    transaction.set(
-      memberRef,
-      {
-        uid,
+    const room = currentSnap.data()!;
+
+    // Expiration check
+    if (room.expiresAt) {
+      const expiresMs =
+        typeof room.expiresAt.toMillis === 'function'
+          ? room.expiresAt.toMillis()
+          : new Date(room.expiresAt).getTime();
+      if (Date.now() > expiresMs) {
+        throw new HttpsError('failed-precondition', 'This room invitation has expired.');
+      }
+    }
+
+    // Status check
+    if (room.status !== 'LOBBY') {
+      throw new HttpsError('failed-precondition', 'Game has already started in this room.');
+    }
+
+    const memberUids: string[] = room.memberUids || [];
+    const maxPlayers: number = room.maxPlayers || 4;
+
+    // Capacity check
+    if (!memberUids.includes(callerUid)) {
+      if (memberUids.length >= maxPlayers) {
+        throw new HttpsError('resource-exhausted', `Room is full (maximum ${maxPlayers} players).`);
+      }
+      transaction.update(roomRef, {
+        memberUids: admin.firestore.FieldValue.arrayUnion(callerUid),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    } else {
+      transaction.update(roomRef, {
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+
+    const memberRef = roomRef.collection('members').doc(callerUid);
+    const memberSnap = await transaction.get(memberRef);
+
+    if (!memberSnap.exists) {
+      const defaultColors = ['#C85A32', '#1A2B4C', '#E5A93C', '#2D6A4F', '#9D0208', '#5C2D5A'];
+      const assignedColor = colorToken || defaultColors[memberUids.length % defaultColors.length];
+
+      transaction.set(memberRef, {
+        uid: callerUid,
         displayName,
         photoURL: null,
         isReady: false,
-        joinedAt: now,
-        colorToken: '#1A2B4C',
-      },
-      { merge: true }
-    );
+        joinedAt: admin.firestore.FieldValue.serverTimestamp(),
+        colorToken: assignedColor,
+      });
+    } else {
+      transaction.update(memberRef, {
+        displayName,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
   });
 
-  return { ok: true, roomId: room.roomId };
+  return { ok: true, roomId: roomDoc.id };
 });
 
 // -------------------------------------------------------------
 // 3. Set Ready Callable
 // -------------------------------------------------------------
 export const setReady = onCall({ region: 'asia-south1' }, async (request) => {
+  if (!request.auth || !request.auth.uid) {
+    throw new HttpsError('unauthenticated', 'User must be authenticated.');
+  }
+
   const parsed = SetReadySchema.safeParse(request.data);
   if (!parsed.success) {
     throw new HttpsError('invalid-argument', parsed.error.message);
   }
 
-  const { roomId, uid, isReady } = parsed.data;
-  const memberRef = db.collection('rooms').doc(roomId).collection('members').doc(uid);
-  const snap = await memberRef.get();
-  if (!snap.exists) {
-    throw new HttpsError('permission-denied', 'Not a member of this room.');
+  const callerUid = request.auth.uid;
+  const { roomId, isReady } = parsed.data;
+
+  const roomRef = db.collection('rooms').doc(roomId);
+  const memberRef = roomRef.collection('members').doc(callerUid);
+
+  const [roomSnap, memberSnap] = await Promise.all([roomRef.get(), memberRef.get()]);
+
+  if (!roomSnap.exists) {
+    throw new HttpsError('not-found', 'Room not found.');
+  }
+  if (!memberSnap.exists) {
+    throw new HttpsError('permission-denied', 'You are not a member of this room.');
   }
 
+  const room = roomSnap.data()!;
+  if (room.status !== 'LOBBY') {
+    throw new HttpsError('failed-precondition', 'Cannot toggle ready status after game has started.');
+  }
+
+  const now = admin.firestore.FieldValue.serverTimestamp();
   await memberRef.update({
     isReady,
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: now,
+  });
+
+  await roomRef.update({
+    updatedAt: now,
   });
 
   return { ok: true, isReady };
@@ -208,12 +290,18 @@ export const setReady = onCall({ region: 'asia-south1' }, async (request) => {
 // 4. Start Game Callable
 // -------------------------------------------------------------
 export const startGame = onCall({ region: 'asia-south1' }, async (request) => {
+  if (!request.auth || !request.auth.uid) {
+    throw new HttpsError('unauthenticated', 'User must be authenticated to start the game.');
+  }
+
   const parsed = StartGameSchema.safeParse(request.data);
   if (!parsed.success) {
     throw new HttpsError('invalid-argument', parsed.error.message);
   }
 
-  const { roomId, uid } = parsed.data;
+  const callerUid = request.auth.uid;
+  const { roomId } = parsed.data;
+
   const roomRef = db.collection('rooms').doc(roomId);
   const roomSnap = await roomRef.get();
   if (!roomSnap.exists) {
@@ -221,18 +309,22 @@ export const startGame = onCall({ region: 'asia-south1' }, async (request) => {
   }
 
   const room = roomSnap.data()!;
-  if (room.hostUid !== uid) {
+  if (room.hostUid !== callerUid) {
     throw new HttpsError('permission-denied', 'Only the room host can start the game.');
+  }
+
+  if (room.status !== 'LOBBY') {
+    throw new HttpsError('failed-precondition', 'Game has already started.');
   }
 
   const membersSnap = await roomRef.collection('members').get();
   if (membersSnap.size < 2) {
-    throw new HttpsError('failed-precondition', 'Requires at least 2 players to start.');
+    throw new HttpsError('failed-precondition', 'Requires at least 2 players to start a match.');
   }
 
   const allReady = membersSnap.docs.every((d) => d.data().isReady === true);
   if (!allReady) {
-    throw new HttpsError('failed-precondition', 'All players must be ready.');
+    throw new HttpsError('failed-precondition', 'All players must be ready before starting.');
   }
 
   const gameId = 'game_' + roomId.replace('room_', '');
@@ -258,6 +350,7 @@ export const startGame = onCall({ region: 'asia-south1' }, async (request) => {
       phase: 'AWAIT_ROLL',
       turnTimeLimit: room.customRules?.turnTimerSeconds ?? 30,
       turnTimeRemaining: room.customRules?.turnTimerSeconds ?? 30,
+      customRules: room.customRules ?? null,
       startedAt: now,
       updatedAt: now,
       completedAt: null,
@@ -271,12 +364,17 @@ export const startGame = onCall({ region: 'asia-south1' }, async (request) => {
 // 5. Submit Game Action Callable
 // -------------------------------------------------------------
 export const submitGameAction = onCall({ region: 'asia-south1' }, async (request) => {
+  if (!request.auth || !request.auth.uid) {
+    throw new HttpsError('unauthenticated', 'User must be authenticated.');
+  }
+
   const parsed = SubmitActionSchema.safeParse(request.data);
   if (!parsed.success) {
     throw new HttpsError('invalid-argument', parsed.error.message);
   }
 
-  const { commandId, gameId, actorUid, expectedVersion, type, payload } = parsed.data;
+  const callerUid = request.auth.uid;
+  const { commandId, gameId, expectedVersion, type, payload } = parsed.data;
   const gameRef = db.collection('games').doc(gameId);
 
   return await db.runTransaction(async (transaction) => {
@@ -286,6 +384,17 @@ export const submitGameAction = onCall({ region: 'asia-south1' }, async (request
     }
 
     const game = gameSnap.data()!;
+    if (!game.playerOrder.includes(callerUid)) {
+      throw new HttpsError('permission-denied', 'You are not a participant in this game.');
+    }
+
+    // Enforce turn ownership for primary game actions
+    if (['ROLL_DICE', 'BUY_PROPERTY', 'DECLINE_PROPERTY', 'END_TURN', 'PAY_BAIL', 'TRY_DOUBLES'].includes(type)) {
+      if (game.currentPlayerUid !== callerUid) {
+        throw new HttpsError('failed-precondition', 'It is not your turn.');
+      }
+    }
+
     if (game.version !== expectedVersion) {
       throw new HttpsError('aborted', `Version conflict. Expected ${expectedVersion}, found ${game.version}`);
     }
@@ -299,18 +408,16 @@ export const submitGameAction = onCall({ region: 'asia-south1' }, async (request
     const nextVersion = game.version + 1;
     const now = admin.firestore.FieldValue.serverTimestamp();
 
-    let d1 = 1;
-    let d2 = 1;
-    let isDouble = false;
+    let dice = game.dice || null;
     if (type === 'ROLL_DICE') {
-      d1 = crypto.randomInt(1, 7);
-      d2 = crypto.randomInt(1, 7);
-      isDouble = d1 === d2;
+      const d1 = crypto.randomInt(1, 7);
+      const d2 = crypto.randomInt(1, 7);
+      dice = { first: d1, second: d2, isDouble: d1 === d2 };
     }
 
     transaction.update(gameRef, {
       version: nextVersion,
-      dice: type === 'ROLL_DICE' ? { first: d1, second: d2, isDouble } : game.dice || null,
+      dice,
       turnTimeRemaining: game.turnTimeLimit ?? 30,
       updatedAt: now,
     });
@@ -319,7 +426,7 @@ export const submitGameAction = onCall({ region: 'asia-south1' }, async (request
     transaction.set(eventRef, {
       sequence: nextVersion,
       commandId,
-      actorUid,
+      actorUid: callerUid,
       type,
       payload,
       createdAt: now,
@@ -329,11 +436,11 @@ export const submitGameAction = onCall({ region: 'asia-south1' }, async (request
     transaction.set(receiptRef, {
       commandId,
       gameId,
-      actorUid,
+      actorUid: callerUid,
       createdAt: now,
     });
 
-    return { ok: true, version: nextVersion };
+    return { ok: true, version: nextVersion, dice };
   });
 });
 
@@ -341,16 +448,27 @@ export const submitGameAction = onCall({ region: 'asia-south1' }, async (request
 // 6. Send Reaction Callable
 // -------------------------------------------------------------
 export const sendReaction = onCall({ region: 'asia-south1' }, async (request) => {
+  if (!request.auth || !request.auth.uid) {
+    throw new HttpsError('unauthenticated', 'User must be authenticated.');
+  }
+
   const parsed = SendReactionSchema.safeParse(request.data);
   if (!parsed.success) {
     throw new HttpsError('invalid-argument', parsed.error.message);
   }
 
-  const { roomId, senderUid, senderName, emote, nonce } = parsed.data;
-  const reactionRef = db.collection('rooms').doc(roomId).collection('reactions').doc(nonce);
+  const callerUid = request.auth.uid;
+  const { roomId, senderName, emote, nonce } = parsed.data;
 
+  // Confirm membership in the room
+  const memberSnap = await db.collection('rooms').doc(roomId).collection('members').doc(callerUid).get();
+  if (!memberSnap.exists) {
+    throw new HttpsError('permission-denied', 'Only room members can send reactions.');
+  }
+
+  const reactionRef = db.collection('rooms').doc(roomId).collection('reactions').doc(nonce);
   await reactionRef.set({
-    senderUid,
+    senderUid: callerUid,
     senderName,
     emote,
     timestamp: admin.firestore.FieldValue.serverTimestamp(),

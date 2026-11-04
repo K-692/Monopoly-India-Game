@@ -18,7 +18,15 @@
 ---
 
 > **About the Project:**  
-> Indian Monopoly is a modern, high-performance, zero-scroll online multiplayer property trading board game. Built with React 19, TypeScript, Tailwind CSS, and Cloud Firestore, it features 24 premier Indian metropolitan cities (strictly 6 per side) styled in a 24-step color spectrum from Orange to Green based on price, glowing orange non-city grids with crisp high-opacity vector illustrations, an authentic red glowing barred Central Jail, 12 Civic Fund and 12 Market Buzz canonical rules indexed symmetrically in the center with zero scrolling, 3D tumbling dice with dynamic random dots and realistic Web Audio sound effects, pointed comment boxes for buying/building, in-grid city landmarks, authoritative live turn timers on all popups, private room matchmaking with custom rulesets, and strict tournament bankruptcy rules.
+> Indian Monopoly is a modern, high-performance, zero-scroll online multiplayer property trading board game. Built with React 19, TypeScript, Tailwind CSS, Firebase Anonymous Auth, Cloud Firestore real-time synchronization, and Firebase Cloud Functions v2 (`asia-south1`). It features 24 premier Indian metropolitan cities (strictly 6 per side) styled in a 24-step color spectrum from Orange to Green based on deed price, glowing orange non-city grids with crisp high-opacity vector illustrations, an authentic red glowing barred Central Jail, 12 Civic Fund and 12 Market Buzz canonical rules indexed symmetrically in the center with zero scrolling, 3D tumbling dice with dynamic random dots and realistic Web Audio sound effects, an on-page **Gameplay Rules Popup Window** accessed via the question mark (`?`) button next to the sound toggle, pointed comment boxes for buying/building, authoritative live turn timers on all popups, private room matchmaking with custom rulesets, universal invitation links, and strict tournament bankruptcy rules.
+
+---
+
+## 🎯 Gameplay & Quick Access
+
+- **Official Rulebook & Guide**: Click the **Question Mark (`?`)** button directly on the left of the sound speaker button in the header at any time. It opens an on-page modal popup detailing core game flow, all 12 Civic Fund rules, all 12 Market Buzz cards, and tournament bankruptcy invariants.
+- **Solo Practice Match**: Launch an isolated local sandbox match to explore the non-scrollable board, test 3D dice physics, and practice property acquisition against simulated opponents with zero network requirements.
+- **Multiplayer Private Rooms**: Host or join live matches across different devices and browsers using a 6-character room code or shareable invitation link.
 
 ---
 
@@ -172,21 +180,100 @@ Once added, any push to `main` triggers `.github/workflows/deploy-pages.yml` to 
 git clone https://github.com/K-692/Monopoly-India-Game.git
 cd Monopoly-India-Game
 
-# 2. Install dependencies
+# 2. Install dependencies (client and functions)
 npm install
+cd functions && npm install && cd ..
 
-# 3. Start local development server
+# 3. Configure environment variables (optional for local sandbox practice)
+cp .env.example .env
+# Fill in your Firebase Project credentials (monopoly-india-f9700)
+
+# 4. Start local development server
 npm run dev
 ```
 Open [http://localhost:5173](http://localhost:5173) in your browser.
 
-### Verification Commands
-```bash
-# Run unit & engine tests
-npm test
+---
 
-# Run production build
+## ☁️ Firebase Multiplayer Backend Architecture
+
+The real-time multiplayer backend operates on **Firebase Cloud Firestore** and **Firebase Cloud Functions v2** in region `asia-south1`:
+
+```
+Client A (Host)                      Cloud Firestore (asia-south1)               Client B (Guest)
+      │                                       │                                        │
+      ├─── createRoom() [Functions] ─────────►│                                        │
+      │    Generates 6-char code & hash       │                                        │
+      │    Writes rooms/{roomId}              │                                        │
+      │    Writes rooms/{roomId}/members/{uid}│                                        │
+      │                                       │◄─── joinRoom(code) [Functions] ────────┤
+      │                                       │     Atomic capacity transaction        │
+      │                                       │     Enrolls into members subcollection │
+      │◄── onSnapshot(room + members) ────────┼───► onSnapshot(room + members) ────────┤
+      │    Both clients receive live roster update without refreshing                  │
+      │                                       │                                        │
+      │                                       │◄─── setReady(true) [Functions] ────────┤
+      │◄── onSnapshot receives isReady=true ──┼───► onSnapshot receives isReady=true ──┤
+      │                                       │                                        │
+      ├─── startGame() [Functions] ──────────►│                                        │
+      │    Verifies host & all ready          │                                        │
+      │    Transitions status: IN_PROGRESS    │                                        │
+      │◄── onSnapshot: IN_PROGRESS ───────────┼───► onSnapshot: IN_PROGRESS ───────────┤
+      │    Both clients auto-navigate to /game/:gameId                                 │
+```
+
+### Key Backend Invariants:
+1. **Frictionless Anonymous Auth**: No Google login barriers. Users enter a display name, and Firebase establishes a canonical anonymous session (`auth.currentUser.uid`) that stays stable across page refreshes.
+2. **Authoritative Mutations**: All room creation, joining, readiness, and game initiation logic executes inside Cloud Functions. Direct client writes to `rooms`, `members`, and `games` are strictly prohibited by `firestore.rules`.
+3. **Concurrency-Safe Capacity**: Room joining runs inside a Firestore transaction (`runTransaction`) verifying seat availability before adding members, preventing race conditions from simultaneous join requests.
+4. **Zero Fabrication**: No simulated fallback players or fake matches. Rosters strictly represent verified Firestore documents.
+
+---
+
+## 🚀 Firebase Backend Deployment
+
+### Automated Deployment (GitHub Actions)
+A dedicated workflow `.github/workflows/deploy-firebase.yml` triggers when `functions/**`, `firestore.rules`, or `firestore.indexes.json` change on `main`. To enable:
+1. Go to **Repository Settings** ➔ **Secrets and variables** ➔ **Actions**.
+2. Add `FIREBASE_TOKEN` (generated via `firebase login:ci`) or `GCP_SA_KEY` (service account JSON).
+
+### Manual CLI Deployment
+```bash
+# 1. Login to Firebase CLI
+firebase login
+
+# 2. Select project
+firebase use monopoly-india-f9700
+
+# 3. Build Cloud Functions
+cd functions && npm install && npm run build && cd ..
+
+# 4. Deploy Functions, Firestore Rules, and Indexes
+firebase deploy --only functions,firestore,database --project monopoly-india-f9700
+```
+
+---
+
+## 🧪 Testing & Verification
+
+### Run Automated Unit & Multiplayer Integration Tests
+```bash
+# Vitest suite (20 tests: 12 engine invariants + 8 multiplayer integration scenarios)
+npm test
+```
+
+### Run End-to-End Responsive Tests
+```bash
+# Playwright suite across 9 screen sizes (Desktop 1920x1080 to Small Phone 320x568)
+npm run test:e2e
+```
+
+### Typecheck & Lint
+```bash
+npm run typecheck
+npm run lint
 npm run build
+cd functions && npm run build
 ```
 
 ---

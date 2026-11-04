@@ -2,37 +2,47 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Game Rooms & Lobbies (accessible via room link/code)
+    // Helper function for user authentication
+    function isAuthenticated() {
+      return request.auth != null && request.auth.uid != null;
+    }
+
+    // Game Rooms & Lobbies
+    // Authenticated users can read rooms to query by inviteCodeHash and subscribe
     match /rooms/{roomId} {
-      allow read: if true;
-      allow write: if false; // All room mutations via callable Functions
+      allow read: if isAuthenticated();
+      allow write: if false; // All room mutations strictly via Cloud Functions
 
       match /members/{memberId} {
-        allow read: if true;
+        allow read: if isAuthenticated();
+        allow write: if false;
+      }
+
+      match /reactions/{reactionId} {
+        allow read: if isAuthenticated();
         allow write: if false;
       }
     }
 
     // Live Authoritative Game State
     match /games/{gameId} {
-      allow read: if true;
-      allow write: if false; // Strictly server-authoritative
+      allow read: if isAuthenticated();
+      allow write: if false; // Strictly server-authoritative mutations via Cloud Functions
 
       match /events/{eventId} {
-        allow read: if true;
+        allow read: if isAuthenticated();
         allow write: if false;
       }
 
       match /reactions/{reactionId} {
-        allow read: if true;
-        allow create: if true;
-        allow update, delete: if false;
+        allow read: if isAuthenticated();
+        allow write: if false;
       }
     }
 
     // Completed Immutable Game Archives
     match /gameArchives/{archiveId} {
-      allow read: if true;
+      allow read: if isAuthenticated();
       allow write: if false;
     }
 

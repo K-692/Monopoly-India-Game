@@ -3,6 +3,7 @@ import { EmoteReaction, GameCommand, GameEvent, GameState, RoomMember, WalkingAn
 import { createInitialGame } from '@/domain/game-engine/create-initial-game';
 import { applyGameCommand } from '@/domain/game-engine/engine';
 import { sound } from '@/lib/audio/sound-engine';
+import { HostCustomRules } from '@/domain/ruleset';
 
 interface GameStoreState {
   gameState: GameState | null;
@@ -16,7 +17,12 @@ interface GameStoreState {
 
   // Actions
   initializeDemoGame: (userName?: string, userUid?: string) => void;
-  initializeGameFromRoom: (roomId: string, gameId: string, members: Record<string, RoomMember>) => void;
+  initializeGameFromRoom: (
+    roomId: string,
+    gameId: string,
+    members: Record<string, RoomMember>,
+    customRules?: HostCustomRules
+  ) => void;
   setLiveGameState: (state: GameState) => void;
   selectSpace: (index: number | null) => void;
   dispatchAction: (commandType: GameCommand['type'], payload?: Record<string, unknown>) => void;
@@ -95,8 +101,13 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     });
   },
 
-  initializeGameFromRoom: (roomId: string, gameId: string, members: Record<string, RoomMember>) => {
-    const initial = createInitialGame(roomId, gameId, members);
+  initializeGameFromRoom: (
+    roomId: string,
+    gameId: string,
+    members: Record<string, RoomMember>,
+    customRules?: HostCustomRules
+  ) => {
+    const initial = createInitialGame(roomId, gameId, members, customRules);
     const welcomeEvent: GameEvent = {
       sequence: 1,
       commandId: 'init_' + Date.now(),

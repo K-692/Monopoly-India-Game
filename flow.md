@@ -204,14 +204,14 @@ The card engine manages two authoritative 12-rule indexed decks:
 - Increased rule title typography to `text-[10px] sm:text-[11px] md:text-[12.5px] font-black` for effortless legibility across all screen sizes.
 - Symmetrical flex alignment guarantees perfect center balance.
 
-### 2.19 Unification into Online Multiplayer Private Rooms
-- Streamlined the game hub by focusing on **Host Multiplayer Room** (custom rulesets, turn timer, starting capital) and **Join with Room Code**.
-- Retired the isolated single-player sandbox practice route, standardizing all state synchronization, 0.5s pawn traversal, and bankruptcy checking across online private rooms (`/room/:roomId` and `/game/:gameId`).
+### 2.19 Multiplayer Private Rooms & Isolated Sandbox Practice Mode
+- Streamlined the game hub by providing dedicated **Host Multiplayer Room** (custom rulesets, turn timer, starting capital) and **Join with Room Code / Invite Link**, while preserving an isolated **Launch Solo Practice Match** card for zero-risk gameplay testing.
+- State synchronization, 0.5s pawn traversal, and tournament bankruptcy checking are synchronized through real-time Firestore listeners (`/room/:roomId` and `/game/:gameId`).
 
-### 2.20 Scrollable Official Rulebook Tab & Distraction-Free Header
-- A dedicated **Rules** tab (`/rules`) is accessible from the main navigation between **Play** and **Settings**.
-- Built with a full-viewport, smooth-scrolling container (`h-full w-full overflow-y-auto custom-scrollbar`) providing seamless navigation across all 4 rule categories (Core Flow, 12 Civic Fund rules, 12 Market Buzz rules, Bankruptcy & Jail).
-- Removed the black/white theme toggle button from the header, standardizing the aesthetic around the warm Indian parchment palette.
+### 2.20 Question Mark Rules Modal & Streamlined Top Navigation
+- Removed the separate **Rules** navigation tab from the header, standardizing navigation on **Play** and **Settings**.
+- Added a high-contrast **Question Mark button** (`?` / `HelpCircle` icon) positioned immediately to the left of the speaker mute button.
+- Clicking the question mark button triggers an on-page modal popup window displaying the complete official rulebook across four tabbed categories (Core Game Flow, Civic Fund 12 Rules, Market Buzz 12 Rules, Bankruptcy & Jail), with escape key, overlay click, and close button handling.
 
 ### 2.21 Retirement of Color-Set Monopoly Double Rent
 - With the transition of metropolitan cities from legacy color groupings to an individual price spectrum from Orange to Green based on property deed value (₹600 to ₹4,000), color-set monopoly grouping was retired.
@@ -222,17 +222,45 @@ The card engine manages two authoritative 12-rule indexed decks:
 - **Collision-Free Token Layout**: Vector illustrations on non-city tiles automatically scale down (`scale-75 w-4 h-4`) when player pawns occupy the grid, ensuring zero collision between icons, city names, and player tokens. When multiple players share a space, tokens stack using negative horizontal margins (`-space-x-1.5`) without vertical overflow.
 - **Deed Modals Harmonization**: Eliminated obsolete Monopoly color group stripes from property portfolio listings in player detail views, synchronizing all deed badges with the continuous orange-to-green price spectrum (`getCityPriceColor`).
 - **High-Visibility Acknowledgment Controls**: Upgraded rule card popups and financial transaction receipts with prominent, high-contrast action buttons (`Acknowledge & Continue`) equipped with live turn timers for both parties.
-- **Cache-Busting & Clean Distribution**: Added strict HTTP cache-control meta headers to `index.html` (`no-cache, no-store, must-revalidate`) and removed legacy practice sandbox files to guarantee that visitors to the GitHub Pages live deployment immediately load the latest application bundle.
+- **Cache-Busting & Clean Distribution**: Added strict HTTP cache-control meta headers to `index.html` (`no-cache, no-store, must-revalidate`) to guarantee that visitors to the GitHub Pages live deployment immediately load the latest application bundle.
+
+### 2.23 Real-Time Cloud Firestore & Server-Authoritative Cloud Functions Integration
+- **Zero-Polling Reactive Architecture**: Replaced client-side Zustand room simulations with real-time Cloud Firestore listeners (`onSnapshot`) on both the room document (`rooms/{roomId}`) and the members subcollection (`rooms/{roomId}/members`).
+- **Cloud Functions Region Standardization**: Standardized all callable endpoints on region `asia-south1`:
+  - `createRoom`: Generates cryptographically secure 6-character room codes, hashes them with SHA-256, and atomically commits the room document and host member.
+  - `joinRoom`: Normalizes and hashes incoming invite codes, discovers the matching room, performs atomic capacity checks inside a Firestore transaction, and enrolls the player into the members subcollection.
+  - `setReady`: Manages server-side readiness states with real-time fanout to all connected clients.
+  - `startGame`: Enforces host-only permissions, validates minimum 2 ready players, and atomically transitions the room to `IN_PROGRESS` with a canonical `gameId`.
+  - `submitGameAction`: Idempotent command receipt logging and turn validation.
+
+### 2.24 Frictionless Firebase Anonymous Authentication & Stable Identity
+- Integrated `signInAnonymously` from Firebase Authentication as the canonical identity provider.
+- Player preferences (display name, token color) are persisted in `localStorage` and mapped directly to the persistent Firebase UID.
+- Sessions remain strictly stable across browser reloads, eliminating duplicate room seat allocation upon refresh.
+
+### 2.25 Zero-Fabrication Invariant & Concurrency-Safe Matchmaking
+- Completely eradicated all simulated fallback players ("Rajesh", "Priya") and mock lobby generators.
+- A room's roster strictly reflects actual documents committed in Firestore.
+- Room capacity checks execute inside `db.runTransaction` on the backend, preventing race conditions from simultaneous join requests.
+
+### 2.26 Universal Cross-Device Invitation Links (`#/join/:code`)
+- Supported two friction-free joining workflows:
+  - **Direct Code Input**: Upper-cased 6-character code entry directly on the Play Hub.
+  - **Universal Invitation URL**: Cross-platform shareable deep link format (`https://.../#/join/ABC123`) compatible with Android, iOS, iPadOS, Safari, Chrome, and Firefox on GitHub Pages HashRouter.
+- Joining via URL establishes the anonymous Firebase session, requests or reuses the player's display name, executes the join operation, and routes directly to the true Firestore room ID.
 
 ---
 
 ## 3. Production Deployment & Verification
 
 ### 3.1 Automated CI/CD & Testing Verification
-- **Unit & State Machine Tests**: Vitest suite (12/12 tests passing) verifies discrete currency resolution, transit scaling, 3-consecutive doubles incarceration, 2-player turn cycles, `boughtOnTurn` construction delay enforcement, jailed owner rent exemption, dice-total card index resolution, transaction acknowledgement state transitions, and the complete bankruptcy tournament invariant.
-- **Cross-Platform End-to-End Suite**: Playwright multi-worker browser verification validates navigation, practice match launching, dice rolling, sound synthesis toggles, and responsive layouts across Chromium, WebKit, and mobile viewport simulations.
-- **Production Build**: Verified with `npm run build` (`tsc -b && vite build`) with zero TypeScript errors.
+- **Unit & State Machine Tests**: Vitest suite (20/20 tests passing) verifies:
+  - 12 Game Engine tests: discrete currency resolution, transit scaling, 3-consecutive doubles incarceration, 2-player turn cycles, `boughtOnTurn` construction delay enforcement, jailed owner rent exemption, dice-total card index resolution, transaction acknowledgement state transitions, and the complete bankruptcy tournament invariant.
+  - 8 Multiplayer Integration tests: Room creation, distinct-UID room joining, real-time snapshot synchronization, readiness propagation, invite link parsing & acceptance, error handling for invalid/expired/full rooms, refresh rehydration idempotency, and dual-client initial game state reconstruction.
+- **Cross-Platform End-to-End Suite**: Playwright multi-worker browser verification (36/36 tests passing) validates the question mark rules popup, practice match launching, dice rolling, sound synthesis toggles, and responsive layouts across 9 screen sizes (Desktop 1920x1080 down to Small Phone 320x568).
+- **Production Build**: Verified with `npm run build` (`tsc -b && vite build`) and `cd functions && npm run build` with zero TypeScript errors.
 - **GitHub Pages Deployment**:
   - **Live URL**: `https://k-692.github.io/Monopoly-India-Game/`
-  - **Routing Paradigm**: HTML5 HashRouter (`/#/`, `/#/rules`, `/#/practice`, `/#/room/:roomId`).
+  - **Routing Paradigm**: HTML5 HashRouter (`/#/`, `/#/join/:code`, `/#/room/:roomId`, `/#/game/:gameId`, `/#/settings`).
   - **Automated CI/CD**: Fully configured via `.github/workflows/deploy-pages.yml` with automated builds and artifact uploads on every push to `main`.
+  - **Firebase Backend Deployment**: Documented and automated via `.github/workflows/deploy-firebase.yml` for Cloud Functions and Firestore security rules.

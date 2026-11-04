@@ -19,9 +19,14 @@ if (app) {
   try {
     db = getFirestore(app);
     if (isEmulatorEnabled && typeof window !== 'undefined') {
-      connectFirestoreEmulator(db, 'localhost', 8080);
+      try {
+        connectFirestoreEmulator(db, '127.0.0.1', 8080);
+      } catch {
+        // Emulator already connected
+      }
     }
-  } catch {
+  } catch (err) {
+    console.error('Failed to initialize Firestore:', err);
     db = null;
   }
 }

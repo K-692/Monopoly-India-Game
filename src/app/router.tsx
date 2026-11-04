@@ -3,6 +3,7 @@ import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { App } from './App';
 import { PlayPage } from '@/features/play/PlayPage';
 import { LobbyPage } from '@/features/rooms/LobbyPage';
+import { JoinPage } from '@/features/rooms/JoinPage';
 import { GamePage } from '@/features/game/GamePage';
 import { RulesPage } from '@/features/rules/RulesPage';
 import { SettingsPage } from '@/features/settings/SettingsPage';
@@ -19,11 +20,12 @@ export const AppRouter: React.FC = () => {
           {/* Official Game Rules */}
           <Route path="rules" element={<RulesPage />} />
 
-          {/* Practice Match route redirected to main play */}
-          <Route path="practice" element={<Navigate to="/" replace />} />
+          {/* Practice Match Sandbox (Offline Demo) */}
+          <Route path="practice" element={<GamePage />} />
 
           {/* Multiplayer Room Routes */}
           <Route path="room/:roomId" element={<LobbyPage />} />
+          <Route path="join/:inviteCode" element={<JoinPage />} />
           <Route path="game/:gameId" element={<GamePage />} />
 
           {/* Settings Tab */}

@@ -1,18 +1,21 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useGameStore } from './use-game-store';
 import { useAuthStore } from '@/features/auth/use-auth-store';
+import { useRoomStore } from '@/features/rooms/use-room-store';
 import { GameBoard } from '@/components/board/GameBoard';
 import { PlayerStrip } from '@/components/player/PlayerStrip';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import { Trophy, ArrowLeft, AlertCircle, Users } from 'lucide-react';
+import { Trophy, ArrowLeft, AlertCircle, Users, Loader2 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 export const GamePage: React.FC = () => {
+  const { gameId } = useParams<{ gameId: string }>();
   const navigate = useNavigate();
   const { player } = useAuthStore();
+  const { currentRoom, subscribeToRoom } = useRoomStore();
   const {
     gameState,
     events,
@@ -21,6 +24,7 @@ export const GamePage: React.FC = () => {
     walkingAnimation,
     error,
     initializeDemoGame,
+    initializeGameFromRoom,
     dispatchAction,
     selectSpace,
     dismissError,
@@ -38,12 +42,43 @@ export const GamePage: React.FC = () => {
     return () => clearInterval(interval);
   }, [gameState, tickTurnTimer]);
 
-  // Initialize demo game
+  // Handle Game Initialization: distinguish multiplayer vs practice mode
   useEffect(() => {
-    if (!gameState) {
-      initializeDemoGame(player?.displayName || 'Player', player?.uid);
+    // 1. Practice Mode
+    if (!gameId || gameId === 'sandbox' || gameId === 'demo_game') {
+      if (!gameState || gameState.gameId !== 'demo_game') {
+        initializeDemoGame(player?.displayName || 'Player', player?.uid);
+      }
+      return;
     }
-  }, [gameState, initializeDemoGame, player]);
+
+    // 2. Multiplayer Match: requires real room members
+    if (currentRoom && currentRoom.members && Object.keys(currentRoom.members).length >= 1) {
+      if (!gameState || gameState.gameId !== gameId) {
+        initializeGameFromRoom(
+          currentRoom.roomId,
+          gameId,
+          currentRoom.members,
+          currentRoom.customRules
+        );
+      }
+    } else if (!currentRoom) {
+      // Rehydrate room from gameId if user refreshed or arrived directly
+      const derivedRoomId = 'room_' + gameId.replace('game_', '');
+      const unsubscribe = subscribeToRoom(derivedRoomId);
+      return () => {
+        unsubscribe();
+      };
+    }
+  }, [
+    gameId,
+    currentRoom,
+    gameState,
+    initializeDemoGame,
+    initializeGameFromRoom,
+    subscribeToRoom,
+    player,
+  ]);
 
   // Trigger celebration on victory
   useEffect(() => {
@@ -58,10 +93,13 @@ export const GamePage: React.FC = () => {
 
   if (!gameState) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-8">
-        <div className="w-10 h-10 border-4 border-indian-terracotta-500 border-t-transparent rounded-full animate-spin mb-4" />
-        <p className="text-sm font-semibold text-indian-navy-800 dark:text-white">
-          Entering game table...
+      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+        <Loader2 className="w-10 h-10 text-indian-terracotta-500 animate-spin mb-4" />
+        <h2 className="font-serif font-black text-lg text-indian-navy-900 dark:text-white">
+          Entering Game Session...
+        </h2>
+        <p className="text-xs text-gray-500 mt-1 max-w-sm">
+          Loading game room state and initializing Indian Monopoly board.
         </p>
       </div>
     );
@@ -83,7 +121,10 @@ export const GamePage: React.FC = () => {
 
         <div className="flex items-center gap-2">
           <Badge variant="navy" className="text-xs font-bold flex items-center gap-1">
-            <Users className="w-3.5 h-3.5" /> Room #{gameState.roomId.slice(-6).toUpperCase()}
+            <Users className="w-3.5 h-3.5" />
+            {gameState.gameId === 'demo_game'
+              ? 'Practice Match (Sandbox)'
+              : `Room #${gameState.roomId.replace('room_', '').slice(0, 6).toUpperCase()}`}
           </Badge>
           <span className="text-xs text-gray-500 font-mono font-bold">
             Turn #{gameState.turnNumber}

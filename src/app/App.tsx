@@ -3,9 +3,15 @@ import { Outlet } from 'react-router-dom';
 import { Header } from '@/components/ui/Header';
 import { NamePromptModal } from '@/components/ui/NamePromptModal';
 import { useSettingsStore } from '@/features/settings/use-settings-store';
+import { useAuthStore } from '@/features/auth/use-auth-store';
 
 export const App: React.FC = () => {
   const { theme } = useSettingsStore();
+  const { initializeAuth } = useAuthStore();
+
+  useEffect(() => {
+    initializeAuth();
+  }, [initializeAuth]);
 
   useEffect(() => {
     if (theme === 'dark') {

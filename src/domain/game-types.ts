@@ -3,6 +3,8 @@
  * Server-authoritative contract shared across Client and Cloud Functions.
  */
 
+import { HostCustomRules } from './ruleset';
+
 export type PropertyColorGroup =
   | 'BROWN'
   | 'LIGHTBLUE'
@@ -331,16 +333,7 @@ export interface RoomState {
   maxPlayers: number;
   turnTimerSeconds: 0 | 30 | 45 | 60;
   gameMode: 'STANDARD' | 'TIMED';
-  customRules?: {
-    startingCash: number;
-    passStartReward: number;
-    turnTimerSeconds: number;
-    maxPlayers: number;
-    jailBail: number;
-    doubleRentMonopoly?: boolean;
-    allowAuctions: boolean;
-    gameMode: string;
-  };
+  customRules?: HostCustomRules;
   members: Record<string, RoomMember>;
   memberUids: string[];
   gameId?: string;

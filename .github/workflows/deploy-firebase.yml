@@ -1,0 +1,42 @@
+name: Deploy Firebase Backend (Functions, Rules, Indexes)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'functions/**'
+      - 'firestore.rules'
+      - 'firestore.indexes.json'
+      - 'database.rules.json'
+      - 'firebase.json'
+
+jobs:
+  deploy-firebase-backend:
+    name: Build & Deploy Firebase Backend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install Cloud Functions Dependencies
+        working-directory: ./functions
+        run: npm ci
+
+      - name: Build Cloud Functions (TypeScript to JS)
+        working-directory: ./functions
+        run: npm run build
+
+      - name: Deploy to Firebase (Functions, Firestore Rules, Firestore Indexes, RTDB Rules)
+        uses: w9jds/firebase-action@master
+        with:
+          args: deploy --only functions,firestore,database --project monopoly-india-f9700
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
