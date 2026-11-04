@@ -1,5 +1,3 @@
-import { PropertyColorGroup } from '@/domain/game-types';
-
 export interface GridCoord {
   row: number;
   col: number;
@@ -23,15 +21,4 @@ export function getSpaceGridCoord(spaceIndex: number): GridCoord {
   // 31 to 39
   return { row: 1 + (spaceIndex - 30), col: 11, orientation: 'right' };
 }
-
-export const GROUP_COLOR_MAP: Record<PropertyColorGroup, string> = {
-  BROWN: '#8B4513',
-  LIGHTBLUE: '#38BDF8',
-  PINK: '#D946EF',
-  ORANGE: '#F97316',
-  RED: '#EF4444',
-  YELLOW: '#EAB308',
-  GREEN: '#22C55E',
-  DARKBLUE: '#1E40AF',
-};
 

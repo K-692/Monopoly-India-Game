@@ -107,15 +107,6 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
     space.type === 'TRANSIT' &&
     (space.name.toLowerCase().includes('airport') || space.id.includes('airport'));
 
-  // Adaptive larger font size based on city name length to ensure single-line fit without truncation
-  const nameLength = space.name.length;
-  const nameFontSizeClass =
-    nameLength > 13
-      ? 'text-[9px] sm:text-[10px] md:text-[11px]'
-      : nameLength > 8
-        ? 'text-[10px] sm:text-[11px] md:text-[12px]'
-        : 'text-[11px] sm:text-[12px] md:text-[13.5px]';
-
   // Dynamic Tile Styling:
   // 1. Jail: Red glowing border + vertical black/white jail bars
   // 2. Non-city grids: Glowing orange border + crisp white fill
@@ -140,13 +131,13 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
   const renderPlayerTokens = (className?: string) => {
     if (playersHere.length === 0) return null;
     return (
-      <div className={cn('flex items-center justify-center gap-1 shrink-0 z-20 py-0.5', className)}>
+      <div className={cn('flex items-center justify-center -space-x-1.5 shrink-0 z-20 pb-0.5', className)}>
         {playersHere.map((p) => (
           <div
             key={p.uid}
             title={p.displayName}
             style={{ backgroundColor: p.colorToken }}
-            className="w-5.5 h-5.5 sm:w-6 sm:h-6 rounded-full border-2 border-white shadow-token-glow flex items-center justify-center text-[10px] sm:text-[11px] text-white font-black animate-pulse shrink-0"
+            className="w-5 h-5 sm:w-5.5 sm:h-5.5 rounded-full border-2 border-white shadow-token-glow flex items-center justify-center text-[9px] sm:text-[10px] text-white font-black animate-pulse shrink-0"
           >
             {p.displayName.charAt(0).toUpperCase()}
           </div>
@@ -165,6 +156,53 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
       >
         <span className="text-[7px] sm:text-[7.5px] font-black text-white leading-none tracking-tighter truncate px-1">
           {owner?.displayName.split(' ')[0]}
+        </span>
+      </div>
+    );
+  };
+
+  // Clean, high-legibility Space Name Rendering:
+  // Splits multi-word names into stacked rows so "Chennai Airport", "Howrah Railway", "Urja Power Grid", "CST Mumbai" never get truncated with ellipses ("Chennai Airp...")
+  // Adds generous top breathing room so ascenders like 'K' in 'Kochi' or 'B' in 'Bhopal' never clip.
+  const renderSpaceName = () => {
+    const parts = space.name.split(' ');
+    if (parts.length > 1 && space.name.length > 8) {
+      return (
+        <div className="flex flex-col items-center justify-center leading-[1.05] sm:leading-[1.1] pt-0.5 px-0.5 w-full shrink-0">
+          {parts.map((part, idx) => (
+            <span
+              key={idx}
+              className={cn(
+                'font-black tracking-tight text-center text-indian-navy-950 dark:text-white block max-w-full truncate drop-shadow-2xs',
+                isNonCity && 'text-indian-navy-950 font-black',
+                part.length > 9
+                  ? 'text-[8px] sm:text-[9px] md:text-[9.5px]'
+                  : 'text-[9px] sm:text-[10px] md:text-[11px]'
+              )}
+            >
+              {part}
+            </span>
+          ))}
+        </div>
+      );
+    }
+
+    // Single word city or short name
+    return (
+      <div className="w-full pt-0.5 sm:pt-1 px-0.5 flex items-center justify-center shrink-0">
+        <span
+          title={space.name}
+          className={cn(
+            'font-black leading-tight text-center tracking-tight text-indian-navy-950 dark:text-white block max-w-full truncate drop-shadow-2xs',
+            isNonCity && 'text-indian-navy-950 font-black',
+            space.name.length > 11
+              ? 'text-[8.5px] sm:text-[9.5px] md:text-[10.5px]'
+              : space.name.length > 7
+                ? 'text-[9.5px] sm:text-[10.5px] md:text-[12px]'
+                : 'text-[11px] sm:text-[12px] md:text-[13px]'
+          )}
+        >
+          {space.name}
         </span>
       </div>
     );
@@ -242,7 +280,7 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
         </div>
       ) : (
         /* Regular Edge City & Non-City Tile */
-        <div className="relative w-full h-full flex flex-col justify-between items-center text-center p-0.5 overflow-hidden select-none">
+        <div className="relative w-full h-full flex flex-col justify-between items-center text-center overflow-hidden select-none">
           {/* City Top Price Shade Bar (Orange to Green based on lowest to highest city price) */}
           {isCity && priceColor && !ownerColor && (
             <div
@@ -255,39 +293,35 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
           {ownerColor && renderOwnerAccentBar()}
 
           {/* Core Content Layout */}
-          <div className="relative z-10 flex-1 flex flex-col justify-between items-center text-center w-full min-h-0 overflow-hidden px-0.5 py-0.5">
-            {/* City / Place Name (Large, Bold, Fully Legible) */}
-            <span
-              title={space.name}
-              className={cn(
-                'font-black leading-tight text-center w-full whitespace-nowrap overflow-hidden text-ellipsis tracking-tight px-0.5 text-indian-navy-950 dark:text-white drop-shadow-2xs',
-                isNonCity && 'text-indian-navy-950 font-black',
-                nameFontSizeClass
-              )}
-            >
-              {space.name}
-            </span>
+          <div className="relative z-10 flex-1 flex flex-col justify-between items-center text-center w-full min-h-0 overflow-hidden px-0.5 pb-0.5">
+            {/* City / Place Name (Multi-word wrapped or single-line fit without clipping) */}
+            {renderSpaceName()}
 
-            {/* Non-City High-Opacity (Less Transparent) Crisp Vector Illustrations */}
+            {/* Non-City High-Opacity Vector Illustrations (scales dynamically when player lands) */}
             {isNonCity && (
-              <div className="my-auto flex items-center justify-center opacity-90 transition-opacity">
-                {isRailway && <RailwayImage className="w-5 h-5 sm:w-6 sm:h-6" />}
-                {isAirport && <AirportImage className="w-5 h-5 sm:w-6 sm:h-6" />}
+              <div
+                className={cn(
+                  'flex items-center justify-center opacity-95 transition-all',
+                  playersHere.length > 0 ? 'my-0.5 scale-75' : 'my-auto'
+                )}
+              >
+                {isRailway && <RailwayImage className={playersHere.length > 0 ? 'w-4 h-4' : 'w-5 h-5 sm:w-6 sm:h-6'} />}
+                {isAirport && <AirportImage className={playersHere.length > 0 ? 'w-4 h-4' : 'w-5 h-5 sm:w-6 sm:h-6'} />}
                 {!isRailway && !isAirport && space.type === 'UTILITY' && (
                   space.id.includes('power') ? (
-                    <Zap className="w-5 h-5 sm:w-6 sm:h-6 text-amber-500 fill-amber-400" />
+                    <Zap className={cn('text-amber-500 fill-amber-400', playersHere.length > 0 ? 'w-4 h-4' : 'w-5 h-5 sm:w-6 sm:h-6')} />
                   ) : (
-                    <Droplets className="w-5 h-5 sm:w-6 sm:h-6 text-blue-500 fill-blue-400" />
+                    <Droplets className={cn('text-blue-500 fill-blue-400', playersHere.length > 0 ? 'w-4 h-4' : 'w-5 h-5 sm:w-6 sm:h-6')} />
                   )
                 )}
                 {!isRailway && !isAirport && space.type === 'TAX' && (
-                  <ShieldAlert className="w-5 h-5 sm:w-6 sm:h-6 text-red-600 fill-red-100" />
+                  <ShieldAlert className={cn('text-red-600 fill-red-100', playersHere.length > 0 ? 'w-4 h-4' : 'w-5 h-5 sm:w-6 sm:h-6')} />
                 )}
                 {!isRailway && !isAirport && space.type === 'CARD' && (
                   space.deck === 'CIVIC' ? (
-                    <Gift className="w-5 h-5 sm:w-6 sm:h-6 text-amber-600 fill-amber-300" />
+                    <Gift className={cn('text-amber-600 fill-amber-300', playersHere.length > 0 ? 'w-4 h-4' : 'w-5 h-5 sm:w-6 sm:h-6')} />
                   ) : (
-                    <Flame className="w-5 h-5 sm:w-6 sm:h-6 text-orange-600 fill-orange-400" />
+                    <Flame className={cn('text-orange-600 fill-orange-400', playersHere.length > 0 ? 'w-4 h-4' : 'w-5 h-5 sm:w-6 sm:h-6')} />
                   )
                 )}
               </div>
@@ -321,20 +355,7 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
             )}
 
             {/* Player Tokens landing on this grid */}
-            {playersHere.length > 0 && (
-              <div className="mt-auto shrink-0 flex items-center justify-center gap-1">
-                {playersHere.map((p) => (
-                  <div
-                    key={p.uid}
-                    title={p.displayName}
-                    style={{ backgroundColor: p.colorToken }}
-                    className="w-5 h-5 sm:w-5.5 sm:h-5.5 rounded-full border-2 border-white shadow-token-glow flex items-center justify-center text-[9.5px] sm:text-[10.5px] text-white font-black animate-pulse shrink-0"
-                  >
-                    {p.displayName.charAt(0).toUpperCase()}
-                  </div>
-                ))}
-              </div>
-            )}
+            {renderPlayerTokens()}
           </div>
         </div>
       )}

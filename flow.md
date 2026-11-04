@@ -217,6 +217,13 @@ The card engine manages two authoritative 12-rule indexed decks:
 - With the transition of metropolitan cities from legacy color groupings to an individual price spectrum from Orange to Green based on property deed value (₹600 to ₹4,000), color-set monopoly grouping was retired.
 - Base rent calculation on undeveloped properties no longer doubles based on color-group sets; rent on unimproved deeds is the listed base rent ($p.\text{baseRent}$), while development progression is driven by residential blocks (1-4 houses) and commercial skyscraper towers.
 
+### 2.22 Anti-Clipping Typography, Non-Overlapping Player Tokens & Cache-Resilient Architecture
+- **Multi-Word Stacked Typography**: Addressed edge tile truncation ("Chennai Airp...", "CST To...") by rendering multi-word destinations in vertically stacked, auto-scaled typography. Top ascender clipping (such as the top stem of "Kochi") is eliminated through generous vertical padding and unclipped text containers.
+- **Collision-Free Token Layout**: Vector illustrations on non-city tiles automatically scale down (`scale-75 w-4 h-4`) when player pawns occupy the grid, ensuring zero collision between icons, city names, and player tokens. When multiple players share a space, tokens stack using negative horizontal margins (`-space-x-1.5`) without vertical overflow.
+- **Deed Modals Harmonization**: Eliminated obsolete Monopoly color group stripes from property portfolio listings in player detail views, synchronizing all deed badges with the continuous orange-to-green price spectrum (`getCityPriceColor`).
+- **High-Visibility Acknowledgment Controls**: Upgraded rule card popups and financial transaction receipts with prominent, high-contrast action buttons (`Acknowledge & Continue`) equipped with live turn timers for both parties.
+- **Cache-Busting & Clean Distribution**: Added strict HTTP cache-control meta headers to `index.html` (`no-cache, no-store, must-revalidate`) and removed legacy practice sandbox files to guarantee that visitors to the GitHub Pages live deployment immediately load the latest application bundle.
+
 ---
 
 ## 3. Production Deployment & Verification

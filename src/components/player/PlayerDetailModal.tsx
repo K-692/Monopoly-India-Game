@@ -2,9 +2,10 @@ import React from 'react';
 import { createPortal } from 'react-dom';
 import { PlayerState, PropertyState } from '@/domain/game-types';
 import { BOARD_SPACES } from '@/domain/board-config';
-import { X, Wallet, TrendingUp, MapPin, ShieldAlert, Home, Building2, Landmark } from 'lucide-react';
+import { X, Wallet, TrendingUp, MapPin, ShieldAlert, Home, Building2, Landmark, Train, Plane, Zap, Droplets } from 'lucide-react';
 import { calculateRent } from '@/domain/ruleset';
 import { PopupTurnTimer } from '@/components/feedback/PopupTurnTimer';
+import { getCityPriceColor } from '@/components/board/BoardSpaceTile';
 
 interface PlayerDetailModalProps {
   player: PlayerState | null;
@@ -173,15 +174,42 @@ export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
             ) : (
               <div className="space-y-1.5">
                 {ownedProps.map(({ spaceIndex, space, state, rent }) => {
+                  const isCity = space.type === 'PROPERTY';
+                  const isTransit = space.type === 'TRANSIT';
+                  const isUtility = space.type === 'UTILITY';
+                  const cityPrice = 'price' in space ? (space as { price: number }).price : 0;
+                  const priceColor = isCity ? getCityPriceColor(cityPrice) : '#F97316';
+
                   return (
                     <div
                       key={spaceIndex}
                       className="p-2 rounded-xl bg-white dark:bg-indian-navy-950 border border-indian-parchment-300 dark:border-indian-navy-800 flex items-center justify-between shadow-2xs"
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
-                        {/* Neutral Deed Icon (Color codes on cities removed per requirements) */}
-                        <div className="w-7 h-7 rounded-lg bg-indian-parchment-200 dark:bg-indian-navy-800 flex items-center justify-center text-indian-navy-700 dark:text-indian-parchment-200 shrink-0 border border-indian-parchment-300 dark:border-indian-navy-700">
-                          <Landmark className="w-3.5 h-3.5" />
+                        {/* Dynamic Deed Icon with City Price Spectrum or Transit/Utility Theme */}
+                        <div
+                          style={{
+                            borderColor: isCity ? priceColor : isTransit ? '#0284C7' : '#F59E0B',
+                            backgroundColor: isCity ? `${priceColor}1A` : isTransit ? '#0284C71A' : '#F59E0B1A',
+                            color: isCity ? priceColor : isTransit ? '#0284C7' : '#F59E0B',
+                          }}
+                          className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border"
+                        >
+                          {isTransit ? (
+                            space.name.toLowerCase().includes('airport') ? (
+                              <Plane className="w-3.5 h-3.5" />
+                            ) : (
+                              <Train className="w-3.5 h-3.5" />
+                            )
+                          ) : isUtility ? (
+                            space.name.toLowerCase().includes('power') ? (
+                              <Zap className="w-3.5 h-3.5" />
+                            ) : (
+                              <Droplets className="w-3.5 h-3.5" />
+                            )
+                          ) : (
+                            <Landmark className="w-3.5 h-3.5" />
+                          )}
                         </div>
                         <div className="min-w-0">
                           <span className="font-bold text-xs block truncate text-indian-navy-950 dark:text-white">
