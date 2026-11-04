@@ -1,7 +1,7 @@
 import React from 'react';
 import { BoardSpaceDefinition, PlayerState, PropertyState } from '@/domain/game-types';
 import { getSpaceGridCoord } from './board-layout-utils';
-import { Train, Zap, Droplets, ShieldAlert, Gift, Flame, ArrowLeft } from 'lucide-react';
+import { Train, Zap, Droplets, ShieldAlert, Gift, Flame, ArrowLeft, Radio } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 
 interface BoardSpaceTileProps {
@@ -36,11 +36,10 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
   const renderIcon = () => {
     if (space.type === 'TRANSIT') return <Train className="w-3.5 h-3.5 text-indian-navy-700" />;
     if (space.type === 'UTILITY') {
-      return space.id.includes('power') ? (
-        <Zap className="w-3.5 h-3.5 text-amber-500" />
-      ) : (
-        <Droplets className="w-3.5 h-3.5 text-blue-500" />
-      );
+      if (space.id.includes('power')) return <Zap className="w-3.5 h-3.5 text-amber-500" />;
+      if (space.id.includes('jal') || space.id.includes('water')) return <Droplets className="w-3.5 h-3.5 text-blue-500" />;
+      if (space.id.includes('telecom')) return <Radio className="w-3.5 h-3.5 text-indigo-500" />;
+      return <Flame className="w-3.5 h-3.5 text-orange-500" />;
     }
     if (space.type === 'TAX') return <ShieldAlert className="w-3.5 h-3.5 text-red-600" />;
     if (space.type === 'CARD') {

@@ -1,6 +1,7 @@
 # 🇮🇳 Indian Monopoly — Online Multiplayer Board Game
 
 [![CI](https://github.com/K-692/Monopoly-India-Game/actions/workflows/ci.yml/badge.svg)](https://github.com/K-692/Monopoly-India-Game/actions/workflows/ci.yml)
+[![GitHub Pages](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-success.svg)](https://k-692.github.io/Monopoly-India-Game/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-amber.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7+-blue.svg)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-19-61dafb.svg)](https://react.dev/)
@@ -8,21 +9,24 @@
 [![Vite](https://img.shields.io/badge/Vite-6.0+-646cff.svg)](https://vite.dev/)
 [![Playwright](https://img.shields.io/badge/Playwright-Multi--Device%20E2E-green.svg)](https://playwright.dev/)
 
-> **Repository Description:** A fast, responsive, Indian-themed multiplayer property trading board game built with React 19, TypeScript, Tailwind CSS, and Cloud Firestore. Features frictionless link-based room joining, 22 unique metropolitan cities with tier-wise ascending prices, wide non-square adaptive board geometry, state-change glowing feedback, in-board animated 3D dice, persistent center buzz cards, host-configurable rule engines, turn countdown timers, zero-latency Web Audio sound synthesis, and a modular practice match.
+> **Live Game URL:** [https://k-692.github.io/Monopoly-India-Game/](https://k-692.github.io/Monopoly-India-Game/)
 >
-> **GitHub Repository Topics:** `monopoly`, `board-game`, `multiplayer-game`, `react19`, `typescript`, `firebase`, `firestore`, `tailwindcss`, `vite`, `playwright`, `game-engine`, `indian-theme`, `web-audio-api`, `pwa`, `responsive-web-design`
+> **Repository Description:** A fast, responsive, Indian-themed multiplayer property trading board game built with React 19, TypeScript, Tailwind CSS, and Cloud Firestore. Features frictionless link-based room joining, 20 unique metropolitan cities with tier-wise ascending prices, 4 national utility grids, 4 intercity transit gateways, wide non-square adaptive board geometry, state-change glowing feedback, in-board animated 3D dice, persistent center buzz cards, host-configurable rule engines, turn countdown timers, zero-latency Web Audio sound synthesis, and a modular practice match sandbox.
+>
+> **GitHub Repository Topics:** `monopoly`, `board-game`, `multiplayer-game`, `react19`, `typescript`, `firebase`, `firestore`, `tailwindcss`, `vite`, `playwright`, `game-engine`, `indian-theme`, `web-audio-api`, `pwa`, `responsive-web-design`, `github-pages`
 
 ---
 
 ## 🌟 Key Highlights
 
-- 🏰 **22 Unique Indian Metropolitan Cities**: 40 canonical board spaces featuring 22 completely unique metropolitan economic centres with strictly ascending tier-wise prices (from *Jaipur* at ₹600 to *Mumbai* at ₹4,000), 4 transit gateways, 2 public utilities (*Urja Power Grid* & *Jal Board Authority*), *GST Checkposts*, and 2 persistent center decks (*Civic Fund* & *Market Buzz*).
+- 🌐 **Live Web Play**: Share the link [https://k-692.github.io/Monopoly-India-Game/](https://k-692.github.io/Monopoly-India-Game/) with friends to play directly from any modern desktop, tablet, or smartphone web browser!
+- 🏰 **20 Unique Indian Metropolitan Cities**: 40 canonical board spaces featuring 20 unique metropolitan economic centres with strictly ascending tier-wise prices (from *Jaipur* at ₹600 to *Mumbai* at ₹4,000), 4 transit gateways (*CST Mumbai*, *Howrah*, *Chennai Central*, *New Delhi*), 4 public utilities (*Bharat Telecom*, *Urja Power Grid*, *Jal Board*, *National Gas Grid*), *GST Checkposts*, and 2 persistent center decks (*Civic Fund* & *Market Buzz*).
 - 🔗 **Frictionless Link-Based Multiplayer**: No Google login or password needed. Anyone with the room link can join instantly by simply entering their chosen player name!
 - 🗂️ **Streamlined Two-Tab Interface**: Clean, uncluttered UI featuring only **Play** and **Settings** tabs. Settings and lobby tabs are naturally scrollable; only the active playboard is strictly non-scrollable.
 - 📐 **Wide Non-Square Adaptive Board**: The board maxes out the available width and height of the central column (`w-full h-full max-h-full mx-auto`) with no square aspect-ratio limitation, giving expansive horizontal space for crystal-clear city names and prices.
 - 💫 **State-Change Glowing & Zoom Effect**: When game state changes (pawns step or land, deeds are bought, cash transfers occur), affected board tiles and player cards activate an animated amber neon glow ring (`scale-105 animate-pulse`) so every player immediately sees live gameplay updates.
 - 🔍 **Space Deed Inspector on Left Panel**: Positioned directly beneath the compact player list in the left panel. Clicking any space opens its complete deed schedule (purchase price, base/house/tower rent tiers, mortgage values, and owner development controls).
-- ⚡ **Turn-Focused Right Panel & Hover Portfolio**: The right panel focuses on active turn operations (Roll The Dice, Buy/Decline, Pay Bail, End Turn) and real-time turn activity logs. Under "My Info", property assets are cleanly hidden from default view and revealed via an interactive hover card on cursor hover.
+- ⚡ **Streamlined Action Panel & Hover Portfolio**: The right panel focuses cleanly on active turn operations (Roll The Dice, Buy/Decline, Pay Bail, End Turn) and personal finances. Under "My Info", property assets are cleanly hidden from default view and revealed via an interactive hover card on cursor hover.
 - 🎨 **Dynamic Buyer-Color Ownership**: Spaces remain clean and uncolored while unowned. Once purchased by a player, the space dynamically adopts that **player's assigned token color** with an owner badge and building pips.
 - 🚶‍♂️ **Step-by-Step Pawn Walking Animation**: Pawns physically hop tile by tile along the lane at a 140ms cadence with synchronized procedural step audio until reaching their destination space.
 - 🎲 **High-Visibility 3D Tumbling Dice**: High-contrast white dice with solid black pips and 3D tumbling animations, accompanied by a rolled total summary pill.
@@ -41,13 +45,13 @@
 | HOUSE     | (₹2,200)  | BUZZ    | (₹2,200)  | (₹2,400)  | CENTRAL   | (₹2,600)  | (₹2,600)  | JAIL     |
 | (20)      | (21)      | (22)    | (23)      | (24)      | (25)      | (26)      | (27)      | (30)     |
 +-----------+-----------------------------------------------------------------------------+----------+
-| GOA (19)  |                                                                             | KOLKATA  |
-| ₹2,000    |                                                                             | (29)     |
-|-----------+                                                                             | ₹2,800   |
-| KOCHI     |                            INDIAN MONOPOLY                                  +----------|
-| (18)      |                  Real-Time Universal Multiplayer Web App                    | JAL      |
-| ₹1,800    |                                                                             | BOARD    |
+| GOA (19)  |                                                                             | JAL      |
+| ₹2,000    |                                                                             | BOARD    |
 |-----------+                                                                             | (28)     |
+| KOCHI     |                            INDIAN MONOPOLY                                  +----------|
+| (18)      |                  Real-Time Universal Multiplayer Web App                    | KOLKATA  |
+| ₹1,800    |                                                                             | (29)     |
+|-----------+                                                                             | ₹2,800   |
 | CIVIC     |                                                                             +----------|
 | FUND (17) |                                                                             | CHANDI-  |
 |-----------+                                                                             | GARH(31) |
@@ -60,31 +64,30 @@
 | (15)      |                                                                             | CIVIC    |
 |-----------+                                                                             | FUND (33)|
 | SURAT     |                                                                             +----------|
-| (14)      |                                                                             | NOIDA    |
-| ₹1,600    |                                                                             | (34)     |
-|-----------+                                                                             | ₹3,200   |
-| BHOPAL    |                                                                             +----------|
-| (13)      |                                                                             | NEW DELHI|
-| ₹1,400    |                                                                             | TERMINAL |
-|-----------+                                                                             | (35)     |
-| URJA      |                                                                             +----------|
-| POWER     |                                                                             | MARKET   |
-| (12)      |                                                                             | BUZZ (36)|
+| (14)      |                                                                             | GAS      |
+| ₹1,600    |                                                                             | GRID(34) |
 |-----------+                                                                             +----------|
-| INDORE    |                                                                             | NEW DELHI|
-| (11)      |                                                                             | (37)     |
-| ₹1,400    |                                                                             | ₹3,500   |
+| BHOPAL    |                                                                             | NEW DELHI|
+| (13)      |                                                                             | TERMINAL |
+| ₹1,400    |                                                                             | (35)     |
 |-----------+                                                                             +----------|
-| JAIL /    |                                                                             | INFRA    |
-| VISITING  |                                                                             | LEVY(38) |
-| (10)      |                                                                             +----------|
-|           |                                                                             | MUMBAI   |
+| URJA      |                                                                             | MARKET   |
+| POWER     |                                                                             | BUZZ (36)|
+| (12)      |                                                                             +----------|
+|-----------+                                                                             | NEW DELHI|
+| INDORE    |                                                                             | (37)     |
+| (11)      |                                                                             | ₹3,500   |
+| ₹1,400    |                                                                             +----------|
+|-----------+                                                                             | INFRA    |
+| JAIL /    |                                                                             | LEVY(38) |
+| VISITING  |                                                                             +----------|
+| (10)      |                                                                             | MUMBAI   |
 |           |                                                                             | (39)     |
 |           |                                                                             | ₹4,000   |
 +-----------+-----------------------------------------------------------------------------+----------+
-|           | AGRA      | VARANASI | MARKET   | LUCKNOW   | CST       | GST       | JODHPUR   | CIVIC    | JAIPUR   | START    |
-|           | (9)       | (8)      | BUZZ (7) | (6)       | MUMBAI(5) | CHECK(4)  | (3)       | FUND (2) | (1)      | (0)      |
-|           | ₹1,200    | ₹1,000   |          | ₹1,000    | ₹2,000    | ₹2,000    | ₹600      |          | ₹600     | Collect  |
+|           | TELECOM   | VARANASI | MARKET   | LUCKNOW   | CST       | GST       | JODHPUR   | CIVIC    | JAIPUR   | START    |
+|           | GRID (9)  | (8)      | BUZZ (7) | (6)       | MUMBAI(5) | CHECK(4)  | (3)       | FUND (2) | (1)      | (0)      |
+|           | ₹1,500    | ₹1,000   |          | ₹1,000    | ₹2,000    | ₹2,000    | ₹600      |          | ₹600     | Collect  |
 |           |           |          |          |           |           |           |           |          |          | ₹2,000   |
 +----------------------------------------------------------------------------------------------------+
 ```
@@ -100,7 +103,7 @@ flowchart TD
         LeftPanel["Left Panel: Players List + Selected Space Deed Inspector"]
         Board["Wide Non-Square GameBoard (w-full h-full)"]
         Center["Center Area: Dice Arena & Persistent Buzz Cards"]
-        RightPanel["Right Panel: Turn Actions + Live Turn Activity + Hover Portfolio"]
+        RightPanel["Right Panel: Turn Actions + Personal Finances + Hover Portfolio"]
         Glow["State-Change Glow & Zoom Engine"]
         Sound["Web Audio Procedural Sound Engine"]
     end
@@ -178,6 +181,19 @@ npx playwright test
 # Build production bundle
 npm run build
 ```
+
+---
+
+## 🌐 Enabling GitHub Pages (One-Time Setup)
+
+To enable live hosting on GitHub Pages so anyone with the link can play:
+
+1. Open your GitHub repository in your browser:
+   `https://github.com/K-692/Monopoly-India-Game/settings/pages`
+2. Under **Build and deployment**:
+   - Set **Source** to **GitHub Actions** (recommended) or choose **Deploy from a branch (`gh-pages` / root)**.
+3. Once enabled, the game is accessible worldwide at:
+   **[https://k-692.github.io/Monopoly-India-Game/](https://k-692.github.io/Monopoly-India-Game/)**
 
 ---
 

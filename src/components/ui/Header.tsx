@@ -21,7 +21,7 @@ export const Header: React.FC = () => {
         <Link to="/" className="flex items-center gap-2 group">
           <div className="w-8 h-8 rounded-lg bg-indian-terracotta-500 flex items-center justify-center text-white shadow-sm overflow-hidden p-0.5 border border-indian-terracotta-600">
             <img
-              src="./assets/game_logo.png"
+              src={`${import.meta.env.BASE_URL}assets/game_logo.png`}
               alt="Logo"
               className="w-full h-full object-cover rounded-md"
               onError={(e) => {

@@ -7,19 +7,19 @@ This document chronicles the design, formal state transitions, mathematical mode
 
 ## 1. Project Genesis & Domain Specification
 
-### 1.1 Domain Modeling & 22 Unique Metropolitan Cities Topology
+### 1.1 Domain Modeling & 20 Unique Metropolitan Cities Topology
 The property trading paradigm is mapped onto the contemporary Indian urban-economic landscape. The board consists of a canonical 40-space clockwise topology with **zero Hindi text**, featuring:
-- **22 Purchasable City Properties**: 100% unique Indian metropolitan centres grouped into 8 color bands with **strictly ascending tier-wise prices**:
+- **20 Purchasable City Properties**: 100% unique Indian metropolitan centres grouped into 8 color bands with **strictly ascending tier-wise prices**:
   - **Tier 3 Heritage & Royal Metros** (Brown): Jaipur (₹600, Space 1), Jodhpur (₹600, Space 3).
-  - **Tier 2.5 Historic & Cultural Metros** (Light Blue): Lucknow (₹1,000, Space 6), Varanasi (₹1,000, Space 8), Agra (₹1,200, Space 9).
+  - **Tier 2.5 Historic & Cultural Metros** (Light Blue): Lucknow (₹1,000, Space 6), Varanasi (₹1,000, Space 8).
   - **Tier 2 Commercial & Industrial Metros** (Pink): Indore (₹1,400, Space 11), Bhopal (₹1,400, Space 13), Surat (₹1,600, Space 14).
   - **Tier 2 Coastal & Maritime Metros** (Orange): Visakhapatnam (₹1,800, Space 16), Kochi (₹1,800, Space 18), Goa (₹2,000, Space 19).
   - **Tier 1 Tech & Financial Innovation Giants** (Red): Ahmedabad (₹2,200, Space 21), Pune (₹2,200, Space 23), Hyderabad (₹2,400, Space 24).
   - **Tier 1 Mega Metropolitan Hubs** (Yellow): Bengaluru (₹2,600, Space 26), Chennai (₹2,600, Space 27), Kolkata (₹2,800, Space 29).
-  - **Tier 1 Capital & Corporate Corridors** (Green): Chandigarh (₹3,000, Space 31), Gurugram (₹3,000, Space 32), Noida (₹3,200, Space 34).
+  - **Tier 1 Capital & Corporate Corridors** (Green): Chandigarh (₹3,000, Space 31), Gurugram (₹3,000, Space 32).
   - **Tier 1+ Supreme Political & Financial Capitals** (Dark Blue): New Delhi (₹3,500, Space 37), Mumbai (₹4,000, Space 39).
 - **4 Intercity Transit Gateways**: Chhatrapati Shivaji Terminus Mumbai (Western, Space 5), Howrah Junction (Eastern, Space 15), Chennai Central (Southern, Space 25), New Delhi Railway Terminal (Northern, Space 35).
-- **2 Public Utilities**: Urja Power Grid (Space 12) and Jal Board Water Authority (Space 28).
+- **4 National Public Utilities**: Bharat Telecom Grid (Space 9), Urja Power Grid (Space 12), Jal Board Water Authority (Space 28), National Gas Grid (Space 34).
 - **2 Taxation Checkpoints**: GST Checkpost (₹2,000, Space 4) and Infrastructure Wealth Levy (₹1,000, Space 38).
 - **2 Persistent Center Deck Card Spaces**: Civic Fund (Community Treasury events) and Market Buzz (Fortune & Chance speculation events), permanently rendered in the center of the board with zero Hindi script.
 - **4 Corner Anchors**: START (configurable passing reward, default ₹2,000), Central Jail / Just Visiting, Rest House (Free Parking), and Go to Jail.
@@ -37,8 +37,8 @@ The property trading paradigm is mapped onto the contemporary Indian urban-econo
   - Commercial Skyscraper Tower tier: $R_5$.
   - Transit spaces owned ($k \in \{1, 2, 3, 4\}$):
     $$\text{Rent}_{\text{transit}}(k) = 250 \times 2^{k-1}$$
-  - Utility spaces owned ($m \in \{1, 2\}$):
-    $$\text{Rent}_{\text{utility}}(m, \text{dice}) = \begin{cases} 4 \times \text{dice} & \text{if } m = 1 \\ 10 \times \text{dice} & \text{if } m = 2 \end{cases}$$
+  - Utility spaces owned ($m \in \{1, 2, 3, 4\}$):
+    $$\text{Rent}_{\text{utility}}(m, \text{dice}) = \begin{cases} 4 \times \text{dice} & \text{if } m = 1 \\ 10 \times \text{dice} & \text{if } m \ge 2 \end{cases}$$
 
 ---
 
@@ -48,13 +48,12 @@ The property trading paradigm is mapped onto the contemporary Indian urban-econo
 The main non-scrollable game canvas is partitioned into three functional columns:
 1. **Left Column (`lg:col-span-3`)**:
    - **Compact Player Strip**: Minimalist player rows with turn timers on the active player and hover flyouts.
-   - **Selected Space Deed Inspector** (relocated from the right panel): Clicking any tile on the board immediately presents the complete deed schedule (purchase price, rent table across 1–4 houses and tower, mortgage/unmortgage values, transit/utility scaling, and owner development controls).
+   - **Selected Space Deed Inspector**: Positioned directly beneath the players list. Clicking any tile on the board immediately presents the complete deed schedule (purchase price, rent table across 1–4 houses and tower, mortgage/unmortgage values, transit/utility scaling, and owner development controls).
 2. **Center Column (`lg:col-span-6`)**:
    - **Wide Non-Square Game Board**: Maxed out horizontally and vertically (`w-full h-full max-h-full mx-auto`) to utilize the full available workspace.
    - **Center Arena**: Houses the persistent face-up *Civic Fund* and *Market Buzz* cards alongside the 3D tumbling dice arena.
 3. **Right Column (`lg:col-span-3`)**:
    - **Turn Actions & Controls**: Primary Roll The Dice, Buy/Decline, Pay Bail, and End Turn controls.
-   - **Real-Time Turn Activity**: Dedicated live log detailing the active player's ongoing turn steps, dice roll sum, board destination, and required decisions.
    - **"My Info" & Hover-Only Portfolio**: Liquid cash and total net worth summary. Property assets are cleanly hidden from the default view and revealed via an interactive hover card on cursor hover, preventing layout clutter.
 
 ### 2.2 Dynamic State-Change Glow & Zoom Feedback
@@ -89,25 +88,9 @@ For each step:
 
 ---
 
-## 4. Asset Integrity & Localization Purity
+## 4. Production Deployment & Live Access
 
-### 4.1 Single Image Asset Standard
-All legacy image mockups (`civic_card.png`, `interface.png`, `place_card.png`, `board.png`) have been completely purged from the codebase. The project strictly retains only `game_logo.png` (and standard `favicon.svg`), rendering all game components (board, cards, dice, tokens, deeds) programmatically using modern SVG, CSS, and Tailwind.
-
-### 4.2 Complete Removal of Hindi / Devanagari Script
-Per project design requirements, all Hindi text has been removed:
-- Logo brand: "INDIAN MONOPOLY" only (Devanagari subtitle `भारत व्यापार` removed).
-- Board property names: Clean English metropolitan designations (`Jaipur`, `Lucknow`, `Mumbai`, etc.).
-- Center decks: English subtitles `COMMUNITY TREASURY` and `FORTUNE & CHANCE`.
-
----
-
-## 5. Verification Matrix & E2E Validation
-
-| Test Suite | Scope | Target Dimension | Status |
-|---|---|---|---|
-| Vitest Unit Tests | Pure Game Engine | State transitions, dice, rent, jail, bankruptcy | **6/6 Passing** |
-| TypeScript Compiler | Static Typing | Full project type safety (`tsc -b --noEmit`) | **0 Errors** |
-| ESLint | Code Quality | Best coding practices & formatting | **0 Errors** |
-| Playwright E2E | Universal Responsive | 27 cross-browser viewport combinations | **27/27 Passing** |
-| Production Build | Vite Bundler | Modern ESM chunks with asset optimizations | **Passing (2.0s)** |
+### 4.1 GitHub Pages Deployment
+- **Live URL**: `https://k-692.github.io/Monopoly-India-Game/`
+- **Routing Paradigm**: HTML5 HashRouter (`/#/`, `/#/practice`, `/#/room/:roomId`) enabling deep room links across any static hosting CDN without 404 rewriting requirements.
+- **Automated CI/CD**: Fully configured via `.github/workflows/deploy-pages.yml` with automated builds and artifact uploads on every push to `main`.

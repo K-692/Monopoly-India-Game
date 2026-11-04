@@ -14,7 +14,6 @@ import {
   MapPin,
   ShieldAlert,
   KeyRound,
-  Activity,
   Info
 } from 'lucide-react';
 import { GROUP_COLOR_MAP } from '../board/board-layout-utils';
@@ -57,7 +56,6 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({
     : [];
 
   const myCurrentSpace = myPlayer ? BOARD_SPACES[myPlayer.position] : null;
-  const activePlayerSpace = activePlayer ? BOARD_SPACES[activePlayer.position] : null;
 
   return (
     <div className="flex flex-col gap-2.5 w-full select-none">
@@ -178,73 +176,7 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({
         </div>
       </Card>
 
-      {/* 2. REAL-TIME TURN ACTIVITY: What the player is doing in their turn */}
-      <Card className="p-3 border-indian-parchment-300 dark:border-indian-navy-700 bg-white dark:bg-indian-navy-900 shadow-xs">
-        <div className="flex items-center justify-between pb-1.5 border-b border-indian-parchment-200 dark:border-indian-navy-700">
-          <div className="flex items-center gap-1.5">
-            <Activity className="w-3.5 h-3.5 text-indian-terracotta-500 animate-pulse" />
-            <h4 className="text-xs font-bold text-indian-navy-900 dark:text-white uppercase tracking-wider">
-              Turn Activity
-            </h4>
-          </div>
-          <span className="text-[10px] font-mono text-gray-500 font-semibold">
-            Turn #{gameState.turnNumber}
-          </span>
-        </div>
-
-        <div className="mt-2 space-y-1.5 text-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-gray-500 text-[11px]">Active Player:</span>
-            <div className="flex items-center gap-1.5">
-              <div
-                style={{ backgroundColor: activePlayer?.colorToken }}
-                className="w-3.5 h-3.5 rounded-full border border-white"
-              />
-              <span className="font-bold text-indian-navy-900 dark:text-white text-[11px]">
-                {activePlayer?.displayName || 'Player'}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <span className="text-gray-500 text-[11px]">Board Position:</span>
-            <span className="font-bold text-indian-navy-900 dark:text-white text-[11px] truncate max-w-[150px]">
-              {activePlayerSpace?.name || 'Board'} (#{activePlayer?.position})
-            </span>
-          </div>
-
-          {gameState.dice && (
-            <div className="flex items-center justify-between">
-              <span className="text-gray-500 text-[11px]">Dice Rolled:</span>
-              <span className="font-mono font-black text-indian-navy-900 dark:text-indian-parchment-200 text-[11px]">
-                {gameState.dice.first} + {gameState.dice.second} = {gameState.dice.first + gameState.dice.second}
-                {gameState.dice.isDouble && ' (Doubles!)'}
-              </span>
-            </div>
-          )}
-
-          {/* Current Turn Status Description */}
-          <div className="p-2 rounded-lg bg-indian-parchment-100 dark:bg-indian-navy-950/60 border border-indian-parchment-300 dark:border-indian-navy-800 text-[11px] text-indian-navy-900 dark:text-indian-parchment-200 font-medium leading-relaxed">
-            {gameState.phase === 'AWAIT_ROLL' && (
-              <span>Waiting for {activePlayer?.displayName || 'active player'} to roll the dice.</span>
-            )}
-            {gameState.phase === 'PROPERTY_DECISION' && (
-              <span>Landed on <strong>{activePlayerSpace?.name}</strong>. Deciding whether to acquire deed.</span>
-            )}
-            {gameState.phase === 'JAIL_DECISION' && (
-              <span>Currently in Central Jail. Choose bail, doubles, or release card.</span>
-            )}
-            {gameState.phase === 'MANAGEMENT' && (
-              <span>Managing property developments or ending current turn.</span>
-            )}
-            {gameState.phase === 'TURN_END' && (
-              <span>Turn complete. Ready to pass turn to next tycoon.</span>
-            )}
-          </div>
-        </div>
-      </Card>
-
-      {/* 3. MY INFO: Player Finances, Status & Hover-Only Portfolio */}
+      {/* 2. MY INFO: Player Finances, Status & Hover-Only Portfolio */}
       {myPlayer && (
         <Card className="p-3 border-indian-gold-500/70 bg-gradient-to-br from-amber-50/50 to-white dark:from-indian-navy-900 dark:to-indian-navy-800 shadow-sm relative">
           <div className="flex items-center justify-between pb-1.5 border-b border-indian-parchment-300 dark:border-indian-navy-700">

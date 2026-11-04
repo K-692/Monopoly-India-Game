@@ -1,7 +1,7 @@
 /**
  * Indian Monopoly - Canonical Board Configuration
- * 40 Spaces clockwise with 22 completely unique Indian metropolitan cities,
- * tier-wise ascending prices, transit gateways, utilities, and tax checkpoints.
+ * 40 Spaces clockwise with 20 completely unique Indian metropolitan cities,
+ * 4 intercity transit gateways, 4 national utility grids, and 2 tax checkpoints.
  * Completely free of any non-English text.
  */
 
@@ -123,23 +123,15 @@ export const BOARD_SPACES: BoardSpaceDefinition[] = [
     rentTower: 5500,
     buildingCost: 500,
   },
-  // Space 9: Agra (Light Blue - Tier 2.5 Historic & Cultural Metro)
+  // Space 9: Bharat Telecom Grid (Utility 1)
   {
     spaceIndex: 9,
-    type: 'PROPERTY',
-    id: 'agra',
-    name: 'Agra',
-    group: 'LIGHTBLUE',
-    price: 1200,
-    mortgageValue: 600,
-    unmortgageCost: 660,
-    baseRent: 80,
-    rentHouse1: 400,
-    rentHouse2: 1000,
-    rentHouse3: 3000,
-    rentHouse4: 4500,
-    rentTower: 6000,
-    buildingCost: 500,
+    type: 'UTILITY',
+    id: 'telecom_grid',
+    name: 'Bharat Telecom Grid',
+    price: 1500,
+    mortgageValue: 750,
+    unmortgageCost: 825,
   },
   // Space 10: Central Jail / Just Visiting
   {
@@ -166,7 +158,7 @@ export const BOARD_SPACES: BoardSpaceDefinition[] = [
     rentTower: 7500,
     buildingCost: 1000,
   },
-  // Space 12: Urja Power Grid (Utility 1)
+  // Space 12: Urja Power Grid (Utility 2)
   {
     spaceIndex: 12,
     type: 'UTILITY',
@@ -401,7 +393,7 @@ export const BOARD_SPACES: BoardSpaceDefinition[] = [
     rentTower: 11500,
     buildingCost: 1500,
   },
-  // Space 28: Jal Board Water Authority (Utility 2)
+  // Space 28: Jal Board Water Authority (Utility 3)
   {
     spaceIndex: 28,
     type: 'UTILITY',
@@ -480,23 +472,15 @@ export const BOARD_SPACES: BoardSpaceDefinition[] = [
     deck: 'CIVIC',
     name: 'Civic Fund',
   },
-  // Space 34: Noida (Green - Tier 1 High-Tech Corporate Corridor)
+  // Space 34: National Gas Grid (Utility 4)
   {
     spaceIndex: 34,
-    type: 'PROPERTY',
-    id: 'noida',
-    name: 'Noida',
-    group: 'GREEN',
-    price: 3200,
-    mortgageValue: 1600,
-    unmortgageCost: 1760,
-    baseRent: 280,
-    rentHouse1: 1500,
-    rentHouse2: 4500,
-    rentHouse3: 10000,
-    rentHouse4: 12000,
-    rentTower: 14000,
-    buildingCost: 2000,
+    type: 'UTILITY',
+    id: 'gas_grid',
+    name: 'National Gas Grid',
+    price: 1500,
+    mortgageValue: 750,
+    unmortgageCost: 825,
   },
   // Space 35: New Delhi Railway Station (Transit 4 - Northern Gateway)
   {
@@ -564,21 +548,21 @@ export const BOARD_SPACES: BoardSpaceDefinition[] = [
 ];
 
 /**
- * Mapping of color groups to member spaceIndices
+ * Mapping of color groups to member spaceIndices (Exact 20 cities across 8 groups)
  */
 export const PROPERTY_GROUPS: Record<PropertyColorGroup, number[]> = {
   BROWN: [1, 3],
-  LIGHTBLUE: [6, 8, 9],
+  LIGHTBLUE: [6, 8],
   PINK: [11, 13, 14],
   ORANGE: [16, 18, 19],
   RED: [21, 23, 24],
   YELLOW: [26, 27, 29],
-  GREEN: [31, 32, 34],
+  GREEN: [31, 32],
   DARKBLUE: [37, 39],
 };
 
 export const TRANSIT_SPACES = [5, 15, 25, 35];
-export const UTILITY_SPACES = [12, 28];
+export const UTILITY_SPACES = [9, 12, 28, 34];
 
 /**
  * Civic Fund Card Deck
