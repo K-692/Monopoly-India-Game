@@ -16,9 +16,9 @@ export const App: React.FC = () => {
   }, [theme]);
 
   return (
-    <div className="h-screen max-h-screen overflow-hidden flex flex-col bg-indian-parchment-100 dark:bg-indian-navy-900 text-indian-navy-900 dark:text-indian-parchment-100 transition-colors">
+    <div className="h-screen flex flex-col bg-indian-parchment-100 dark:bg-indian-navy-900 text-indian-navy-900 dark:text-indian-parchment-100 transition-colors">
       <Header />
-      <main className="flex-1 flex flex-col overflow-hidden min-h-0">
+      <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
         <Outlet />
       </main>
       <NamePromptModal />

@@ -76,3 +76,27 @@
   border-right: 2px solid #C85A32;
 }
 
+/* 3D Dice Tumbling Animation */
+@keyframes diceTumble3D {
+  0% {
+    transform: perspective(600px) rotateX(0deg) rotateY(0deg) rotateZ(0deg) scale(1);
+  }
+  25% {
+    transform: perspective(600px) rotateX(180deg) rotateY(90deg) rotateZ(45deg) scale(1.12) translateY(-6px);
+  }
+  50% {
+    transform: perspective(600px) rotateX(360deg) rotateY(270deg) rotateZ(180deg) scale(0.96) translateY(3px);
+  }
+  75% {
+    transform: perspective(600px) rotateX(540deg) rotateY(450deg) rotateZ(315deg) scale(1.08) translateY(-3px);
+  }
+  100% {
+    transform: perspective(600px) rotateX(720deg) rotateY(720deg) rotateZ(360deg) scale(1) translateY(0);
+  }
+}
+
+.animate-dice-tumble {
+  animation: diceTumble3D 0.55s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+}
+
+

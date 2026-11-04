@@ -146,13 +146,15 @@ export const PracticeMatchPage: React.FC = () => {
       )}
 
       {/* Main 3-Column Non-Scrollable Game Canvas */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-2 sm:gap-4 items-center overflow-hidden min-h-0">
-        {/* Left Column: Player Strip */}
-        <div className="hidden lg:block lg:col-span-3 h-full overflow-y-auto pr-1">
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-2 sm:gap-3 items-center overflow-hidden min-h-0">
+        {/* Left Column: Player Strip (compact cards with hover info & turn timer) */}
+        <div className="hidden lg:block lg:col-span-2 h-full overflow-y-auto pr-1">
           <PlayerStrip
             players={gameState.players}
             currentPlayerUid={gameState.currentPlayerUid}
             properties={gameState.properties}
+            turnTimeRemaining={gameState.turnTimeRemaining}
+            turnTimeLimit={gameState.turnTimeLimit}
             onSelectPlayer={(uid) => {
               const p = gameState.players.find((pl) => pl.uid === uid);
               if (p) selectSpace(p.position);
@@ -160,8 +162,8 @@ export const PracticeMatchPage: React.FC = () => {
           />
         </div>
 
-        {/* Center Column: The 40-Space Board with in-board dice and buzz cards */}
-        <div className="col-span-1 lg:col-span-6 flex items-center justify-center h-full max-h-full">
+        {/* Center Column: The 40-Space Board (Enlarged) */}
+        <div className="col-span-1 lg:col-span-7 flex items-center justify-center h-full max-h-full">
           <GameBoard
             gameState={gameState}
             selectedSpaceIndex={selectedSpaceIndex}
@@ -169,10 +171,11 @@ export const PracticeMatchPage: React.FC = () => {
             isRolling={isRolling}
             onRollDice={() => dispatchAction('ROLL_DICE')}
             isMyTurn={isHumanTurn && !isAiThinking}
+            lastEvent={events[0]}
           />
         </div>
 
-        {/* Right Column: Actions & Property Deed Details */}
+        {/* Right Column: Actions, My Info & Property Deed Details */}
         <div className="hidden lg:block lg:col-span-3 h-full overflow-y-auto pl-1">
           <ActionPanel
             gameState={gameState}
@@ -199,3 +202,4 @@ export const PracticeMatchPage: React.FC = () => {
     </div>
   );
 };
+

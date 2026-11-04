@@ -142,7 +142,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
           const message = err instanceof Error ? err.message : 'Action failed';
           set({ error: message, isRolling: false });
         }
-      }, 700);
+      }, 500);
       return;
     }
 

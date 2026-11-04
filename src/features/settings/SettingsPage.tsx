@@ -29,8 +29,9 @@ export const SettingsPage: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 max-w-2xl mx-auto w-full px-4 py-6">
-      <div className="flex items-center justify-between pb-4 mb-6 border-b border-indian-parchment-300 dark:border-indian-navy-700">
+    <div className="flex-1 overflow-y-auto w-full px-4 py-6">
+      <div className="max-w-2xl mx-auto">
+        <div className="flex items-center justify-between pb-4 mb-6 border-b border-indian-parchment-300 dark:border-indian-navy-700">
         <button
           onClick={() => navigate('/')}
           className="flex items-center gap-1.5 text-xs font-semibold text-indian-navy-700 dark:text-indian-parchment-300 hover:text-indian-terracotta-600 transition-colors"
@@ -158,6 +159,7 @@ export const SettingsPage: React.FC = () => {
             </Button>
           </div>
         </Card>
+      </div>
       </div>
     </div>
   );

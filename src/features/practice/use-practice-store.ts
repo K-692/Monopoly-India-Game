@@ -149,7 +149,7 @@ export const usePracticeStore = create<PracticeStoreState>((set, get) => ({
           const message = err instanceof Error ? err.message : 'Action failed';
           set({ error: message, isRolling: false });
         }
-      }, 600);
+      }, 500);
       return;
     }
 
@@ -296,10 +296,11 @@ function triggerAiTurn() {
             store.dispatchAction('END_TURN');
           }
           usePracticeStore.setState({ isAiThinking: false });
-        }, 800);
-      }, 1000);
+        }, 350);
+      }, 450);
     } catch {
       usePracticeStore.setState({ isAiThinking: false });
     }
-  }, 1200);
+  }, 500);
 }
+

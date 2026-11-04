@@ -57,13 +57,22 @@ The application navigation is strictly partitioned into two primary views:
 
 ## 3. Universal Responsive & Non-Scrollable Viewport Architecture
 
-### 3.1 Strict Viewport Containment (`h-screen overflow-hidden`)
-The entire board and interactive HUD are bound to `100dvh` without document-level vertical or horizontal scrolling:
-- Center 40-space board auto-scales to `max-w-[min(72vh,72vw,680px)]` maintaining a square aspect ratio.
-- Left column (Player Financial Strip) and Right column (Deed Inspector & Management) feature internal independent scrolling containers.
-- Interactive 3D dice are integrated directly *inside* the board center.
-- Real-time turn timer displays countdown remaining with automatic pass policy when reaching zero.
-- The two event decks (*Civic Fund* and *Market Buzz*) remain permanently positioned in the center workspace on an Indian mandala canvas.
+### 3.1 Strict Viewport Isolation (`overflow-hidden` Playboard vs. Scrollable Settings/Lobby)
+Only the active game board canvas is strictly non-scrollable (`h-[calc(100dvh-54px)] overflow-hidden`), preserving strict mathematical alignment across mobile and desktop. Meanwhile, auxiliary views (Settings tab `/settings` and Play lobby `/`) utilize natural dynamic viewport scrolling (`overflow-y-auto min-h-0`), ensuring complete accessibility for configuration controls across all device aspect ratios.
+
+### 3.2 Maximized Playboard Footprint & Layout Proportions
+The 12-column grid layout is optimized to dedicate maximum visual hierarchy to the game board:
+- **Left Column (`lg:col-span-2`)**: Reduced, sleek player cards showing token, avatar initial, display name, cash, and turn timer only on the active player.
+- **Center Column (`lg:col-span-7`)**: The board occupies `max-w-[min(88vh,88vw,820px)] aspect-square`, increasing board surface area by over 40% for optimal legibility.
+- **Right Column (`lg:col-span-3`)**: Primary actions at top, followed immediately by "My Info" player portfolio, and contextual Deed inspector below.
+
+### 3.3 Center Decks with Face-Up Card Contents
+Rather than displaying closed card backs, the two central decks (*Civic Fund* in terracotta and *Market Buzz* in teal) permanently present their **active card contents** (title, descriptive text, and amount pill) face-up with authentic Indian iconography and Hindi titles.
+
+### 3.4 3D Tumbling Dice Synthesis & Turn Step Acknowledgments
+- **3D Tumbling Dice**: When rolled, the dice execute a 3D perspective rotation (`perspective: 600px; transform: rotateX(...) rotateY(...) rotateZ(...)`) while rapidly cycling pseudo-random face values every 70ms before snapping to server-authoritative numbers.
+- **Turn Step Acknowledgment HUD**: An active breadcrumb pipeline (`1. Roll ➔ 2. Action ➔ 3. Complete`) provides instant visual acknowledgments for rolls, moves, purchases, rents, and turn conclusions.
+- **Player Hover Flyout**: Hovering over any compact player card opens a detailed informational flyout detailing cash, net worth, board position, jail status, full list of owned properties by color group with house/tower levels, mortgaged states, transit lines, and utilities.
 
 ---
 

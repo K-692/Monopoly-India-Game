@@ -82,8 +82,9 @@ export const PlayPage: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 max-w-5xl mx-auto w-full px-4 py-6">
-      {/* Hero Welcome */}
+    <div className="flex-1 overflow-y-auto w-full px-4 py-6">
+      <div className="max-w-5xl mx-auto">
+        {/* Hero Welcome */}
       <div className="text-center max-w-2xl mx-auto mb-6">
         <Badge variant="gold" className="mb-2 px-3 py-1 text-xs font-bold">
           🇮🇳 Real-Time Indian Property Trading
@@ -213,6 +214,7 @@ export const PlayPage: React.FC = () => {
         onCreate={handleCreateWithRules}
         isLoading={isCreating}
       />
+      </div>
     </div>
   );
 };

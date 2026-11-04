@@ -156,7 +156,7 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
               key={p.uid}
               title={p.displayName}
               style={{ backgroundColor: p.colorToken }}
-              className="w-3.5 sm:w-4 h-3.5 sm:h-4 rounded-full border-2 border-white shadow-token-glow flex items-center justify-center text-[7px] text-white font-black animate-bounce-short"
+              className="w-3.5 sm:w-4 h-3.5 sm:h-4 rounded-full border-2 border-white shadow-token-glow flex items-center justify-center text-[7px] text-white font-black transition-transform duration-200"
             >
               {p.displayName.charAt(0).toUpperCase()}
             </div>

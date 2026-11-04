@@ -29,16 +29,16 @@ export const NamePromptModal: React.FC<NamePromptModalProps> = ({ onSuccess }) =
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
-      <Card className="max-w-md w-full p-6 border-2 border-indian-terracotta-500 shadow-2xl bg-white dark:bg-indian-navy-900">
-        <div className="w-12 h-12 rounded-full bg-indian-terracotta-100 text-indian-terracotta-600 mx-auto flex items-center justify-center mb-4">
-          <UserCheck className="w-6 h-6" />
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-fade-in">
+      <Card className="max-w-md w-full p-4 sm:p-6 border-2 border-indian-terracotta-500 shadow-2xl bg-white dark:bg-indian-navy-900 my-auto">
+        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-indian-terracotta-100 text-indian-terracotta-600 mx-auto flex items-center justify-center mb-3">
+          <UserCheck className="w-5 h-5 sm:w-6 sm:h-6" />
         </div>
 
-        <h2 className="font-serif font-black text-2xl text-center text-indian-terracotta-600 mb-1">
+        <h2 className="font-serif font-black text-xl sm:text-2xl text-center text-indian-terracotta-600 mb-1">
           Welcome Tycoon!
         </h2>
-        <p className="text-xs text-center text-gray-600 dark:text-gray-300 mb-5">
+        <p className="text-xs text-center text-gray-600 dark:text-gray-300 mb-4">
           Enter your name to join Indian Monopoly rooms and matches.
         </p>
 

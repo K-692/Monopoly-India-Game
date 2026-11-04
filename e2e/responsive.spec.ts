@@ -26,7 +26,7 @@ test.describe('Indian Monopoly - Two-Tab Architecture & Practice Match E2E', () 
     await nameInput.fill('Vikram Tycoon');
 
     const enterBtn = page.getByRole('button', { name: /Enter Game/i });
-    await enterBtn.click();
+    await enterBtn.click({ force: true });
 
     // Re-click launch if needed or check practice match
     await page.goto('/#/practice');

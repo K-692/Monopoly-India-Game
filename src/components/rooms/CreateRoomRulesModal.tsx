@@ -214,3 +214,4 @@ export const CreateRoomRulesModal: React.FC<CreateRoomRulesModalProps> = ({
     </div>
   );
 };
+

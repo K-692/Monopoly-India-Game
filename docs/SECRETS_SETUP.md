@@ -63,3 +63,4 @@ This guarantees:
 1. No secret keys or configuration files are tracked in public Git history.
 2. The GitHub Pages bundle gets injected during the automated CI/CD pipeline.
 3. The site is live and functional for all players worldwide.
+
