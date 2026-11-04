@@ -72,11 +72,11 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     const activeDots = dots[safeVal] || [4];
 
     return (
-      <div className="w-12 h-12 sm:w-14 sm:h-14 bg-white border-2 border-gray-950 rounded-xl shadow-lg grid grid-cols-3 grid-rows-3 p-1.5 sm:p-2 gap-1 transform-gpu">
+      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white border-2 border-gray-950 rounded-xl shadow-lg grid grid-cols-3 grid-rows-3 p-1 sm:p-1.5 gap-0.5 transform-gpu">
         {Array.from({ length: 9 }).map((_, i) => (
           <div key={i} className="flex items-center justify-center">
             {activeDots.includes(i) && (
-              <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-black shadow-xs" />
+              <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-black shadow-xs" />
             )}
           </div>
         ))}
@@ -85,13 +85,13 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   };
 
   return (
-    <div className="relative w-full h-full max-h-full mx-auto p-1 bg-indian-parchment-200 border-2 border-indian-parchment-400 rounded-xl shadow-board-elevation select-none flex flex-col justify-center">
-      {/* 11x11 Grid with Widened Walk Lane and Wide Board Geometry */}
+    <div className="relative w-full h-full max-h-full mx-auto p-0.5 sm:p-1 bg-indian-parchment-200 border-2 border-indian-parchment-400 rounded-xl shadow-board-elevation select-none flex flex-col justify-center overflow-hidden">
+      {/* 11x11 Grid with Widened Perimeter Cells and Compact Center Area */}
       <div
         className="w-full h-full grid gap-[1px] bg-indian-parchment-400 rounded-lg overflow-hidden"
         style={{
-          gridTemplateColumns: '1.4fr repeat(9, 1fr) 1.4fr',
-          gridTemplateRows: '1.5fr repeat(9, 1fr) 1.5fr',
+          gridTemplateColumns: '3.4fr repeat(9, 1fr) 3.4fr',
+          gridTemplateRows: '3.2fr repeat(9, 1fr) 3.2fr',
         }}
       >
         {BOARD_SPACES.map((space) => {
@@ -124,7 +124,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
 
         {/* Center Area: Persistent Face-up Cards, Turn Acknowledgment & 3D Tumbling Dice Roll Arena */}
         <div
-          className="relative flex flex-col items-center justify-between p-2 sm:p-4 bg-gradient-to-br from-indian-parchment-100/95 via-white/95 to-amber-50/90 dark:from-indian-navy-950/95 dark:to-indian-navy-900/95 rounded-lg border border-indian-parchment-300 dark:border-indian-navy-700 shadow-inner overflow-hidden"
+          className="relative flex flex-col items-center justify-between p-1.5 sm:p-3 bg-gradient-to-br from-indian-parchment-100/95 via-white/95 to-amber-50/90 dark:from-indian-navy-950/95 dark:to-indian-navy-900/95 rounded-lg border border-indian-parchment-300 dark:border-indian-navy-700 shadow-inner overflow-hidden"
           style={{
             gridColumn: '2 / 11',
             gridRow: '2 / 11',
@@ -136,7 +136,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
           </div>
 
           {/* Top Center: Turn Step Acknowledgment Banner */}
-          <div className="w-full max-w-md z-10">
+          <div className="w-full max-w-sm z-10">
             <TurnStepAcknowledgment
               gameState={gameState}
               lastEvent={lastEvent}
@@ -144,40 +144,40 @@ export const GameBoard: React.FC<GameBoardProps> = ({
           </div>
 
           {/* Middle Row: Civic Fund Card, 3D Dice Rolling Arena, and Market Buzz Card */}
-          <div className="w-full flex items-center justify-around gap-2 sm:gap-4 my-auto z-10 px-1 sm:px-2">
+          <div className="w-full flex items-center justify-around gap-1.5 sm:gap-3 my-auto z-10 px-0.5 sm:px-1">
             {/* Card 1: Civic Fund (Terracotta Card with visible contents) */}
             <div
               onClick={() => setInspectedCard(activeCivicCard)}
               title="Click to inspect Civic Fund details"
-              className="relative w-24 sm:w-32 md:w-38 h-28 sm:h-38 md:h-44 rounded-lg sm:rounded-xl bg-gradient-to-br from-indian-terracotta-600 via-indian-terracotta-700 to-amber-900 p-1.5 sm:p-2 text-white shadow-md border sm:border-2 border-amber-300/80 cursor-pointer flex flex-col justify-between hover:scale-105 transition-transform shrink-0"
+              className="relative w-18 sm:w-22 md:w-26 h-22 sm:h-26 md:h-30 rounded-lg bg-gradient-to-br from-indian-terracotta-600 via-indian-terracotta-700 to-amber-900 p-1.5 text-white shadow-md border border-amber-300/80 cursor-pointer flex flex-col justify-between hover:scale-105 transition-transform shrink-0"
             >
-              <div className="flex items-center justify-between border-b border-amber-300/40 pb-0.5 sm:pb-1 text-[7px] sm:text-[9px] text-amber-200 uppercase font-black tracking-wider">
+              <div className="flex items-center justify-between border-b border-amber-300/40 pb-0.5 sm:pb-1 text-[7px] sm:text-[8px] text-amber-200 uppercase font-black tracking-wider">
                 <span>CIVIC FUND</span>
-                <Sparkles className="w-2 h-2 sm:w-2.5 sm:h-2.5 text-amber-300" />
+                <Sparkles className="w-2 h-2 text-amber-300" />
               </div>
 
               {/* Card Visible Content */}
-              <div className="my-auto text-left space-y-0.5 sm:space-y-1">
-                <h4 className="font-serif font-black text-[9px] sm:text-[11px] md:text-xs text-amber-100 leading-tight">
+              <div className="my-auto text-left space-y-0.5">
+                <h4 className="font-serif font-black text-[8.5px] sm:text-[10px] md:text-[11px] text-amber-100 leading-tight">
                   {activeCivicCard.title}
                 </h4>
-                <p className="text-[7px] sm:text-[9px] md:text-[10px] text-amber-100/90 leading-tight line-clamp-2 sm:line-clamp-3">
+                <p className="text-[7px] sm:text-[8px] md:text-[8.5px] text-amber-100/90 leading-tight line-clamp-2">
                   {activeCivicCard.description}
                 </p>
                 {activeCivicCard.amount && (
-                  <span className="inline-block mt-0.5 px-1 py-0.2 rounded-full text-[7px] sm:text-[8px] font-bold bg-amber-300 text-indian-navy-950">
+                  <span className="inline-block mt-0.5 px-1 py-0.2 rounded-full text-[6.5px] sm:text-[7.5px] font-bold bg-amber-300 text-indian-navy-950">
                     ₹{activeCivicCard.amount.toLocaleString('en-IN')}
                   </span>
                 )}
               </div>
 
-              <div className="text-[7px] sm:text-[8px] text-amber-200/90 font-medium text-center border-t border-amber-300/30 pt-0.5">
+              <div className="text-[6.5px] sm:text-[7.5px] text-amber-200/90 font-medium text-center border-t border-amber-300/30 pt-0.5">
                 COMMUNITY TREASURY
               </div>
             </div>
 
             {/* In-Board Dice Roll Arena: Bold, Highly Visible Dice */}
-            <div className="flex flex-col items-center justify-center gap-1.5 sm:gap-2 z-20 shrink-0">
+            <div className="flex flex-col items-center justify-center gap-1 sm:gap-1.5 z-20 shrink-0">
               {/* Interactive 3D Tumbling Dice with Bold Black Dots */}
               <div
                 onClick={isMyTurn && gameState.phase === 'AWAIT_ROLL' && !isRolling && !walkingAnimation ? onRollDice : undefined}
@@ -233,19 +233,19 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             <div
               onClick={() => setInspectedCard(activeMarketCard)}
               title="Click to inspect Market Buzz details"
-              className="relative w-24 sm:w-32 md:w-38 h-28 sm:h-38 md:h-44 rounded-lg sm:rounded-xl bg-gradient-to-br from-teal-700 via-emerald-800 to-teal-950 p-1.5 sm:p-2 text-white shadow-md border sm:border-2 border-emerald-300/80 cursor-pointer flex flex-col justify-between hover:scale-105 transition-transform shrink-0"
+              className="relative w-18 sm:w-22 md:w-26 h-22 sm:h-26 md:h-30 rounded-lg bg-gradient-to-br from-teal-700 via-emerald-800 to-teal-950 p-1.5 text-white shadow-md border border-emerald-300/80 cursor-pointer flex flex-col justify-between hover:scale-105 transition-transform shrink-0"
             >
-              <div className="flex items-center justify-between border-b border-emerald-300/40 pb-0.5 sm:pb-1 text-[7px] sm:text-[9px] text-teal-200 uppercase font-black tracking-wider">
+              <div className="flex items-center justify-between border-b border-emerald-300/40 pb-0.5 sm:pb-1 text-[7px] sm:text-[8px] text-teal-200 uppercase font-black tracking-wider">
                 <span>MARKET BUZZ</span>
-                <Sparkles className="w-2 h-2 sm:w-2.5 sm:h-2.5 text-emerald-300" />
+                <Sparkles className="w-2 h-2 text-emerald-300" />
               </div>
 
               {/* Card Visible Content */}
-              <div className="my-auto text-left space-y-0.5 sm:space-y-1">
-                <h4 className="font-serif font-black text-[9px] sm:text-[11px] md:text-xs text-emerald-100 leading-tight">
+              <div className="my-auto text-left space-y-0.5">
+                <h4 className="font-serif font-black text-[8.5px] sm:text-[10px] md:text-[11px] text-emerald-100 leading-tight">
                   {activeMarketCard.title}
                 </h4>
-                <p className="text-[7px] sm:text-[9px] md:text-[10px] text-emerald-100/90 leading-tight line-clamp-2 sm:line-clamp-3">
+                <p className="text-[7px] sm:text-[8px] md:text-[8.5px] text-emerald-100/90 leading-tight line-clamp-2">
                   {activeMarketCard.description}
                 </p>
                 {activeMarketCard.amount && (

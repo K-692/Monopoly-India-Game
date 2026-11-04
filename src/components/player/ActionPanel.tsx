@@ -279,39 +279,32 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({
                     No properties purchased yet.
                   </span>
                 ) : (
-                  <div className="flex flex-col gap-1 max-h-40 overflow-y-auto pr-0.5">
+                  <div className="flex flex-wrap gap-1 max-h-24 overflow-hidden">
                     {myOwnedProps.map(({ spaceIndex, space, state }) => {
                       const groupColor = 'group' in space && space.group ? GROUP_COLOR_MAP[space.group] : '#888888';
                       return (
                         <div
                           key={spaceIndex}
-                          className="flex items-center justify-between p-1 rounded-md border bg-white dark:bg-indian-navy-950 shadow-2xs text-[9.5px]"
-                          style={{ borderLeftColor: groupColor, borderLeftWidth: '3.5px' }}
+                          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border bg-white dark:bg-indian-navy-950 shadow-2xs text-[9px]"
+                          style={{ borderLeftColor: groupColor, borderLeftWidth: '3px' }}
                         >
-                          <div className="flex items-center gap-1 min-w-0">
-                            <span className="font-bold text-indian-navy-900 dark:text-white truncate max-w-[110px]">
-                              {space.name}
+                          <span className="font-bold text-indian-navy-900 dark:text-white truncate max-w-[80px]">
+                            {space.name}
+                          </span>
+                          {state.buildings > 0 && (
+                            <span className="text-[7.5px] text-amber-700">
+                              {state.buildings === 5 ? '🏢' : `🏠${state.buildings}`}
                             </span>
-                            {state.buildings > 0 && (
-                              <span className="text-[8px] bg-amber-100 text-amber-800 px-1 py-0.2 rounded font-black">
-                                {state.buildings === 5 ? '🏢' : `🏠×${state.buildings}`}
+                          )}
+                          {state.isMortgaged ? (
+                            <span className="text-[8px] text-red-500 font-bold">[M]</span>
+                          ) : (
+                            'price' in space && (
+                              <span className="text-[8.5px] font-bold text-emerald-700 dark:text-emerald-400">
+                                ₹{space.price.toLocaleString('en-IN')}
                               </span>
-                            )}
-                          </div>
-
-                          <div className="flex items-center gap-1 shrink-0">
-                            {state.isMortgaged ? (
-                              <span className="text-[8.5px] text-red-500 font-bold bg-red-50 px-1 rounded">
-                                [M]
-                              </span>
-                            ) : (
-                              'price' in space && (
-                                <span className="text-[9px] font-bold text-emerald-700 dark:text-emerald-400">
-                                  ₹{space.price.toLocaleString('en-IN')}
-                                </span>
-                              )
-                            )}
-                          </div>
+                            )
+                          )}
                         </div>
                       );
                     })}

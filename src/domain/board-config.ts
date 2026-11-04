@@ -1,8 +1,11 @@
 /**
- * Indian Monopoly - Canonical Board Configuration
- * 40 Spaces clockwise with 20 completely unique Indian metropolitan cities,
- * 4 intercity transit gateways, 4 national utility grids, and 2 tax checkpoints.
- * Completely free of any non-English text.
+ * Indian Monopoly - Authoritative Board Topology & Card Decks
+ * Canonical 40-space clockwise topology featuring:
+ * - 28 Purchasable Indian Metropolitan Cities (7 on each side of the board)
+ * - 2 Persistent Civic Fund Card Spaces (Spaces 2 and 22)
+ * - 2 Persistent Market Buzz Card Spaces (Spaces 12 and 32)
+ * - 4 Intercity Transit Gateways (Spaces 5, 15, 25, 35)
+ * - 4 Corner Anchors: START, Central Jail / Visiting, Rest House, Go To Jail
  */
 
 import { BoardSpaceDefinition, CardAction, PropertyColorGroup } from './game-types';
@@ -14,40 +17,16 @@ export const BOARD_SPACES: BoardSpaceDefinition[] = [
     type: 'START',
     id: 'start',
     name: 'START',
-    reward: 2000,
   },
+
+  // --- SIDE 1: BOTTOM EDGE (Spaces 1 to 9: 7 Cities, 1 Civic Fund, 1 Transit) ---
+
   // Space 1: Jaipur (Brown - Tier 3 Heritage Metro)
   {
     spaceIndex: 1,
     type: 'PROPERTY',
     id: 'jaipur',
     name: 'Jaipur',
-    group: 'BROWN',
-    price: 600,
-    mortgageValue: 300,
-    unmortgageCost: 330,
-    baseRent: 20,
-    rentHouse1: 100,
-    rentHouse2: 300,
-    rentHouse3: 900,
-    rentHouse4: 1600,
-    rentTower: 2500,
-    buildingCost: 500,
-  },
-  // Space 2: Civic Fund
-  {
-    spaceIndex: 2,
-    type: 'CARD',
-    id: 'civic_fund_1',
-    deck: 'CIVIC',
-    name: 'Civic Fund',
-  },
-  // Space 3: Jodhpur (Brown - Tier 3 Heritage Metro)
-  {
-    spaceIndex: 3,
-    type: 'PROPERTY',
-    id: 'jodhpur',
-    name: 'Jodhpur',
     group: 'BROWN',
     price: 600,
     mortgageValue: 300,
@@ -60,28 +39,82 @@ export const BOARD_SPACES: BoardSpaceDefinition[] = [
     rentTower: 4500,
     buildingCost: 500,
   },
-  // Space 4: GST Checkpost (Tax)
+  // Space 2: Civic Fund (Placement 1 of 2)
+  {
+    spaceIndex: 2,
+    type: 'CARD',
+    id: 'civic_fund_1',
+    deck: 'CIVIC',
+    name: 'Civic Fund',
+  },
+  // Space 3: Udaipur (Brown - Tier 3 Heritage Metro)
+  {
+    spaceIndex: 3,
+    type: 'PROPERTY',
+    id: 'udaipur',
+    name: 'Udaipur',
+    group: 'BROWN',
+    price: 600,
+    mortgageValue: 300,
+    unmortgageCost: 330,
+    baseRent: 40,
+    rentHouse1: 200,
+    rentHouse2: 600,
+    rentHouse3: 1800,
+    rentHouse4: 3200,
+    rentTower: 4500,
+    buildingCost: 500,
+  },
+  // Space 4: Jodhpur (Brown - Tier 3 Heritage Metro)
   {
     spaceIndex: 4,
-    type: 'TAX',
-    id: 'gst_checkpost',
-    name: 'GST Checkpost',
-    amount: 2000,
+    type: 'PROPERTY',
+    id: 'jodhpur',
+    name: 'Jodhpur',
+    group: 'BROWN',
+    price: 800,
+    mortgageValue: 400,
+    unmortgageCost: 440,
+    baseRent: 50,
+    rentHouse1: 250,
+    rentHouse2: 750,
+    rentHouse3: 2250,
+    rentHouse4: 3600,
+    rentTower: 5000,
+    buildingCost: 500,
   },
-  // Space 5: Chhatrapati Shivaji Terminus (Transit 1 - Western Gateway)
+  // Space 5: CST Mumbai (Transit 1 - Western Gateway)
   {
     spaceIndex: 5,
     type: 'TRANSIT',
-    id: 'mumbai_cst',
+    id: 'cst_mumbai',
     name: 'CST Mumbai',
     price: 2000,
     mortgageValue: 1000,
     unmortgageCost: 1100,
     baseRent: 250,
   },
-  // Space 6: Lucknow (Light Blue - Tier 2.5 Historic & Cultural Metro)
+  // Space 6: Agra (Light Blue - Tier 2.5 Historic Metro)
   {
     spaceIndex: 6,
+    type: 'PROPERTY',
+    id: 'agra',
+    name: 'Agra',
+    group: 'LIGHTBLUE',
+    price: 1000,
+    mortgageValue: 500,
+    unmortgageCost: 550,
+    baseRent: 60,
+    rentHouse1: 300,
+    rentHouse2: 900,
+    rentHouse3: 2700,
+    rentHouse4: 4000,
+    rentTower: 5500,
+    buildingCost: 500,
+  },
+  // Space 7: Lucknow (Light Blue - Tier 2.5 Cultural Metro)
+  {
+    spaceIndex: 7,
     type: 'PROPERTY',
     id: 'lucknow',
     name: 'Lucknow',
@@ -97,50 +130,54 @@ export const BOARD_SPACES: BoardSpaceDefinition[] = [
     rentTower: 5500,
     buildingCost: 500,
   },
-  // Space 7: Market Buzz
-  {
-    spaceIndex: 7,
-    type: 'CARD',
-    id: 'market_buzz_1',
-    deck: 'MARKET',
-    name: 'Market Buzz',
-  },
-  // Space 8: Varanasi (Light Blue - Tier 2.5 Historic & Cultural Metro)
+  // Space 8: Amritsar (Light Blue - Tier 2.5 Historic Metro)
   {
     spaceIndex: 8,
+    type: 'PROPERTY',
+    id: 'amritsar',
+    name: 'Amritsar',
+    group: 'LIGHTBLUE',
+    price: 1200,
+    mortgageValue: 600,
+    unmortgageCost: 660,
+    baseRent: 80,
+    rentHouse1: 400,
+    rentHouse2: 1000,
+    rentHouse3: 3000,
+    rentHouse4: 4500,
+    rentTower: 6000,
+    buildingCost: 500,
+  },
+  // Space 9: Varanasi (Light Blue - Tier 2.5 Spiritual Metro)
+  {
+    spaceIndex: 9,
     type: 'PROPERTY',
     id: 'varanasi',
     name: 'Varanasi',
     group: 'LIGHTBLUE',
-    price: 1000,
-    mortgageValue: 500,
-    unmortgageCost: 550,
-    baseRent: 60,
-    rentHouse1: 300,
-    rentHouse2: 900,
-    rentHouse3: 2700,
-    rentHouse4: 4000,
-    rentTower: 5500,
+    price: 1200,
+    mortgageValue: 600,
+    unmortgageCost: 660,
+    baseRent: 80,
+    rentHouse1: 400,
+    rentHouse2: 1000,
+    rentHouse3: 3000,
+    rentHouse4: 4500,
+    rentTower: 6000,
     buildingCost: 500,
   },
-  // Space 9: Bharat Telecom Grid (Utility 1)
-  {
-    spaceIndex: 9,
-    type: 'UTILITY',
-    id: 'telecom_grid',
-    name: 'Bharat Telecom Grid',
-    price: 1500,
-    mortgageValue: 750,
-    unmortgageCost: 825,
-  },
-  // Space 10: Central Jail / Just Visiting
+
+  // Space 10: Central Jail / Visiting
   {
     spaceIndex: 10,
     type: 'JAIL',
     id: 'jail',
     name: 'Central Jail / Visiting',
   },
-  // Space 11: Indore (Pink - Tier 2 Commercial & Industrial Metro)
+
+  // --- SIDE 2: LEFT EDGE (Spaces 11 to 19: 7 Cities, 1 Market Buzz, 1 Transit) ---
+
+  // Space 11: Indore (Pink - Tier 2 Commercial Metro)
   {
     spaceIndex: 11,
     type: 'PROPERTY',
@@ -158,22 +195,20 @@ export const BOARD_SPACES: BoardSpaceDefinition[] = [
     rentTower: 7500,
     buildingCost: 1000,
   },
-  // Space 12: Urja Power Grid (Utility 2)
+  // Space 12: Market Buzz (Placement 1 of 2)
   {
     spaceIndex: 12,
-    type: 'UTILITY',
-    id: 'urja_power_grid',
-    name: 'Urja Power Grid',
-    price: 1500,
-    mortgageValue: 750,
-    unmortgageCost: 825,
+    type: 'CARD',
+    id: 'market_buzz_1',
+    deck: 'MARKET',
+    name: 'Market Buzz',
   },
-  // Space 13: Bhopal (Pink - Tier 2 Commercial & Industrial Metro)
+  // Space 13: Nagpur (Pink - Tier 2 Commercial Metro)
   {
     spaceIndex: 13,
     type: 'PROPERTY',
-    id: 'bhopal',
-    name: 'Bhopal',
+    id: 'nagpur',
+    name: 'Nagpur',
     group: 'PINK',
     price: 1400,
     mortgageValue: 700,
@@ -186,12 +221,12 @@ export const BOARD_SPACES: BoardSpaceDefinition[] = [
     rentTower: 7500,
     buildingCost: 1000,
   },
-  // Space 14: Surat (Pink - Tier 2 Commercial & Industrial Metro)
+  // Space 14: Bhopal (Pink - Tier 2 Industrial Metro)
   {
     spaceIndex: 14,
     type: 'PROPERTY',
-    id: 'surat',
-    name: 'Surat',
+    id: 'bhopal',
+    name: 'Bhopal',
     group: 'PINK',
     price: 1600,
     mortgageValue: 800,
@@ -215,9 +250,27 @@ export const BOARD_SPACES: BoardSpaceDefinition[] = [
     unmortgageCost: 1100,
     baseRent: 250,
   },
-  // Space 16: Visakhapatnam (Orange - Tier 2 Coastal & Maritime Metro)
+  // Space 16: Surat (Pink - Tier 2 Diamond Metro)
   {
     spaceIndex: 16,
+    type: 'PROPERTY',
+    id: 'surat',
+    name: 'Surat',
+    group: 'PINK',
+    price: 1600,
+    mortgageValue: 800,
+    unmortgageCost: 880,
+    baseRent: 120,
+    rentHouse1: 600,
+    rentHouse2: 1800,
+    rentHouse3: 5000,
+    rentHouse4: 7000,
+    rentTower: 9000,
+    buildingCost: 1000,
+  },
+  // Space 17: Visakhapatnam (Orange - Tier 2 Maritime Metro)
+  {
+    spaceIndex: 17,
     type: 'PROPERTY',
     id: 'visakhapatnam',
     name: 'Visakhapatnam',
@@ -233,15 +286,7 @@ export const BOARD_SPACES: BoardSpaceDefinition[] = [
     rentTower: 9500,
     buildingCost: 1000,
   },
-  // Space 17: Civic Fund
-  {
-    spaceIndex: 17,
-    type: 'CARD',
-    id: 'civic_fund_2',
-    deck: 'CIVIC',
-    name: 'Civic Fund',
-  },
-  // Space 18: Kochi (Orange - Tier 2 Coastal & Maritime Metro)
+  // Space 18: Kochi (Orange - Tier 2 Coastal Metro)
   {
     spaceIndex: 18,
     type: 'PROPERTY',
@@ -259,7 +304,7 @@ export const BOARD_SPACES: BoardSpaceDefinition[] = [
     rentTower: 9500,
     buildingCost: 1000,
   },
-  // Space 19: Goa (Orange - Tier 2 Coastal & Maritime Metro)
+  // Space 19: Goa (Orange - Tier 2 Coastal Metro)
   {
     spaceIndex: 19,
     type: 'PROPERTY',
@@ -277,14 +322,18 @@ export const BOARD_SPACES: BoardSpaceDefinition[] = [
     rentTower: 10000,
     buildingCost: 1000,
   },
-  // Space 20: Rest House / Free Parking
+
+  // Space 20: Rest House
   {
     spaceIndex: 20,
     type: 'REST_HOUSE',
     id: 'rest_house',
     name: 'Rest House',
   },
-  // Space 21: Ahmedabad (Red - Tier 1 Tech & Financial Innovation Metro)
+
+  // --- SIDE 3: TOP EDGE (Spaces 21 to 29: 7 Cities, 1 Civic Fund, 1 Transit) ---
+
+  // Space 21: Ahmedabad (Red - Tier 1 Tech & Financial Metro)
   {
     spaceIndex: 21,
     type: 'PROPERTY',
@@ -302,13 +351,13 @@ export const BOARD_SPACES: BoardSpaceDefinition[] = [
     rentTower: 10500,
     buildingCost: 1500,
   },
-  // Space 22: Market Buzz
+  // Space 22: Civic Fund (Placement 2 of 2)
   {
     spaceIndex: 22,
     type: 'CARD',
-    id: 'market_buzz_2',
-    deck: 'MARKET',
-    name: 'Market Buzz',
+    id: 'civic_fund_2',
+    deck: 'CIVIC',
+    name: 'Civic Fund',
   },
   // Space 23: Pune (Red - Tier 1 Tech & Innovation Metro)
   {
@@ -328,7 +377,7 @@ export const BOARD_SPACES: BoardSpaceDefinition[] = [
     rentTower: 10500,
     buildingCost: 1500,
   },
-  // Space 24: Hyderabad (Red - Tier 1 Tech & Innovation Metro)
+  // Space 24: Hyderabad (Red - Tier 1 Tech Hub)
   {
     spaceIndex: 24,
     type: 'PROPERTY',
@@ -357,9 +406,27 @@ export const BOARD_SPACES: BoardSpaceDefinition[] = [
     unmortgageCost: 1100,
     baseRent: 250,
   },
-  // Space 26: Bengaluru (Yellow - Tier 1 Mega Metropolitan Hub)
+  // Space 26: Coimbatore (Yellow - Tier 1 Manufacturing Metro)
   {
     spaceIndex: 26,
+    type: 'PROPERTY',
+    id: 'coimbatore',
+    name: 'Coimbatore',
+    group: 'YELLOW',
+    price: 2600,
+    mortgageValue: 1300,
+    unmortgageCost: 1430,
+    baseRent: 220,
+    rentHouse1: 1100,
+    rentHouse2: 3300,
+    rentHouse3: 8000,
+    rentHouse4: 9750,
+    rentTower: 11500,
+    buildingCost: 1500,
+  },
+  // Space 27: Bengaluru (Yellow - Tier 1 Silicon Valley Metro)
+  {
+    spaceIndex: 27,
     type: 'PROPERTY',
     id: 'bengaluru',
     name: 'Bengaluru',
@@ -375,35 +442,25 @@ export const BOARD_SPACES: BoardSpaceDefinition[] = [
     rentTower: 11500,
     buildingCost: 1500,
   },
-  // Space 27: Chennai (Yellow - Tier 1 Mega Metropolitan Hub)
+  // Space 28: Chennai (Yellow - Tier 1 Metropolitan Hub)
   {
-    spaceIndex: 27,
+    spaceIndex: 28,
     type: 'PROPERTY',
     id: 'chennai',
     name: 'Chennai',
     group: 'YELLOW',
-    price: 2600,
-    mortgageValue: 1300,
-    unmortgageCost: 1430,
-    baseRent: 220,
-    rentHouse1: 1100,
-    rentHouse2: 3300,
-    rentHouse3: 8000,
-    rentHouse4: 9750,
-    rentTower: 11500,
+    price: 2800,
+    mortgageValue: 1400,
+    unmortgageCost: 1540,
+    baseRent: 240,
+    rentHouse1: 1200,
+    rentHouse2: 3600,
+    rentHouse3: 8500,
+    rentHouse4: 10250,
+    rentTower: 12000,
     buildingCost: 1500,
   },
-  // Space 28: Jal Board Water Authority (Utility 3)
-  {
-    spaceIndex: 28,
-    type: 'UTILITY',
-    id: 'jal_board',
-    name: 'Jal Board Authority',
-    price: 1500,
-    mortgageValue: 750,
-    unmortgageCost: 825,
-  },
-  // Space 29: Kolkata (Yellow - Tier 1 Mega Metropolitan Hub)
+  // Space 29: Kolkata (Yellow - Tier 1 Cultural & Commercial Metro)
   {
     spaceIndex: 29,
     type: 'PROPERTY',
@@ -421,6 +478,7 @@ export const BOARD_SPACES: BoardSpaceDefinition[] = [
     rentTower: 12000,
     buildingCost: 1500,
   },
+
   // Space 30: Go To Jail
   {
     spaceIndex: 30,
@@ -428,7 +486,10 @@ export const BOARD_SPACES: BoardSpaceDefinition[] = [
     id: 'go_to_jail',
     name: 'Go To Jail',
   },
-  // Space 31: Chandigarh (Green - Tier 1 Capital & Corporate Corridors)
+
+  // --- SIDE 4: RIGHT EDGE (Spaces 31 to 39: 7 Cities, 1 Market Buzz, 1 Transit) ---
+
+  // Space 31: Chandigarh (Green - Tier 1 Capital Corridor)
   {
     spaceIndex: 31,
     type: 'PROPERTY',
@@ -446,12 +507,20 @@ export const BOARD_SPACES: BoardSpaceDefinition[] = [
     rentTower: 12750,
     buildingCost: 2000,
   },
-  // Space 32: Gurugram (Green - Tier 1 Corporate & Financial Hub)
+  // Space 32: Market Buzz (Placement 2 of 2)
   {
     spaceIndex: 32,
+    type: 'CARD',
+    id: 'market_buzz_2',
+    deck: 'MARKET',
+    name: 'Market Buzz',
+  },
+  // Space 33: Noida (Green - Tier 1 Corporate Corridor)
+  {
+    spaceIndex: 33,
     type: 'PROPERTY',
-    id: 'gurugram',
-    name: 'Gurugram',
+    id: 'noida',
+    name: 'Noida',
     group: 'GREEN',
     price: 3000,
     mortgageValue: 1500,
@@ -464,49 +533,59 @@ export const BOARD_SPACES: BoardSpaceDefinition[] = [
     rentTower: 12750,
     buildingCost: 2000,
   },
-  // Space 33: Civic Fund
-  {
-    spaceIndex: 33,
-    type: 'CARD',
-    id: 'civic_fund_3',
-    deck: 'CIVIC',
-    name: 'Civic Fund',
-  },
-  // Space 34: National Gas Grid (Utility 4)
+  // Space 34: Gurugram (Green - Tier 1 Corporate Hub)
   {
     spaceIndex: 34,
-    type: 'UTILITY',
-    id: 'gas_grid',
-    name: 'National Gas Grid',
-    price: 1500,
-    mortgageValue: 750,
-    unmortgageCost: 825,
+    type: 'PROPERTY',
+    id: 'gurugram',
+    name: 'Gurugram',
+    group: 'GREEN',
+    price: 3200,
+    mortgageValue: 1600,
+    unmortgageCost: 1760,
+    baseRent: 280,
+    rentHouse1: 1500,
+    rentHouse2: 4500,
+    rentHouse3: 10000,
+    rentHouse4: 12000,
+    rentTower: 14000,
+    buildingCost: 2000,
   },
-  // Space 35: New Delhi Railway Station (Transit 4 - Northern Gateway)
+  // Space 35: New Delhi Terminal (Transit 4 - Northern Gateway)
   {
     spaceIndex: 35,
     type: 'TRANSIT',
-    id: 'delhi_railway_station',
+    id: 'new_delhi_terminal',
     name: 'New Delhi Terminal',
     price: 2000,
     mortgageValue: 1000,
     unmortgageCost: 1100,
     baseRent: 250,
   },
-  // Space 36: Market Buzz
+  // Space 36: Dehradun (Green - Tier 1 Capital Corridor)
   {
     spaceIndex: 36,
-    type: 'CARD',
-    id: 'market_buzz_3',
-    deck: 'MARKET',
-    name: 'Market Buzz',
+    type: 'PROPERTY',
+    id: 'dehradun',
+    name: 'Dehradun',
+    group: 'GREEN',
+    price: 3200,
+    mortgageValue: 1600,
+    unmortgageCost: 1760,
+    baseRent: 280,
+    rentHouse1: 1500,
+    rentHouse2: 4500,
+    rentHouse3: 10000,
+    rentHouse4: 12000,
+    rentTower: 14000,
+    buildingCost: 2000,
   },
-  // Space 37: New Delhi (Dark Blue - Tier 1+ National Political Capital)
+  // Space 37: Navi Mumbai (Dark Blue - Tier 1+ Financial Capital)
   {
     spaceIndex: 37,
     type: 'PROPERTY',
-    id: 'new_delhi',
-    name: 'New Delhi',
+    id: 'navi_mumbai',
+    name: 'Navi Mumbai',
     group: 'DARKBLUE',
     price: 3500,
     mortgageValue: 1750,
@@ -519,15 +598,25 @@ export const BOARD_SPACES: BoardSpaceDefinition[] = [
     rentTower: 15000,
     buildingCost: 2000,
   },
-  // Space 38: Infrastructure Wealth Tax
+  // Space 38: New Delhi (Dark Blue - National Capital)
   {
     spaceIndex: 38,
-    type: 'TAX',
-    id: 'infrastructure_levy',
-    name: 'Infrastructure Levy',
-    amount: 1000,
+    type: 'PROPERTY',
+    id: 'new_delhi',
+    name: 'New Delhi',
+    group: 'DARKBLUE',
+    price: 3800,
+    mortgageValue: 1900,
+    unmortgageCost: 2090,
+    baseRent: 380,
+    rentHouse1: 1900,
+    rentHouse2: 5500,
+    rentHouse3: 12000,
+    rentHouse4: 14000,
+    rentTower: 16000,
+    buildingCost: 2000,
   },
-  // Space 39: Mumbai (Dark Blue - Tier 1+ Supreme Financial Capital)
+  // Space 39: Mumbai (Dark Blue - Financial Capital of India)
   {
     spaceIndex: 39,
     type: 'PROPERTY',
@@ -537,7 +626,7 @@ export const BOARD_SPACES: BoardSpaceDefinition[] = [
     price: 4000,
     mortgageValue: 2000,
     unmortgageCost: 2200,
-    baseRent: 500,
+    baseRent: 400,
     rentHouse1: 2000,
     rentHouse2: 6000,
     rentHouse3: 14000,
@@ -548,21 +637,21 @@ export const BOARD_SPACES: BoardSpaceDefinition[] = [
 ];
 
 /**
- * Mapping of color groups to member spaceIndices (Exact 20 cities across 8 groups)
+ * Mapping of color groups to member spaceIndices (Exact 28 cities across 8 groups, 7 cities per side)
  */
 export const PROPERTY_GROUPS: Record<PropertyColorGroup, number[]> = {
-  BROWN: [1, 3],
-  LIGHTBLUE: [6, 8],
-  PINK: [11, 13, 14],
-  ORANGE: [16, 18, 19],
+  BROWN: [1, 3, 4],
+  LIGHTBLUE: [6, 7, 8, 9],
+  PINK: [11, 13, 14, 16],
+  ORANGE: [17, 18, 19],
   RED: [21, 23, 24],
-  YELLOW: [26, 27, 29],
-  GREEN: [31, 32],
-  DARKBLUE: [37, 39],
+  YELLOW: [26, 27, 28, 29],
+  GREEN: [31, 33, 34, 36],
+  DARKBLUE: [37, 38, 39],
 };
 
 export const TRANSIT_SPACES = [5, 15, 25, 35];
-export const UTILITY_SPACES = [9, 12, 28, 34];
+export const UTILITY_SPACES: number[] = [];
 
 /**
  * Civic Fund Card Deck
@@ -603,33 +692,34 @@ export const CIVIC_FUND_CARDS: CardAction[] = [
   {
     id: 'civic_5',
     deck: 'CIVIC',
-    title: 'Get Out of Jail Free',
-    description: 'Special legal writ granted by court. Keep this card.',
-    actionType: 'JAIL_FREE',
+    title: 'Municipal Inheritance',
+    description: 'Inherited royal ancestral estate grant. Collect ₹1,500.',
+    actionType: 'CASH_BANK',
+    amount: 1500,
   },
   {
     id: 'civic_6',
     deck: 'CIVIC',
+    title: 'Bail Bond Waiver',
+    description: 'Get Out of Central Jail Free card issued.',
+    actionType: 'JAIL_FREE',
+  },
+  {
+    id: 'civic_7',
+    deck: 'CIVIC',
     title: 'Property Renovation Assessment',
-    description: 'Municipal heritage building assessment: Pay ₹400 per house and ₹1,150 per tower.',
+    description: 'Municipal heritage building assessment: Pay ₹400 per house, ₹1,150 per tower.',
     actionType: 'REPAIR_TAX',
     perHouse: 400,
     perTower: 1150,
   },
   {
-    id: 'civic_7',
-    deck: 'CIVIC',
-    title: 'Consultancy Retainer',
-    description: 'Retained as advisor for Smart Cities mission. Collect ₹500 from each player.',
-    actionType: 'CASH_PLAYERS',
-    amount: 500,
-  },
-  {
     id: 'civic_8',
     deck: 'CIVIC',
-    title: 'Go to Central Jail',
-    description: 'Regulatory audit failure! Go directly to Jail. Do not pass START, do not collect ₹2,000.',
-    actionType: 'GO_TO_JAIL',
+    title: 'Consultancy Retainer',
+    description: 'Smart City urban planning consultancy fee. Collect ₹500.',
+    actionType: 'CASH_BANK',
+    amount: 500,
   },
 ];
 
@@ -640,66 +730,65 @@ export const MARKET_BUZZ_CARDS: CardAction[] = [
   {
     id: 'market_1',
     deck: 'MARKET',
-    title: 'Stock Market Surge',
-    description: 'Market indices hit all-time high! Portfolio gains ₹1,500.',
+    title: 'Stock Market Bull Run',
+    description: 'BSE Sensex reaches record high! Collect ₹1,500.',
     actionType: 'CASH_BANK',
     amount: 1500,
   },
   {
     id: 'market_2',
     deck: 'MARKET',
-    title: 'Speeding Fine on Expressway',
-    description: 'Over-speeding on expressway corridor. Pay ₹1,500.',
-    actionType: 'PAY_BANK',
-    amount: 1500,
+    title: 'Road Works Toll Surcharge',
+    description: 'Toll barrier maintenance fee: Pay ₹250 per house, ₹1,000 per tower.',
+    actionType: 'REPAIR_TAX',
+    perHouse: 250,
+    perTower: 1000,
   },
   {
     id: 'market_3',
     deck: 'MARKET',
-    title: 'Advance to Mumbai',
-    description: 'Visit the Financial Capital! Move to Mumbai. If you pass START, collect ₹2,000.',
+    title: 'Express Highway to Mumbai',
+    description: 'Advance straight to Mumbai. If you pass START, collect ₹2,000.',
     actionType: 'MOVE_TO',
     targetSpace: 39,
   },
   {
     id: 'market_4',
     deck: 'MARKET',
-    title: 'Trip to CST Mumbai Terminal',
-    description: 'Catch the express at Chhatrapati Shivaji Terminus. If you pass START, collect ₹2,000.',
-    actionType: 'MOVE_TO',
-    targetSpace: 5,
+    title: 'Speeding E-Challan',
+    description: 'High-speed automated camera citation on expressway. Pay ₹500.',
+    actionType: 'PAY_BANK',
+    amount: 500,
   },
   {
     id: 'market_5',
     deck: 'MARKET',
-    title: 'E-commerce Sale Cashback',
-    description: 'Mega shopping cashback credited to UPI account. Collect ₹500.',
+    title: 'Startup IPO Oversubscribed',
+    description: 'Early tech equity dividend realized. Collect ₹2,000.',
     actionType: 'CASH_BANK',
-    amount: 500,
+    amount: 2000,
   },
   {
     id: 'market_6',
     deck: 'MARKET',
-    title: 'Road Works Toll Surcharge',
-    description: 'Toll barrier maintenance fee: Pay ₹250 per house and ₹1,000 per tower.',
-    actionType: 'REPAIR_TAX',
-    perHouse: 250,
-    perTower: 1000,
+    title: 'Judicial Summons: Go to Jail',
+    description: 'Direct incarceration order. Move directly to Jail. Do not pass START.',
+    actionType: 'GO_TO_JAIL',
   },
   {
     id: 'market_7',
     deck: 'MARKET',
-    title: 'Go Back 3 Spaces',
-    description: 'Severe weather waterlogging! Move back 3 spaces.',
-    actionType: 'MOVE_RELATIVE',
-    amount: -3,
+    title: 'Board of Directors Fee',
+    description: 'Elected independent director of infrastructure PSU. Collect ₹1,000.',
+    actionType: 'CASH_BANK',
+    amount: 1000,
   },
   {
     id: 'market_8',
     deck: 'MARKET',
-    title: 'Celebration Gift Distribution',
-    description: 'Grand celebration hosted in Udaipur! Give ₹500 to every player.',
-    actionType: 'PAY_PLAYERS',
-    amount: 500,
+    title: 'Transit Tour to CST Mumbai',
+    description: 'Take a direct heritage express trip to CST Mumbai.',
+    actionType: 'MOVE_TO',
+    targetSpace: 5,
   },
 ];

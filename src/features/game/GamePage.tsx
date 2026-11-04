@@ -180,7 +180,7 @@ export const GamePage: React.FC = () => {
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-[210px_1fr_250px] xl:grid-cols-[230px_1fr_270px] gap-2 items-stretch overflow-hidden min-h-0">
         {/* Left Column: Player Strip & Space Deed Inspector */}
         <div
-          className={`h-full overflow-y-auto pr-1 gap-2 min-w-0 ${
+          className={`h-full overflow-hidden justify-between pr-0.5 gap-1.5 min-w-0 ${
             mobileDrawerOpen ? 'flex flex-col' : 'hidden lg:flex lg:flex-col'
           }`}
         >
@@ -225,7 +225,7 @@ export const GamePage: React.FC = () => {
         </div>
 
         {/* Right Column: Actions, Live Activity & My Info with Click Portfolio */}
-        <div className="hidden lg:block h-full overflow-y-auto pl-1 min-w-0">
+        <div className="hidden lg:flex lg:flex-col justify-between h-full overflow-hidden pl-0.5 min-w-0">
           <ActionPanel
             gameState={gameState}
             selectedSpaceIndex={selectedSpaceIndex}

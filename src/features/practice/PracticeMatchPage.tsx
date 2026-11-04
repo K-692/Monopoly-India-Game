@@ -151,7 +151,7 @@ export const PracticeMatchPage: React.FC = () => {
       {/* Main 3-Column Non-Scrollable Game Canvas with Stretched Board and Compact Left Panel */}
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-[210px_1fr_250px] xl:grid-cols-[230px_1fr_270px] gap-2 items-stretch overflow-hidden min-h-0">
         {/* Left Column: Player Strip (Compact Width, Select to View Info) & Space Deed Inspector */}
-        <div className="hidden lg:flex lg:flex-col h-full overflow-y-auto pr-1 gap-2 min-w-0">
+        <div className="hidden lg:flex lg:flex-col justify-between h-full overflow-hidden pr-0.5 gap-1.5 min-w-0">
           <PlayerStrip
             players={gameState.players}
             currentPlayerUid={gameState.currentPlayerUid}
@@ -193,7 +193,7 @@ export const PracticeMatchPage: React.FC = () => {
         </div>
 
         {/* Right Column: Turn Actions, Live Activity & My Info with Click Portfolio */}
-        <div className="hidden lg:block h-full overflow-y-auto pl-1 min-w-0">
+        <div className="hidden lg:flex lg:flex-col justify-between h-full overflow-hidden pl-0.5 min-w-0">
           <ActionPanel
             gameState={gameState}
             selectedSpaceIndex={selectedSpaceIndex}
