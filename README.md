@@ -50,6 +50,7 @@ The objective of Indian Monopoly is to accumulate wealth, acquire high-yield Ind
 - **Acquiring Cities**:
   - Landing on an unowned city prompts a pointed comment box. You can purchase the property deed or decline.
   - Upon purchase, the grid space is branded with your player token color and displays your ownership badge.
+  - To keep the board spacious and prevent text disappearing when pawns land, grids display the city name; simply click any grid cell anytime to open the **City Deed Inspection Modal** showing complete prices, mortgage values, and rent schedules.
 - **Next-Turn Construction Constraint**:
   - You **cannot build a house on the same turn** you acquire a city.
   - Construction is unlocked on subsequent rounds when you visit your city again with sufficient funds.

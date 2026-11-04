@@ -137,12 +137,11 @@ The card engine manages two authoritative 12-rule indexed decks:
 - Slimmed the left panel to `w-32 sm:w-36 md:w-40`.
 - Maximized board canvas across `flex-1` width and `h-[calc(100dvh-50px)]`, providing expansive, comfortable grid cells with zero page scrolling.
 
-### 2.10 Grid Visual Hierarchy: Foreground Bold Typography & Front-Layered Contents
-- In strict adherence to legibility standards, background image watermarks are omitted from city grids.
-- All text contents (City Name, Purchase Price, Mortgage Value, Tax amounts, and Rule labels) are brought strictly into the **foreground** on a dedicated high-contrast layer with larger, bolder typography:
-  - **City Names**: Single-line font scaling (`text-[8.5px]` to `text-[13px]`) with `font-black` weighting and drop-shadow definitions.
-  - **Prices & Mortgages**: Bold emerald purchase price alongside explicit mortgage values (`M: ₹{mortgageValue}`) in high-contrast styling.
-  - **Special Space Icons**: Transit, utility, tax, and card vector motifs are placed with subtle opacity behind the text, ensuring text readability is never compromised.
+### 2.10 Grid Visual Hierarchy: Name-Only Focus & Dynamic Player Token Positioning
+- In strict adherence to legibility standards and viewport geometry, individual city grids display **strictly the city/place name** without in-grid price or mortgage clutter.
+- When players land on a tile, their avatar tokens (`(K)`, `(P)`) are rendered directly beneath the city name with zero clipping, overflow, or occlusion. The city name remains 100% visible at all times.
+- Full financial intelligence (deed purchase price, mortgage value, unmortgage cost, and complete tier-by-tier rent schedules) is seamlessly accessible by clicking any grid cell to open the authoritative `CityDeedModal`.
+- Subtle vector motifs for special spaces (Transit express trains/airports, utilities, taxes, cards) are positioned in the background with reduced opacity so text remains crystal clear.
 
 ### 2.11 Discrete Step-by-Step Walking Animation (0.5s per Space)
 - Movement across the 40-space board utilizes a discrete step-by-step traversal loop:

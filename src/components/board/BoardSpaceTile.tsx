@@ -82,10 +82,10 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
   const nameLength = space.name.length;
   const nameFontSizeClass =
     nameLength > 13
-      ? 'text-[8.5px] sm:text-[9.5px] md:text-[10.5px]'
+      ? 'text-[9.5px] sm:text-[10.5px] md:text-[11.5px]'
       : nameLength > 8
-        ? 'text-[9.5px] sm:text-[10.5px] md:text-[11.5px]'
-        : 'text-[10.5px] sm:text-[11.5px] md:text-[13px]';
+        ? 'text-[10.5px] sm:text-[11.5px] md:text-[12.5px]'
+        : 'text-[11.5px] sm:text-[12.5px] md:text-[14px]';
 
   // Tile ownership styling: When owned, color grid with owner's player color
   const tileStyle: React.CSSProperties = {
@@ -179,10 +179,10 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
           {renderPlayerTokens('h-6')}
         </div>
       ) : (
-        /* Regular Edge City & Space Tile: Structured non-overlapping layout */
-        <div className="relative w-full h-full flex flex-col justify-between overflow-hidden">
-          {/* Subtle Vector Icon Motif positioned BEHIND text contents */}
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 opacity-20 dark:opacity-30 select-none overflow-hidden p-1">
+        /* Regular Edge City & Space Tile: Keep ONLY the city name and show player tokens cleanly */
+        <div className="relative w-full h-full flex flex-col justify-between items-center text-center p-0.5 sm:p-1 overflow-hidden select-none">
+          {/* Subtle Vector Icon Motif positioned BEHIND text */}
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 opacity-15 dark:opacity-25 select-none overflow-hidden p-1">
             {isRailway && <RailwayImage className="w-9 h-9 sm:w-11 sm:h-11" />}
             {isAirport && <AirportImage className="w-9 h-9 sm:w-11 sm:h-11" />}
             {!isRailway && !isAirport && space.type === 'UTILITY' && (
@@ -204,21 +204,12 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
             )}
           </div>
 
-          {/* BOTTOM TILES (Row 11): Board center is above; Player tokens and owner bar sit at top facing center */}
-          {coord.orientation === 'bottom' && (
-            <div className="relative z-10">
-              {renderOwnerAccentBar()}
-              {playersHere.length > 0 ? (
-                renderPlayerTokens('h-6')
-              ) : (
-                <div className="h-1.5 shrink-0" />
-              )}
-            </div>
-          )}
+          {/* Owner Accent Bar */}
+          {ownerColor && renderOwnerAccentBar()}
 
-          {/* Core Content: City Name, In-Grid Built Houses/Tower, and Price in FRONT */}
-          <div className="relative z-10 flex-1 flex flex-col justify-center items-center text-center px-0.5 sm:px-1 gap-0.5 min-h-0 overflow-hidden">
-            {/* Line 1: City / Place Name (Single line, bold, larger font size) */}
+          {/* Core Content: Keep ONLY the name of the city, houses/tower, and active player tokens */}
+          <div className="relative z-10 flex-1 flex flex-col justify-center items-center text-center w-full min-h-0 overflow-hidden px-0.5">
+            {/* City / Place Name (Large, Bold, Fully Legible, Never Disappears) */}
             <span
               title={space.name}
               className={cn(
@@ -231,7 +222,7 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
 
             {/* In-Grid Development: Built Houses (1-4) or Commercial Tower (5) */}
             {propertyState && propertyState.buildings > 0 && (
-              <div className="my-0.5 shrink-0 flex items-center justify-center">
+              <div className="mt-0.5 shrink-0 flex items-center justify-center">
                 {propertyState.buildings === 5 ? (
                   <div className="flex items-center gap-0.5 px-1 py-0.2 rounded bg-amber-500 text-white font-black text-[7.5px] sm:text-[8.5px] shadow-2xs leading-none">
                     <span>🏢</span>
@@ -251,56 +242,27 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
 
             {/* Mortgaged indicator tag */}
             {propertyState?.isMortgaged && (
-              <span className="text-[7px] sm:text-[7.5px] font-black text-red-600 bg-red-100 dark:bg-red-950/60 border border-red-300 dark:border-red-800 px-1 rounded-full leading-none my-0.2">
+              <span className="text-[7px] sm:text-[7.5px] font-black text-red-600 bg-red-100 dark:bg-red-950/60 border border-red-300 dark:border-red-800 px-1 rounded-full leading-none mt-0.5">
                 MORTGAGED
               </span>
             )}
 
-            {/* Line 2: Purchase Price & Mortgage Value (Larger, High Contrast) */}
-            {'price' in space && (
-              <div className="flex items-center justify-center gap-1 leading-none flex-wrap">
-                <span className="text-[8.5px] sm:text-[9.5px] md:text-[10.5px] font-black text-emerald-800 dark:text-emerald-300 whitespace-nowrap leading-none drop-shadow-2xs">
-                  ₹{space.price.toLocaleString('en-IN')}
-                </span>
-                <span className="text-[7.5px] sm:text-[8px] md:text-[9px] font-bold text-gray-700 dark:text-gray-300 whitespace-nowrap leading-none">
-                  M: ₹{('mortgageValue' in space ? space.mortgageValue : Math.floor((space as { price: number }).price / 2)).toLocaleString('en-IN')}
-                </span>
+            {/* Player Tokens landing on this grid: Positioned neatly below city name with zero overflow */}
+            {playersHere.length > 0 && (
+              <div className="mt-0.5 shrink-0 flex items-center justify-center gap-1">
+                {playersHere.map((p) => (
+                  <div
+                    key={p.uid}
+                    title={p.displayName}
+                    style={{ backgroundColor: p.colorToken }}
+                    className="w-5 h-5 sm:w-5.5 sm:h-5.5 rounded-full border-2 border-white shadow-token-glow flex items-center justify-center text-[9.5px] sm:text-[10.5px] text-white font-black animate-pulse shrink-0"
+                  >
+                    {p.displayName.charAt(0).toUpperCase()}
+                  </div>
+                ))}
               </div>
             )}
-            {'amount' in space && (
-              <span className="text-[9.5px] sm:text-[10.5px] md:text-[11.5px] font-black text-red-600 dark:text-red-400 whitespace-nowrap leading-none drop-shadow-2xs">
-                ₹{space.amount.toLocaleString('en-IN')}
-              </span>
-            )}
-            {space.type === 'CARD' && (
-              <span className="text-[8.5px] sm:text-[9.5px] md:text-[10px] font-black text-amber-800 dark:text-amber-300 whitespace-nowrap leading-none drop-shadow-2xs">
-                {space.deck === 'CIVIC' ? 'Treasury' : 'Fortune'}
-              </span>
-            )}
           </div>
-
-          {/* TOP, LEFT, RIGHT TILES: Player tokens and owner bar sit towards the board interior */}
-          {coord.orientation === 'top' && (
-            <div className="relative z-10">
-              {playersHere.length > 0 ? (
-                renderPlayerTokens('h-6')
-              ) : (
-                <div className="h-1.5 shrink-0" />
-              )}
-              {renderOwnerAccentBar()}
-            </div>
-          )}
-
-          {(coord.orientation === 'left' || coord.orientation === 'right') && (
-            <div className="relative z-10">
-              {playersHere.length > 0 ? (
-                renderPlayerTokens('h-6')
-              ) : (
-                <div className="h-1 shrink-0" />
-              )}
-              {renderOwnerAccentBar()}
-            </div>
-          )}
         </div>
       )}
     </div>
