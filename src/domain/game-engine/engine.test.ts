@@ -234,5 +234,123 @@ describe('Pure Game Engine', () => {
     expect(state.currentPlayerUid).toBe('user_1');
     expect(state.phase).toBe('AWAIT_ROLL');
   });
+
+  it('records boughtOnTurn and prohibits building house on the same turn, allowing it on subsequent turn', () => {
+    let state = createInitialGame('room_1', 'game_1', mockMembers);
+    state.turnNumber = 1;
+
+    // Roll 1+0 -> Space 1 (Jaipur)
+    state = applyGameCommand(
+      state,
+      {
+        commandId: 'cmd_roll_1',
+        roomId: 'room_1',
+        gameId: 'game_1',
+        expectedVersion: state.version,
+        type: 'ROLL_DICE',
+        payload: {},
+      },
+      'user_1',
+      [1, 0]
+    ).nextState;
+
+    // Buy space 1 on Turn 1
+    state = applyGameCommand(
+      state,
+      {
+        commandId: 'cmd_buy_1',
+        roomId: 'room_1',
+        gameId: 'game_1',
+        expectedVersion: state.version,
+        type: 'BUY_PROPERTY',
+        payload: { spaceIndex: 1 },
+      },
+      'user_1'
+    ).nextState;
+
+    expect(state.properties[1].boughtOnTurn).toBe(1);
+
+    // Try to build on turn 1 -> Should be rejected
+    expect(() => {
+      applyGameCommand(
+        state,
+        {
+          commandId: 'cmd_build_fail',
+          roomId: 'room_1',
+          gameId: 'game_1',
+          expectedVersion: state.version,
+          type: 'BUILD',
+          payload: { spaceIndex: 1 },
+        },
+        'user_1'
+      );
+    }).toThrow(/next turn/i);
+
+    // Advance to Turn 3, player visits space 1 again
+    state.turnNumber = 3;
+    state.players[0].position = 1;
+    state.players[0].cash = 5000;
+
+    // Now building is permitted!
+    const buildRes = applyGameCommand(
+      state,
+      {
+        commandId: 'cmd_build_success',
+        roomId: 'room_1',
+        gameId: 'game_1',
+        expectedVersion: state.version,
+        type: 'BUILD',
+        payload: { spaceIndex: 1 },
+      },
+      'user_1'
+    );
+
+    expect(buildRes.nextState.properties[1].buildings).toBe(1);
+  });
+
+  it('triggers index rule matching dice total when landing on Civic Fund and sets activeCardPopup', () => {
+    let state = createInitialGame('room_1', 'game_1', mockMembers);
+    const initialCash = state.players[0].cash;
+
+    // Roll 1 + 1 = 2 -> Space 2 is Civic Fund!
+    // Total dice is 2 -> Civic Fund Rule #2 is "Tax refund: Receive ₹700"
+    state = applyGameCommand(
+      state,
+      {
+        commandId: 'cmd_roll_civic',
+        roomId: 'room_1',
+        gameId: 'game_1',
+        expectedVersion: state.version,
+        type: 'ROLL_DICE',
+        payload: {},
+      },
+      'user_1',
+      [1, 1]
+    ).nextState;
+
+    expect(state.players[0].position).toBe(2);
+    expect(state.activeCardPopup).toBeDefined();
+    expect(state.activeCardPopup?.deck).toBe('CIVIC');
+    expect(state.activeCardPopup?.ruleIndex).toBe(2);
+    expect(state.activeCardPopup?.card.title).toBe('Tax refund');
+    // Received ₹700
+    expect(state.players[0].cash).toBe(initialCash + 700);
+
+    // Dismiss card popup
+    const dismissedState = applyGameCommand(
+      state,
+      {
+        commandId: 'cmd_dismiss',
+        roomId: 'room_1',
+        gameId: 'game_1',
+        expectedVersion: state.version,
+        type: 'DISMISS_CARD_POPUP',
+        payload: {},
+      },
+      'user_1'
+    ).nextState;
+
+    expect(dismissedState.activeCardPopup).toBeNull();
+  });
 });
 

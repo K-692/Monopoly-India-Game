@@ -206,6 +206,7 @@ export const GamePage: React.FC = () => {
               selectedSpaceIndex !== null &&
               gameState.properties[selectedSpaceIndex]?.ownerUid === player?.uid
             }
+            turnNumber={gameState.turnNumber}
             onDispatch={dispatchAction}
           />
         </div>
@@ -218,6 +219,7 @@ export const GamePage: React.FC = () => {
             onSelectSpace={selectSpace}
             isRolling={isRolling}
             onRollDice={() => dispatchAction('ROLL_DICE')}
+            onDismissCardPopup={() => dispatchAction('DISMISS_CARD_POPUP')}
             isMyTurn={isMyTurn && !walkingAnimation}
             lastEvent={events[0]}
             walkingAnimation={walkingAnimation}

@@ -287,6 +287,9 @@ function triggerAiTurn() {
           store.dispatchAction('DECLINE_PROPERTY');
         }
       } else if (s.phase === 'MANAGEMENT' || s.phase === 'TURN_END') {
+        if (s.activeCardPopup && s.activeCardPopup.playerUid === currentUid) {
+          store.dispatchAction('DISMISS_CARD_POPUP');
+        }
         store.dispatchAction('END_TURN');
       }
       usePracticeStore.setState({ isAiThinking: false });
@@ -295,4 +298,9 @@ function triggerAiTurn() {
     }
   }, 450);
 }
+
+if (typeof window !== 'undefined') {
+  (window as unknown as { __PRACTICE_STORE__?: unknown }).__PRACTICE_STORE__ = usePracticeStore;
+}
+
 

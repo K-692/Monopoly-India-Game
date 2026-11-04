@@ -11,6 +11,7 @@ interface SpaceDeedInspectorProps {
   propertyState?: PropertyState | null;
   players: PlayerState[];
   isOwner?: boolean;
+  turnNumber?: number;
   onDispatch?: (type: GameActionType, payload?: Record<string, unknown>) => void;
 }
 
@@ -19,6 +20,7 @@ export const SpaceDeedInspector: React.FC<SpaceDeedInspectorProps> = ({
   propertyState,
   players,
   isOwner = false,
+  turnNumber,
   onDispatch,
 }) => {
   if (!space) {
@@ -45,7 +47,17 @@ export const SpaceDeedInspector: React.FC<SpaceDeedInspectorProps> = ({
   const hasEnoughCash = owner ? owner.cash >= buildingCost : false;
   const currentBuildings = propertyState?.buildings ?? 0;
   const isMaxBuildings = currentBuildings >= 5;
-  const canBuild = isOwner && isOwnerVisiting && hasEnoughCash && !isMaxBuildings && !propertyState?.isMortgaged;
+  const isBoughtSameTurn =
+    propertyState?.boughtOnTurn !== undefined &&
+    turnNumber !== undefined &&
+    turnNumber <= propertyState.boughtOnTurn;
+  const canBuild =
+    isOwner &&
+    isOwnerVisiting &&
+    hasEnoughCash &&
+    !isMaxBuildings &&
+    !propertyState?.isMortgaged &&
+    !isBoughtSameTurn;
   const isTax = space.type === 'TAX';
 
   const groupColor = isProperty && 'group' in space ? GROUP_COLOR_MAP[space.group] : undefined;
@@ -187,6 +199,8 @@ export const SpaceDeedInspector: React.FC<SpaceDeedInspectorProps> = ({
                 <span>
                   {isMaxBuildings
                     ? 'Commercial Tower Maxed'
+                    : isBoughtSameTurn
+                    ? 'Build Allowed Next Turn'
                     : !isOwnerVisiting
                     ? 'Visit City to Build'
                     : currentBuildings === 4

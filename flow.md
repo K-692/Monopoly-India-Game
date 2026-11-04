@@ -42,21 +42,21 @@ The property trading paradigm is mapped onto the contemporary Indian urban-econo
   $$\text{Total Spaces} = 24 \text{ (Cities)} + 4 \text{ (Transit)} + 2 \text{ (Civic)} + 2 \text{ (Market)} + 2 \text{ (Utilities)} + 2 \text{ (Taxes)} + 4 \text{ (Corners)} = 40$$
 
 ### 1.2 Canonical 12 Market Buzz & 12 Civic Fund Card Decks
-The card engine manages two authoritative 12-card decks:
-- **Market Buzz (12 Cards)**:
+The card engine manages two authoritative 12-rule indexed decks:
+- **Market Buzz (12 Indexed Rules)**:
   1. `Startup grant`: Receive ₹800 from the bank (`CASH_BANK: 800`).
-  2. `Festival travel`: Advance to Start and collect ₹2,000 (`MOVE_TO: 0`).
-  3. `Business conference`: Move to Delhi – Connaught Place (#38). Collect Start money if passed (`MOVE_TO: 38`).
+  2. `Festival travel`: Advance to Start and collect ₹2,000 (`ADVANCE_START`).
+  3. `Business conference`: Move to Delhi – Connaught Place (#38). Collect Start money if passed (`ADVANCE_POSITION: 38`).
   4. `Railway expansion`: Advance to next Transit space (#5, #15, #25, #35). If owned by another player, pay $2\times$ normal transit rent (`ADVANCE_NEXT_TRANSIT: 2x rent`).
-  5. `Road diversion`: Move backwards 3 spaces and resolve destination space (`MOVE_RELATIVE: -3`).
+  5. `Road diversion`: Move backwards 3 spaces and resolve destination space (`MOVE_BACKWARD: 3`).
   6. `Highway toll`: Pay ₹300 to the bank (`PAY_BANK: 300`).
-  7. `Property maintenance`: Pay ₹250 for each development block and ₹750 for each commercial tower (`REPAIR_TAX: 250/750`).
+  7. `Property maintenance`: Pay ₹250 for each development block and ₹750 for each commercial tower (`REPAIRS: 250/750`).
   8. `Successful tender`: Receive ₹1,200 from the bank (`CASH_BANK: 1200`).
   9. `Regulatory violation`: Go directly to Jail. Do not collect Start money (`GO_TO_JAIL`).
   10. `Transit dividend`: Receive ₹400 for each Transit space owned (`TRANSIT_DIVIDEND: 400`).
   11. `Emergency procurement`: Pay ₹700 to the bank (`PAY_BANK: 700`).
-  12. `Mumbai investment trip`: Advance to Mumbai – Marine Drive (#39). Collect Start money if passed (`MOVE_TO: 39`).
-- **Civic Fund (12 Cards)**:
+  12. `Mumbai investment trip`: Advance to Mumbai – Marine Drive (#39). Collect Start money if passed (`ADVANCE_POSITION: 39`).
+- **Civic Fund (12 Indexed Rules)**:
   1. `Bank interest`: Receive ₹500 (`CASH_BANK: 500`).
   2. `Tax refund`: Receive ₹700 (`CASH_BANK: 700`).
   3. `Education expense`: Pay ₹400 (`PAY_BANK: 400`).
@@ -74,41 +74,67 @@ The card engine manages two authoritative 12-card decks:
 
 ## 2. Information Architecture, Board Geometry & Visual Hierarchy
 
-### 2.1 Center Card Layout & Central Dice Placement
-- **Center Board Arrangement**:
-  - Left: Civic Fund card with complete written title and instruction.
-  - Center: 3D interactive rolling dice arena with outcome indicator and roll action button.
-  - Right: Market Buzz card with complete written title and instruction.
-- **No Line-Clamping**: Instructions are fully articulated within the card surface with zero truncation.
+### 2.1 Center Board Architecture: Dual 1–12 Indexed Rule Panels & Central Tumbling Dice
+- **Dual Indexed Rule Panels in Place of Cards**:
+  - Instead of displaying isolated card backs or single face-up cards, the board center features two structured panels:
+    - **Left Panel**: Civic Fund (12 Community Treasury Rules, indexed #1 to #12) with terracotta/amber theme.
+    - **Right Panel**: Market Buzz (12 Fortune & Chance Rules, indexed #1 to #12) with emerald/teal theme.
+  - All 12 rules are visible simultaneously with index numbers, titles, and amounts.
+  - Active rules light up with a vibrant pulse highlight matching the rolled dice total.
+- **Central 3D Tumbling Dice Arena**:
+  - Located directly between the two indexed panels.
+  - Houses interactive 3D dice faces with rolling animations, roll button, rolled total badge, and doubles alert.
 
-### 2.2 Visiting Building Logic & Direct In-Grid House/Tower Display
-- **Visiting Trigger Requirement**:
-  - If the owner player is visiting the city with sufficient cash ($\text{cash} \ge \text{buildingCost}$), they can construct a house (levels 1–4) or upgrade to a commercial tower (level 5).
-  - Full color-group monopoly is no longer mandatory for building; landing on/visiting your owned property is the key requirement.
-- **In-Grid Development Visualization**:
-  - Houses are rendered directly inside the city tile: $1$ to $4$ green house icons (`🏠`).
-  - Level 5 is rendered as a prominent golden Commercial Tower badge (`🏢 TOWER`).
-  - Owner identification for un-upgraded properties is rendered via a clean, compact text pill.
-- **Removal of City Colour Coding**:
-  - Color bars, owner borders, and group strips are removed. All tiles feature clean, neutral parchment aesthetics.
+### 2.2 Dice-Total Rule Selection & Applied Card Rule Pop-up Modal
+- **Deterministic Dice-to-Rule Resolution**:
+  - Landing on Civic Fund or Market Buzz resolves the applied rule index strictly from the player's rolled `diceTotal` ($1 \le \text{diceTotal} \le 12$).
+- **Applied Card Rule Pop-up Window**:
+  - A modal window displays:
+    - Deck type badge (`CIVIC FUND` or `MARKET BUZZ`)
+    - Exact Rule Index (`RULE #X`)
+    - Explicit `🎲 Dice Total: X` badge linking the roll directly to the selected rule
+    - Rule title, description, and currency amount
+    - "Acknowledge Rule" button that dispatches `DISMISS_CARD_POPUP` to resume turn flow smoothly.
 
-### 2.3 Universal Mortgaging at First or Action Step
+### 2.3 Delayed Building Logic (Next Turn Construction Constraint)
+- **Turn-Delay Invariant**:
+  - When a player purchases a property, the engine records `propState.boughtOnTurn = state.turnNumber`.
+  - Construction of houses or towers on that property is strictly prohibited during the turn of purchase (`currentTurnNumber <= propState.boughtOnTurn`).
+  - Building is permitted starting from subsequent turns (`currentTurnNumber > propState.boughtOnTurn`) when the owner visits their city with sufficient funds.
+  - UI action buttons clearly indicate `"Build Allowed Next Turn (Turn #X)"` when the property was acquired on the current turn.
+
+### 2.4 Purchased City Ownership Grid Coloring
+- **Player Color Theming on Purchase**:
+  - When a player purchases a city, utility, or transit space, the entire grid cell adopts the player's theme:
+    - **Cell Border**: 2px solid border styled with `owner.colorToken`.
+    - **Cell Background**: Tinted with an alpha-blended wash of `owner.colorToken + '18'` (light mode) / `'28'` (dark mode).
+    - **Accent Header**: Sleek top/inner banner colored with `owner.colorToken` displaying the owner's display name.
+    - **In-Grid Development**: Up to 4 green house icons (`🏠`) or golden commercial tower (`🏢 TOWER`).
+  - Unowned properties maintain clean, neutral parchment aesthetics with standard borders.
+
+### 2.5 Non-Overlapping Perimeter Geometry & Dedicated Player Pawn Slots
+- **Expanded Perimeter Dimensions**:
+  - Perimeter grid layout configured as `gridTemplateColumns: '1.35fr repeat(9, 1fr) 1.35fr'` and `gridTemplateRows: '1.4fr repeat(9, 1fr) 1.4fr'`.
+  - Gives 40% more vertical space to top/bottom cells and 35% more width to left/right cells.
+- **Dedicated Non-Overlapping Token Slots**:
+  - Bottom edge tiles: Player pawns sit in a dedicated top flex row facing the board center, above city names and prices.
+  - Top edge tiles: Player pawns sit in a dedicated bottom flex row facing the board center, below city names and prices.
+  - Left & Right tiles: Dedicated inner slots ensure zero overlap.
+  - Sequential flex layout guarantees 100% mathematical impossibility of player pawns or icons colliding with city names or price tags.
+- **Zero Scrolling Guarantee**: Entire game view adapts to desktop and laptop screens with zero scrollbars.
+
+### 2.6 Universal Mortgaging at First or Action Step
 - Active players can mortgage or redeem any city they own at either:
   - **First Step**: Before rolling dice (`AWAIT_ROLL`).
   - **Action Step**: During post-roll resolution (`PROPERTY_DECISION`, `MANAGEMENT`, `ACTION_REQUIRED`, `TURN_END`).
 - Accessible directly from `SpaceDeedInspector` and the `ActionPanel` portfolio list.
-
-### 2.4 Left Panel Close (Cross) Button & Non-Overlapping Icon Geometry
-- **PlayerStrip Inspector**: Added an explicit cross button (`X`) to close the detailed "Other Player" card.
-- **Icon Non-Overlap Guarantee**: All icons (locomotives, aircraft, utilities, taxes) are in strict flex-column flow, preventing text overlap.
-- **Enlarged Player Pawn Badges**: Player tokens on the board are enlarged to `w-6 h-6 sm:w-7 sm:h-7` (24px–28px) with bold `text-[10px]–text-[11px]` initial letters, white borders, and drop shadows. Contextual tile padding ensures player pawns never collide with city names or prices.
 
 ---
 
 ## 3. Production Deployment & Verification
 
 ### 3.1 Automated CI/CD & Testing Verification
-- **Unit & State Machine Tests**: Vitest suite (7/7 tests passing) verifies discrete currency resolution, rent scaling, 3-consecutive doubles incarceration, and 2-player turn cycles.
+- **Unit & State Machine Tests**: Vitest suite (9/9 tests passing) verifies discrete currency resolution, rent scaling, 3-consecutive doubles incarceration, 2-player turn cycles, `boughtOnTurn` construction delay enforcement, and dice-total card index resolution.
 - **Cross-Platform End-to-End Suite**: Playwright multi-worker browser verification (27/27 tests passing) validates two-tab navigation, practice match launching, dice rolling, sound synthesis toggles, and responsive layouts across Chromium, WebKit, and mobile viewport simulations.
 - **Production Build**: Verified with `npm run build` (`tsc -b && vite build`) with zero TypeScript errors.
 - **GitHub Pages Deployment**:

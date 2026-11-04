@@ -61,7 +61,14 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({
       isMyTurn &&
       myPlayer &&
       myCurrentSpace?.type === 'PROPERTY' &&
-      canBuildOnProperty(myPlayer.position, myPlayer.uid, gameState.properties, myPlayer.cash, myPlayer.position).allowed
+      canBuildOnProperty(
+        myPlayer.position,
+        myPlayer.uid,
+        gameState.properties,
+        myPlayer.cash,
+        myPlayer.position,
+        gameState.turnNumber
+      ).allowed
     );
 
   return (

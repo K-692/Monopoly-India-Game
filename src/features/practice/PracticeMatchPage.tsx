@@ -174,6 +174,7 @@ export const PracticeMatchPage: React.FC = () => {
               selectedSpaceIndex !== null &&
               gameState.properties[selectedSpaceIndex]?.ownerUid === 'player_human'
             }
+            turnNumber={gameState.turnNumber}
             onDispatch={dispatchAction}
           />
         </div>
@@ -186,6 +187,7 @@ export const PracticeMatchPage: React.FC = () => {
             onSelectSpace={selectSpace}
             isRolling={isRolling}
             onRollDice={() => dispatchAction('ROLL_DICE')}
+            onDismissCardPopup={() => dispatchAction('DISMISS_CARD_POPUP')}
             isMyTurn={isHumanTurn && !isAiThinking && !walkingAnimation}
             lastEvent={events[0]}
             walkingAnimation={walkingAnimation}

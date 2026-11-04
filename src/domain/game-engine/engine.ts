@@ -153,6 +153,7 @@ export function applyGameCommand(
 
       player.cash -= price;
       propState.ownerUid = player.uid;
+      propState.boughtOnTurn = state.turnNumber;
       state.pendingAction = null;
       state.phase = 'MANAGEMENT';
 
@@ -252,7 +253,14 @@ export function applyGameCommand(
       const player = state.players.find((p) => p.uid === actorUid);
       if (!player) throw new GameEngineError('INVALID_ACTION', 'Player not found');
 
-      const check = canBuildOnProperty(spaceIdx, actorUid, state.properties, player.cash, player.position);
+      const check = canBuildOnProperty(
+        spaceIdx,
+        actorUid,
+        state.properties,
+        player.cash,
+        player.position,
+        state.turnNumber
+      );
       if (!check.allowed) {
         throw new GameEngineError('INVALID_ACTION', check.reason || 'Cannot build here');
       }
@@ -340,6 +348,12 @@ export function applyGameCommand(
       advanceTurn(state);
       const nextPlayer = state.players.find((p) => p.uid === state.currentPlayerUid);
       summary = `Turn completed. It is now ${nextPlayer?.displayName}'s turn.`;
+      break;
+    }
+
+    case 'DISMISS_CARD_POPUP': {
+      state.activeCardPopup = null;
+      summary = 'Acknowledged card rule.';
       break;
     }
 
@@ -452,10 +466,21 @@ function resolveLandingSpace(
     }
 
     case 'CARD': {
-      // Draw deterministic card based on turnNumber
+      // If a player reaches Civic Fund or Market Buzz with a total number from the dice,
+      // that index rule (1..12) gets applied.
       const deck = space.deck === 'CIVIC' ? CIVIC_FUND_CARDS : MARKET_BUZZ_CARDS;
-      const card = deck[state.turnNumber % deck.length];
+      const ruleIndex =
+        diceTotal >= 1 && diceTotal <= deck.length
+          ? diceTotal
+          : ((state.turnNumber % deck.length) + 1);
+      const card = deck[ruleIndex - 1];
       applyCardEffect(state, player, card);
+      state.activeCardPopup = {
+        deck: space.deck,
+        card,
+        ruleIndex,
+        playerUid: player.uid,
+      };
       state.phase = 'MANAGEMENT';
       break;
     }

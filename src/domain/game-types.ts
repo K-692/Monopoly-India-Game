@@ -138,6 +138,7 @@ export interface PropertyState {
   ownerUid: string | null;
   isMortgaged: boolean;
   buildings: number; // 0..4 = houses, 5 = tower
+  boughtOnTurn?: number;
 }
 
 export type TurnPhase =
@@ -209,6 +210,12 @@ export interface GameState {
   players: PlayerState[];
   properties: Record<number, PropertyState>;
   pendingAction: PendingAction | null;
+  activeCardPopup?: {
+    deck: CardDeckType;
+    card: CardAction;
+    ruleIndex: number;
+    playerUid: string;
+  } | null;
   dice: DiceState | null;
   auction: AuctionState | null;
   activeTrade: TradeOffer | null;
@@ -246,6 +253,7 @@ export type GameActionType =
   | 'PROPOSE_TRADE'
   | 'ACCEPT_TRADE'
   | 'REJECT_TRADE'
+  | 'DISMISS_CARD_POPUP'
   | 'END_TURN';
 
 export interface GameCommand {

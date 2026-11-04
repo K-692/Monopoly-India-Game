@@ -126,13 +126,15 @@ export function calculateRent(
 /**
  * Checks if a player can build a house/tower on a property.
  * Rule: If the owner player is visiting the city with sufficient money, the player can build it.
+ * Note: Building is allowed from the next turn, not in the same turn the player bought the city.
  */
 export function canBuildOnProperty(
   spaceIndex: number,
   playerUid: string,
   properties: Record<number, PropertyState>,
   playerCash: number,
-  playerPosition?: number
+  playerPosition?: number,
+  currentTurnNumber?: number
 ): { allowed: boolean; reason?: string } {
   const space = BOARD_SPACES[spaceIndex];
   if (!space || space.type !== 'PROPERTY') {
@@ -146,6 +148,18 @@ export function canBuildOnProperty(
 
   if (propState.isMortgaged) {
     return { allowed: false, reason: 'Property is currently mortgaged' };
+  }
+
+  // Not allowed in the same turn the city was bought (allowed from next turn)
+  if (
+    propState.boughtOnTurn !== undefined &&
+    currentTurnNumber !== undefined &&
+    currentTurnNumber <= propState.boughtOnTurn
+  ) {
+    return {
+      allowed: false,
+      reason: 'Building allowed from next turn, not in the same turn city was bought',
+    };
   }
 
   // Owner player must be visiting this city

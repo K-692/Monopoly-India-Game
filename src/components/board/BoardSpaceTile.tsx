@@ -5,7 +5,7 @@ import { ArrowLeft, Zap, Droplets, ShieldAlert, Gift, Flame } from 'lucide-react
 import { cn } from '@/lib/utils/cn';
 
 // Realistic, crisp SVG illustrations for Railways and Airports
-const RailwayImage: React.FC<{ className?: string }> = ({ className = 'w-5 h-5 sm:w-6 sm:h-6' }) => (
+const RailwayImage: React.FC<{ className?: string }> = ({ className = 'w-4 h-4 sm:w-5 sm:h-5' }) => (
   <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
     {/* Express Locomotive Engine */}
     <rect x="11" y="7" width="26" height="26" rx="5" fill="#1E3A8A" stroke="#172554" strokeWidth="2" />
@@ -22,7 +22,7 @@ const RailwayImage: React.FC<{ className?: string }> = ({ className = 'w-5 h-5 s
   </svg>
 );
 
-const AirportImage: React.FC<{ className?: string }> = ({ className = 'w-5 h-5 sm:w-6 sm:h-6' }) => (
+const AirportImage: React.FC<{ className?: string }> = ({ className = 'w-4 h-4 sm:w-5 sm:h-5' }) => (
   <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
     {/* Passenger Airliner Plane */}
     <path
@@ -60,12 +60,13 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
   const coord = getSpaceGridCoord(space.spaceIndex);
   const isCorner = coord.orientation === 'corner';
 
-  // Find owner
+  // Find owner player
   const owner = propertyState?.ownerUid
     ? allPlayers.find((p) => p.uid === propertyState.ownerUid)
     : null;
+  const ownerColor = owner?.colorToken;
 
-  // Render transit image illustration (Railway vs Airport)
+  // Transit illustration check
   const isRailway =
     space.type === 'TRANSIT' &&
     (space.name.toLowerCase().includes('railway') ||
@@ -77,7 +78,7 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
     space.type === 'TRANSIT' &&
     (space.name.toLowerCase().includes('airport') || space.id.includes('airport'));
 
-  // Adaptive font sizing based on string length to guarantee clean single-line fit without wrapping or truncation
+  // Adaptive font size based on city name length to ensure single-line fit without truncation
   const nameLength = space.name.length;
   const nameFontSizeClass =
     nameLength > 12
@@ -86,169 +87,213 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
         ? 'text-[7.5px] sm:text-[8px] md:text-[8.5px]'
         : 'text-[8.5px] sm:text-[9px] md:text-[9.5px]';
 
+  // Tile ownership styling: When owned, color grid with owner's player color
+  const tileStyle: React.CSSProperties = {
+    gridRow: coord.row,
+    gridColumn: coord.col,
+    ...(ownerColor
+      ? {
+          borderColor: ownerColor,
+          backgroundColor: `${ownerColor}18`, // Subtle translucent player color tint
+        }
+      : {}),
+  };
+
+  // Dedicated Player Tokens Row Component (renders player pawn circles cleanly without overlapping texts)
+  const renderPlayerTokens = (className?: string) => {
+    if (playersHere.length === 0) return null;
+    return (
+      <div className={cn('flex items-center justify-center gap-1 shrink-0 z-20 py-0.5', className)}>
+        {playersHere.map((p) => (
+          <div
+            key={p.uid}
+            title={p.displayName}
+            style={{ backgroundColor: p.colorToken }}
+            className="w-5.5 h-5.5 sm:w-6 sm:h-6 rounded-full border-2 border-white shadow-token-glow flex items-center justify-center text-[10px] sm:text-[11px] text-white font-black animate-pulse shrink-0"
+          >
+            {p.displayName.charAt(0).toUpperCase()}
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  // Owner Accent Bar (displayed along the edge facing the board center)
+  const renderOwnerAccentBar = () => {
+    if (!ownerColor) return null;
+    return (
+      <div
+        style={{ backgroundColor: ownerColor }}
+        className="w-full h-1.5 shrink-0 flex items-center justify-center"
+      >
+        <span className="text-[6.5px] font-black text-white leading-none tracking-tighter truncate px-1">
+          {owner?.displayName.split(' ')[0]}
+        </span>
+      </div>
+    );
+  };
+
   return (
     <div
       onClick={onSelect}
-      style={{
-        gridRow: coord.row,
-        gridColumn: coord.col,
-      }}
+      style={tileStyle}
       className={cn(
-        'relative flex flex-col justify-between border border-indian-parchment-400 bg-white dark:bg-indian-navy-900 text-indian-navy-950 dark:text-white select-none cursor-pointer transition-all duration-200 p-0.5 overflow-hidden',
+        'relative flex flex-col justify-between border bg-white dark:bg-indian-navy-900 text-indian-navy-950 dark:text-white select-none cursor-pointer transition-all duration-200 overflow-hidden',
+        !ownerColor && 'border-indian-parchment-400',
+        ownerColor && 'border-2',
         isSelected && 'ring-2 ring-indian-terracotta-500 bg-amber-50 dark:bg-indian-navy-800 z-20',
         isHighlighted && 'ring-4 ring-amber-400 dark:ring-amber-300 scale-105 z-30 shadow-[0_0_20px_rgba(251,191,36,0.9)] animate-pulse',
         propertyState?.isMortgaged && 'opacity-65 bg-gray-100/90 dark:bg-gray-900/80'
       )}
     >
-      {/* Corner Space Special Styling: Smaller compact boxes in extreme corners */}
+      {/* Corner Spaces: Compact Extreme Corner styling with dedicated player token slot */}
       {isCorner ? (
-        <div className="w-full h-full flex flex-col items-center justify-center text-center p-0.5 sm:p-1 bg-indian-parchment-100 dark:bg-indian-navy-950/60 overflow-hidden select-none">
-          {space.spaceIndex === 0 && (
-            <div className="flex flex-col items-center justify-center text-indian-terracotta-600 gap-0.5">
-              <span className="font-serif text-[10.5px] sm:text-xs md:text-sm font-black tracking-wider whitespace-nowrap">START</span>
-              <span className="text-[9px] sm:text-[10px] font-black text-emerald-700 dark:text-emerald-400 whitespace-nowrap">₹2,000</span>
-              <ArrowLeft className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-indian-terracotta-500 animate-pulse-subtle" />
-            </div>
-          )}
-          {space.spaceIndex === 10 && (
-            <div className="text-center">
-              <span className="block text-[10.5px] sm:text-xs font-black text-red-700 whitespace-nowrap">JAIL</span>
-              <span className="text-[8px] sm:text-[9px] text-gray-500 font-bold whitespace-nowrap">Visiting</span>
-            </div>
-          )}
-          {space.spaceIndex === 20 && (
-            <div className="text-center text-amber-700">
-              <span className="block text-[10.5px] sm:text-xs font-black whitespace-nowrap">REST</span>
-              <span className="text-[8px] sm:text-[9px] text-gray-500 font-bold whitespace-nowrap">House</span>
-            </div>
-          )}
-          {space.spaceIndex === 30 && (
-            <div className="text-center text-red-600">
-              <span className="block text-[10.5px] sm:text-xs font-black whitespace-nowrap">GO TO</span>
-              <span className="text-[8px] sm:text-[9px] font-extrabold whitespace-nowrap">JAIL</span>
-            </div>
-          )}
+        <div className="w-full h-full flex flex-col items-center justify-between text-center p-1 bg-indian-parchment-100 dark:bg-indian-navy-950/60 overflow-hidden select-none">
+          <div className="flex-1 flex flex-col items-center justify-center text-center">
+            {space.spaceIndex === 0 && (
+              <div className="flex flex-col items-center justify-center text-indian-terracotta-600 gap-0.5">
+                <span className="font-serif text-[10.5px] sm:text-xs md:text-sm font-black tracking-wider whitespace-nowrap">START</span>
+                <span className="text-[9px] sm:text-[10px] font-black text-emerald-700 dark:text-emerald-400 whitespace-nowrap">₹2,000</span>
+                <ArrowLeft className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-indian-terracotta-500 animate-pulse-subtle" />
+              </div>
+            )}
+            {space.spaceIndex === 10 && (
+              <div className="text-center">
+                <span className="block text-[10.5px] sm:text-xs font-black text-red-700 whitespace-nowrap">JAIL</span>
+                <span className="text-[8px] sm:text-[9px] text-gray-500 font-bold whitespace-nowrap">Visiting</span>
+              </div>
+            )}
+            {space.spaceIndex === 20 && (
+              <div className="text-center text-amber-700">
+                <span className="block text-[10.5px] sm:text-xs font-black whitespace-nowrap">REST</span>
+                <span className="text-[8px] sm:text-[9px] text-gray-500 font-bold whitespace-nowrap">House</span>
+              </div>
+            )}
+            {space.spaceIndex === 30 && (
+              <div className="text-center text-red-600">
+                <span className="block text-[10.5px] sm:text-xs font-black whitespace-nowrap">GO TO</span>
+                <span className="text-[8px] sm:text-[9px] font-extrabold whitespace-nowrap">JAIL</span>
+              </div>
+            )}
+          </div>
+          {renderPlayerTokens('h-6')}
         </div>
       ) : (
-        /* Regular Edge City & Space Tile: Clean, No City Colour Coding, Clear Houses/Tower */
-        <div
-          className={cn(
-            'w-full h-full flex flex-col justify-center items-center text-center px-0.5 sm:px-1 overflow-hidden select-none gap-0.5 transition-all',
-            playersHere.length > 0 && coord.orientation === 'bottom' && 'pt-2.5',
-            playersHere.length > 0 && coord.orientation === 'top' && 'pb-2.5',
-            playersHere.length > 0 && coord.orientation === 'left' && 'pr-2.5',
-            playersHere.length > 0 && coord.orientation === 'right' && 'pl-2.5'
-          )}
-        >
-          {/* Line 1: City / Place Name */}
-          <span
-            title={space.name}
-            className={cn(
-              'font-bold leading-tight text-center w-full whitespace-nowrap overflow-hidden text-ellipsis tracking-tight px-0.5 text-indian-navy-950 dark:text-white',
-              nameFontSizeClass
-            )}
-          >
-            {space.name}
-          </span>
-
-          {/* Built Houses (1-4) or Commercial Tower (5) shown directly inside the city grid */}
-          {propertyState && propertyState.buildings > 0 && (
-            <div className="my-0.5 shrink-0 flex items-center justify-center">
-              {propertyState.buildings === 5 ? (
-                <div className="flex items-center gap-0.5 px-1 py-0.2 rounded bg-amber-500 text-white font-black text-[7px] sm:text-[7.5px] shadow-2xs leading-none">
-                  <span>🏢</span>
-                  <span>TOWER</span>
-                </div>
+        /* Regular Edge City & Space Tile: Structured non-overlapping layout */
+        <div className="w-full h-full flex flex-col justify-between overflow-hidden">
+          {/* BOTTOM TILES (Row 11): Board center is above; Player tokens and owner bar sit at top facing center */}
+          {coord.orientation === 'bottom' && (
+            <>
+              {renderOwnerAccentBar()}
+              {playersHere.length > 0 ? (
+                renderPlayerTokens('h-6')
               ) : (
-                <div className="flex items-center justify-center gap-0.5 leading-none">
-                  {Array.from({ length: propertyState.buildings }).map((_, i) => (
-                    <span key={i} title={`House ${i + 1}`} className="text-[8.5px] sm:text-[9.5px] leading-none">
-                      🏠
-                    </span>
-                  ))}
-                </div>
+                <div className="h-1.5 shrink-0" />
               )}
-            </div>
+            </>
           )}
 
-          {/* Owner pill if owned with 0 buildings */}
-          {owner && (!propertyState || propertyState.buildings === 0) && !propertyState?.isMortgaged && (
-            <span className="text-[6.5px] sm:text-[7px] font-semibold text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 px-1 rounded-full truncate max-w-[50px] leading-none my-0.2">
-              {owner.displayName.split(' ')[0]}
-            </span>
-          )}
-
-          {/* Mortgaged indicator tag */}
-          {propertyState?.isMortgaged && (
-            <span className="text-[6.5px] sm:text-[7px] font-black text-red-600 bg-red-100 dark:bg-red-950/60 border border-red-300 dark:border-red-800 px-1 rounded-full leading-none my-0.2">
-              MORTGAGED
-            </span>
-          )}
-
-          {/* Transit Image: Railway or Airport in-grid illustration */}
-          {isRailway && <RailwayImage className="w-4 h-4 sm:w-5 sm:h-5 my-0.5 shrink-0" />}
-          {isAirport && <AirportImage className="w-4 h-4 sm:w-5 sm:h-5 my-0.5 shrink-0" />}
-
-          {/* Special Space Icons (Utility / Tax / Card) when not transit */}
-          {!isRailway && !isAirport && space.type === 'UTILITY' && (
-            space.id.includes('power') ? (
-              <Zap className="w-3.5 h-3.5 text-amber-500 shrink-0 my-0.2" />
-            ) : (
-              <Droplets className="w-3.5 h-3.5 text-blue-500 shrink-0 my-0.2" />
-            )
-          )}
-          {!isRailway && !isAirport && space.type === 'TAX' && (
-            <ShieldAlert className="w-3.5 h-3.5 text-red-600 shrink-0 my-0.2" />
-          )}
-          {!isRailway && !isAirport && space.type === 'CARD' && (
-            space.deck === 'CIVIC' ? (
-              <Gift className="w-3.5 h-3.5 text-amber-600 shrink-0 my-0.2" />
-            ) : (
-              <Flame className="w-3.5 h-3.5 text-orange-600 shrink-0 my-0.2" />
-            )
-          )}
-
-          {/* Line 2: Price / Category */}
-          {'price' in space && (
-            <span className="text-[8px] sm:text-[8.5px] md:text-[9px] font-black text-emerald-700 dark:text-emerald-400 whitespace-nowrap leading-none">
-              ₹{space.price.toLocaleString('en-IN')}
-            </span>
-          )}
-          {'amount' in space && (
-            <span className="text-[8px] sm:text-[8.5px] md:text-[9px] font-black text-red-600 dark:text-red-400 whitespace-nowrap leading-none">
-              ₹{space.amount.toLocaleString('en-IN')}
-            </span>
-          )}
-          {space.type === 'CARD' && (
-            <span className="text-[7.5px] sm:text-[8px] font-bold text-amber-700 dark:text-amber-400 whitespace-nowrap leading-none">
-              {space.deck === 'CIVIC' ? 'Treasury' : 'Fortune'}
-            </span>
-          )}
-        </div>
-      )}
-
-      {/* Players currently positioned on this tile: Prominently sized circle with initial letter */}
-      {playersHere.length > 0 && (
-        <div
-          className={cn(
-            'absolute pointer-events-none flex items-center z-20',
-            coord.orientation === 'left' && 'right-0.5 top-0.5 flex-col -space-y-1',
-            coord.orientation === 'right' && 'left-0.5 top-0.5 flex-col -space-y-1',
-            coord.orientation === 'top' && 'bottom-0.5 right-0.5 -space-x-1',
-            coord.orientation === 'bottom' && 'top-0.5 right-0.5 -space-x-1',
-            coord.orientation === 'corner' && 'bottom-1 right-1 -space-x-1'
-          )}
-        >
-          {playersHere.map((p) => (
-            <div
-              key={p.uid}
-              title={p.displayName}
-              style={{ backgroundColor: p.colorToken }}
-              className="w-5.5 h-5.5 sm:w-6 sm:h-6 rounded-full border-2 border-white shadow-token-glow flex items-center justify-center text-[10px] sm:text-[11px] text-white font-black transition-all duration-150 animate-pulse shrink-0"
+          {/* Core Content: City Name, In-Grid Icons / Built Houses / Tower, and Price */}
+          <div className="flex-1 flex flex-col justify-center items-center text-center px-0.5 sm:px-1 gap-0.5 min-h-0 overflow-hidden">
+            {/* Line 1: City / Place Name (Single line, no wrap) */}
+            <span
+              title={space.name}
+              className={cn(
+                'font-bold leading-tight text-center w-full whitespace-nowrap overflow-hidden text-ellipsis tracking-tight px-0.5 text-indian-navy-950 dark:text-white',
+                nameFontSizeClass
+              )}
             >
-              {p.displayName.charAt(0).toUpperCase()}
-            </div>
-          ))}
+              {space.name}
+            </span>
+
+            {/* In-Grid Development: Built Houses (1-4) or Commercial Tower (5) */}
+            {propertyState && propertyState.buildings > 0 && (
+              <div className="my-0.5 shrink-0 flex items-center justify-center">
+                {propertyState.buildings === 5 ? (
+                  <div className="flex items-center gap-0.5 px-1 py-0.2 rounded bg-amber-500 text-white font-black text-[7px] sm:text-[7.5px] shadow-2xs leading-none">
+                    <span>🏢</span>
+                    <span>TOWER</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center gap-0.5 leading-none">
+                    {Array.from({ length: propertyState.buildings }).map((_, i) => (
+                      <span key={i} title={`House ${i + 1}`} className="text-[8.5px] sm:text-[9.5px] leading-none">
+                        🏠
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Mortgaged indicator tag */}
+            {propertyState?.isMortgaged && (
+              <span className="text-[6.5px] sm:text-[7px] font-black text-red-600 bg-red-100 dark:bg-red-950/60 border border-red-300 dark:border-red-800 px-1 rounded-full leading-none my-0.2">
+                MORTGAGED
+              </span>
+            )}
+
+            {/* In-Grid Visual Illustrations (Train / Airport / Utility / Tax / Card) */}
+            {isRailway && <RailwayImage className="w-4 h-4 sm:w-5 sm:h-5 shrink-0 my-0.5" />}
+            {isAirport && <AirportImage className="w-4 h-4 sm:w-5 sm:h-5 shrink-0 my-0.5" />}
+            {!isRailway && !isAirport && space.type === 'UTILITY' && (
+              space.id.includes('power') ? (
+                <Zap className="w-3.5 h-3.5 text-amber-500 shrink-0 my-0.2" />
+              ) : (
+                <Droplets className="w-3.5 h-3.5 text-blue-500 shrink-0 my-0.2" />
+              )
+            )}
+            {!isRailway && !isAirport && space.type === 'TAX' && (
+              <ShieldAlert className="w-3.5 h-3.5 text-red-600 shrink-0 my-0.2" />
+            )}
+            {!isRailway && !isAirport && space.type === 'CARD' && (
+              space.deck === 'CIVIC' ? (
+                <Gift className="w-3.5 h-3.5 text-amber-600 shrink-0 my-0.2" />
+              ) : (
+                <Flame className="w-3.5 h-3.5 text-orange-600 shrink-0 my-0.2" />
+              )
+            )}
+
+            {/* Line 2: Price / Category */}
+            {'price' in space && (
+              <span className="text-[8px] sm:text-[8.5px] md:text-[9px] font-black text-emerald-700 dark:text-emerald-400 whitespace-nowrap leading-none">
+                ₹{space.price.toLocaleString('en-IN')}
+              </span>
+            )}
+            {'amount' in space && (
+              <span className="text-[8px] sm:text-[8.5px] md:text-[9px] font-black text-red-600 dark:text-red-400 whitespace-nowrap leading-none">
+                ₹{space.amount.toLocaleString('en-IN')}
+              </span>
+            )}
+            {space.type === 'CARD' && (
+              <span className="text-[7.5px] sm:text-[8px] font-bold text-amber-700 dark:text-amber-400 whitespace-nowrap leading-none">
+                {space.deck === 'CIVIC' ? 'Treasury' : 'Fortune'}
+              </span>
+            )}
+          </div>
+
+          {/* TOP, LEFT, RIGHT TILES: Player tokens and owner bar sit towards the board interior */}
+          {coord.orientation === 'top' && (
+            <>
+              {playersHere.length > 0 ? (
+                renderPlayerTokens('h-6')
+              ) : (
+                <div className="h-1.5 shrink-0" />
+              )}
+              {renderOwnerAccentBar()}
+            </>
+          )}
+
+          {(coord.orientation === 'left' || coord.orientation === 'right') && (
+            <>
+              {playersHere.length > 0 ? (
+                renderPlayerTokens('h-6')
+              ) : (
+                <div className="h-1 shrink-0" />
+              )}
+              {renderOwnerAccentBar()}
+            </>
+          )}
         </div>
       )}
     </div>
