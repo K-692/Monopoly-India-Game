@@ -137,15 +137,58 @@ The card engine manages two authoritative 12-rule indexed decks:
 - Slimmed the left panel to `w-32 sm:w-36 md:w-40`.
 - Maximized board canvas across `flex-1` width and `h-[calc(100dvh-50px)]`, providing expansive, comfortable grid cells with zero page scrolling.
 
+### 2.10 Grid Visual Hierarchy: Foreground Bold Typography & Front-Layered Contents
+- In strict adherence to legibility standards, background image watermarks are omitted from city grids.
+- All text contents (City Name, Purchase Price, Mortgage Value, Tax amounts, and Rule labels) are brought strictly into the **foreground** on a dedicated high-contrast layer with larger, bolder typography:
+  - **City Names**: Single-line font scaling (`text-[8.5px]` to `text-[13px]`) with `font-black` weighting and drop-shadow definitions.
+  - **Prices & Mortgages**: Bold emerald purchase price alongside explicit mortgage values (`M: ₹{mortgageValue}`) in high-contrast styling.
+  - **Special Space Icons**: Transit, utility, tax, and card vector motifs are placed with subtle opacity behind the text, ensuring text readability is never compromised.
+
+### 2.11 Discrete Step-by-Step Walking Animation (0.5s per Space)
+- Movement across the 40-space board utilizes a discrete step-by-step traversal loop:
+  - When dice are rolled, the active player's pawn hops from tile to tile, advancing one space at a time.
+  - Each individual step lasts strictly **0.5 seconds** ($500\text{ms}$), playing procedural footstep audio (`PAWN_STEP`) or START salary fanfare (`PASS_START`).
+  - Active space glowing highlights and player coordinates update synchronously on every hop.
+  - Upon arrival at the target tile, the final position holds for 0.5s before triggering context-sensitive decisions (Buy/Build pointed boxes or card modals).
+
+### 2.12 Complete Bankruptcy & Game-Over Invariant
+- Under tournament rules, a player becomes **completely bankrupt** when:
+  $$\text{Player Cash} \le 0 \quad \text{AND} \quad \text{Mortgageable Properties Count} = 0$$
+- When triggered:
+  1. The player's status is permanently updated to `isBankrupt = true` with cash set to 0.
+  2. All deeds held by the player are immediately liquidated back to the Reserve Bank.
+  3. Turn advancement shifts to the next solvent player in round-robin order.
+  4. The engine checks solvent player count:
+     $$\text{Solvent Players} = \{p \in \text{Players} \mid \neg p.\text{isBankrupt}\}$$
+     If $|\text{Solvent Players}| \le 1$, the game transitions to `status = 'COMPLETED'` and records `winnerUid` with victory fanfare.
+
+### 2.13 Universal Turn Timer Integration across All Popup Dialogs
+- To ensure players never lose track of active turn progression while reviewing modals, an authoritative `PopupTurnTimer` badge is rendered inside:
+  - `activeCardPopup` (Civic Fund & Market Buzz indexed rule receipts).
+  - `activeMoneyTransaction` (Rent payments, taxes, rewards).
+  - `CityDeedModal` (City deed information and mortgage panel).
+  - `PlayerDetailModal` (Player financial dossiers).
+  - `inspectedCard` (Rule inspection dialogs).
+- Features live countdown seconds (`30s`), active player token avatar, and pulse warnings when $t \le 10\text{s}$.
+
+### 2.14 3D Rolling Dice Arena & Single Combined Result Indicator
+- Two 3D dice cubes feature individual rotation, perspective skew, and pitch keyframe animations (`animate-dice-roll-1`, `animate-dice-roll-2`).
+- Outcome badge underneath presents strictly the single combined total (`🎲 Rolled: {first + second}`), removing breakdown noise.
+
+### 2.15 Scrollable Official Rulebook Tab & Distraction-Free Header
+- A dedicated **Rules** tab (`/rules`) is accessible from the main navigation between **Play** and **Settings**.
+- Built with a full-viewport, smooth-scrolling container (`h-full w-full overflow-y-auto custom-scrollbar`) providing seamless navigation across all 4 rule categories (Core Flow, 12 Civic Fund rules, 12 Market Buzz rules, Bankruptcy & Jail).
+- Removed the black/white theme toggle button from the header, standardizing the aesthetic around the warm Indian parchment palette.
+
 ---
 
 ## 3. Production Deployment & Verification
 
 ### 3.1 Automated CI/CD & Testing Verification
-- **Unit & State Machine Tests**: Vitest suite (11/11 tests passing) verifies discrete currency resolution, transit scaling, 3-consecutive doubles incarceration, 2-player turn cycles, `boughtOnTurn` construction delay enforcement, jailed owner rent exemption, dice-total card index resolution, and transaction acknowledgement state transitions.
+- **Unit & State Machine Tests**: Vitest suite (12/12 tests passing) verifies discrete currency resolution, transit scaling, 3-consecutive doubles incarceration, 2-player turn cycles, `boughtOnTurn` construction delay enforcement, jailed owner rent exemption, dice-total card index resolution, transaction acknowledgement state transitions, and the complete bankruptcy tournament invariant.
 - **Cross-Platform End-to-End Suite**: Playwright multi-worker browser verification validates navigation, practice match launching, dice rolling, sound synthesis toggles, and responsive layouts across Chromium, WebKit, and mobile viewport simulations.
 - **Production Build**: Verified with `npm run build` (`tsc -b && vite build`) with zero TypeScript errors.
 - **GitHub Pages Deployment**:
   - **Live URL**: `https://k-692.github.io/Monopoly-India-Game/`
-  - **Routing Paradigm**: HTML5 HashRouter (`/#/`, `/#/practice`, `/#/room/:roomId`).
+  - **Routing Paradigm**: HTML5 HashRouter (`/#/`, `/#/rules`, `/#/practice`, `/#/room/:roomId`).
   - **Automated CI/CD**: Fully configured via `.github/workflows/deploy-pages.yml` with automated builds and artifact uploads on every push to `main`.

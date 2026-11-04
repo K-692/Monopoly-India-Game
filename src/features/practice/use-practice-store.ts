@@ -115,10 +115,13 @@ export const usePracticeStore = create<PracticeStoreState>((set, get) => ({
           const result = applyGameCommand(gameState, command, gameState.currentPlayerUid);
 
           // Locate active player
-          const activeP = gameState.players.find((p) => p.uid === gameState.currentPlayerUid);
+          const activeUid = gameState.currentPlayerUid;
+          const activeP = gameState.players.find((p) => p.uid === activeUid);
+          const startPos = activeP?.position ?? 0;
+          const endPos = result.nextState.players.find((p) => p.uid === activeUid)?.position ?? startPos;
 
           // If incarcerated directly (e.g. 3 consecutive doubles)
-          if (result.nextState.players.find((p) => p.uid === gameState.currentPlayerUid)?.inJail && !activeP?.inJail) {
+          if (result.nextState.players.find((p) => p.uid === activeUid)?.inJail && !activeP?.inJail) {
             sound.play('GO_TO_JAIL');
             set((s) => ({
               gameState: result.nextState,
@@ -133,25 +136,67 @@ export const usePracticeStore = create<PracticeStoreState>((set, get) => ({
             return;
           }
 
-          if (result.event.summary.includes('Passed START')) {
-            sound.play('PASS_START');
-          } else {
-            sound.play('PAWN_STEP');
+          // Calculate total steps taken
+          const totalSteps = result.nextState.dice
+            ? result.nextState.dice.first + result.nextState.dice.second
+            : ((endPos - startPos + 40) % 40);
+
+          // Stop rolling physics and reveal rolled dice outcome
+          set({ isRolling: false });
+
+          if (totalSteps <= 0) {
+            set((s) => ({
+              gameState: result.nextState,
+              events: [result.event, ...s.events].slice(0, 50),
+              walkingAnimation: null,
+              error: null,
+            }));
+            if (result.nextState.currentPlayerUid !== 'player_human') {
+              triggerAiTurn();
+            }
+            return;
           }
 
-          // Show the final destination city directly without displaying intermediate spaces
-          set((s) => ({
-            isRolling: false,
-            gameState: result.nextState,
-            events: [result.event, ...s.events].slice(0, 50),
-            walkingAnimation: null,
-            error: null,
-          }));
+          // User Requirement: Animate piece moving one by one across the grids, 0.5 seconds per step
+          let currentStep = 0;
+          const stepInterval = setInterval(() => {
+            currentStep++;
+            const nextPos = (startPos + currentStep) % 40;
+            const stepsRemaining = totalSteps - currentStep;
 
-          // If turn changed to an AI, trigger AI loop
-          if (result.nextState.currentPlayerUid !== 'player_human') {
-            triggerAiTurn();
-          }
+            if (nextPos === 0) {
+              sound.play('PASS_START');
+            } else {
+              sound.play('PAWN_STEP');
+            }
+
+            set({
+              walkingAnimation: {
+                uid: activeUid,
+                currentPos: nextPos,
+                targetPos: endPos,
+                stepsRemaining,
+              },
+            });
+
+            if (currentStep >= totalSteps) {
+              clearInterval(stepInterval);
+              // Hold at destination grid for 0.5s before finalizing state and actions
+              setTimeout(() => {
+                set((s) => ({
+                  gameState: result.nextState,
+                  events: [result.event, ...s.events].slice(0, 50),
+                  walkingAnimation: null,
+                  error: null,
+                }));
+
+                // If turn changed to an AI, trigger AI loop
+                if (result.nextState.currentPlayerUid !== 'player_human') {
+                  triggerAiTurn();
+                }
+              }, 500);
+            }
+          }, 500);
 
         } catch (err: unknown) {
           const message = err instanceof Error ? err.message : 'Action failed';

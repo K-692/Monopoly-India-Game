@@ -2,20 +2,28 @@ import React from 'react';
 import { createPortal } from 'react-dom';
 import { PlayerState, PropertyState } from '@/domain/game-types';
 import { BOARD_SPACES } from '@/domain/board-config';
-import { GROUP_COLOR_MAP } from '@/components/board/board-layout-utils';
-import { X, Wallet, TrendingUp, MapPin, ShieldAlert, Home, Building2 } from 'lucide-react';
+import { X, Wallet, TrendingUp, MapPin, ShieldAlert, Home, Building2, Landmark } from 'lucide-react';
 import { calculateRent } from '@/domain/ruleset';
+import { PopupTurnTimer } from '@/components/feedback/PopupTurnTimer';
 
 interface PlayerDetailModalProps {
   player: PlayerState | null;
   properties: Record<number, PropertyState>;
   onClose: () => void;
+  activePlayerName?: string;
+  activePlayerColor?: string;
+  turnTimeRemaining?: number;
+  isMyTurn?: boolean;
 }
 
 export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
   player,
   properties,
   onClose,
+  activePlayerName,
+  activePlayerColor,
+  turnTimeRemaining = 30,
+  isMyTurn = false,
 }) => {
   if (!player) return null;
 
@@ -70,13 +78,21 @@ export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-indian-navy-800 dark:hover:bg-indian-navy-700 flex items-center justify-center text-gray-500 hover:text-gray-900 dark:text-gray-300 transition-all cursor-pointer"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            <PopupTurnTimer
+              activePlayerName={activePlayerName}
+              activePlayerColor={activePlayerColor}
+              timeRemaining={turnTimeRemaining}
+              isMyTurn={isMyTurn}
+            />
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-indian-navy-800 dark:hover:bg-indian-navy-700 flex items-center justify-center text-gray-500 hover:text-gray-900 dark:text-gray-300 transition-all cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Modal Body */}
@@ -157,21 +173,16 @@ export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
             ) : (
               <div className="space-y-1.5">
                 {ownedProps.map(({ spaceIndex, space, state, rent }) => {
-                  const groupColor = space && 'group' in space ? GROUP_COLOR_MAP[space.group] : undefined;
                   return (
                     <div
                       key={spaceIndex}
                       className="p-2 rounded-xl bg-white dark:bg-indian-navy-950 border border-indian-parchment-300 dark:border-indian-navy-800 flex items-center justify-between shadow-2xs"
                     >
-                      <div className="flex items-center gap-2 min-w-0">
-                        {groupColor ? (
-                          <div
-                            style={{ backgroundColor: groupColor }}
-                            className="w-2.5 h-6 rounded-xs shrink-0"
-                          />
-                        ) : (
-                          <div className="w-2.5 h-6 rounded-xs bg-gray-400 shrink-0" />
-                        )}
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        {/* Neutral Deed Icon (Color codes on cities removed per requirements) */}
+                        <div className="w-7 h-7 rounded-lg bg-indian-parchment-200 dark:bg-indian-navy-800 flex items-center justify-center text-indian-navy-700 dark:text-indian-parchment-200 shrink-0 border border-indian-parchment-300 dark:border-indian-navy-700">
+                          <Landmark className="w-3.5 h-3.5" />
+                        </div>
                         <div className="min-w-0">
                           <span className="font-bold text-xs block truncate text-indian-navy-950 dark:text-white">
                             {space.name}

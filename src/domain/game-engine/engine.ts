@@ -408,6 +408,33 @@ export function applyGameCommand(
       throw new GameEngineError('INVALID_ACTION', `Unsupported action ${command.type}`);
   }
 
+  // Check for any player whose cash <= 0 and has no places to mortgage (Complete Bankruptcy Invariant)
+  for (const p of state.players) {
+    if (!p.isBankrupt && p.cash <= 0) {
+      const hasMortgageable = Object.values(state.properties).some(
+        (prop) => prop && prop.ownerUid === p.uid && !prop.isMortgaged
+      );
+      if (!hasMortgageable) {
+        p.isBankrupt = true;
+        p.cash = 0;
+        // Liquidate deeds back to Reserve Bank
+        for (const [k, prop] of Object.entries(state.properties)) {
+          if (prop && prop.ownerUid === p.uid) {
+            delete state.properties[Number(k)];
+          }
+        }
+        if (state.pendingAction?.playerUid === p.uid) {
+          state.pendingAction = null;
+          state.phase = 'MANAGEMENT';
+        }
+        summary = `⚠️ ${p.displayName} is completely bankrupt with ₹0 cash and no properties to mortgage!`;
+        if (state.currentPlayerUid === p.uid) {
+          advanceTurn(state);
+        }
+      }
+    }
+  }
+
   // Recalculate net worth for all players
   for (const p of state.players) {
     p.netWorth = calculateNetWorth(p.uid, p.cash, state.properties);
@@ -491,15 +518,38 @@ function resolveLandingSpace(
               description: `${player.displayName} paid ₹${rentDue.toLocaleString('en-IN')} rent to ${owner?.displayName} for landing on ${space.name}.`,
             };
           } else {
-            // Insufficient funds: liquidation needed
-            state.phase = 'ACTION_REQUIRED';
-            state.pendingAction = {
-              type: 'RAISE_FUNDS_DEBT',
-              playerUid: player.uid,
-              amountDue: rentDue,
-              creditorUid: owner?.uid ?? null,
-              spaceIndex,
-            };
+            // Check if player has any unmortgaged properties to raise cash
+            const hasMortgageable = Object.values(state.properties).some(
+              (p) => p && p.ownerUid === player.uid && !p.isMortgaged
+            );
+
+            // Transfer all remaining cash to owner
+            const paid = player.cash;
+            player.cash = 0;
+            if (owner) owner.cash += paid;
+
+            if (!hasMortgageable) {
+              // Completely bankrupt: zero cash and no places to mortgage
+              player.isBankrupt = true;
+              for (const [k, p] of Object.entries(state.properties)) {
+                if (p && p.ownerUid === player.uid) {
+                  delete state.properties[Number(k)];
+                }
+              }
+              state.phase = 'MANAGEMENT';
+              state.pendingAction = null;
+              advanceTurn(state);
+            } else {
+              // Liquidation needed via mortgage
+              state.phase = 'ACTION_REQUIRED';
+              state.pendingAction = {
+                type: 'RAISE_FUNDS_DEBT',
+                playerUid: player.uid,
+                amountDue: rentDue - paid,
+                creditorUid: owner?.uid ?? null,
+                spaceIndex,
+              };
+            }
           }
         } else {
           // Zero rent (e.g. owner in jail or rent is 0)
@@ -528,13 +578,31 @@ function resolveLandingSpace(
           description: `${player.displayName} paid ₹${taxAmount.toLocaleString('en-IN')} tax for landing on ${space.name}.`,
         };
       } else {
-        state.phase = 'ACTION_REQUIRED';
-        state.pendingAction = {
-          type: 'RAISE_FUNDS_DEBT',
-          playerUid: player.uid,
-          amountDue: taxAmount,
-          creditorUid: null, // Bank
-        };
+        const hasMortgageable = Object.values(state.properties).some(
+          (p) => p && p.ownerUid === player.uid && !p.isMortgaged
+        );
+
+        player.cash = 0;
+
+        if (!hasMortgageable) {
+          player.isBankrupt = true;
+          for (const [k, p] of Object.entries(state.properties)) {
+            if (p && p.ownerUid === player.uid) {
+              delete state.properties[Number(k)];
+            }
+          }
+          state.phase = 'MANAGEMENT';
+          state.pendingAction = null;
+          advanceTurn(state);
+        } else {
+          state.phase = 'ACTION_REQUIRED';
+          state.pendingAction = {
+            type: 'RAISE_FUNDS_DEBT',
+            playerUid: player.uid,
+            amountDue: taxAmount,
+            creditorUid: null, // Bank
+          };
+        }
       }
       break;
     }

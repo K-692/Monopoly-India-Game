@@ -438,5 +438,37 @@ describe('Pure Game Engine', () => {
 
     expect(state.activeMoneyTransaction).toBeNull();
   });
+
+  it('ends the game when a player is completely bankrupted with ₹0 cash and no places to mortgage', () => {
+    let state = createInitialGame('room_1', 'game_1', mockMembers);
+    const p1 = state.players.find((p) => p.uid === 'user_1')!;
+
+    // Set user_1 cash to 100, no properties owned
+    p1.cash = 100;
+
+    // Roll [5, 3] = 8 to land on GST Tax space (space 8, amount ₹2,000)
+    state = applyGameCommand(
+      state,
+      {
+        commandId: 'cmd_roll_tax',
+        roomId: 'room_1',
+        gameId: 'game_1',
+        expectedVersion: state.version,
+        type: 'ROLL_DICE',
+        payload: {},
+      },
+      'user_1',
+      [5, 3]
+    ).nextState;
+
+    const updatedP1 = state.players.find((p) => p.uid === 'user_1')!;
+    // user_1 had only ₹100, tax was ₹2,000, and user_1 had no properties to mortgage
+    expect(updatedP1.cash).toBe(0);
+    expect(updatedP1.isBankrupt).toBe(true);
+
+    // With user_1 bankrupted, user_2 is the sole solvent player -> Game COMPLETED!
+    expect(state.status).toBe('COMPLETED');
+    expect(state.winnerUid).toBe('user_2');
+  });
 });
 

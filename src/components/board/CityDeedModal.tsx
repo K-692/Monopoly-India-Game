@@ -2,7 +2,7 @@ import React from 'react';
 import { createPortal } from 'react-dom';
 import { BoardSpaceDefinition, GameActionType, PlayerState, PropertyDefinition, PropertyState } from '@/domain/game-types';
 import { X, Landmark, Home, Building2, ShieldAlert } from 'lucide-react';
-import { GROUP_COLOR_MAP } from './board-layout-utils';
+import { PopupTurnTimer } from '@/components/feedback/PopupTurnTimer';
 import { cn } from '@/lib/utils/cn';
 
 interface CityDeedModalProps {
@@ -14,17 +14,23 @@ interface CityDeedModalProps {
   turnNumber?: number;
   onClose: () => void;
   onDispatch?: (type: GameActionType, payload?: Record<string, unknown>) => void;
+  activePlayerName?: string;
+  activePlayerColor?: string;
+  turnTimeRemaining?: number;
 }
 
 export const CityDeedModal: React.FC<CityDeedModalProps> = ({
   space,
   propertyState,
   players,
-  isMyTurn: _isMyTurn = false,
+  isMyTurn = false,
   currentUserUid,
   turnNumber: _turnNumber,
   onClose,
   onDispatch,
+  activePlayerName,
+  activePlayerColor,
+  turnTimeRemaining = 30,
 }) => {
   if (!space) return null;
 
@@ -46,8 +52,6 @@ export const CityDeedModal: React.FC<CityDeedModalProps> = ({
     ? space.unmortgageCost
     : Math.floor(mortgageVal * 1.1);
 
-  const groupColor = isProperty && 'group' in space ? GROUP_COLOR_MAP[space.group] : undefined;
-
   return createPortal(
     <div
       onClick={onClose}
@@ -57,14 +61,6 @@ export const CityDeedModal: React.FC<CityDeedModalProps> = ({
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-sm sm:max-w-md rounded-2xl bg-white dark:bg-indian-navy-900 border-2 border-indian-parchment-400 dark:border-indian-navy-700 shadow-2xl overflow-hidden flex flex-col animate-scale-in text-indian-navy-950 dark:text-white"
       >
-        {/* Color Group Header Strip */}
-        {groupColor && (
-          <div
-            style={{ backgroundColor: groupColor }}
-            className="w-full h-3 sm:h-3.5 shrink-0"
-          />
-        )}
-
         {/* Modal Header */}
         <div className="flex items-center justify-between p-3.5 border-b border-indian-parchment-200 dark:border-indian-navy-800">
           <div>
@@ -78,13 +74,21 @@ export const CityDeedModal: React.FC<CityDeedModalProps> = ({
             </h3>
           </div>
 
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-indian-navy-800 dark:hover:bg-indian-navy-700 flex items-center justify-center text-gray-500 hover:text-gray-900 dark:text-gray-300 transition-all cursor-pointer"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            <PopupTurnTimer
+              activePlayerName={activePlayerName}
+              activePlayerColor={activePlayerColor}
+              timeRemaining={turnTimeRemaining}
+              isMyTurn={Boolean(isMyTurn)}
+            />
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-indian-navy-800 dark:hover:bg-indian-navy-700 flex items-center justify-center text-gray-500 hover:text-gray-900 dark:text-gray-300 transition-all cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Modal Body */}

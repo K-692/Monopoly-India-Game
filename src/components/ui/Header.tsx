@@ -1,12 +1,12 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Volume2, VolumeX, Moon, Sun, Dices, Settings as SettingsIcon, Edit3 } from 'lucide-react';
+import { Volume2, VolumeX, Dices, BookOpen, Settings as SettingsIcon, Edit3 } from 'lucide-react';
 import { useAuthStore } from '@/features/auth/use-auth-store';
 import { useSettingsStore } from '@/features/settings/use-settings-store';
 
 export const Header: React.FC = () => {
   const { player, openNamePrompt } = useAuthStore();
-  const { soundMuted, toggleSound, theme, toggleTheme } = useSettingsStore();
+  const { soundMuted, toggleSound } = useSettingsStore();
   const location = useLocation();
 
   const isCurrent = (path: string) => {
@@ -36,7 +36,7 @@ export const Header: React.FC = () => {
           </div>
         </Link>
 
-        {/* ONLY TWO TABS: Play and Settings */}
+        {/* Navigation Tabs: Play, Rules, Settings */}
         <nav className="flex items-center gap-1 bg-indian-parchment-200/80 dark:bg-indian-navy-800/80 p-1 rounded-xl border border-indian-parchment-300 dark:border-indian-navy-700">
           <Link
             to="/"
@@ -48,6 +48,18 @@ export const Header: React.FC = () => {
           >
             <Dices className="w-3.5 h-3.5" />
             <span>Play</span>
+          </Link>
+
+          <Link
+            to="/rules"
+            className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors ${
+              isCurrent('/rules')
+                ? 'bg-white dark:bg-indian-navy-700 text-indian-terracotta-600 shadow-sm'
+                : 'text-indian-navy-700 dark:text-indian-parchment-300 hover:text-indian-terracotta-600'
+            }`}
+          >
+            <BookOpen className="w-3.5 h-3.5" />
+            <span>Rules</span>
           </Link>
 
           <Link
@@ -63,7 +75,7 @@ export const Header: React.FC = () => {
           </Link>
         </nav>
 
-        {/* Player Name & Controls */}
+        {/* Player Controls & Name */}
         <div className="flex items-center gap-2">
           {/* Sound Toggle */}
           <button
@@ -72,15 +84,6 @@ export const Header: React.FC = () => {
             className="w-8 h-8 flex items-center justify-center rounded-lg border border-indian-parchment-300 dark:border-indian-navy-700 bg-white dark:bg-indian-navy-800 text-indian-navy-800 dark:text-indian-parchment-200 hover:bg-indian-parchment-200 transition-colors"
           >
             {soundMuted ? <VolumeX className="w-4 h-4 text-red-500" /> : <Volume2 className="w-4 h-4 text-indian-emerald-500" />}
-          </button>
-
-          {/* Theme Toggle */}
-          <button
-            onClick={toggleTheme}
-            aria-label="Toggle theme"
-            className="w-8 h-8 flex items-center justify-center rounded-lg border border-indian-parchment-300 dark:border-indian-navy-700 bg-white dark:bg-indian-navy-800 text-indian-navy-800 dark:text-indian-parchment-200 hover:bg-indian-parchment-200 transition-colors"
-          >
-            {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-indian-navy-600" />}
           </button>
 
           {/* Player Name Badge (Click to Edit Name) */}

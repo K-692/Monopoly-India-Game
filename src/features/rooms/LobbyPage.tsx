@@ -13,7 +13,7 @@ export const LobbyPage: React.FC = () => {
   const navigate = useNavigate();
   const { player, openNamePrompt } = useAuthStore();
   const { currentRoom, toggleReady, leaveRoom } = useRoomStore();
-  const { initializeDemoGame } = useGameStore();
+  const { initializeGameFromRoom } = useGameStore();
 
   const [copiedCode, setCopiedCode] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
@@ -87,7 +87,7 @@ export const LobbyPage: React.FC = () => {
   };
 
   const handleStartGame = () => {
-    initializeDemoGame(player?.displayName || 'Host Player');
+    initializeGameFromRoom(room.roomId, `game_${room.roomId}`, room.members);
     navigate(`/game/${room.roomId}`);
   };
 

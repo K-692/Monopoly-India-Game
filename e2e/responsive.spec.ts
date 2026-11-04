@@ -5,12 +5,27 @@ test.describe('Indian Monopoly - Two-Tab Architecture & Practice Match E2E', () 
     await page.goto('/');
     await expect(page.locator('h1')).toContainText('INDIAN MONOPOLY');
 
-    // Verify only two nav tabs are present: Play and Settings
+    // Verify navigation tabs: Play, Rules, Settings
     await expect(page.getByRole('link', { name: /^Play$/i })).toBeVisible();
+    await expect(page.getByRole('link', { name: /^Rules$/i })).toBeVisible();
     await expect(page.getByRole('link', { name: /^Settings$/i })).toBeVisible();
 
     // Verify Practice Match card is prominently visible
     await expect(page.getByRole('button', { name: /Launch Practice Match/i })).toBeVisible();
+  });
+
+  test('navigates to Rules tab and verifies scrollable rulebook content', async ({ page }) => {
+    await page.goto('/#/rules');
+    await expect(page.locator('h1')).toContainText('Indian Monopoly Rules & Guide');
+    await expect(page.getByText('Official Rulebook')).toBeVisible();
+
+    // Verify tabs inside Rules page
+    await expect(page.getByRole('button', { name: /Civic Fund/i })).toBeVisible();
+    await page.getByRole('button', { name: /Civic Fund/i }).click();
+    await expect(page.getByText('Civic Fund — 12 Official Rules')).toBeVisible();
+
+    await page.getByRole('button', { name: /Bankruptcy & Jail/i }).click();
+    await expect(page.getByText('Complete Bankruptcy Invariant')).toBeVisible();
   });
 
   test('prompts for name on first launch, enters Practice Match, and rolls dice inside board', async ({ page }) => {

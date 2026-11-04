@@ -149,6 +149,10 @@ export const PlayerStrip: React.FC<PlayerStripProps> = ({
           player={inspectedPlayer}
           properties={properties}
           onClose={() => setInspectedPlayerUid(null)}
+          activePlayerName={players.find((p) => p.uid === currentPlayerUid)?.displayName}
+          activePlayerColor={players.find((p) => p.uid === currentPlayerUid)?.colorToken}
+          turnTimeRemaining={turnTimeRemaining}
+          isMyTurn={currentPlayerUid === 'player_human'}
         />
       )}
     </div>

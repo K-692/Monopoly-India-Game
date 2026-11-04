@@ -76,27 +76,63 @@
   border-right: 2px solid #C85A32;
 }
 
-/* 3D Dice Tumbling Animation */
-@keyframes diceTumble3D {
+/* Realistic 3D Dice Rolling Animation for Dual Cubes */
+@keyframes diceRoll3D_Die1 {
   0% {
-    transform: perspective(600px) rotateX(0deg) rotateY(0deg) rotateZ(0deg) scale(1);
+    transform: perspective(600px) rotateX(0deg) rotateY(0deg) rotateZ(0deg) scale(1) translateY(0);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
   }
-  25% {
-    transform: perspective(600px) rotateX(180deg) rotateY(90deg) rotateZ(45deg) scale(1.12) translateY(-6px);
+  20% {
+    transform: perspective(600px) rotateX(140deg) rotateY(100deg) rotateZ(45deg) scale(1.15) translateY(-14px);
+    box-shadow: 0 16px 24px rgba(0, 0, 0, 0.35);
   }
-  50% {
-    transform: perspective(600px) rotateX(360deg) rotateY(270deg) rotateZ(180deg) scale(0.96) translateY(3px);
+  45% {
+    transform: perspective(600px) rotateX(290deg) rotateY(210deg) rotateZ(135deg) scale(0.92) translateY(4px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.25);
   }
-  75% {
-    transform: perspective(600px) rotateX(540deg) rotateY(450deg) rotateZ(315deg) scale(1.08) translateY(-3px);
+  70% {
+    transform: perspective(600px) rotateX(470deg) rotateY(330deg) rotateZ(240deg) scale(1.08) translateY(-8px);
+    box-shadow: 0 12px 20px rgba(0, 0, 0, 0.3);
   }
   100% {
     transform: perspective(600px) rotateX(720deg) rotateY(720deg) rotateZ(360deg) scale(1) translateY(0);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
   }
 }
 
+@keyframes diceRoll3D_Die2 {
+  0% {
+    transform: perspective(600px) rotateX(0deg) rotateY(0deg) rotateZ(0deg) scale(1) translateY(0);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  }
+  25% {
+    transform: perspective(600px) rotateX(-160deg) rotateY(-120deg) rotateZ(-60deg) scale(1.18) translateY(-16px);
+    box-shadow: 0 18px 26px rgba(0, 0, 0, 0.35);
+  }
+  50% {
+    transform: perspective(600px) rotateX(-350deg) rotateY(-240deg) rotateZ(-150deg) scale(0.9) translateY(5px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.25);
+  }
+  75% {
+    transform: perspective(600px) rotateX(-530deg) rotateY(-390deg) rotateZ(-270deg) scale(1.06) translateY(-6px);
+    box-shadow: 0 12px 18px rgba(0, 0, 0, 0.3);
+  }
+  100% {
+    transform: perspective(600px) rotateX(-720deg) rotateY(-720deg) rotateZ(-360deg) scale(1) translateY(0);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  }
+}
+
+.animate-dice-roll-1 {
+  animation: diceRoll3D_Die1 0.48s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+}
+
+.animate-dice-roll-2 {
+  animation: diceRoll3D_Die2 0.52s cubic-bezier(0.2, 0.95, 0.4, 1) infinite;
+}
+
 .animate-dice-tumble {
-  animation: diceTumble3D 0.55s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+  animation: diceRoll3D_Die1 0.48s cubic-bezier(0.25, 1, 0.5, 1) infinite;
 }
 
 

@@ -1,221 +1,207 @@
-# 🇮🇳 Indian Monopoly — Online Multiplayer Board Game
+<div align="center">
+  <img src="public/assets/game_logo.png" alt="Indian Monopoly Logo" width="180" style="border-radius: 20px; box-shadow: 0 8px 24px rgba(0,0,0,0.18);" />
+  
+  # 🇮🇳 Indian Monopoly — Online Multiplayer Board Game
 
-[![CI](https://github.com/K-692/Monopoly-India-Game/actions/workflows/ci.yml/badge.svg)](https://github.com/K-692/Monopoly-India-Game/actions/workflows/ci.yml)
-[![GitHub Pages](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-success.svg)](https://k-692.github.io/Monopoly-India-Game/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-amber.svg)](LICENSE)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.7+-blue.svg)](https://www.typescriptlang.org/)
-[![React](https://img.shields.io/badge/React-19-61dafb.svg)](https://react.dev/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4+-38b2ac.svg)](https://tailwindcss.com/)
-[![Vite](https://img.shields.io/badge/Vite-6.0+-646cff.svg)](https://vite.dev/)
-[![Playwright](https://img.shields.io/badge/Playwright-Multi--Device%20E2E-green.svg)](https://playwright.dev/)
+  [![CI](https://github.com/K-692/Monopoly-India-Game/actions/workflows/ci.yml/badge.svg)](https://github.com/K-692/Monopoly-India-Game/actions/workflows/ci.yml)
+  [![GitHub Pages](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-success.svg)](https://k-692.github.io/Monopoly-India-Game/)
+  [![License: MIT](https://img.shields.io/badge/License-MIT-amber.svg)](LICENSE)
+  [![TypeScript](https://img.shields.io/badge/TypeScript-5.7+-blue.svg)](https://www.typescriptlang.org/)
+  [![React](https://img.shields.io/badge/React-19-61dafb.svg)](https://react.dev/)
+  [![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4+-38b2ac.svg)](https://tailwindcss.com/)
+  [![Vite](https://img.shields.io/badge/Vite-6.0+-646cff.svg)](https://vite.dev/)
 
-> **Live Game URL:** [https://k-692.github.io/Monopoly-India-Game/](https://k-692.github.io/Monopoly-India-Game/)
->
-> **Repository Description:** A fast, responsive, zero-scroll Indian-themed multiplayer property trading board game built with React 19, TypeScript, Tailwind CSS, and Cloud Firestore. Features a maximized full-screen board, 24 authentic Indian metropolitan cities (strictly 6 per side) formatted in two non-wrapping lines with prices and mortgage values, 4 intercity transit gateways (2 Railways & 2 Airports with in-grid vector illustrations), 12 Market Buzz & 12 Civic Fund canonical rules displayed in dual indexed center panels (#1 to #12), central 3D tumbling dice and in-board roll button, in-board pointed comment boxes for buying cities and constructing houses/towers, interactive City Deed Inspection Modals on city click, Player Financial Dossier Modals on player click, jailed player rent exemption, money transaction acknowledgement receipts, player-colored grid theming upon purchase, next-turn delayed building logic, universal mortgaging, frictionless link-based room joining, host-configurable rule engines, turn countdown timers, zero-latency Web Audio procedural sound synthesis, and a 2-player practice match duel sandbox.
->
-> **GitHub Repository Topics:** `monopoly`, `board-game`, `multiplayer-game`, `react19`, `typescript`, `firebase`, `firestore`, `tailwindcss`, `vite`, `playwright`, `game-engine`, `indian-theme`, `web-audio-api`, `pwa`, `responsive-web-design`, `zero-scroll`, `github-pages`
-
----
-
-## 🌟 Key Highlights
-
-- 🌐 **Live Web Play**: Share the link [https://k-692.github.io/Monopoly-India-Game/](https://k-692.github.io/Monopoly-India-Game/) with friends to play directly from any modern desktop, tablet, or smartphone web browser!
-- 🚫 **Zero-Scroll Full-Screen Board**: The board stretches horizontally and vertically across all available viewport space (`h-[calc(100dvh-50px)]`, `flex-1`). No page scrolling, no right panel clutter, and no bottom footer.
-- 🎯 **Pointed Comment Box for Buy & Build**: Replaced bulky side panels with an elegant in-board callout box anchored directly to the player's position on the perimeter grid. Features an exact geometric pointer triangle directed straight at the player's active tile for purchasing properties or constructing houses and commercial towers.
-- 🏙️ **City Deed Inspection Modal (Click Any City)**: Clicking any city grid on the board opens a deed inspection modal showing space index, color band, ownership status, purchase price, mortgage value, unmortgage cost, complete rent schedule (Base, House 1-4, Commercial Tower), and direct mortgage/unmortgage controls.
-- 👤 **Player Financial Dossier Modal (Click Any Player)**: Clicking any player's name card in the slim left panel opens an in-depth financial dossier showing liquid cash, total net worth, current position, jail status, and their complete portfolio of owned deeds with current rent yields.
-- 🧾 **Money Transaction Acknowledgement Modal**: Whenever money changes hands (rent payments, property deeds, construction costs, statutory taxes, START rewards), a financial receipt modal appears with payer, recipient, amount, description, and an explicit, high-contrast, gold `✓ ACKNOWLEDGE` button.
-- ⚖️ **Jailed Player Rent & Card Exemption**: Incarcerated players in Central Jail earn **₹0 rent** when opponents land on their properties and receive **₹0** from card payment redistributions until bailed or released.
-- 🎲 **Central Roll Dice Button & 3D Tumbling Dice**: Interactive 3D dice faces with tumbling animations and the primary action button (`ROLL DICE`, `END TURN`, `TRY DOUBLES`, `PAY BAIL`) placed directly at the center of the board.
-- 📜 **Dual 1..12 Indexed Rule Panels in Board Center**: In place of static card backs or single face-up cards, the center of the board features two structured panels:
-  - **Left Panel (Civic Fund)**: All 12 Community Treasury rules indexed #1 to #12 with titles, descriptions, and currency awards.
-  - **Right Panel (Market Buzz)**: All 12 Fortune & Chance rules indexed #1 to #12 with titles, descriptions, and currency amounts.
-  - Landing on Civic Fund or Market Buzz resolves the applied rule index strictly from the player's rolled `diceTotal` ($1 \le \text{diceTotal} \le 12$) with an in-board pop-up modal featuring a prominent, high-visibility `✓ ACKNOWLEDGE RULE` button.
-- 🎨 **Player-Colored Grid Theming on Purchase**:
-  - When a player buys a city, the grid tile adopts that player's token color:
-    - **Solid Border**: 2px border in the player's token color.
-    - **Tinted Background**: Alpha-blended wash in the player's color (`${colorToken}18`).
-    - **Owner Accent Bar**: Header strip displaying the owner's name.
-    - **Houses/Tower Badges**: Direct in-grid house badges (`🏠`) or golden Commercial Tower (`🏢 TOWER`).
-- 🏗️ **Delayed Building Logic (Next Turn Construction Constraint)**:
-  - House/tower construction is strictly prohibited on the turn a city is purchased. Building is permitted starting from subsequent turns (`turnNumber > boughtOnTurn`) when the owner visits their city with sufficient funds.
-- 🔤 **Two-Line Non-Wrapping Typography with Mortgage Values**: Every city and transit grid is formatted strictly across **two distinct lines**:
-  - **Line 1 (Top)**: City / Place Name with dynamic length-based font scaling (`text-[7px]` to `text-[9.5px]`), guaranteeing zero text wrap and zero truncation.
-  - **Line 2 (Bottom)**: Price alongside Mortgage Value (`M: ₹{mortgageValue}`) in bold, legible typography.
-- 🚂 ✈️ **In-Grid Railway & Airport Vector Illustrations**:
-  - **Railways**: CST Mumbai (#5) and Howrah Railway (#15) feature crisp, vector express locomotive engine illustrations with headlights and track ties.
-  - **Airports**: Chennai Airport (#25) and IGI Airport (#35) feature streamlined high-altitude passenger jetliner airliner illustrations.
-- 🏙️ **24 Authentic Indian Cities (Strictly 6 Cities on Each Side)**:
-  - **Bottom Side**: Jaipur, Jodhpur, Udaipur, Agra, Lucknow, Varanasi (6 cities) + 1 Civic Fund + 1 Railway (CST Mumbai) + 1 Tax (GST Tax).
-  - **Left Side**: Indore, Bhopal, Surat, Visakhapatnam, Kochi, Goa (6 cities) + 1 Market Buzz + 1 Railway (Howrah Railway) + 1 Utility (Urja Power Grid).
-  - **Top Side**: Ahmedabad, Pune, Hyderabad, Bengaluru, Chennai, Kolkata (6 cities) + 1 Civic Fund + 1 Airport (Chennai Airport) + 1 Utility (Jal Board Grid).
-  - **Right Side**: Chandigarh, Gurugram, Noida, Navi Mumbai, New Delhi, Mumbai (6 cities) + 1 Market Buzz + 1 Airport (IGI Airport) + 1 Tax (Infra Levy).
-- 🤺 **2-Player Practice Match Duel**: Fast, responsive 1v1 practice sandbox against *Priya (Mumbai)* with intelligent autonomous AI decision-making (rolling, property evaluation, bail resolution, and turn cycling).
-- 🔗 **Frictionless Link-Based Multiplayer**: No Google login or password needed. Anyone with the room link can join instantly by simply entering their chosen player name!
-- 🗂️ **Streamlined Two-Tab Interface**: Clean, uncluttered UI featuring only **Play** and **Settings** tabs.
+  **Play instantly in your browser:**  
+  ### 🎮 [https://k-692.github.io/Monopoly-India-Game/](https://k-692.github.io/Monopoly-India-Game/)
+</div>
 
 ---
 
-## 🎲 40-Space Canonical Board Topology (6 Cities Per Side)
-
-```
-+--------------------------------------------------------------------------------------------------------------------+
-| REST      | AHMEDABAD | CIVIC     | PUNE      | HYDERABAD | CHENNAI   | BENGALURU | CHENNAI   | JAL BOARD | KOLKATA   | GO TO     |
-| HOUSE     | (₹2,200)  | FUND      | (₹2,200)  | (₹2,400)  | AIRPORT   | (₹2,600)  | (₹2,600)  | GRID      | (₹2,800)  | JAIL      |
-| (20)      | (21)      | (22)      | (23)      | (24)      | [✈️] (25)  | (26)      | (27)      | (28)      | (29)      | (30)      |
-+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+
-| GOA (19)  |                                                                                                           | CHANDI-   |
-| ₹2,000    |                                                                                                           | GARH (31) |
-|-----------+                                                                                                           | ₹3,000    |
-| KOCHI     |                                              INDIAN MONOPOLY                                              +-----------|
-| (18)      |                                  Real-Time Universal Multiplayer Web App                                  | MARKET    |
-| ₹1,800    |                                                                                                           | BUZZ (32) |
-|-----------+                                                                                                           +-----------|
-| URJA      |                                                                                                           | GURUGRAM  |
-| POWER(17) |                                                                                                           | (33)      |
-| ₹1,500    |                                                                                                           | ₹3,200    |
-|-----------+                                                                                                           +-----------|
-| VISAKHA-  |                                                                                                           | NOIDA     |
-| PATNAM(16)|                                                                                                           | (34)      |
-| ₹1,800    |                                                                                                           | ₹3,200    |
-|-----------+                                                                                                           +-----------|
-| HOWRAH    |                                                                                                           | IGI       |
-| RAILWAY   |                                                                                                           | AIRPORT   |
-| [🚂] (15) |                                                                                                           | [✈️] (35)  |
-|-----------+                                                                                                           +-----------|
-| SURAT     |                                                                                                           | NAVI      |
-| (14)      |                                                                                                           | MUMBAI(36)|
-| ₹1,600    |                                                                                                           | ₹3,500    |
-|-----------+                                                                                                           +-----------|
-| BHOPAL    |                                                                                                           | INFRA     |
-| (13)      |                                                                                                           | LEVY (37) |
-| ₹1,400    |                                                                                                           | ₹1,000    |
-|-----------+                                                                                                           +-----------|
-| MARKET    |                                                                                                           | NEW DELHI |
-| BUZZ (12) |                                                                                                           | (38)      |
-|           |                                                                                                           | ₹3,800    |
-|-----------+                                                                                                           +-----------|
-| INDORE    |                                                                                                           | MUMBAI    |
-| (11)      |                                                                                                           | (39)      |
-| ₹1,400    |                                                                                                           | ₹4,000    |
-+-----------+-----------------------------------------------------------------------------------------------------------+-----------+
-| JAIL /    | VARANASI  | GST TAX   | LUCKNOW   | AGRA      | CST       | UDAIPUR   | JODHPUR   | CIVIC     | JAIPUR    | START     |
-| VISITING  | (9)       | (8)       | (7)       | (6)       | MUMBAI(5) | (4)       | (3)       | FUND (2)  | (1)       | (0)       |
-| (10)      | ₹1,200    | ₹2,000    | ₹1,000    | ₹1,000    | [🚂]₹2,000| ₹800      | ₹600      | Treasury  | ₹600      | Collect   |
-|           |           |           |           |           |           |           |           |           |           | ₹2,000    |
-+-----------------------------------------------------------------------------------------------------------------------------------+
-```
+> **About the Project:**  
+> Indian Monopoly is a modern, high-performance, zero-scroll online multiplayer property trading board game. Built with React 19, TypeScript, Tailwind CSS, and Cloud Firestore, it features 24 premier Indian metropolitan cities (strictly 6 per side), 4 intercity transit hubs with authentic vector illustrations, 12 Civic Fund and 12 Market Buzz canonical rules indexed symmetrically in the center, 3D tumbling dice, pointed comment boxes for buying/building, in-grid city landmarks, authoritative live turn timers on all popups, and strict tournament bankruptcy rules.
 
 ---
 
-## 🏗️ System Architecture & Workflow
+## 🎯 How to Play
 
-```mermaid
-flowchart TD
-    subgraph BrowserClient["Universal Browser Client (React 19 + TypeScript)"]
-        UI["Two-Tab Viewport (Play / Settings)"]
-        Canvas["Zero-Scroll Stretched Canvas (Slim Left Panel + Full Game Board)"]
-        Board["Maximized 40-Space Adaptive GameBoard"]
-        PointedBox["In-Board Pointed Comment Box (Buy / Build Callout)"]
-        DeedModal["CityDeedModal (Full Rent Schedule & Mortgages)"]
-        PlayerModal["PlayerDetailModal (Net Worth, Deeds, Liquid Cash)"]
-        MoneyModal["MoneyTransactionAcknowledgement (Financial Receipts)"]
-        Audio["Web Audio Procedural Sound Engine"]
-        UI --> Canvas
-        Canvas --> Board
-        Board --> PointedBox
-        Board --> DeedModal
-        Canvas --> PlayerModal
-        Board --> MoneyModal
-        Canvas --> Audio
-    end
+### 1. Game Objective
+The objective of Indian Monopoly is to accumulate wealth, acquire high-yield Indian metropolitan properties, develop residential blocks and commercial towers, and bankrupt your rivals. **The game concludes immediately when opponents become completely bankrupt — possessing ₹0 cash and no unmortgaged properties to raise capital.** The last solvent tycoon is crowned victorious!
 
-    subgraph StateManagement["Client State Machines (Zustand)"]
-        RoomStore["useRoomStore"]
-        PracticeStore["usePracticeStore (2-Player Duel)"]
-        GameStore["useGameStore"]
-        AuthStore["useAuthStore (Guest Identity)"]
-        SettingsStore["useSettingsStore (Sound / Theme)"]
-    end
-
-    subgraph CoreEngine["Pure Game Engine (Server-Authoritative Invariants)"]
-        ActionValidator["Action Command Dispatcher"]
-        RentCalculator["Rent & Monopoly Multipliers (Jail Exemption)"]
-        TurnDelay["Next-Turn Building Invariants"]
-        TransactionRecorder["Active Transaction Receipts"]
-        ActionValidator --> RentCalculator
-        ActionValidator --> TurnDelay
-        ActionValidator --> TransactionRecorder
-    end
-
-    subgraph CloudBackend["Firebase Cloud Infrastructure"]
-        Firestore["Cloud Firestore (Real-Time Document Stream)"]
-        SecurityRules["Security Rules & Version Concurrency"]
-        Hosting["GitHub Pages CDN / HashRouter"]
-    end
-
-    BrowserClient --> StateManagement
-    StateManagement --> CoreEngine
-    StateManagement <--> Firestore
-    Firestore --> SecurityRules
-```
+### 2. Turn Sequence
+1. **Roll the Dice**:
+   - The active player rolls two dice featuring 3D tumbling physics and perspective animations.
+   - The combined total is displayed directly beneath the dice arena (e.g. `🎲 Rolled: 8`).
+   - Rolling doubles gives you an immediate extra turn! (Rolling doubles 3 consecutive times sends you directly to Central Jail).
+2. **Move Around the 40-Space Board**:
+   - Your token advances clockwise across the board.
+   - Passing or landing on **START** awards you a **₹2,000** salary reward from the Reserve Bank.
+3. **Resolve Destination Space**:
+   - **Unowned Property**: An in-board pointed callout box appears near your grid space offering to purchase the deed for the listed price.
+   - **Owned Property**: Pay the owner the calculated rent. (If the owner is currently incarcerated in Central Jail, **no rent is collected**).
+   - **Civic Fund / Market Buzz**: The dice sum rolled determines which numbered rule (#1 to #12) is executed from the dual indexed center panels.
+   - **Statutory Taxes**: Pay ₹2,000 at GST Checkpost or ₹1,000 at Infrastructure Wealth Levy.
+   - **Rest House / Just Visiting**: Safe rest zones with no penalty.
+4. **End Turn**:
+   - Manage your properties, inspect deeds, mortgage unimproved spaces for quick liquidity, and press **END TURN** to pass play to the next tycoon. Each turn features a 30-second live countdown timer.
 
 ---
 
-## 🚀 Getting Started
+### 3. Buying, Building & Development Rules
+- **Acquiring Cities**:
+  - Landing on an unowned city prompts a pointed comment box. You can purchase the property deed or decline.
+  - Upon purchase, the grid space is branded with your player token color and displays your ownership badge.
+- **Next-Turn Construction Constraint**:
+  - You **cannot build a house on the same turn** you acquire a city.
+  - Construction is unlocked on subsequent rounds when you visit your city again with sufficient funds.
+  - Upgrade through 4 Residential Blocks, then construct a prestigious **Skyscraper Commercial Tower** for maximum rental yield.
+- **Transits & Public Utilities**:
+  - **4 Transit Hubs** (CST Mumbai, Howrah Railway, Chennai Airport, New Delhi Airport): Rent scales exponentially with the number of transits owned (₹250 ➔ ₹500 ➔ ₹1,000 ➔ ₹2,000).
+  - **2 Utilities** (Urja Power Grid, Jal Board Authority): Rent is 4× dice roll for 1 utility, or 10× dice roll if both are held.
+
+---
+
+### 4. Canonical 1..12 Indexed Rule Decks
+
+#### 🏛️ Civic Fund (12 Community Treasury Rules)
+| No. | Rule Title | Card Instruction |
+|:---:|:---|:---|
+| **1** | Bank Interest | Receive ₹500 from the Reserve Bank. |
+| **2** | Tax Refund | Receive ₹700 statutory tax refund. |
+| **3** | Education Expense | Pay ₹400 for community education development. |
+| **4** | Festival Gathering | Pay ₹200 to every other active solvent player. |
+| **5** | Development Grant | Receive ₹100 for each house and ₹300 for each commercial tower owned. |
+| **6** | Municipal Maintenance | Pay ₹250 for every property deed you own. |
+| **7** | Community Grant | Receive ₹1,000 from the community development fund. |
+| **8** | Road Repair Contribution | Pay ₹1,000 municipal road repair contribution. |
+| **9** | Special Legal Exemption | Keep this Get Out of Jail Free card until used or traded. |
+| **10** | Civic Investigation | Go directly to Jail. Do not collect START salary. |
+| **11** | Legal Settlement | Receive ₹1,500 legal settlement from the bank. |
+| **12** | Utility Expenses | Pay ₹600 for municipal water and electricity expenses. |
+
+#### 📈 Market Buzz (12 Fortune & Chance Rules)
+| No. | Rule Title | Card Instruction |
+|:---:|:---|:---|
+| **1** | Startup Grant | Receive ₹800 innovation grant from the bank. |
+| **2** | Festival Travel | Advance to START and collect ₹2,000 salary. |
+| **3** | Business Conference | Advance to Delhi – Connaught Place. Collect START salary if passed. |
+| **4** | Railway Expansion | Advance to the next Transit hub. Pay 2× transit rent if owned; buy or auction if unowned. |
+| **5** | Road Diversion | Move backwards 3 spaces and resolve destination tile. |
+| **6** | Highway Toll | Pay ₹300 highway toll to the Reserve Bank. |
+| **7** | Property Maintenance | Pay ₹250 for each house and ₹750 for each commercial tower owned. |
+| **8** | Successful Tender | Receive ₹1,200 tender award from the bank. |
+| **9** | Regulatory Violation | Go directly to Jail. Do not collect START salary. |
+| **10** | Transit Dividend | Receive ₹400 for each Transit hub you own. |
+| **11** | Emergency Procurement | Pay ₹700 emergency procurement charge to the bank. |
+| **12** | Mumbai Investment Trip | Advance to Mumbai – Marine Drive. Collect START salary if passed. |
+
+---
+
+### 5. Central Jail Rules & Zero-Rent Invariant
+- **Entering Jail**: Landing on "Go To Jail", rolling 3 consecutive doubles, or drawing rule #10 from Civic Fund / #9 from Market Buzz sends you to Central Jail.
+- **Zero Income Incarceration**: While in jail, **you earn ₹0 in rent** from opponents landing on your properties and collect ₹0 from player cash redistributions.
+- **Exiting Jail**:
+  1. Pay the ₹500 statutory bail fee on your turn.
+  2. Roll doubles on any of your 3 turn attempts.
+  3. Redeem a "Special Legal Exemption" Get Out of Jail Free card.
+
+---
+
+### 6. Universal Mortgages & Complete Bankruptcy
+- **Mortgaging**: Any player can mortgage any of their unimproved properties on their turn to raise liquid capital (mortgage value is 50% of deed price). Mortgaged properties collect ₹0 rent until redeemed for mortgage value + 10% interest.
+- **Complete Bankruptcy & Victory**:
+  - A player is declared completely bankrupt when their cash reaches **₹0** and they have **no unmortgaged properties** left to raise funds.
+  - All properties of the bankrupt player are liquidated back to the Reserve Bank.
+  - When all opponents are eliminated and only 1 solvent player remains, the game concludes instantly with full celebration!
+
+---
+
+## 🔐 Security & GitHub Secrets Configuration
+
+This repository strictly contains **no hardcoded secrets or API keys**. All sensitive credentials are resolved via Vite environment variables and GitHub Actions repository secrets.
+
+### How to Add Firebase Secrets to GitHub Actions:
+To deploy your own live version via GitHub Pages with full Firebase sync:
+1. Navigate to your repository on GitHub:  
+   `https://github.com/K-692/Monopoly-India-Game`
+2. Click **Settings** ➔ **Secrets and variables** ➔ **Actions**.
+3. Click the green **New repository secret** button.
+4. Add the following secrets corresponding to your Firebase project:
+
+| Secret Name | Value Description |
+|:---|:---|
+| `VITE_FIREBASE_API_KEY` | Firebase Web API Key |
+| `VITE_FIREBASE_AUTH_DOMAIN` | Firebase Auth Domain (`<project-id>.firebaseapp.com`) |
+| `VITE_FIREBASE_PROJECT_ID` | Firebase Project ID |
+| `VITE_FIREBASE_STORAGE_BUCKET` | Firebase Storage Bucket URL |
+| `VITE_FIREBASE_MESSAGING_SENDER_ID` | Firebase Cloud Messaging Sender ID |
+| `VITE_FIREBASE_APP_ID` | Firebase Web App ID |
+| `VITE_FIREBASE_MEASUREMENT_ID` | Google Analytics Measurement ID (Optional) |
+
+Once added, any push to `main` triggers `.github/workflows/deploy-pages.yml` to securely build and deploy your app to GitHub Pages with zero exposed secrets!
+
+---
+
+## 💻 Local Development & Testing
 
 ### Prerequisites
-- Node.js 18.0+ or 20.0+
-- npm 9.0+
+- **Node.js**: v18.0.0 or higher
+- **npm**: v9.0.0 or higher
 
-### Installation
+### Running Locally
+```bash
+# 1. Clone repository
+git clone https://github.com/K-692/Monopoly-India-Game.git
+cd Monopoly-India-Game
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/K-692/Monopoly-India-Game.git
-   cd Monopoly-India-Game
-   ```
+# 2. Install dependencies
+npm install
 
-2. **Install dependencies:**
-   ```bash
-   npm install
-   ```
+# 3. Start local development server
+npm run dev
+```
+Open [http://localhost:5173](http://localhost:5173) in your browser.
 
-3. **Launch the development server:**
-   ```bash
-   npm run dev
-   ```
-   Open your browser to `http://localhost:5173`.
+### Verification Commands
+```bash
+# Run unit & engine tests
+npm test
 
-### Running Tests
-
-- **Unit and game engine tests:**
-   ```bash
-   npm test
-   ```
-- **End-to-end browser tests (Playwright):**
-   ```bash
-   npx playwright test
-   ```
-- **Production build check:**
-   ```bash
-   npm run build
-   ```
+# Run production build
+npm run build
+```
 
 ---
 
-## 🤝 Contributing
+## 🤝 How to Contribute
 
-We warmly welcome contributions from developers, designers, and board game enthusiasts worldwide! 
+We warmly welcome contributions from developers, game designers, and open-source enthusiasts!
 
-Whether you are improving AI bot strategies, optimizing responsive CSS grid topologies, adding sound effects, or fixing edge cases in monopoly rent rules:
-1. **Fork the repository** on GitHub.
-2. **Create a descriptive feature branch**: `git checkout -b feature/my-new-feature`
-3. **Commit your changes**: `git commit -m "Add innovative new feature"`
-4. **Push to your branch**: `git push origin feature/my-new-feature`
-5. **Open a Pull Request** with a detailed summary of your improvements.
-
-Please ensure all tests pass (`npm test && npm run build`) before opening a PR!
+1. **Fork the Repository**: Click the **Fork** button at the top right of this page.
+2. **Clone your fork**:
+   ```bash
+   git clone https://github.com/<your-username>/Monopoly-India-Game.git
+   cd Monopoly-India-Game
+   ```
+3. **Create a Feature Branch**:
+   ```bash
+   git checkout -b feature/amazing-feature
+   ```
+4. **Make Your Changes**:
+   - Write clean, type-safe TypeScript code.
+   - Maintain the zero-scroll layout principles and responsive designs.
+   - Preserve comments for clarity.
+5. **Run the Test Suite**:
+   ```bash
+   npm test
+   npm run build
+   ```
+   Ensure all tests pass cleanly with zero warnings or errors.
+6. **Commit & Push**:
+   ```bash
+   git commit -m "feat: add amazing feature"
+   git push origin feature/amazing-feature
+   ```
+7. **Submit a Pull Request**: Open a PR with a clear summary of your enhancements, rationale, and screenshots if UI changes are included.
 
 ---
 

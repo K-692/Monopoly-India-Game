@@ -78,14 +78,14 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
     space.type === 'TRANSIT' &&
     (space.name.toLowerCase().includes('airport') || space.id.includes('airport'));
 
-  // Adaptive font size based on city name length to ensure single-line fit without truncation
+  // Adaptive larger font size based on city name length to ensure single-line fit without truncation
   const nameLength = space.name.length;
   const nameFontSizeClass =
-    nameLength > 12
-      ? 'text-[7px] sm:text-[7.5px] md:text-[8px]'
+    nameLength > 13
+      ? 'text-[8.5px] sm:text-[9.5px] md:text-[10.5px]'
       : nameLength > 8
-        ? 'text-[7.5px] sm:text-[8px] md:text-[8.5px]'
-        : 'text-[8.5px] sm:text-[9px] md:text-[9.5px]';
+        ? 'text-[9.5px] sm:text-[10.5px] md:text-[11.5px]'
+        : 'text-[10.5px] sm:text-[11.5px] md:text-[13px]';
 
   // Tile ownership styling: When owned, color grid with owner's player color
   const tileStyle: React.CSSProperties = {
@@ -126,7 +126,7 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
         style={{ backgroundColor: ownerColor }}
         className="w-full h-1.5 shrink-0 flex items-center justify-center"
       >
-        <span className="text-[6.5px] font-black text-white leading-none tracking-tighter truncate px-1">
+        <span className="text-[7px] sm:text-[7.5px] font-black text-white leading-none tracking-tighter truncate px-1">
           {owner?.displayName.split(' ')[0]}
         </span>
       </div>
@@ -148,31 +148,31 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
     >
       {/* Corner Spaces: Compact Extreme Corner styling with dedicated player token slot */}
       {isCorner ? (
-        <div className="w-full h-full flex flex-col items-center justify-between text-center p-1 bg-indian-parchment-100 dark:bg-indian-navy-950/60 overflow-hidden select-none">
+        <div className="relative z-10 w-full h-full flex flex-col items-center justify-between text-center p-1 bg-indian-parchment-100/70 dark:bg-indian-navy-950/70 overflow-hidden select-none">
           <div className="flex-1 flex flex-col items-center justify-center text-center">
             {space.spaceIndex === 0 && (
               <div className="flex flex-col items-center justify-center text-indian-terracotta-600 gap-0.5">
-                <span className="font-serif text-[10.5px] sm:text-xs md:text-sm font-black tracking-wider whitespace-nowrap">START</span>
-                <span className="text-[9px] sm:text-[10px] font-black text-emerald-700 dark:text-emerald-400 whitespace-nowrap">₹2,000</span>
-                <ArrowLeft className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-indian-terracotta-500 animate-pulse-subtle" />
+                <span className="font-serif text-xs sm:text-sm md:text-base font-black tracking-wider whitespace-nowrap">START</span>
+                <span className="text-[10px] sm:text-[11px] md:text-xs font-black text-emerald-700 dark:text-emerald-400 whitespace-nowrap">₹2,000</span>
+                <ArrowLeft className="w-3 h-3 text-indian-terracotta-500 animate-pulse-subtle" />
               </div>
             )}
             {space.spaceIndex === 10 && (
               <div className="text-center">
-                <span className="block text-[10.5px] sm:text-xs font-black text-red-700 whitespace-nowrap">JAIL</span>
-                <span className="text-[8px] sm:text-[9px] text-gray-500 font-bold whitespace-nowrap">Visiting</span>
+                <span className="block text-xs sm:text-sm md:text-base font-black text-red-700 whitespace-nowrap">JAIL</span>
+                <span className="text-[9px] sm:text-[10px] text-gray-500 font-bold whitespace-nowrap">Visiting</span>
               </div>
             )}
             {space.spaceIndex === 20 && (
               <div className="text-center text-amber-700">
-                <span className="block text-[10.5px] sm:text-xs font-black whitespace-nowrap">REST</span>
-                <span className="text-[8px] sm:text-[9px] text-gray-500 font-bold whitespace-nowrap">House</span>
+                <span className="block text-xs sm:text-sm md:text-base font-black whitespace-nowrap">REST</span>
+                <span className="text-[9px] sm:text-[10px] text-gray-500 font-bold whitespace-nowrap">House</span>
               </div>
             )}
             {space.spaceIndex === 30 && (
               <div className="text-center text-red-600">
-                <span className="block text-[10.5px] sm:text-xs font-black whitespace-nowrap">GO TO</span>
-                <span className="text-[8px] sm:text-[9px] font-extrabold whitespace-nowrap">JAIL</span>
+                <span className="block text-xs sm:text-sm md:text-base font-black whitespace-nowrap">GO TO</span>
+                <span className="text-[9px] sm:text-[10px] font-extrabold whitespace-nowrap">JAIL</span>
               </div>
             )}
           </div>
@@ -180,26 +180,49 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
         </div>
       ) : (
         /* Regular Edge City & Space Tile: Structured non-overlapping layout */
-        <div className="w-full h-full flex flex-col justify-between overflow-hidden">
+        <div className="relative w-full h-full flex flex-col justify-between overflow-hidden">
+          {/* Subtle Vector Icon Motif positioned BEHIND text contents */}
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 opacity-20 dark:opacity-30 select-none overflow-hidden p-1">
+            {isRailway && <RailwayImage className="w-9 h-9 sm:w-11 sm:h-11" />}
+            {isAirport && <AirportImage className="w-9 h-9 sm:w-11 sm:h-11" />}
+            {!isRailway && !isAirport && space.type === 'UTILITY' && (
+              space.id.includes('power') ? (
+                <Zap className="w-9 h-9 sm:w-11 sm:h-11 text-amber-500" />
+              ) : (
+                <Droplets className="w-9 h-9 sm:w-11 sm:h-11 text-blue-500" />
+              )
+            )}
+            {!isRailway && !isAirport && space.type === 'TAX' && (
+              <ShieldAlert className="w-9 h-9 sm:w-11 sm:h-11 text-red-600" />
+            )}
+            {!isRailway && !isAirport && space.type === 'CARD' && (
+              space.deck === 'CIVIC' ? (
+                <Gift className="w-9 h-9 sm:w-11 sm:h-11 text-amber-600" />
+              ) : (
+                <Flame className="w-9 h-9 sm:w-11 sm:h-11 text-orange-600" />
+              )
+            )}
+          </div>
+
           {/* BOTTOM TILES (Row 11): Board center is above; Player tokens and owner bar sit at top facing center */}
           {coord.orientation === 'bottom' && (
-            <>
+            <div className="relative z-10">
               {renderOwnerAccentBar()}
               {playersHere.length > 0 ? (
                 renderPlayerTokens('h-6')
               ) : (
                 <div className="h-1.5 shrink-0" />
               )}
-            </>
+            </div>
           )}
 
-          {/* Core Content: City Name, In-Grid Icons / Built Houses / Tower, and Price */}
-          <div className="flex-1 flex flex-col justify-center items-center text-center px-0.5 sm:px-1 gap-0.5 min-h-0 overflow-hidden">
-            {/* Line 1: City / Place Name (Single line, no wrap) */}
+          {/* Core Content: City Name, In-Grid Built Houses/Tower, and Price in FRONT */}
+          <div className="relative z-10 flex-1 flex flex-col justify-center items-center text-center px-0.5 sm:px-1 gap-0.5 min-h-0 overflow-hidden">
+            {/* Line 1: City / Place Name (Single line, bold, larger font size) */}
             <span
               title={space.name}
               className={cn(
-                'font-bold leading-tight text-center w-full whitespace-nowrap overflow-hidden text-ellipsis tracking-tight px-0.5 text-indian-navy-950 dark:text-white',
+                'font-black leading-tight text-center w-full whitespace-nowrap overflow-hidden text-ellipsis tracking-tight px-0.5 text-indian-navy-950 dark:text-white drop-shadow-2xs',
                 nameFontSizeClass
               )}
             >
@@ -210,14 +233,14 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
             {propertyState && propertyState.buildings > 0 && (
               <div className="my-0.5 shrink-0 flex items-center justify-center">
                 {propertyState.buildings === 5 ? (
-                  <div className="flex items-center gap-0.5 px-1 py-0.2 rounded bg-amber-500 text-white font-black text-[7px] sm:text-[7.5px] shadow-2xs leading-none">
+                  <div className="flex items-center gap-0.5 px-1 py-0.2 rounded bg-amber-500 text-white font-black text-[7.5px] sm:text-[8.5px] shadow-2xs leading-none">
                     <span>🏢</span>
                     <span>TOWER</span>
                   </div>
                 ) : (
                   <div className="flex items-center justify-center gap-0.5 leading-none">
                     {Array.from({ length: propertyState.buildings }).map((_, i) => (
-                      <span key={i} title={`House ${i + 1}`} className="text-[8.5px] sm:text-[9.5px] leading-none">
+                      <span key={i} title={`House ${i + 1}`} className="text-[9.5px] sm:text-[10.5px] leading-none">
                         🏠
                       </span>
                     ))}
@@ -228,50 +251,29 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
 
             {/* Mortgaged indicator tag */}
             {propertyState?.isMortgaged && (
-              <span className="text-[6.5px] sm:text-[7px] font-black text-red-600 bg-red-100 dark:bg-red-950/60 border border-red-300 dark:border-red-800 px-1 rounded-full leading-none my-0.2">
+              <span className="text-[7px] sm:text-[7.5px] font-black text-red-600 bg-red-100 dark:bg-red-950/60 border border-red-300 dark:border-red-800 px-1 rounded-full leading-none my-0.2">
                 MORTGAGED
               </span>
             )}
 
-            {/* In-Grid Visual Illustrations (Train / Airport / Utility / Tax / Card) */}
-            {isRailway && <RailwayImage className="w-4 h-4 sm:w-5 sm:h-5 shrink-0 my-0.5" />}
-            {isAirport && <AirportImage className="w-4 h-4 sm:w-5 sm:h-5 shrink-0 my-0.5" />}
-            {!isRailway && !isAirport && space.type === 'UTILITY' && (
-              space.id.includes('power') ? (
-                <Zap className="w-3.5 h-3.5 text-amber-500 shrink-0 my-0.2" />
-              ) : (
-                <Droplets className="w-3.5 h-3.5 text-blue-500 shrink-0 my-0.2" />
-              )
-            )}
-            {!isRailway && !isAirport && space.type === 'TAX' && (
-              <ShieldAlert className="w-3.5 h-3.5 text-red-600 shrink-0 my-0.2" />
-            )}
-            {!isRailway && !isAirport && space.type === 'CARD' && (
-              space.deck === 'CIVIC' ? (
-                <Gift className="w-3.5 h-3.5 text-amber-600 shrink-0 my-0.2" />
-              ) : (
-                <Flame className="w-3.5 h-3.5 text-orange-600 shrink-0 my-0.2" />
-              )
-            )}
-
-            {/* Line 2: Purchase Price & Mortgage Value */}
+            {/* Line 2: Purchase Price & Mortgage Value (Larger, High Contrast) */}
             {'price' in space && (
               <div className="flex items-center justify-center gap-1 leading-none flex-wrap">
-                <span className="text-[7.5px] sm:text-[8px] md:text-[8.5px] font-black text-emerald-700 dark:text-emerald-400 whitespace-nowrap leading-none">
+                <span className="text-[8.5px] sm:text-[9.5px] md:text-[10.5px] font-black text-emerald-800 dark:text-emerald-300 whitespace-nowrap leading-none drop-shadow-2xs">
                   ₹{space.price.toLocaleString('en-IN')}
                 </span>
-                <span className="text-[6.5px] sm:text-[7px] font-bold text-gray-500 dark:text-gray-400 whitespace-nowrap leading-none">
+                <span className="text-[7.5px] sm:text-[8px] md:text-[9px] font-bold text-gray-700 dark:text-gray-300 whitespace-nowrap leading-none">
                   M: ₹{('mortgageValue' in space ? space.mortgageValue : Math.floor((space as { price: number }).price / 2)).toLocaleString('en-IN')}
                 </span>
               </div>
             )}
             {'amount' in space && (
-              <span className="text-[8px] sm:text-[8.5px] md:text-[9px] font-black text-red-600 dark:text-red-400 whitespace-nowrap leading-none">
+              <span className="text-[9.5px] sm:text-[10.5px] md:text-[11.5px] font-black text-red-600 dark:text-red-400 whitespace-nowrap leading-none drop-shadow-2xs">
                 ₹{space.amount.toLocaleString('en-IN')}
               </span>
             )}
             {space.type === 'CARD' && (
-              <span className="text-[7.5px] sm:text-[8px] font-bold text-amber-700 dark:text-amber-400 whitespace-nowrap leading-none">
+              <span className="text-[8.5px] sm:text-[9.5px] md:text-[10px] font-black text-amber-800 dark:text-amber-300 whitespace-nowrap leading-none drop-shadow-2xs">
                 {space.deck === 'CIVIC' ? 'Treasury' : 'Fortune'}
               </span>
             )}
@@ -279,25 +281,25 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
 
           {/* TOP, LEFT, RIGHT TILES: Player tokens and owner bar sit towards the board interior */}
           {coord.orientation === 'top' && (
-            <>
+            <div className="relative z-10">
               {playersHere.length > 0 ? (
                 renderPlayerTokens('h-6')
               ) : (
                 <div className="h-1.5 shrink-0" />
               )}
               {renderOwnerAccentBar()}
-            </>
+            </div>
           )}
 
           {(coord.orientation === 'left' || coord.orientation === 'right') && (
-            <>
+            <div className="relative z-10">
               {playersHere.length > 0 ? (
                 renderPlayerTokens('h-6')
               ) : (
                 <div className="h-1 shrink-0" />
               )}
               {renderOwnerAccentBar()}
-            </>
+            </div>
           )}
         </div>
       )}

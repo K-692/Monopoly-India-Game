@@ -16,6 +16,7 @@ interface GameStoreState {
 
   // Actions
   initializeDemoGame: (userName?: string) => void;
+  initializeGameFromRoom: (roomId: string, gameId: string, members: Record<string, RoomMember>) => void;
   setLiveGameState: (state: GameState) => void;
   selectSpace: (index: number | null) => void;
   dispatchAction: (commandType: GameCommand['type'], payload?: Record<string, unknown>) => void;
@@ -92,6 +93,30 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     });
   },
 
+  initializeGameFromRoom: (roomId: string, gameId: string, members: Record<string, RoomMember>) => {
+    const initial = createInitialGame(roomId, gameId, members);
+    const welcomeEvent: GameEvent = {
+      sequence: 1,
+      commandId: 'init_' + Date.now(),
+      actorUid: 'system',
+      type: 'START_GAME',
+      summary: `Welcome to Indian Monopoly! ${Object.keys(members).length} tycoons assembled in Room #${roomId.slice(-6).toUpperCase()}. Let the trading begin!`,
+      payload: {},
+      createdAt: Date.now(),
+      versionAfter: 1,
+    };
+
+    set({
+      gameState: initial,
+      events: [welcomeEvent],
+      activeEmotes: [],
+      selectedSpaceIndex: null,
+      isRolling: false,
+      isLiveMultiplayer: true,
+      error: null,
+    });
+  },
+
   setLiveGameState: (state: GameState) => {
     set({ gameState: state, isLiveMultiplayer: true });
   },
@@ -125,10 +150,13 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
           const result = applyGameCommand(gameState, command, gameState.currentPlayerUid);
 
           // Locate active player
-          const activeP = gameState.players.find((p) => p.uid === gameState.currentPlayerUid);
+          const activeUid = gameState.currentPlayerUid;
+          const activeP = gameState.players.find((p) => p.uid === activeUid);
+          const startPos = activeP?.position ?? 0;
+          const endPos = result.nextState.players.find((p) => p.uid === activeUid)?.position ?? startPos;
 
           // If incarcerated directly (e.g. 3 consecutive doubles)
-          if (result.nextState.players.find((p) => p.uid === gameState.currentPlayerUid)?.inJail && !activeP?.inJail) {
+          if (result.nextState.players.find((p) => p.uid === activeUid)?.inJail && !activeP?.inJail) {
             sound.play('GO_TO_JAIL');
             set((s) => ({
               gameState: result.nextState,
@@ -140,20 +168,59 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
             return;
           }
 
-          if (result.event.summary.includes('Passed START')) {
-            sound.play('PASS_START');
-          } else {
-            sound.play('PAWN_STEP');
+          // Calculate total steps taken
+          const totalSteps = result.nextState.dice
+            ? result.nextState.dice.first + result.nextState.dice.second
+            : ((endPos - startPos + 40) % 40);
+
+          // Stop rolling physics and reveal rolled dice outcome
+          set({ isRolling: false });
+
+          if (totalSteps <= 0) {
+            set((s) => ({
+              gameState: result.nextState,
+              events: [result.event, ...s.events].slice(0, 50),
+              walkingAnimation: null,
+              error: null,
+            }));
+            return;
           }
 
-          // Show the final destination city directly without displaying intermediate spaces
-          set((s) => ({
-            isRolling: false,
-            gameState: result.nextState,
-            events: [result.event, ...s.events].slice(0, 50),
-            walkingAnimation: null,
-            error: null,
-          }));
+          // User Requirement: Animate piece moving one by one across the grids, 0.5 seconds per step
+          let currentStep = 0;
+          const stepInterval = setInterval(() => {
+            currentStep++;
+            const nextPos = (startPos + currentStep) % 40;
+            const stepsRemaining = totalSteps - currentStep;
+
+            if (nextPos === 0) {
+              sound.play('PASS_START');
+            } else {
+              sound.play('PAWN_STEP');
+            }
+
+            set({
+              walkingAnimation: {
+                uid: activeUid,
+                currentPos: nextPos,
+                targetPos: endPos,
+                stepsRemaining,
+              },
+            });
+
+            if (currentStep >= totalSteps) {
+              clearInterval(stepInterval);
+              // Hold at destination grid for 0.5s before finalizing state and actions
+              setTimeout(() => {
+                set((s) => ({
+                  gameState: result.nextState,
+                  events: [result.event, ...s.events].slice(0, 50),
+                  walkingAnimation: null,
+                  error: null,
+                }));
+              }, 500);
+            }
+          }, 500);
 
         } catch (err: unknown) {
           const message = err instanceof Error ? err.message : 'Action failed';
