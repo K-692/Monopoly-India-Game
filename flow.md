@@ -57,13 +57,10 @@ To maximize visual immersion and legibility across all desktop viewports, the ga
 2. **Center Column (`1fr` Dynamic Workspace — 70%+ of Screen Width)**:
    - **Edge-to-Edge Stretched Game Board**: Takes 100% of the remaining horizontal window width, expanding the board from previously constrained 50% width to upwards of 72%–76% of modern monitors (1440px, 1680px, 1920px+).
    - **Proportional Asymmetric Grid Topology**: `grid-template-columns: 1.4fr repeat(9, 1fr) 1.4fr` and `grid-template-rows: 1.5fr repeat(9, 1fr) 1.5fr`.
-   - **Optimized City Cell Dimensions**: Each cell possesses calibrated aspect ratios:
-     - Top & bottom lanes: $1.0\text{fr} \times 1.5\text{fr}$ ($\approx 92\text{px} \times 84\text{px}$), providing vertical depth for city labels, icons, prices, and owner markers.
-     - Left & right lanes: $1.4\text{fr} \times 1.0\text{fr}$ ($\approx 135\text{px} \times 52\text{px}$), providing horizontal span for multi-syllable city names (e.g. *Visakhapatnam*) without truncation.
-   - **Elevated Typography Hierarchy**:
-     - Place/City Names: Upgraded to `text-[10.5px] sm:text-[11.5px] md:text-[12.5px] font-extrabold tracking-tight` for immediate recognition.
-     - Purchase Prices & Tax Fines: Upgraded to `text-[10px] sm:text-[11px] md:text-[12px] font-black text-emerald-800 dark:text-emerald-400`.
-     - Corner Landmarks: Upgraded to `text-xs sm:text-sm md:text-base font-black`.
+   - **Single-Line Non-Wrapping Typography (`whitespace-nowrap`)**:
+     - Place and city names strictly format on a **single line without text-wrap** (`whitespace-nowrap overflow-hidden text-ellipsis`), completely preventing awkward line splitting (e.g., preventing "Ahmeda-bad" or "Bengalu-ru").
+     - By preserving single-line vertical containment, price figures (`₹2,200`, `₹2,600`, etc.) are guaranteed generous vertical padding with zero bottom clipping.
+     - Purchase prices and tax amounts also maintain `whitespace-nowrap` alignment in bold emerald (`text-[9.5px] sm:text-[10.5px] md:text-[11px] font-black`).
    - **Center Arena**: Houses the persistent face-up *Civic Fund* and *Market Buzz* cards alongside the 3D tumbling dice arena.
 3. **Right Column (Compact `250px` / `xl:270px`)**:
    - **Turn Actions & Controls**: Primary Roll The Dice, Buy/Decline, Pay Bail, and End Turn controls.
@@ -75,14 +72,20 @@ The Practice Match sandbox is configured strictly as a **2-Player Head-to-Head D
 - **Turn Transition Cycle**:
   $$\text{Turn}_{k+1} = \begin{cases} \text{player\_ai\_1} & \text{if } \text{Turn}_k = \text{player\_human} \\ \text{player\_human} & \text{if } \text{Turn}_k = \text{player\_ai\_1} \end{cases}$$
 - **AI Decision Tree**:
-  1. Await Roll: Dispatch `ROLL_DICE` with synchronized 140ms step hopping animation.
+  1. Await Roll: Dispatch `ROLL_DICE` with synchronized 450ms tumbling dice animation.
   2. Jail Decision: Attempt doubles or pay bail if cash reserves exceed $\text{Bail} + 1000$.
   3. Property Acquisition: Automatically purchases unowned property if $\text{Cash} \ge \text{Price} + ₹1,000$; otherwise declines to preserve liquidity.
   4. Turn Finalization: Concludes with `END_TURN`, handing control back to human player.
 
-### 2.3 Dynamic State-Change Glow & Zoom Feedback
+### 2.3 Direct Destination Arrival & Final City Presentation
+- **Elimination of Intermediate Walkover Display**: When rolling the dice, pawns do not step through or trigger intermediate board space highlights along the path. 
+- **Direct Final City Presentation**: On roll completion, the pawn arrives directly at the destination tile:
+  $$P_{\text{final}} = (P_{\text{start}} + \text{dice}_1 + \text{dice}_2) \pmod{40}$$
+- **Deterministic UI Focus**: The destination space is immediately targeted, highlighted (`isHighlighted`), and selected in the `SpaceDeedInspector`, eliminating flickering deed state transitions and providing instantaneous clarity for purchase or rent decisions.
+
+### 2.4 Dynamic State-Change Glow Feedback
 When a game state update occurs, animated visual indicators alert all participants:
-- **Board Space Tiles**: When a pawn steps along or lands on a space, or a deed is acquired/mortgaged/upgraded, the tile activates `isHighlighted` with an animated pulsing amber/gold neon glow ring (`ring-4 ring-amber-400 dark:ring-amber-300 scale-105 shadow-[0_0_20px_rgba(251,191,36,0.9)] animate-pulse`).
+- **Board Space Tiles**: When a deed is acquired, mortgaged, upgraded, or landed upon, the tile activates `isHighlighted` with an animated pulsing amber/gold neon glow ring (`ring-4 ring-amber-400 dark:ring-amber-300 scale-105 shadow-[0_0_20px_rgba(251,191,36,0.9)] animate-pulse`).
 - **Player Cards & Financial Changes**: The active player's card pulses with an amber glow ring. Whenever a player's cash changes, their cash badge flashes in green (+ cash) or red (- cash) with a momentary zoom scale-up (`scale-110`).
 
 ---
@@ -95,15 +98,6 @@ Only the active game board canvas is strictly non-scrollable (`h-[calc(100dvh-54
 ### 3.2 Dynamic Buyer-Color Ownership Formalism
 - **Unowned Spaces**: Completely uncolored (clean neutral parchment with white border).
 - **Purchased Spaces**: Dynamically adopt the **purchasing player's assigned token color** (`owner.colorToken`), accompanied by an owner name badge and building count pips (`🏠xN` or `🏢 Tower`).
-
-### 3.3 Sequential One-by-One Pawn Walking Animation
-Rather than teleporting across the board upon rolling, player pawns advance sequentially along the walk lane:
-$$P_{t+1} = (P_t + 1) \pmod{40}$$
-For each step:
-- The discrete hop executes at a 140 ms cadence.
-- Audio synthesis fires a procedural `PAWN_STEP` frequency sweep (520 Hz $\to$ 260 Hz).
-- Passing START (index 0) triggers the `PASS_START` chime.
-- On reaching the target tile ($S = \text{dice}_1 + \text{dice}_2$), the step terminates and lands on the property decision.
 
 ---
 

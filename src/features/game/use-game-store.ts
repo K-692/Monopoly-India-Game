@@ -124,13 +124,9 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
 
           const result = applyGameCommand(gameState, command, gameState.currentPlayerUid);
 
-          // Locate starting and target positions
+          // Locate target final position
           const activeP = gameState.players.find((p) => p.uid === gameState.currentPlayerUid);
-          const startPos = activeP?.position ?? 0;
           const finalPos = result.nextState.players.find((p) => p.uid === gameState.currentPlayerUid)?.position ?? 0;
-          const totalSteps = result.nextState.dice
-            ? (result.nextState.dice.first + result.nextState.dice.second)
-            : ((finalPos - startPos + 40) % 40);
 
           // If incarcerated directly (e.g. 3 consecutive doubles)
           if (result.nextState.players.find((p) => p.uid === gameState.currentPlayerUid)?.inJail && !activeP?.inJail) {
@@ -146,57 +142,21 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
             return;
           }
 
-          // Step-by-step pawn walking animation along the lane
-          let currentStepPos = startPos;
-          let stepsLeft = totalSteps > 0 ? totalSteps : (finalPos - startPos + 40) % 40;
-
-          set({
-            isRolling: false,
-            // Reveal rolled dice face values immediately
-            gameState: {
-              ...gameState,
-              dice: result.nextState.dice,
-            },
-            walkingAnimation: {
-              uid: gameState.currentPlayerUid,
-              currentPos: startPos,
-              targetPos: finalPos,
-              stepsRemaining: stepsLeft,
-            },
-          });
-
-          const walkInterval = setInterval(() => {
-            if (stepsLeft <= 0 || currentStepPos === finalPos) {
-              clearInterval(walkInterval);
-
-              if (result.event.summary.includes('Passed START')) {
-                sound.play('PASS_START');
-              }
-
-              set((s) => ({
-                gameState: result.nextState,
-                events: [result.event, ...s.events].slice(0, 50),
-                selectedSpaceIndex: finalPos,
-                walkingAnimation: null,
-                error: null,
-              }));
-              return;
-            }
-
-            currentStepPos = (currentStepPos + 1) % 40;
-            stepsLeft -= 1;
+          if (result.event.summary.includes('Passed START')) {
+            sound.play('PASS_START');
+          } else {
             sound.play('PAWN_STEP');
+          }
 
-            set({
-              walkingAnimation: {
-                uid: gameState.currentPlayerUid,
-                currentPos: currentStepPos,
-                targetPos: finalPos,
-                stepsRemaining: stepsLeft,
-              },
-              selectedSpaceIndex: currentStepPos,
-            });
-          }, 140);
+          // Show the final destination city directly without displaying intermediate spaces
+          set((s) => ({
+            isRolling: false,
+            gameState: result.nextState,
+            events: [result.event, ...s.events].slice(0, 50),
+            selectedSpaceIndex: finalPos,
+            walkingAnimation: null,
+            error: null,
+          }));
 
         } catch (err: unknown) {
           const message = err instanceof Error ? err.message : 'Action failed';
