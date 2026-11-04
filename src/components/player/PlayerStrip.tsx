@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { PlayerState, PropertyState } from '@/domain/game-types';
 import { BOARD_SPACES } from '@/domain/board-config';
 import { Card } from '@/components/ui/Card';
@@ -26,6 +26,32 @@ export const PlayerStrip: React.FC<PlayerStripProps> = ({
 }) => {
   const [hoveredPlayerUid, setHoveredPlayerUid] = useState<string | null>(null);
 
+  // Track cash updates for animated glowing effect
+  const prevCashRef = useRef<Record<string, number>>({});
+  const [cashFlash, setCashFlash] = useState<Record<string, 'up' | 'down'>>({});
+
+  useEffect(() => {
+    const newFlashes: Record<string, 'up' | 'down'> = {};
+    let hasChanges = false;
+
+    players.forEach((p) => {
+      const prev = prevCashRef.current[p.uid];
+      if (prev !== undefined && prev !== p.cash) {
+        newFlashes[p.uid] = p.cash > prev ? 'up' : 'down';
+        hasChanges = true;
+      }
+      prevCashRef.current[p.uid] = p.cash;
+    });
+
+    if (hasChanges) {
+      setCashFlash((prev) => ({ ...prev, ...newFlashes }));
+      const timer = setTimeout(() => {
+        setCashFlash({});
+      }, 1600);
+      return () => clearTimeout(timer);
+    }
+  }, [players]);
+
   return (
     <div className="flex flex-col gap-1.5 w-full select-none">
       <div className="flex items-center justify-between px-1">
@@ -42,6 +68,7 @@ export const PlayerStrip: React.FC<PlayerStripProps> = ({
         {players.map((player) => {
           const isTurn = player.uid === currentPlayerUid;
           const isHovered = hoveredPlayerUid === player.uid;
+          const flash = cashFlash[player.uid];
 
           // Properties owned by this player
           const ownedProps = Object.entries(properties)
@@ -63,17 +90,19 @@ export const PlayerStrip: React.FC<PlayerStripProps> = ({
               onMouseEnter={() => setHoveredPlayerUid(player.uid)}
               onMouseLeave={() => setHoveredPlayerUid(null)}
             >
-              {/* Compact Player Card */}
+              {/* Compact Player Card with Glowing State Change */}
               <Card
                 onClick={() => {
                   onSelectPlayer?.(player.uid);
                   setHoveredPlayerUid(isHovered ? null : player.uid);
                 }}
                 className={cn(
-                  'relative px-2 py-1.5 transition-all cursor-pointer rounded-lg border flex items-center justify-between gap-1.5',
+                  'relative px-2 py-1.5 transition-all duration-300 cursor-pointer rounded-lg border flex items-center justify-between gap-1.5',
                   isTurn
-                    ? 'border-indian-terracotta-500 bg-indian-terracotta-50/70 dark:bg-indian-terracotta-950/40 shadow-xs ring-1 ring-indian-terracotta-400'
+                    ? 'border-indian-terracotta-500 bg-indian-terracotta-50/70 dark:bg-indian-terracotta-950/40 shadow-sm ring-2 ring-amber-400 scale-[1.01]'
                     : 'border-indian-parchment-300 dark:border-indian-navy-700 hover:border-indian-terracotta-300 bg-white dark:bg-indian-navy-800',
+                  flash === 'up' && 'ring-2 ring-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 scale-105 shadow-md',
+                  flash === 'down' && 'ring-2 ring-red-400 bg-red-50 dark:bg-red-950/40 scale-105 shadow-md',
                   player.isBankrupt && 'opacity-40 grayscale pointer-events-none'
                 )}
               >
@@ -101,7 +130,7 @@ export const PlayerStrip: React.FC<PlayerStripProps> = ({
                   </div>
                 </div>
 
-                {/* Right: Turn Timer (ONLY on Active Player) & Cash */}
+                {/* Right: Turn Timer (ONLY on Active Player) & Cash with Glow on Updates */}
                 <div className="flex items-center gap-1.5 shrink-0">
                   {/* Turn Timer: ONLY on Active Player */}
                   {isTurn && (
@@ -118,8 +147,15 @@ export const PlayerStrip: React.FC<PlayerStripProps> = ({
                     </div>
                   )}
 
-                  {/* Cash */}
-                  <div className="flex items-center text-[11px] font-black text-emerald-700 dark:text-emerald-400">
+                  {/* Cash with Live Glow Feedback */}
+                  <div
+                    className={cn(
+                      "flex items-center text-[11px] font-black transition-all px-1 py-0.5 rounded",
+                      flash === 'up' && "text-emerald-700 bg-emerald-100 dark:bg-emerald-900/60 font-black scale-110",
+                      flash === 'down' && "text-red-700 bg-red-100 dark:bg-red-900/60 font-black scale-110",
+                      !flash && "text-emerald-700 dark:text-emerald-400"
+                    )}
+                  >
                     <IndianRupee className="w-2.5 h-2.5 -mr-0.5" />
                     <span>{player.cash.toLocaleString('en-IN')}</span>
                   </div>
@@ -207,25 +243,29 @@ export const PlayerStrip: React.FC<PlayerStripProps> = ({
                     {ownedProps.length === 0 ? (
                       <span className="text-[10px] text-gray-400 italic block">No properties owned yet.</span>
                     ) : (
-                      <div className="flex flex-wrap gap-1 max-h-28 overflow-y-auto pr-0.5">
+                      <div className="flex flex-col gap-1 max-h-32 overflow-y-auto pr-0.5">
                         {ownedProps.map(({ spaceIndex, space, state }) => {
                           const groupColor = 'group' in space && space.group ? GROUP_COLOR_MAP[space.group] : '#888888';
                           return (
-                            <span
+                            <div
                               key={spaceIndex}
-                              className="inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-md border bg-white dark:bg-indian-navy-800 shadow-2xs font-medium"
+                              className="flex items-center justify-between px-1.5 py-0.5 rounded border bg-white dark:bg-indian-navy-800 shadow-2xs font-medium text-[9px]"
                               style={{ borderLeftColor: groupColor, borderLeftWidth: '3px' }}
                             >
-                              <span className="truncate max-w-[100px]">{space.name}</span>
-                              {state.buildings > 0 && (
-                                <span className="text-[8px] bg-amber-100 text-amber-800 px-0.5 rounded">
-                                  {state.buildings === 5 ? '🏢' : `🏠x${state.buildings}`}
-                                </span>
-                              )}
-                              {state.isMortgaged && (
-                                <span className="text-[8px] text-red-500 font-bold">[M]</span>
-                              )}
-                            </span>
+                              <span className="truncate max-w-[110px]">{space.name}</span>
+                              <div className="flex items-center gap-1">
+                                {state.buildings > 0 && (
+                                  <span className="bg-amber-100 text-amber-800 px-1 rounded font-bold">
+                                    {state.buildings === 5 ? '🏢' : `🏠×${state.buildings}`}
+                                  </span>
+                                )}
+                                {state.isMortgaged ? (
+                                  <span className="text-red-500 font-bold">[M]</span>
+                                ) : (
+                                  <span className="text-emerald-700 font-bold">₹{('price' in space ? space.price : 0).toLocaleString('en-IN')}</span>
+                                )}
+                              </div>
+                            </div>
                           );
                         })}
                       </div>

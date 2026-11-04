@@ -1,10 +1,22 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { BOARD_SPACES } from '@/domain/board-config';
-import { GameActionType, GameState, PropertyDefinition } from '@/domain/game-types';
+import { GameActionType, GameState } from '@/domain/game-types';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { Dices, Check, X, Hammer, ArrowRight, IndianRupee, Building2, MapPin, ShieldAlert, KeyRound } from 'lucide-react';
+import {
+  Dices,
+  Check,
+  X,
+  ArrowRight,
+  IndianRupee,
+  Building2,
+  MapPin,
+  ShieldAlert,
+  KeyRound,
+  Activity,
+  Info
+} from 'lucide-react';
 import { GROUP_COLOR_MAP } from '../board/board-layout-utils';
 import { GAME_CONSTANTS } from '@/domain/ruleset';
 
@@ -18,11 +30,12 @@ interface ActionPanelProps {
 
 export const ActionPanel: React.FC<ActionPanelProps> = ({
   gameState,
-  selectedSpaceIndex,
   onDispatch,
   isRolling,
   userUid,
 }) => {
+  const [isPortfolioHovered, setIsPortfolioHovered] = useState(false);
+
   const activePlayer = gameState.players.find((p) => p.uid === gameState.currentPlayerUid);
   const isMyTurn = !userUid || userUid === gameState.currentPlayerUid || userUid.startsWith('guest_') || userUid === 'player_1';
 
@@ -44,16 +57,12 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({
     : [];
 
   const myCurrentSpace = myPlayer ? BOARD_SPACES[myPlayer.position] : null;
-
-  // Selected space details
-  const selectedSpace = selectedSpaceIndex !== null ? BOARD_SPACES[selectedSpaceIndex] : null;
-  const selectedPropState = selectedSpaceIndex !== null ? gameState.properties[selectedSpaceIndex] : null;
-  const isOwner = selectedPropState && activePlayer && selectedPropState.ownerUid === activePlayer.uid;
+  const activePlayerSpace = activePlayer ? BOARD_SPACES[activePlayer.position] : null;
 
   return (
     <div className="flex flex-col gap-2.5 w-full select-none">
-      {/* 1. TOP: Current Turn Action Card & Roll The Dice */}
-      <Card className="p-3 border-indian-terracotta-300 shadow-md">
+      {/* 1. TOP: Current Turn Action Card */}
+      <Card className="p-3 border-indian-terracotta-300 dark:border-indian-navy-700 shadow-md bg-white dark:bg-indian-navy-900">
         <div className="flex items-center justify-between pb-1.5 border-b border-indian-parchment-300 dark:border-indian-navy-700">
           <div>
             <h3 className="text-xs font-bold text-indian-navy-800 dark:text-indian-parchment-200 uppercase tracking-wider">
@@ -169,9 +178,75 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({
         </div>
       </Card>
 
-      {/* 2. MY INFO: Placed directly below "Roll The Dice" in the right panel */}
+      {/* 2. REAL-TIME TURN ACTIVITY: What the player is doing in their turn */}
+      <Card className="p-3 border-indian-parchment-300 dark:border-indian-navy-700 bg-white dark:bg-indian-navy-900 shadow-xs">
+        <div className="flex items-center justify-between pb-1.5 border-b border-indian-parchment-200 dark:border-indian-navy-700">
+          <div className="flex items-center gap-1.5">
+            <Activity className="w-3.5 h-3.5 text-indian-terracotta-500 animate-pulse" />
+            <h4 className="text-xs font-bold text-indian-navy-900 dark:text-white uppercase tracking-wider">
+              Turn Activity
+            </h4>
+          </div>
+          <span className="text-[10px] font-mono text-gray-500 font-semibold">
+            Turn #{gameState.turnNumber}
+          </span>
+        </div>
+
+        <div className="mt-2 space-y-1.5 text-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-gray-500 text-[11px]">Active Player:</span>
+            <div className="flex items-center gap-1.5">
+              <div
+                style={{ backgroundColor: activePlayer?.colorToken }}
+                className="w-3.5 h-3.5 rounded-full border border-white"
+              />
+              <span className="font-bold text-indian-navy-900 dark:text-white text-[11px]">
+                {activePlayer?.displayName || 'Player'}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <span className="text-gray-500 text-[11px]">Board Position:</span>
+            <span className="font-bold text-indian-navy-900 dark:text-white text-[11px] truncate max-w-[150px]">
+              {activePlayerSpace?.name || 'Board'} (#{activePlayer?.position})
+            </span>
+          </div>
+
+          {gameState.dice && (
+            <div className="flex items-center justify-between">
+              <span className="text-gray-500 text-[11px]">Dice Rolled:</span>
+              <span className="font-mono font-black text-indian-navy-900 dark:text-indian-parchment-200 text-[11px]">
+                {gameState.dice.first} + {gameState.dice.second} = {gameState.dice.first + gameState.dice.second}
+                {gameState.dice.isDouble && ' (Doubles!)'}
+              </span>
+            </div>
+          )}
+
+          {/* Current Turn Status Description */}
+          <div className="p-2 rounded-lg bg-indian-parchment-100 dark:bg-indian-navy-950/60 border border-indian-parchment-300 dark:border-indian-navy-800 text-[11px] text-indian-navy-900 dark:text-indian-parchment-200 font-medium leading-relaxed">
+            {gameState.phase === 'AWAIT_ROLL' && (
+              <span>Waiting for {activePlayer?.displayName || 'active player'} to roll the dice.</span>
+            )}
+            {gameState.phase === 'PROPERTY_DECISION' && (
+              <span>Landed on <strong>{activePlayerSpace?.name}</strong>. Deciding whether to acquire deed.</span>
+            )}
+            {gameState.phase === 'JAIL_DECISION' && (
+              <span>Currently in Central Jail. Choose bail, doubles, or release card.</span>
+            )}
+            {gameState.phase === 'MANAGEMENT' && (
+              <span>Managing property developments or ending current turn.</span>
+            )}
+            {gameState.phase === 'TURN_END' && (
+              <span>Turn complete. Ready to pass turn to next tycoon.</span>
+            )}
+          </div>
+        </div>
+      </Card>
+
+      {/* 3. MY INFO: Player Finances, Status & Hover-Only Portfolio */}
       {myPlayer && (
-        <Card className="p-3 border-indian-gold-500/70 bg-gradient-to-br from-amber-50/50 to-white dark:from-indian-navy-900 dark:to-indian-navy-800 shadow-sm">
+        <Card className="p-3 border-indian-gold-500/70 bg-gradient-to-br from-amber-50/50 to-white dark:from-indian-navy-900 dark:to-indian-navy-800 shadow-sm relative">
           <div className="flex items-center justify-between pb-1.5 border-b border-indian-parchment-300 dark:border-indian-navy-700">
             <div className="flex items-center gap-1.5">
               <div
@@ -242,141 +317,79 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({
             )}
           </div>
 
-          {/* My Properties Summary */}
-          <div className="mt-2 pt-1.5 border-t border-indian-parchment-300 dark:border-indian-navy-700">
-            <div className="flex items-center justify-between text-[10px] font-bold text-gray-600 dark:text-gray-300 mb-1">
-              <span className="flex items-center gap-1">
-                <Building2 className="w-3 h-3 text-indian-terracotta-500" />
-                My Portfolio:
+          {/* Portfolio: ONLY SHOWN WHEN HOVERED OVER */}
+          <div
+            className="relative mt-2 pt-1.5 border-t border-indian-parchment-300 dark:border-indian-navy-700"
+            onMouseEnter={() => setIsPortfolioHovered(true)}
+            onMouseLeave={() => setIsPortfolioHovered(false)}
+          >
+            <div className="flex items-center justify-between p-1.5 rounded-lg bg-indian-parchment-100 dark:bg-indian-navy-950/60 border border-indian-parchment-300 dark:border-indian-navy-800 cursor-pointer hover:bg-amber-100/60 transition-colors">
+              <div className="flex items-center gap-1.5 text-[11px] font-bold text-indian-navy-800 dark:text-indian-parchment-200">
+                <Building2 className="w-3.5 h-3.5 text-indian-terracotta-500" />
+                <span>My Portfolio:</span>
+                <span className="font-black text-indian-terracotta-600">{myOwnedProps.length} Properties</span>
+              </div>
+
+              <span className="text-[9px] text-gray-500 flex items-center gap-0.5">
+                <Info className="w-2.5 h-2.5" />
+                Hover to view
               </span>
-              <span>{myOwnedProps.length} Properties</span>
             </div>
 
-            {myOwnedProps.length === 0 ? (
-              <span className="text-[10px] text-gray-400 italic block">No properties purchased yet.</span>
-            ) : (
-              <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto pr-0.5">
-                {myOwnedProps.map(({ spaceIndex, space, state }) => {
-                  const groupColor = 'group' in space && space.group ? GROUP_COLOR_MAP[space.group] : '#888888';
-                  return (
-                    <span
-                      key={spaceIndex}
-                      className="inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-md border bg-white dark:bg-indian-navy-900 shadow-2xs font-medium"
-                      style={{ borderLeftColor: groupColor, borderLeftWidth: '3px' }}
-                    >
-                      <span className="truncate max-w-[85px]">{space.name}</span>
-                      {state.buildings > 0 && (
-                        <span className="text-[8px] bg-amber-100 text-amber-800 px-0.5 rounded font-bold">
-                          {state.buildings === 5 ? '🏢' : `🏠x${state.buildings}`}
-                        </span>
-                      )}
-                      {state.isMortgaged && (
-                        <span className="text-[8px] text-red-500 font-bold">[M]</span>
-                      )}
-                    </span>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </Card>
-      )}
-
-      {/* 3. Selected Space Deed Inspector */}
-      {selectedSpace && (
-        <Card className="p-3 border-indian-parchment-300 dark:border-indian-navy-700 shadow-xs">
-          <div className="flex items-center justify-between pb-1.5 border-b border-indian-parchment-200 dark:border-indian-navy-700">
-            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
-              Space #{selectedSpace.spaceIndex}
-            </span>
-            {selectedPropState?.ownerUid ? (
-              <Badge variant="emerald" className="text-[9px]">
-                Owned by {gameState.players.find((p) => p.uid === selectedPropState.ownerUid)?.displayName}
-              </Badge>
-            ) : 'price' in selectedSpace ? (
-              <Badge variant="neutral" className="text-[9px]">
-                Unowned
-              </Badge>
-            ) : null}
-          </div>
-
-          <div className="mt-1.5">
-            {/* Color banner if property */}
-            {selectedSpace.type === 'PROPERTY' && (
+            {/* Hover Floating Card displaying all purchased properties */}
+            {isPortfolioHovered && (
               <div
-                className="h-1.5 rounded mb-1.5"
-                style={{ backgroundColor: GROUP_COLOR_MAP[selectedSpace.group] }}
-              />
-            )}
-
-            <h4 className="font-serif font-bold text-xs text-indian-navy-900 dark:text-white leading-tight">
-              {selectedSpace.name}
-            </h4>
-            {'hindiName' in selectedSpace && selectedSpace.hindiName && (
-              <span className="text-[10px] text-gray-500 font-medium block">
-                {selectedSpace.hindiName}
-              </span>
-            )}
-
-            {'price' in selectedSpace && (
-              <div className="mt-1.5 text-[11px] flex justify-between py-0.5 border-t border-indian-parchment-200 dark:border-indian-navy-700">
-                <span className="text-gray-600 dark:text-gray-400">Price:</span>
-                <span className="font-bold text-indian-navy-900 dark:text-white">₹{selectedSpace.price}</span>
-              </div>
-            )}
-
-            {selectedSpace.type === 'PROPERTY' && (
-              <div className="mt-1 space-y-0.5 text-[10px] text-gray-600 dark:text-gray-400">
-                <div className="flex justify-between">
-                  <span>Base Rent:</span>
-                  <span className="font-semibold text-indian-navy-800 dark:text-indian-parchment-200">
-                    ₹{(selectedSpace as PropertyDefinition).baseRent}
+                className="absolute right-0 bottom-full mb-1 z-50 w-72 p-3 bg-white dark:bg-indian-navy-900 border-2 border-indian-terracotta-400 rounded-xl shadow-2xl text-xs space-y-2 pointer-events-none animate-fade-in"
+              >
+                <div className="flex items-center justify-between pb-1 border-b border-indian-parchment-300 dark:border-indian-navy-700">
+                  <span className="font-serif font-black text-xs text-indian-terracotta-600">
+                    Owned Properties Portfolio ({myOwnedProps.length})
                   </span>
+                  <span className="text-[9px] text-gray-500">Live Breakdown</span>
                 </div>
-                <div className="flex justify-between">
-                  <span>With 1 House:</span>
-                  <span>₹{(selectedSpace as PropertyDefinition).rentHouse1}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>With Tower:</span>
-                  <span className="font-bold text-indian-terracotta-600">
-                    ₹{(selectedSpace as PropertyDefinition).rentTower}
+
+                {myOwnedProps.length === 0 ? (
+                  <span className="text-[10px] text-gray-400 italic block py-2 text-center">
+                    No properties purchased yet.
                   </span>
-                </div>
-              </div>
-            )}
-
-            {/* Development / Mortgage controls if owner */}
-            {isOwner && selectedSpace.type === 'PROPERTY' && (
-              <div className="mt-2 pt-1.5 border-t border-indian-parchment-200 dark:border-indian-navy-700 flex flex-col gap-1">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => onDispatch('BUILD', { spaceIndex: selectedSpace.spaceIndex })}
-                  className="w-full text-[10px] py-1 flex items-center justify-center gap-1"
-                >
-                  <Hammer className="w-3 h-3 text-emerald-600" />
-                  <span>Build House (₹{(selectedSpace as PropertyDefinition).buildingCost})</span>
-                </Button>
-
-                {!selectedPropState.isMortgaged ? (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => onDispatch('MORTGAGE', { spaceIndex: selectedSpace.spaceIndex })}
-                    className="w-full text-[10px] py-1 text-red-600 hover:text-red-700"
-                  >
-                    Mortgage for ₹{selectedSpace.mortgageValue}
-                  </Button>
                 ) : (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => onDispatch('UNMORTGAGE', { spaceIndex: selectedSpace.spaceIndex })}
-                    className="w-full text-[10px] py-1 text-emerald-700"
-                  >
-                    Redeem Mortgage (₹{selectedSpace.unmortgageCost})
-                  </Button>
+                  <div className="flex flex-col gap-1 max-h-48 overflow-y-auto pr-0.5">
+                    {myOwnedProps.map(({ spaceIndex, space, state }) => {
+                      const groupColor = 'group' in space && space.group ? GROUP_COLOR_MAP[space.group] : '#888888';
+                      return (
+                        <div
+                          key={spaceIndex}
+                          className="flex items-center justify-between p-1.5 rounded-md border bg-white dark:bg-indian-navy-950 shadow-2xs text-[10px]"
+                          style={{ borderLeftColor: groupColor, borderLeftWidth: '3.5px' }}
+                        >
+                          <div className="flex items-center gap-1 min-w-0">
+                            <span className="font-bold text-indian-navy-900 dark:text-white truncate max-w-[120px]">
+                              {space.name}
+                            </span>
+                            {state.buildings > 0 && (
+                              <span className="text-[8px] bg-amber-100 text-amber-800 px-1 py-0.2 rounded font-black">
+                                {state.buildings === 5 ? '🏢 Tower' : `🏠×${state.buildings}`}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {state.isMortgaged ? (
+                              <span className="text-[9px] text-red-500 font-bold bg-red-50 px-1 rounded">
+                                Mortgaged
+                              </span>
+                            ) : (
+                              'price' in space && (
+                                <span className="text-[9px] font-bold text-emerald-700 dark:text-emerald-400">
+                                  ₹{space.price.toLocaleString('en-IN')}
+                                </span>
+                              )
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
             )}

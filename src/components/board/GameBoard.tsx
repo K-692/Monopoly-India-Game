@@ -54,6 +54,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     }
   }, [isRolling, gameState.dice]);
 
+  // Determine which space should have the glowing / zoomed in state-update effect
+  const highlightedSpaceIndex =
+    walkingAnimation ? walkingAnimation.currentPos : (activePlayer?.position ?? null);
+
   // Dice dot positions (1 to 6)
   const renderDiceFace = (val: number) => {
     const safeVal = val >= 1 && val <= 6 ? val : 3;
@@ -81,10 +85,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   };
 
   return (
-    <div className="relative h-full max-h-full aspect-square w-auto max-w-full mx-auto p-1 bg-indian-parchment-200 border-2 border-indian-parchment-400 rounded-xl shadow-board-elevation select-none shrink-0 flex flex-col justify-center">
-      {/* 11x11 Grid with Widened Walk Lane (1.5fr for outer walk lanes) */}
+    <div className="relative w-full h-full max-h-full mx-auto p-1 bg-indian-parchment-200 border-2 border-indian-parchment-400 rounded-xl shadow-board-elevation select-none shrink-0 flex flex-col justify-center">
+      {/* 11x11 Grid with Widened Walk Lane and Wide Board Geometry */}
       <div
-        className="w-full h-full grid gap-[1px] bg-indian-parchment-400"
+        className="w-full h-full grid gap-[1px] bg-indian-parchment-400 rounded-lg overflow-hidden"
         style={{
           gridTemplateColumns: '1.5fr repeat(9, 1fr) 1.5fr',
           gridTemplateRows: '1.5fr repeat(9, 1fr) 1.5fr',
@@ -102,7 +106,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             return effectivePos === space.spaceIndex;
           });
 
-          const isSelected = selectedSpaceIndex === space.spaceIndex;
+          const isHighlighted = highlightedSpaceIndex === space.spaceIndex;
 
           return (
             <BoardSpaceTile
@@ -111,51 +115,41 @@ export const GameBoard: React.FC<GameBoardProps> = ({
               propertyState={propState}
               playersHere={playersHere}
               allPlayers={gameState.players}
-              isSelected={isSelected}
+              isSelected={selectedSpaceIndex === space.spaceIndex}
+              isHighlighted={isHighlighted}
               onSelect={() => onSelectSpace(space.spaceIndex)}
             />
           );
         })}
 
-        {/* Center Board Area (Rows 2 to 10, Cols 2 to 10) */}
+        {/* Center Area: Persistent Face-up Cards, Turn Acknowledgment & 3D Tumbling Dice Roll Arena */}
         <div
+          className="relative flex flex-col items-center justify-between p-2 sm:p-4 bg-gradient-to-br from-indian-parchment-100/95 via-white/95 to-amber-50/90 dark:from-indian-navy-950/95 dark:to-indian-navy-900/95 rounded-lg border border-indian-parchment-300 dark:border-indian-navy-700 shadow-inner overflow-hidden"
           style={{
-            gridRow: '2 / 11',
             gridColumn: '2 / 11',
+            gridRow: '2 / 11',
           }}
-          className="relative flex flex-col items-center justify-between p-2 sm:p-3 bg-[#FAF7F0] dark:bg-indian-navy-950 overflow-hidden"
         >
-          {/* Subtle Mandala Background */}
-          <div className="absolute inset-0 flex items-center justify-center opacity-10 pointer-events-none">
-            <svg viewBox="0 0 400 400" className="w-[360px] h-[360px] text-indian-gold-600">
-              <circle cx="200" cy="200" r="180" fill="none" stroke="currentColor" strokeWidth="1" strokeDasharray="4 4" />
-              <circle cx="200" cy="200" r="140" fill="none" stroke="currentColor" strokeWidth="1.5" />
-              <circle cx="200" cy="200" r="90" fill="none" stroke="currentColor" strokeWidth="2" />
-              {Array.from({ length: 16 }).map((_, i) => (
-                <path
-                  key={i}
-                  d="M200 200 L200 40 A160 160 0 0 1 230 43 Z"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="0.75"
-                  transform={`rotate(${i * 22.5} 200 200)`}
-                />
-              ))}
-            </svg>
+          {/* Subtle Heritage Geometric Watermark Background */}
+          <div className="absolute inset-0 opacity-[0.04] pointer-events-none flex items-center justify-center">
+            <div className="w-80 h-80 rounded-full border-[12px] border-indian-navy-900 dark:border-white border-dashed animate-spin-very-slow" />
           </div>
 
-          {/* Top of Center: Step-by-Step Turn Acknowledgment */}
-          <div className="z-10 w-full max-w-sm px-1">
-            <TurnStepAcknowledgment gameState={gameState} lastEvent={lastEvent} />
+          {/* Top Center: Turn Step Acknowledgment Banner */}
+          <div className="w-full max-w-md z-10">
+            <TurnStepAcknowledgment
+              gameState={gameState}
+              lastEvent={lastEvent}
+            />
           </div>
 
-          {/* Centerpiece: THE 2 BUZZ CARDS WITH VISIBLE CONTENTS & HIGH-VISIBILITY IN-BOARD DICE */}
-          <div className="z-10 flex items-center justify-between gap-1 sm:gap-3 my-auto w-full px-0.5 sm:px-2">
+          {/* Middle Row: Civic Fund Card, 3D Dice Rolling Arena, and Market Buzz Card */}
+          <div className="w-full flex items-center justify-around gap-2 sm:gap-4 my-auto z-10 px-1 sm:px-2">
             {/* Card 1: Civic Fund (Terracotta Card with visible contents) */}
             <div
               onClick={() => setInspectedCard(activeCivicCard)}
               title="Click to inspect Civic Fund details"
-              className="relative w-22 sm:w-32 md:w-36 h-28 sm:h-38 md:h-44 rounded-lg sm:rounded-xl bg-gradient-to-br from-indian-terracotta-500 via-indian-terracotta-600 to-indian-terracotta-800 p-1 sm:p-2 text-white shadow-md border sm:border-2 border-amber-300/80 cursor-pointer flex flex-col justify-between hover:scale-105 transition-transform shrink-0"
+              className="relative w-24 sm:w-32 md:w-38 h-28 sm:h-38 md:h-44 rounded-lg sm:rounded-xl bg-gradient-to-br from-indian-terracotta-600 via-indian-terracotta-700 to-amber-900 p-1.5 sm:p-2 text-white shadow-md border sm:border-2 border-amber-300/80 cursor-pointer flex flex-col justify-between hover:scale-105 transition-transform shrink-0"
             >
               <div className="flex items-center justify-between border-b border-amber-300/40 pb-0.5 sm:pb-1 text-[7px] sm:text-[9px] text-amber-200 uppercase font-black tracking-wider">
                 <span>CIVIC FUND</span>
@@ -171,14 +165,14 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                   {activeCivicCard.description}
                 </p>
                 {activeCivicCard.amount && (
-                  <span className="inline-block mt-0.5 px-1 py-0.2 rounded-full text-[7px] sm:text-[8px] font-bold bg-amber-400 text-indian-navy-950">
+                  <span className="inline-block mt-0.5 px-1 py-0.2 rounded-full text-[7px] sm:text-[8px] font-bold bg-amber-300 text-indian-navy-950">
                     ₹{activeCivicCard.amount.toLocaleString('en-IN')}
                   </span>
                 )}
               </div>
 
               <div className="text-[7px] sm:text-[8px] text-amber-200/90 font-medium text-center border-t border-amber-300/30 pt-0.5">
-                सार्वजनिक कोष
+                COMMUNITY TREASURY
               </div>
             </div>
 
@@ -204,7 +198,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
 
               {/* Dice Outcome Total Indicator */}
               {gameState.dice && !isRolling && (
-                <div className="text-[10px] sm:text-xs font-black font-mono text-indian-navy-950 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-full shadow-2xs">
+                <div className="text-[10px] sm:text-xs font-black font-mono text-indian-navy-950 bg-amber-100 border border-amber-300 px-2.5 py-0.5 rounded-full shadow-2xs">
                   🎲 Rolled: {gameState.dice.first + gameState.dice.second} ({gameState.dice.first}+{gameState.dice.second})
                 </div>
               )}
@@ -239,7 +233,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             <div
               onClick={() => setInspectedCard(activeMarketCard)}
               title="Click to inspect Market Buzz details"
-              className="relative w-22 sm:w-32 md:w-36 h-28 sm:h-38 md:h-44 rounded-lg sm:rounded-xl bg-gradient-to-br from-teal-700 via-emerald-800 to-teal-950 p-1 sm:p-2 text-white shadow-md border sm:border-2 border-emerald-300/80 cursor-pointer flex flex-col justify-between hover:scale-105 transition-transform shrink-0"
+              className="relative w-24 sm:w-32 md:w-38 h-28 sm:h-38 md:h-44 rounded-lg sm:rounded-xl bg-gradient-to-br from-teal-700 via-emerald-800 to-teal-950 p-1.5 sm:p-2 text-white shadow-md border sm:border-2 border-emerald-300/80 cursor-pointer flex flex-col justify-between hover:scale-105 transition-transform shrink-0"
             >
               <div className="flex items-center justify-between border-b border-emerald-300/40 pb-0.5 sm:pb-1 text-[7px] sm:text-[9px] text-teal-200 uppercase font-black tracking-wider">
                 <span>MARKET BUZZ</span>
@@ -262,7 +256,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
               </div>
 
               <div className="text-[7px] sm:text-[8px] text-teal-200/90 font-medium text-center border-t border-emerald-300/30 pt-0.5">
-                बाज़ार चर्चा
+                FORTUNE & CHANCE
               </div>
             </div>
           </div>
@@ -274,40 +268,48 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         </div>
       </div>
 
-      {/* Card Inspection Modal */}
+      {/* Card Inspection Modal if clicked */}
       {inspectedCard && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
-          <div className="max-w-xs w-full bg-white dark:bg-indian-navy-900 border-2 border-indian-gold-500 rounded-2xl p-5 shadow-2xl relative text-center">
-            <button
-              onClick={() => setInspectedCard(null)}
-              className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 p-1"
-            >
-              <X className="w-4 h-4" />
-            </button>
+        <div
+          onClick={() => setInspectedCard(null)}
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className={cn(
+              "w-full max-w-sm rounded-2xl p-5 text-white shadow-2xl border-2 space-y-3",
+              inspectedCard.deck === 'CIVIC'
+                ? "bg-gradient-to-br from-indian-terracotta-700 to-amber-900 border-amber-300"
+                : "bg-gradient-to-br from-teal-800 to-emerald-950 border-emerald-300"
+            )}
+          >
+            <div className="flex items-center justify-between border-b border-white/20 pb-2">
+              <span className="text-xs font-black tracking-widest uppercase">
+                {inspectedCard.deck === 'CIVIC' ? 'Civic Fund Card' : 'Market Buzz Card'}
+              </span>
+              <button
+                onClick={() => setInspectedCard(null)}
+                className="w-6 h-6 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
 
-            <span
-              className={cn(
-                "inline-block text-[10px] font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-full mb-2",
-                inspectedCard.deck === 'CIVIC' ? "bg-amber-100 text-amber-800" : "bg-teal-100 text-teal-800"
-              )}
-            >
-              {inspectedCard.deck === 'CIVIC' ? 'Civic Fund Card' : 'Market Buzz Card'}
-            </span>
-
-            <h3 className="font-serif font-black text-base text-indian-navy-900 dark:text-white mb-2">
+            <h3 className="font-serif font-black text-lg text-white">
               {inspectedCard.title}
             </h3>
 
-            <p className="text-xs text-gray-600 dark:text-gray-300 mb-4 leading-relaxed">
+            <p className="text-sm text-white/90 leading-relaxed">
               {inspectedCard.description}
             </p>
 
-            <button
-              onClick={() => setInspectedCard(null)}
-              className="w-full py-2 rounded-lg font-bold text-xs bg-indian-terracotta-500 text-white hover:bg-indian-terracotta-600"
-            >
-              Close
-            </button>
+            {inspectedCard.amount && (
+              <div className="pt-2">
+                <span className="inline-block px-3 py-1 rounded-full text-xs font-black bg-white text-indian-navy-950 shadow-sm">
+                  Amount: ₹{inspectedCard.amount.toLocaleString('en-IN')}
+                </span>
+              </div>
+            )}
           </div>
         </div>
       )}

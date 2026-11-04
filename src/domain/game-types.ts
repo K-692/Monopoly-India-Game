@@ -30,7 +30,6 @@ export interface PropertyDefinition {
   id: string;
   spaceIndex: number;
   name: string;
-  hindiName?: string;
   group: PropertyColorGroup;
   price: number;
   mortgageValue: number;

@@ -8,7 +8,7 @@
 [![Vite](https://img.shields.io/badge/Vite-6.0+-646cff.svg)](https://vite.dev/)
 [![Playwright](https://img.shields.io/badge/Playwright-Multi--Device%20E2E-green.svg)](https://playwright.dev/)
 
-> **Repository Description:** A fast, responsive, Indian-themed multiplayer property trading board game built with React 19, TypeScript, Tailwind CSS, and Cloud Firestore. Features frictionless link-based room joining, in-board animated 3D dice, persistent center buzz cards, host-configurable rule engines, turn countdown timers, zero-latency Web Audio sound synthesis, and a modular practice match.
+> **Repository Description:** A fast, responsive, Indian-themed multiplayer property trading board game built with React 19, TypeScript, Tailwind CSS, and Cloud Firestore. Features frictionless link-based room joining, 22 unique metropolitan cities with tier-wise ascending prices, wide non-square adaptive board geometry, state-change glowing feedback, in-board animated 3D dice, persistent center buzz cards, host-configurable rule engines, turn countdown timers, zero-latency Web Audio sound synthesis, and a modular practice match.
 >
 > **GitHub Repository Topics:** `monopoly`, `board-game`, `multiplayer-game`, `react19`, `typescript`, `firebase`, `firestore`, `tailwindcss`, `vite`, `playwright`, `game-engine`, `indian-theme`, `web-audio-api`, `pwa`, `responsive-web-design`
 
@@ -16,68 +16,77 @@
 
 ## 🌟 Key Highlights
 
-- 🏰 **Authentic Indian Board**: 40 spaces featuring 22 major Indian city properties (from *Jaipur MI Road* to *Mumbai Marine Drive*), 4 transit networks, 2 utilities (*Urja Power Grid* & *Jal Board*), *GST Checkposts*, and 2 persistent center decks (*Civic Fund* & *Market Buzz*).
+- 🏰 **22 Unique Indian Metropolitan Cities**: 40 canonical board spaces featuring 22 completely unique metropolitan economic centres with strictly ascending tier-wise prices (from *Jaipur* at ₹600 to *Mumbai* at ₹4,000), 4 transit gateways, 2 public utilities (*Urja Power Grid* & *Jal Board Authority*), *GST Checkposts*, and 2 persistent center decks (*Civic Fund* & *Market Buzz*).
 - 🔗 **Frictionless Link-Based Multiplayer**: No Google login or password needed. Anyone with the room link can join instantly by simply entering their chosen player name!
 - 🗂️ **Streamlined Two-Tab Interface**: Clean, uncluttered UI featuring only **Play** and **Settings** tabs. Settings and lobby tabs are naturally scrollable; only the active playboard is strictly non-scrollable.
-- 📐 **Complete & Viewport-Adaptive Board**: Guaranteed full board visibility—the board scales dynamically to available vertical height (`h-full max-h-full aspect-square w-auto max-w-full`) so START, Central Jail, and bottom tiles are never cut off.
-- 🚶 **Widened Walk Lane**: Perimeter walk lanes are 45% wider (`1.5fr` outer tracks), ensuring property titles, city names, and prices are clearly placed and legible without awkward truncation.
-- 🎨 **Dynamic Buyer-Color Ownership**: Spaces remain clean and uncolored while unowned. Once purchased by a player, the space dynamically adopts that **player's chosen token color** with an owner badge and building pips.
+- 📐 **Wide Non-Square Adaptive Board**: The board maxes out the available width and height of the central column (`w-full h-full max-h-full mx-auto`) with no square aspect-ratio limitation, giving expansive horizontal space for crystal-clear city names and prices.
+- 💫 **State-Change Glowing & Zoom Effect**: When game state changes (pawns step or land, deeds are bought, cash transfers occur), affected board tiles and player cards activate an animated amber neon glow ring (`scale-105 animate-pulse`) so every player immediately sees live gameplay updates.
+- 🔍 **Space Deed Inspector on Left Panel**: Positioned directly beneath the compact player list in the left panel. Clicking any space opens its complete deed schedule (purchase price, base/house/tower rent tiers, mortgage values, and owner development controls).
+- ⚡ **Turn-Focused Right Panel & Hover Portfolio**: The right panel focuses on active turn operations (Roll The Dice, Buy/Decline, Pay Bail, End Turn) and real-time turn activity logs. Under "My Info", property assets are cleanly hidden from default view and revealed via an interactive hover card on cursor hover.
+- 🎨 **Dynamic Buyer-Color Ownership**: Spaces remain clean and uncolored while unowned. Once purchased by a player, the space dynamically adopts that **player's assigned token color** with an owner badge and building pips.
 - 🚶‍♂️ **Step-by-Step Pawn Walking Animation**: Pawns physically hop tile by tile along the lane at a 140ms cadence with synchronized procedural step audio until reaching their destination space.
 - 🎲 **High-Visibility 3D Tumbling Dice**: High-contrast white dice with solid black pips and 3D tumbling animations, accompanied by a rolled total summary pill.
-- 👥 **Compact Player Cards with Hover Flyouts**: Minimalist player rows on the left panel. Hovering over any player reveals a rich portfolio flyout (cash, net worth, board position, jail status, and owned deeds categorized by color groups).
-- 👤 **Right-Panel "My Info" Portfolio**: Placed directly below the "Roll The Dice" button, displaying your personal cash, net worth, position, and property assets at a glance.
-- 📜 **Visible Buzz Card Contents**: The two center decks (*Civic Fund* and *Market Buzz*) permanently display their **actual card contents, titles, and amounts** face-up inside the board center.
+- 📜 **Visible Buzz Card Contents**: The two center decks (*Civic Fund* and *Market Buzz*) permanently display their **actual card contents, titles, and amounts** face-up inside the board center with clean English terminology.
 - ⏱️ **Turn Timer on Active Player**: The countdown timer is cleanly integrated directly onto the active player's card in the left panel with pulse warnings under 10s.
-- 🚦 **Turn Step Acknowledgments**: An interactive breadcrumb pipeline (`1. Roll ➔ 2. Action ➔ 3. Complete`) provides instant visual confirmations for rolls, movements, purchases, and rents.
 - ⚙️ **Host-Customizable Rules**: The game host can configure starting cash (₹10,000–₹25,000), pass START rewards (₹1,000–₹3,000), turn timer limits, max players (2–6), jail bail amounts, and monopoly rent multipliers before creating the room.
 - 🎯 **Practice Match (Gameplay Sandbox)**: A dedicated practice match on the Play tab to test the exact gameplay features against 3 simulated opponents. Modular and easily removable in future releases.
 
 ---
 
-## 🎲 Board Layout & Topology
+## 🎲 40-Space Canonical Board Topology
 
 ```
-+---------------------------------------------------------------------------------------------+
-| REST    | HYDERABAD | MARKET | HYDERABAD | BENGALURU | CHENNAI | BENGALURU | KOLKATA | GO TO|
-| HOUSE   | CYBER TW  |  BUZZ  | HI-TECH   | MG ROAD   | CENTRAL | BRIGADE RD| PARK ST | JAIL |
-| (20)    | (21)      | (22)   | (23)      | (24)      | (25)    | (26)      | (27)    | (30) |
-+---------+-------------------------------------------------------------------------+---------+
-| KOZHIKODE                                                                         | KOLKATA |
-| (19)                                                                              | (31)    |
-|---------+                                                                         +---------|
-| KOCHI                                🇮🇳 INDIAN MONOPOLY                           | JAL     |
-| (18)                                                                              | BOARD   |
-|---------+                         Server-Authoritative Multi-Device               | (32)    |
-| CIVIC                                                                             +---------|
-| FUND                                                                              | BHUBAN- |
-| (17)                                                                              | ESHWAR  |
-|---------+                                                                         | (33)    |
-| THIRUVAN-                                                                         +---------|
-| ANTHAPURAM                                                                        | CHENNAI |
-| (16)                                                                              | (34)    |
-|---------+                                                                         +---------|
-| HOWRAH                                                                            | DELHI   |
-| METRO                                                                             | METRO   |
-| (15)                                                                              | (35)    |
-|---------+                                                                         +---------|
-| SURAT                                                                             | MARKET  |
-| (14)                                                                              | BUZZ    |
-|---------+                                                                         | (36)    |
-| VADODARA                                                                          +---------|
-| (13)                                                                              | CHENNAI |
-|---------+                                                                         | BOAT CL |
-| URJA                                                                              | (37)    |
-| POWER                                                                             +---------|
-| (12)                                                                              | INFRA   |
-|---------+                                                                         | LEVY    |
-| AHMEDABAD                                                                         | (38)    |
-| (11)                                                                              | +-------|
-|---------+                                                                         | DELHI CP|
-| JAIL /                                                                            | (39)    |
-| VISITING+-------------------------------------------------------------------------+---------+
-| (10)    | AGRA    | VARANASI | LUCKNOW | MUMBAI  | GST       | JODHPUR | CIVIC | JAIPUR | START|
-|         | (9)     | (8)      | (6)     | LOCAL(5)| CHECKPOST | (3)     | FUND  | (1)    | (0)  |
-+---------------------------------------------------------------------------------------------+
++----------------------------------------------------------------------------------------------------+
+| REST      | AHMEDABAD | MARKET  | PUNE      | HYDERABAD | CHENNAI   | BENGALURU | CHENNAI   | GO TO    |
+| HOUSE     | (₹2,200)  | BUZZ    | (₹2,200)  | (₹2,400)  | CENTRAL   | (₹2,600)  | (₹2,600)  | JAIL     |
+| (20)      | (21)      | (22)    | (23)      | (24)      | (25)      | (26)      | (27)      | (30)     |
++-----------+-----------------------------------------------------------------------------+----------+
+| GOA (19)  |                                                                             | KOLKATA  |
+| ₹2,000    |                                                                             | (29)     |
+|-----------+                                                                             | ₹2,800   |
+| KOCHI     |                            INDIAN MONOPOLY                                  +----------|
+| (18)      |                  Real-Time Universal Multiplayer Web App                    | JAL      |
+| ₹1,800    |                                                                             | BOARD    |
+|-----------+                                                                             | (28)     |
+| CIVIC     |                                                                             +----------|
+| FUND (17) |                                                                             | CHANDI-  |
+|-----------+                                                                             | GARH(31) |
+| VISAKHA-  |                                                                             | ₹3,000   |
+| PATNAM(16)|                                                                             +----------|
+| ₹1,800    |                                                                             | GURUGRAM |
+|-----------+                                                                             | (32)     |
+| HOWRAH    |                                                                             | ₹3,000   |
+| JUNCTION  |                                                                             +----------|
+| (15)      |                                                                             | CIVIC    |
+|-----------+                                                                             | FUND (33)|
+| SURAT     |                                                                             +----------|
+| (14)      |                                                                             | NOIDA    |
+| ₹1,600    |                                                                             | (34)     |
+|-----------+                                                                             | ₹3,200   |
+| BHOPAL    |                                                                             +----------|
+| (13)      |                                                                             | NEW DELHI|
+| ₹1,400    |                                                                             | TERMINAL |
+|-----------+                                                                             | (35)     |
+| URJA      |                                                                             +----------|
+| POWER     |                                                                             | MARKET   |
+| (12)      |                                                                             | BUZZ (36)|
+|-----------+                                                                             +----------|
+| INDORE    |                                                                             | NEW DELHI|
+| (11)      |                                                                             | (37)     |
+| ₹1,400    |                                                                             | ₹3,500   |
+|-----------+                                                                             +----------|
+| JAIL /    |                                                                             | INFRA    |
+| VISITING  |                                                                             | LEVY(38) |
+| (10)      |                                                                             +----------|
+|           |                                                                             | MUMBAI   |
+|           |                                                                             | (39)     |
+|           |                                                                             | ₹4,000   |
++-----------+-----------------------------------------------------------------------------+----------+
+|           | AGRA      | VARANASI | MARKET   | LUCKNOW   | CST       | GST       | JODHPUR   | CIVIC    | JAIPUR   | START    |
+|           | (9)       | (8)      | BUZZ (7) | (6)       | MUMBAI(5) | CHECK(4)  | (3)       | FUND (2) | (1)      | (0)      |
+|           | ₹1,200    | ₹1,000   |          | ₹1,000    | ₹2,000    | ₹2,000    | ₹600      |          | ₹600     | Collect  |
+|           |           |          |          |           |           |           |           |          |          | ₹2,000   |
++----------------------------------------------------------------------------------------------------+
 ```
 
 ---
@@ -88,9 +97,11 @@
 flowchart TD
     subgraph Client ["Client Presentation Layer (React 19 + Tailwind)"]
         UI["Two-Tab Shell: Play & Settings"]
-        Board["Non-Scrollable GameBoard (100dvh)"]
-        Center["Center Area: Dice & Persistent Buzz Cards"]
-        Timer["Turn Countdown Timer (15-60s)"]
+        LeftPanel["Left Panel: Players List + Selected Space Deed Inspector"]
+        Board["Wide Non-Square GameBoard (w-full h-full)"]
+        Center["Center Area: Dice Arena & Persistent Buzz Cards"]
+        RightPanel["Right Panel: Turn Actions + Live Turn Activity + Hover Portfolio"]
+        Glow["State-Change Glow & Zoom Engine"]
         Sound["Web Audio Procedural Sound Engine"]
     end
 
@@ -98,138 +109,98 @@ flowchart TD
         State["Immutable GameState"]
         Reducer["applyGameCommand(state, cmd, rules)"]
         Rules["HostCustomRules (Cash, Timer, Bail, Multipliers)"]
-        AI["Practice Match Heuristic Tycoon Loop"]
+        Validation["Action Validators (Zod Schemas)"]
     end
 
-    subgraph Backend ["Server-Authoritative Backend"]
-        Firestore["Cloud Firestore / Emulators"]
-        Rooms["rooms/{roomId} & games/{gameId}"]
-        Presence["Player Real-Time Presence"]
+    subgraph Backend ["Server & Persistence Layer"]
+        Firestore["Cloud Firestore (Real-Time Subscriptions)"]
+        Auth["Anonymous Name-Based Session Storage"]
     end
 
+    UI --> LeftPanel
     UI --> Board
+    UI --> RightPanel
     Board --> Center
-    Board --> Timer
-    Center -->|User Roll/Action| Reducer
-    Reducer -->|State Invariants Check| State
-    Rules --> Reducer
-    AI -->|Simulated Turn| Reducer
-    Reducer -->|Synthesized FX| Sound
-    Reducer -->|State Commit| Firestore
-    Firestore -->|Snapshot Sync| Board
+    Board --> Glow
+    LeftPanel --> Reducer
+    RightPanel --> Reducer
+    Reducer --> State
+    State --> Glow
+    State --> Sound
+    State --> Firestore
 ```
 
 ---
 
-## 🔐 Storing Firebase Credentials in GitHub Secrets
+## 🚀 Quick Start & Installation
 
-To keep credentials completely secure and prevent committing keys to Git history:
+### Prerequisites
+- **Node.js**: v18.0.0 or later (v20+ recommended)
+- **npm**: v9.0.0 or later
 
-1. Open your repository on GitHub: `https://github.com/K-692/Monopoly-India-Game`
-2. Go to **Settings** > **Secrets and variables** > **Actions**.
-3. Click **New repository secret** and add:
-   - `VITE_FIREBASE_API_KEY`: Your Firebase Web API key
-   - `VITE_FIREBASE_AUTH_DOMAIN`: `your-project.firebaseapp.com`
-   - `VITE_FIREBASE_PROJECT_ID`: `your-project-id`
-   - `VITE_FIREBASE_STORAGE_BUCKET`: `your-project.firebasestorage.app`
-   - `VITE_FIREBASE_MESSAGING_SENDER_ID`: `your-sender-id`
-   - `VITE_FIREBASE_APP_ID`: `1:your-app-id:web:...`
-   - `VITE_FIREBASE_MEASUREMENT_ID`: `G-XXXXXXXXXX`
-   - `VITE_FIREBASE_DATABASE_URL`: `https://your-project.firebasedatabase.app`
-4. The GitHub Actions workflow ([`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml)) injects these secrets into the production build during deployment.
-5. See [docs/SECRETS_SETUP.md](docs/SECRETS_SETUP.md) for full step-by-step instructions.
+### Installation
 
----
-
-## 🛠️ Tech Stack
-
-| Layer | Technologies |
-|---|---|
-| **Frontend Framework** | [React 19](https://react.dev/) + [TypeScript 5.7](https://www.typescriptlang.org/) |
-| **Build & Tooling** | [Vite 6](https://vite.dev/) |
-| **Styling & Tokens** | [Tailwind CSS 3.4](https://tailwindcss.com/) + CSS Custom Properties |
-| **UI Primitives** | [Radix UI](https://www.radix-ui.com/) + [Lucide Icons](https://lucide.dev/) |
-| **Audio Engine** | Web Audio API (procedural synthesis for zero-latency cross-platform sound) |
-| **Routing** | [React Router 7](https://reactrouter.com/) (HashRouter for GitHub Pages deep linking) |
-| **State Management** | [Zustand](https://github.com/pmndrs/zustand) |
-| **Backend & Cloud** | [Cloud Firestore](https://firebase.google.com/docs/firestore), [Cloud Functions](https://firebase.google.com/docs/functions) |
-| **Testing** | [Vitest](https://vitest.dev/), [React Testing Library](https://testing-library.com/), [Playwright](https://playwright.dev/) |
-| **Deployment** | GitHub Pages (Frontend) + GitHub Actions CI/CD |
-
----
-
-## 🚀 Getting Started
-
-### 1. Clone repository
 ```bash
+# Clone the repository
 git clone https://github.com/K-692/Monopoly-India-Game.git
-cd Monopoly-India-Game
-```
 
-### 2. Install dependencies
-```bash
+# Enter repository root
+cd Monopoly-India-Game
+
+# Install all dependencies cleanly
 npm install
 ```
 
-### 3. Start local development server
+### Running Locally
+
 ```bash
+# Start local development server with HMR
 npm run dev
 ```
-Open `http://localhost:5173`. You can immediately launch the **Practice Match** or host/join rooms!
 
----
+Visit `http://localhost:5173` in your browser.
 
-## 🧪 Testing & Quality Gates
+### Quality Verification & Testing
 
 ```bash
-# Run unit tests
-npm run test
-
-# Run TypeScript typechecks
+# Run static type checking
 npm run typecheck
 
-# Run linter
+# Run ESLint code quality checks
 npm run lint
 
-# Run end-to-end multi-device browser tests
-npm run test:e2e
+# Run pure domain engine Vitest unit tests
+npm run test
 
-# Run production build
+# Run multi-device Playwright E2E tests (27 device configurations)
+npx playwright test
+
+# Build production bundle
 npm run build
 ```
 
 ---
 
-## 🤝 Contributing to Indian Monopoly
+## 🤝 Welcoming Contributors
 
-We welcome contributions from developers, designers, and board-game enthusiasts! To contribute:
+We warmly welcome contributions from the community! Whether you want to improve game mechanics, enhance procedural soundscapes, refine responsive mobile layouts, or report issues:
 
-1. **Fork the Repository**: Click the `Fork` button at the top right of the GitHub page.
-2. **Clone your fork**:
+1. **Fork the Repo**: Click the **Fork** button on GitHub.
+2. **Create a Feature Branch**:
    ```bash
-   git clone https://github.com/<your-username>/Monopoly-India-Game.git
-   cd Monopoly-India-Game
+   git checkout -b feature/amazing-feature
    ```
-3. **Create a Feature Branch**:
+3. **Commit Your Changes**: Follow clear, conventional commit messages.
+4. **Push to Your Branch**:
    ```bash
-   git checkout -b feat/your-awesome-feature
+   git push origin feature/amazing-feature
    ```
-4. **Adhere to Code Standards**:
-   - Write clean, type-safe TypeScript code.
-   - Add comments explaining non-trivial business logic or mathematical algorithms.
-   - Keep domain logic strictly isolated in pure functions within `src/domain/`.
-5. **Verify Quality Gates**:
-   - Run `npm run test` (Vitest must pass 100%).
-   - Run `npm run typecheck` (0 TypeScript errors).
-   - Run `npm run lint` (0 ESLint errors/warnings).
-   - Run `npm run build` (production build must succeed).
-   - Run `npm run test:e2e` (Playwright tests must pass across all screen sizes).
-6. **Submit a Pull Request**:
-   - Push your branch to GitHub: `git push origin feat/your-awesome-feature`
-   - Open a Pull Request with a clear title and description of your enhancements.
+5. **Open a Pull Request**: Submit your PR with a concise description of the feature or bugfix.
+
+Please ensure all tests and type checks pass prior to opening a PR (`npm run typecheck && npm run test && npm run lint`).
 
 ---
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Distributed under the **MIT License**. See `LICENSE` for more information.

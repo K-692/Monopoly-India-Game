@@ -10,6 +10,7 @@ interface BoardSpaceTileProps {
   playersHere: PlayerState[];
   allPlayers?: PlayerState[];
   isSelected: boolean;
+  isHighlighted?: boolean;
   onSelect: () => void;
 }
 
@@ -19,6 +20,7 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
   playersHere,
   allPlayers = [],
   isSelected,
+  isHighlighted = false,
   onSelect,
 }) => {
   const coord = getSpaceGridCoord(space.spaceIndex);
@@ -60,8 +62,9 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
         ...(ownerColor ? { borderColor: ownerColor } : {}),
       }}
       className={cn(
-        'relative flex flex-col justify-between border border-indian-parchment-400 bg-white dark:bg-indian-navy-900 text-indian-navy-950 dark:text-white select-none cursor-pointer transition-all p-0.5 sm:p-1 overflow-hidden',
+        'relative flex flex-col justify-between border border-indian-parchment-400 bg-white dark:bg-indian-navy-900 text-indian-navy-950 dark:text-white select-none cursor-pointer transition-all duration-300 p-0.5 sm:p-1 overflow-hidden',
         isSelected && 'ring-2 ring-indian-terracotta-500 bg-amber-50 dark:bg-indian-navy-800 z-20',
+        isHighlighted && 'ring-4 ring-amber-400 dark:ring-amber-300 scale-105 z-30 shadow-[0_0_20px_rgba(251,191,36,0.9)] animate-pulse',
         propertyState?.isMortgaged && 'opacity-60 bg-gray-200/80',
         ownerColor && 'border-2 shadow-xs'
       )}
@@ -126,7 +129,7 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
           )}
         </div>
       ) : (
-        /* Regular Edge Tile - Expanded Walk Lane with Readable Typography */
+        /* Regular Edge Tile - Expanded Walk Lane with Bold Typography */
         <div
           className={cn(
             'w-full h-full flex flex-col justify-between items-center text-center p-0.5',
@@ -149,20 +152,20 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
             )}
           </div>
 
-          {/* Property Name with Full Line Wrapping */}
-          <span className="font-bold text-[8px] sm:text-[9.5px] leading-[1.05] text-center w-full break-words hyphens-auto px-0.5">
+          {/* Property Name */}
+          <span className="font-bold text-[8px] sm:text-[10px] leading-[1.1] text-center w-full break-words hyphens-auto px-0.5">
             {space.name}
           </span>
 
           {/* Price / Fine Amount */}
           {'price' in space && (
-            <span className="text-[8px] sm:text-[9px] font-black text-emerald-800 dark:text-emerald-400">
-              ₹{space.price}
+            <span className="text-[8px] sm:text-[9.5px] font-black text-emerald-800 dark:text-emerald-400">
+              ₹{space.price.toLocaleString('en-IN')}
             </span>
           )}
           {'amount' in space && (
-            <span className="text-[8px] sm:text-[9px] font-black text-red-600">
-              ₹{space.amount}
+            <span className="text-[8px] sm:text-[9.5px] font-black text-red-600">
+              ₹{space.amount.toLocaleString('en-IN')}
             </span>
           )}
         </div>
@@ -176,7 +179,7 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
               key={p.uid}
               title={p.displayName}
               style={{ backgroundColor: p.colorToken }}
-              className="w-3.5 sm:w-4 h-3.5 sm:h-4 rounded-full border-2 border-white shadow-token-glow flex items-center justify-center text-[7px] text-white font-black transition-all duration-150 animate-pulse"
+              className="w-3.5 sm:w-4.5 h-3.5 sm:h-4.5 rounded-full border-2 border-white shadow-token-glow flex items-center justify-center text-[7px] sm:text-[8px] text-white font-black transition-all duration-150 animate-pulse"
             >
               {p.displayName.charAt(0).toUpperCase()}
             </div>

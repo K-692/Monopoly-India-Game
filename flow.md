@@ -7,13 +7,21 @@ This document chronicles the design, formal state transitions, mathematical mode
 
 ## 1. Project Genesis & Domain Specification
 
-### 1.1 Domain Modeling & Subcontinent Topology
-The property trading paradigm is mapped onto the contemporary Indian urban-economic landscape. The board consists of a canonical 40-space clockwise topology with:
-- **22 Purchasable City Properties** grouped into 8 color bands representing major Indian metropolitan markets (Jaipur, Jodhpur, Lucknow, Varanasi, Agra, Ahmedabad, Surat, Vadodara, Kochi, Thiruvananthapuram, Kozhikode, Hyderabad, Bengaluru, Kolkata, Bhubaneswar, Chennai, Delhi, Mumbai).
-- **4 Intercity Transit Assets**: Mumbai Western Line, Howrah Junction, Chennai Central, New Delhi Railway Station.
-- **2 Public Utilities**: Urja Power Grid and Jal Board Water Authority.
-- **2 Taxation Points**: GST Checkpost (₹2,000) and Infrastructure Levy (₹1,000).
-- **2 Persistent Center Deck Card Spaces**: Civic Fund (public sector/regulatory events) and Market Buzz (economic/speculation events), permanently rendered in the center of the board.
+### 1.1 Domain Modeling & 22 Unique Metropolitan Cities Topology
+The property trading paradigm is mapped onto the contemporary Indian urban-economic landscape. The board consists of a canonical 40-space clockwise topology with **zero Hindi text**, featuring:
+- **22 Purchasable City Properties**: 100% unique Indian metropolitan centres grouped into 8 color bands with **strictly ascending tier-wise prices**:
+  - **Tier 3 Heritage & Royal Metros** (Brown): Jaipur (₹600, Space 1), Jodhpur (₹600, Space 3).
+  - **Tier 2.5 Historic & Cultural Metros** (Light Blue): Lucknow (₹1,000, Space 6), Varanasi (₹1,000, Space 8), Agra (₹1,200, Space 9).
+  - **Tier 2 Commercial & Industrial Metros** (Pink): Indore (₹1,400, Space 11), Bhopal (₹1,400, Space 13), Surat (₹1,600, Space 14).
+  - **Tier 2 Coastal & Maritime Metros** (Orange): Visakhapatnam (₹1,800, Space 16), Kochi (₹1,800, Space 18), Goa (₹2,000, Space 19).
+  - **Tier 1 Tech & Financial Innovation Giants** (Red): Ahmedabad (₹2,200, Space 21), Pune (₹2,200, Space 23), Hyderabad (₹2,400, Space 24).
+  - **Tier 1 Mega Metropolitan Hubs** (Yellow): Bengaluru (₹2,600, Space 26), Chennai (₹2,600, Space 27), Kolkata (₹2,800, Space 29).
+  - **Tier 1 Capital & Corporate Corridors** (Green): Chandigarh (₹3,000, Space 31), Gurugram (₹3,000, Space 32), Noida (₹3,200, Space 34).
+  - **Tier 1+ Supreme Political & Financial Capitals** (Dark Blue): New Delhi (₹3,500, Space 37), Mumbai (₹4,000, Space 39).
+- **4 Intercity Transit Gateways**: Chhatrapati Shivaji Terminus Mumbai (Western, Space 5), Howrah Junction (Eastern, Space 15), Chennai Central (Southern, Space 25), New Delhi Railway Terminal (Northern, Space 35).
+- **2 Public Utilities**: Urja Power Grid (Space 12) and Jal Board Water Authority (Space 28).
+- **2 Taxation Checkpoints**: GST Checkpost (₹2,000, Space 4) and Infrastructure Wealth Levy (₹1,000, Space 38).
+- **2 Persistent Center Deck Card Spaces**: Civic Fund (Community Treasury events) and Market Buzz (Fortune & Chance speculation events), permanently rendered in the center of the board with zero Hindi script.
 - **4 Corner Anchors**: START (configurable passing reward, default ₹2,000), Central Jail / Just Visiting, Rest House (Free Parking), and Go to Jail.
 
 ### 1.2 Mathematical Formulations & Rule Invariants
@@ -26,7 +34,7 @@ The property trading paradigm is mapped onto the contemporary Indian urban-econo
   - Unimproved property rent: Base rent $R_0$.
   - Monopolized group (all properties of color set $C$ owned by single entity, no buildings): $2 \times R_0$ when enabled by host rule.
   - Developed tiers (1 to 4 blocks): $R_1, R_2, R_3, R_4$.
-  - Commercial Tower tier: $R_5$.
+  - Commercial Skyscraper Tower tier: $R_5$.
   - Transit spaces owned ($k \in \{1, 2, 3, 4\}$):
     $$\text{Rent}_{\text{transit}}(k) = 250 \times 2^{k-1}$$
   - Utility spaces owned ($m \in \{1, 2\}$):
@@ -34,42 +42,39 @@ The property trading paradigm is mapped onto the contemporary Indian urban-econo
 
 ---
 
-## 2. Frictionless Session Identity & Two-Tab Navigation
+## 2. Information Architecture & Spatial Reorganization
 
-### 2.1 Frictionless Name-Based Entry
-To maximize multiplayer adoption and eliminate third-party login friction:
-- Google authentication is completely bypassed.
-- Any participant with the room link or invitation code enters the room immediately after submitting their chosen display name.
-- Anonymous player identifiers (`uid`) and color tokens are generated and stored in client `localStorage`.
+### 2.1 Three-Column Balanced Layout
+The main non-scrollable game canvas is partitioned into three functional columns:
+1. **Left Column (`lg:col-span-3`)**:
+   - **Compact Player Strip**: Minimalist player rows with turn timers on the active player and hover flyouts.
+   - **Selected Space Deed Inspector** (relocated from the right panel): Clicking any tile on the board immediately presents the complete deed schedule (purchase price, rent table across 1–4 houses and tower, mortgage/unmortgage values, transit/utility scaling, and owner development controls).
+2. **Center Column (`lg:col-span-6`)**:
+   - **Wide Non-Square Game Board**: Maxed out horizontally and vertically (`w-full h-full max-h-full mx-auto`) to utilize the full available workspace.
+   - **Center Arena**: Houses the persistent face-up *Civic Fund* and *Market Buzz* cards alongside the 3D tumbling dice arena.
+3. **Right Column (`lg:col-span-3`)**:
+   - **Turn Actions & Controls**: Primary Roll The Dice, Buy/Decline, Pay Bail, and End Turn controls.
+   - **Real-Time Turn Activity**: Dedicated live log detailing the active player's ongoing turn steps, dice roll sum, board destination, and required decisions.
+   - **"My Info" & Hover-Only Portfolio**: Liquid cash and total net worth summary. Property assets are cleanly hidden from the default view and revealed via an interactive hover card on cursor hover, preventing layout clutter.
 
-### 2.2 Strict Two-Tab Information Architecture
-The application navigation is strictly partitioned into two primary views:
-1. **Play Tab (`/` and `/play`)**:
-   - Practice Match Sandbox (comprehensive solo gameplay against 3 simulated tycoons).
-   - Host Room creation with pre-game customizable rules modal.
-   - Join Room with 6-character room code or deep invitation link.
-2. **Settings Tab (`/settings`)**:
-   - Web Audio procedural sound toggle and volume slider.
-   - Light/Dark appearance theme toggle and reduced motion mode.
-   - Display name editing and identity customization.
+### 2.2 Dynamic State-Change Glow & Zoom Feedback
+When a game state update occurs, animated visual indicators alert all participants:
+- **Board Space Tiles**: When a pawn steps along or lands on a space, or a deed is acquired/mortgaged/upgraded, the tile activates `isHighlighted` with an animated pulsing amber/gold neon glow ring (`ring-4 ring-amber-400 dark:ring-amber-300 scale-105 shadow-[0_0_20px_rgba(251,191,36,0.9)] animate-pulse`).
+- **Player Cards & Financial Changes**: The active player's card pulses with an amber glow ring. Whenever a player's cash changes, their cash badge flashes in green (+ cash) or red (- cash) with a momentary zoom scale-up (`scale-110`).
 
 ---
 
 ## 3. Universal Responsive & Non-Scrollable Viewport Architecture
 
 ### 3.1 Strict Viewport Isolation & Board Completeness Guarantee
-Only the active game board canvas is strictly non-scrollable (`h-[calc(100dvh-54px)] overflow-hidden`), preserving strict mathematical alignment across mobile and desktop. Meanwhile, auxiliary views (Settings tab `/settings` and Play lobby `/`) utilize natural dynamic viewport scrolling (`overflow-y-auto min-h-0`), ensuring complete accessibility for configuration controls across all device aspect ratios.
-To prevent bottom-row clipping (such as START, Jaipur, Civic Fund, and Central Jail), the board dimension is constrained using aspect-ratio geometry:
-$$\text{Board Dimension} = \min(\text{Viewport Available Height}, \text{Available Column Width})$$
-Rendered via `h-full max-h-full aspect-square w-auto max-w-full mx-auto`. All 40 spaces remain 100% visible with zero vertical overflow.
+Only the active game board canvas is strictly non-scrollable (`h-[calc(100dvh-54px)] overflow-hidden`), preserving strict mathematical alignment across mobile and desktop. Auxiliary views (Settings tab `/settings` and Play lobby `/`) utilize natural dynamic viewport scrolling (`overflow-y-auto min-h-0`).
 
 ### 3.2 Widened Walk Lane Grid Topology
-The perimeter walk lane width has been widened by 45% using asymmetric CSS Grid templates:
+The perimeter walk lane width is widened using asymmetric CSS Grid templates:
 - **Grid Layout**: `grid-template-columns: 1.5fr repeat(9, 1fr) 1.5fr` and `grid-template-rows: 1.5fr repeat(9, 1fr) 1.5fr`.
-- **Space Legibility**: The 1.5fr outer lanes provide expanded space depth ($1.5 / 12.0 = 12.5\%$ per outer lane), eliminating truncated ellipses and cleanly accommodating multi-line wrapped property titles, prices, and owner identifiers.
+- **Space Legibility**: The 1.5fr outer lanes provide expanded space depth ($1.5 / 12.0 = 12.5\%$ per outer lane), eliminating truncated text and cleanly accommodating full unique city names, prices, and owner identifiers.
 
-### 3.3 Dynamic Ownership Color Formalism
-To avoid visual confusion with static Monopoly color bands:
+### 3.3 Dynamic Buyer-Color Ownership Formalism
 - **Unowned Spaces**: Completely uncolored (clean neutral parchment with white border).
 - **Purchased Spaces**: Dynamically adopt the **purchasing player's assigned token color** (`owner.colorToken`), accompanied by an owner name badge and building count pips (`🏠xN` or `🏢 Tower`).
 
@@ -82,51 +87,27 @@ For each step:
 - Passing START (index 0) triggers the `PASS_START` chime.
 - On reaching the target tile ($S = \text{dice}_1 + \text{dice}_2$), the step terminates and lands on the property decision.
 
-### 3.5 High-Visibility Dice & Persistent Center Decks
-- **High-Contrast 3D Tumbling Dice**: Physical dice rendering uses solid black pips (`bg-black`) inside pure white cubes with a 3D perspective tumbling animation and rapid face cycling during the roll.
-- **Center Decks with Face-Up Card Contents**: The two central decks (*Civic Fund* in terracotta and *Market Buzz* in teal) permanently present their **active card contents** (title, descriptive text, and amount pill) face-up with authentic Indian iconography and Hindi titles.
-- **Turn Step Acknowledgment HUD**: An active breadcrumb pipeline (`1. Roll ➔ 2. Action ➔ 3. Complete`) provides instant visual acknowledgments for rolls, moves, purchases, rents, and turn conclusions.
-- **Player Hover Flyout**: Hovering over any compact player card opens a detailed informational flyout detailing cash, net worth, board position, jail status, full list of owned properties by color group with house/tower levels, mortgaged states, transit lines, and utilities.
+---
+
+## 4. Asset Integrity & Localization Purity
+
+### 4.1 Single Image Asset Standard
+All legacy image mockups (`civic_card.png`, `interface.png`, `place_card.png`, `board.png`) have been completely purged from the codebase. The project strictly retains only `game_logo.png` (and standard `favicon.svg`), rendering all game components (board, cards, dice, tokens, deeds) programmatically using modern SVG, CSS, and Tailwind.
+
+### 4.2 Complete Removal of Hindi / Devanagari Script
+Per project design requirements, all Hindi text has been removed:
+- Logo brand: "INDIAN MONOPOLY" only (Devanagari subtitle `भारत व्यापार` removed).
+- Board property names: Clean English metropolitan designations (`Jaipur`, `Lucknow`, `Mumbai`, etc.).
+- Center decks: English subtitles `COMMUNITY TREASURY` and `FORTUNE & CHANCE`.
 
 ---
 
-## 4. Modular Practice Match Architecture
+## 5. Verification Matrix & E2E Validation
 
-To verify end-to-end gameplay mechanics prior to live room play, an isolated Practice Match module (`src/features/practice/`) executes:
-- Exact same pure TypeScript game engine (`applyGameCommand`) and board components.
-- Autonomous AI player loop with heuristic bidding, buying, and building decisions.
-- Real-time turn countdown with automatic roll and pass enforcement.
-- Engineered for seamless, modular removal in future releases without touching core game logic.
-
----
-
-## 5. Security Hardening & GitHub Secrets CI/CD
-
-Firebase public client credentials are scrubbed from version control:
-- Local configurations read purely from `import.meta.env.VITE_FIREBASE_*`.
-- Safe mock fallbacks ensure development, offline sandbox play, and CI test pipelines run smoothly without live credentials.
-- GitHub Actions deployments inject production keys from repository secrets (`${{ secrets.VITE_FIREBASE_* }}`) using the setup detailed in `docs/SECRETS_SETUP.md`.
-
----
-
-## 6. Procedural Web Audio Sound Synthesis Engine
-
-Rather than loading high-latency or network-dependent `.mp3` / `.wav` assets over HTTP, game feedback is synthesized in real time via the browser's `AudioContext`:
-- **Dice Rolling**: Synthesized white noise burst shaped by a bandpass biquad filter ($f_c = 1200\text{ Hz}, Q = 3.5$) with exponential gain decay:
-  $$g(t) = g_0 \cdot e^{-t / \tau_{\text{dice}}}$$
-- **Pawn Hop / Step**: Frequency sweep using a sine oscillator descending from 520 Hz to 260 Hz over 80 ms.
-- **Cash Register / Transaction Chime**: Dual-tone overtone chord (880 Hz $A_5$ and 1320 Hz $E_6$) with instantaneous attack and 350 ms exponential ringdown.
-- **Jail Clang**: Low metallic square wave (110 Hz $A_2$) mixed with lowpass resonant filter ($Q = 8$) simulating heavy iron bars closing.
-- **User Permission & Autoplay**: Resumes `AudioContext` on user interaction and respects user settings (volume and mute toggle).
-
----
-
-## 7. Quality Assurance & Multi-Device Verification Matrix
-
-A comprehensive verification suite guarantees stability across all target form factors:
-- **Unit Testing (Vitest 3.2)**: 6/6 tests verify engine determinism, START passing invariant, rent doubling on monopoly, bankruptcy thresholds, and three-doubles incarceration.
-- **Static Analysis (TypeScript 5.7 & ESLint 9)**: 0 errors across all frontend and cloud functions codebases.
-- **E2E Visual & Responsive Testing (Playwright 1.58)**: 27/27 end-to-end tests passing across 3 viewport configurations:
-  - **Desktop (1920 × 1080)**: Full 3-column layout, visible financial strip, centered board, and transaction deeds.
-  - **Modern Mobile Phone (390 × 844)**: Responsive board scaling within `100dvh`, compact player chips, and bottom HUD controls.
-  - **Tablet Portrait (820 × 1180)**: Fluid responsive column collapse with center-anchored in-board dice.
+| Test Suite | Scope | Target Dimension | Status |
+|---|---|---|---|
+| Vitest Unit Tests | Pure Game Engine | State transitions, dice, rent, jail, bankruptcy | **6/6 Passing** |
+| TypeScript Compiler | Static Typing | Full project type safety (`tsc -b --noEmit`) | **0 Errors** |
+| ESLint | Code Quality | Best coding practices & formatting | **0 Errors** |
+| Playwright E2E | Universal Responsive | 27 cross-browser viewport combinations | **27/27 Passing** |
+| Production Build | Vite Bundler | Modern ESM chunks with asset optimizations | **Passing (2.0s)** |

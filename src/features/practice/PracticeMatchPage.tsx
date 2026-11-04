@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { usePracticeStore } from './use-practice-store';
 import { useAuthStore } from '@/features/auth/use-auth-store';
 import { GameBoard } from '@/components/board/GameBoard';
+import { BOARD_SPACES } from '@/domain/board-config';
+import { SpaceDeedInspector } from '@/components/board/SpaceDeedInspector';
 import { PlayerStrip } from '@/components/player/PlayerStrip';
 import { ActionPanel } from '@/components/player/ActionPanel';
 import { EventTicker } from '@/components/feedback/EventTicker';
@@ -147,9 +149,9 @@ export const PracticeMatchPage: React.FC = () => {
       )}
 
       {/* Main 3-Column Non-Scrollable Game Canvas */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-2 sm:gap-3 items-center overflow-hidden min-h-0">
-        {/* Left Column: Player Strip (compact cards with hover info & turn timer) */}
-        <div className="hidden lg:block lg:col-span-2 h-full overflow-y-auto pr-1">
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-2 sm:gap-3 items-stretch overflow-hidden min-h-0">
+        {/* Left Column: Player Strip & Space Deed Inspector (Moved from right panel) */}
+        <div className="hidden lg:flex lg:flex-col lg:col-span-3 h-full overflow-y-auto pr-1 gap-2.5">
           <PlayerStrip
             players={gameState.players}
             currentPlayerUid={gameState.currentPlayerUid}
@@ -161,10 +163,22 @@ export const PracticeMatchPage: React.FC = () => {
               if (p) selectSpace(p.position);
             }}
           />
+
+          {/* Selected Space Deed Inspector */}
+          <SpaceDeedInspector
+            space={selectedSpaceIndex !== null ? BOARD_SPACES[selectedSpaceIndex] : null}
+            propertyState={selectedSpaceIndex !== null ? gameState.properties[selectedSpaceIndex] : null}
+            players={gameState.players}
+            isOwner={
+              selectedSpaceIndex !== null &&
+              gameState.properties[selectedSpaceIndex]?.ownerUid === 'player_human'
+            }
+            onDispatch={dispatchAction}
+          />
         </div>
 
-        {/* Center Column: The 40-Space Board (Enlarged and Guaranteed Full Visibility) */}
-        <div className="col-span-1 lg:col-span-7 flex items-center justify-center h-full max-h-full min-h-0 min-w-0 overflow-hidden py-0.5">
+        {/* Center Column: The 40-Space Board (Maxed out left-to-right, non-square) */}
+        <div className="col-span-1 lg:col-span-6 flex items-center justify-center h-full max-h-full min-h-0 min-w-0 overflow-hidden py-0.5">
           <GameBoard
             gameState={gameState}
             selectedSpaceIndex={selectedSpaceIndex}
@@ -177,7 +191,7 @@ export const PracticeMatchPage: React.FC = () => {
           />
         </div>
 
-        {/* Right Column: Actions, My Info & Property Deed Details */}
+        {/* Right Column: Turn Actions, Live Activity & My Info with Hover Portfolio */}
         <div className="hidden lg:block lg:col-span-3 h-full overflow-y-auto pl-1">
           <ActionPanel
             gameState={gameState}

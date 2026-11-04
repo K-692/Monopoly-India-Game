@@ -1,6 +1,8 @@
 /**
  * Indian Monopoly - Canonical Board Configuration
- * 40 Spaces clockwise with exact Indian cities, transit lines, utilities, and tax checkpoints.
+ * 40 Spaces clockwise with 22 completely unique Indian metropolitan cities,
+ * tier-wise ascending prices, transit gateways, utilities, and tax checkpoints.
+ * Completely free of any non-English text.
  */
 
 import { BoardSpaceDefinition, CardAction, PropertyColorGroup } from './game-types';
@@ -14,13 +16,12 @@ export const BOARD_SPACES: BoardSpaceDefinition[] = [
     name: 'START',
     reward: 2000,
   },
-  // Space 1: Jaipur MI Road (Brown)
+  // Space 1: Jaipur (Brown - Tier 3 Heritage Metro)
   {
     spaceIndex: 1,
     type: 'PROPERTY',
-    id: 'jaipur_mi_road',
-    name: 'Jaipur MI Road',
-    hindiName: 'जयपुर एम.आई. रोड',
+    id: 'jaipur',
+    name: 'Jaipur',
     group: 'BROWN',
     price: 600,
     mortgageValue: 300,
@@ -41,13 +42,12 @@ export const BOARD_SPACES: BoardSpaceDefinition[] = [
     deck: 'CIVIC',
     name: 'Civic Fund',
   },
-  // Space 3: Jodhpur Clock Tower (Brown)
+  // Space 3: Jodhpur (Brown - Tier 3 Heritage Metro)
   {
     spaceIndex: 3,
     type: 'PROPERTY',
-    id: 'jodhpur_clock_tower',
-    name: 'Jodhpur Clock Tower',
-    hindiName: 'जोधपुर घंटाघर',
+    id: 'jodhpur',
+    name: 'Jodhpur',
     group: 'BROWN',
     price: 600,
     mortgageValue: 300,
@@ -68,24 +68,23 @@ export const BOARD_SPACES: BoardSpaceDefinition[] = [
     name: 'GST Checkpost',
     amount: 2000,
   },
-  // Space 5: Mumbai Western Line (Transit 1)
+  // Space 5: Chhatrapati Shivaji Terminus (Transit 1 - Western Gateway)
   {
     spaceIndex: 5,
     type: 'TRANSIT',
-    id: 'mumbai_transit',
-    name: 'Mumbai Western Line',
+    id: 'mumbai_cst',
+    name: 'CST Mumbai',
     price: 2000,
     mortgageValue: 1000,
     unmortgageCost: 1100,
     baseRent: 250,
   },
-  // Space 6: Lucknow Hazratganj (Light Blue)
+  // Space 6: Lucknow (Light Blue - Tier 2.5 Historic & Cultural Metro)
   {
     spaceIndex: 6,
     type: 'PROPERTY',
-    id: 'lucknow_hazratganj',
-    name: 'Lucknow Hazratganj',
-    hindiName: 'लखनऊ हज़रतगंज',
+    id: 'lucknow',
+    name: 'Lucknow',
     group: 'LIGHTBLUE',
     price: 1000,
     mortgageValue: 500,
@@ -106,13 +105,12 @@ export const BOARD_SPACES: BoardSpaceDefinition[] = [
     deck: 'MARKET',
     name: 'Market Buzz',
   },
-  // Space 8: Varanasi Ghat Road (Light Blue)
+  // Space 8: Varanasi (Light Blue - Tier 2.5 Historic & Cultural Metro)
   {
     spaceIndex: 8,
     type: 'PROPERTY',
-    id: 'varanasi_ghat_road',
-    name: 'Varanasi Ghat Road',
-    hindiName: 'वाराणसी घाट रोड',
+    id: 'varanasi',
+    name: 'Varanasi',
     group: 'LIGHTBLUE',
     price: 1000,
     mortgageValue: 500,
@@ -125,13 +123,12 @@ export const BOARD_SPACES: BoardSpaceDefinition[] = [
     rentTower: 5500,
     buildingCost: 500,
   },
-  // Space 9: Agra Taj Road (Light Blue)
+  // Space 9: Agra (Light Blue - Tier 2.5 Historic & Cultural Metro)
   {
     spaceIndex: 9,
     type: 'PROPERTY',
-    id: 'agra_taj_road',
-    name: 'Agra Taj Road',
-    hindiName: 'आगरा ताज रोड',
+    id: 'agra',
+    name: 'Agra',
     group: 'LIGHTBLUE',
     price: 1200,
     mortgageValue: 600,
@@ -151,13 +148,12 @@ export const BOARD_SPACES: BoardSpaceDefinition[] = [
     id: 'jail',
     name: 'Central Jail / Visiting',
   },
-  // Space 11: Ahmedabad Ashram Road (Pink)
+  // Space 11: Indore (Pink - Tier 2 Commercial & Industrial Metro)
   {
     spaceIndex: 11,
     type: 'PROPERTY',
-    id: 'ahmedabad_ashram_road',
-    name: 'Ahmedabad Ashram Road',
-    hindiName: 'अहमदाबाद आश्रम रोड',
+    id: 'indore',
+    name: 'Indore',
     group: 'PINK',
     price: 1400,
     mortgageValue: 700,
@@ -180,13 +176,12 @@ export const BOARD_SPACES: BoardSpaceDefinition[] = [
     mortgageValue: 750,
     unmortgageCost: 825,
   },
-  // Space 13: Vadodara Sayajigunj (Pink)
+  // Space 13: Bhopal (Pink - Tier 2 Commercial & Industrial Metro)
   {
     spaceIndex: 13,
     type: 'PROPERTY',
-    id: 'vadodara_sayajigunj',
-    name: 'Vadodara Sayajigunj',
-    hindiName: 'वडोदरा सयाजीगंज',
+    id: 'bhopal',
+    name: 'Bhopal',
     group: 'PINK',
     price: 1400,
     mortgageValue: 700,
@@ -199,13 +194,12 @@ export const BOARD_SPACES: BoardSpaceDefinition[] = [
     rentTower: 7500,
     buildingCost: 1000,
   },
-  // Space 14: Surat Diamond Market (Pink)
+  // Space 14: Surat (Pink - Tier 2 Commercial & Industrial Metro)
   {
     spaceIndex: 14,
     type: 'PROPERTY',
-    id: 'surat_diamond_market',
-    name: 'Surat Diamond Market',
-    hindiName: 'सूरत हीरा बाज़ार',
+    id: 'surat',
+    name: 'Surat',
     group: 'PINK',
     price: 1600,
     mortgageValue: 800,
@@ -218,7 +212,7 @@ export const BOARD_SPACES: BoardSpaceDefinition[] = [
     rentTower: 9000,
     buildingCost: 1000,
   },
-  // Space 15: Howrah Junction (Transit 2)
+  // Space 15: Howrah Junction (Transit 2 - Eastern Gateway)
   {
     spaceIndex: 15,
     type: 'TRANSIT',
@@ -229,13 +223,12 @@ export const BOARD_SPACES: BoardSpaceDefinition[] = [
     unmortgageCost: 1100,
     baseRent: 250,
   },
-  // Space 16: Kochi Marine Drive (Orange)
+  // Space 16: Visakhapatnam (Orange - Tier 2 Coastal & Maritime Metro)
   {
     spaceIndex: 16,
     type: 'PROPERTY',
-    id: 'kochi_marine_drive',
-    name: 'Kochi Marine Drive',
-    hindiName: 'कोच्चि मरीन ड्राइव',
+    id: 'visakhapatnam',
+    name: 'Visakhapatnam',
     group: 'ORANGE',
     price: 1800,
     mortgageValue: 900,
@@ -256,13 +249,12 @@ export const BOARD_SPACES: BoardSpaceDefinition[] = [
     deck: 'CIVIC',
     name: 'Civic Fund',
   },
-  // Space 18: Thiruvananthapuram MG Road (Orange)
+  // Space 18: Kochi (Orange - Tier 2 Coastal & Maritime Metro)
   {
     spaceIndex: 18,
     type: 'PROPERTY',
-    id: 'trivandrum_mg_road',
-    name: 'Thiruvananthapuram MG Road',
-    hindiName: 'तिरुवनंतपुरम एम.जी. रोड',
+    id: 'kochi',
+    name: 'Kochi',
     group: 'ORANGE',
     price: 1800,
     mortgageValue: 900,
@@ -275,13 +267,12 @@ export const BOARD_SPACES: BoardSpaceDefinition[] = [
     rentTower: 9500,
     buildingCost: 1000,
   },
-  // Space 19: Kozhikode Beach Road (Orange)
+  // Space 19: Goa (Orange - Tier 2 Coastal & Maritime Metro)
   {
     spaceIndex: 19,
     type: 'PROPERTY',
-    id: 'kozhikode_beach_road',
-    name: 'Kozhikode Beach Road',
-    hindiName: 'कोझिकोड बीच रोड',
+    id: 'goa',
+    name: 'Goa',
     group: 'ORANGE',
     price: 2000,
     mortgageValue: 1000,
@@ -301,13 +292,12 @@ export const BOARD_SPACES: BoardSpaceDefinition[] = [
     id: 'rest_house',
     name: 'Rest House',
   },
-  // Space 21: Hyderabad Cyber Towers (Red)
+  // Space 21: Ahmedabad (Red - Tier 1 Tech & Financial Innovation Metro)
   {
     spaceIndex: 21,
     type: 'PROPERTY',
-    id: 'hyderabad_cyber_towers',
-    name: 'Hyderabad Cyber Towers',
-    hindiName: 'हैदराबाद साइबर टॉवर्स',
+    id: 'ahmedabad',
+    name: 'Ahmedabad',
     group: 'RED',
     price: 2200,
     mortgageValue: 1100,
@@ -328,13 +318,12 @@ export const BOARD_SPACES: BoardSpaceDefinition[] = [
     deck: 'MARKET',
     name: 'Market Buzz',
   },
-  // Space 23: Hyderabad Hi-Tech City (Red)
+  // Space 23: Pune (Red - Tier 1 Tech & Innovation Metro)
   {
     spaceIndex: 23,
     type: 'PROPERTY',
-    id: 'hyderabad_hitech_city',
-    name: 'Hyderabad Hi-Tech City',
-    hindiName: 'हैदराबाद हाई-टेक सिटी',
+    id: 'pune',
+    name: 'Pune',
     group: 'RED',
     price: 2200,
     mortgageValue: 1100,
@@ -347,13 +336,12 @@ export const BOARD_SPACES: BoardSpaceDefinition[] = [
     rentTower: 10500,
     buildingCost: 1500,
   },
-  // Space 24: Bengaluru MG Road (Red)
+  // Space 24: Hyderabad (Red - Tier 1 Tech & Innovation Metro)
   {
     spaceIndex: 24,
     type: 'PROPERTY',
-    id: 'bengaluru_mg_road',
-    name: 'Bengaluru MG Road',
-    hindiName: 'बेंगलुरु एम.जी. रोड',
+    id: 'hyderabad',
+    name: 'Hyderabad',
     group: 'RED',
     price: 2400,
     mortgageValue: 1200,
@@ -366,7 +354,7 @@ export const BOARD_SPACES: BoardSpaceDefinition[] = [
     rentTower: 11000,
     buildingCost: 1500,
   },
-  // Space 25: Chennai Central (Transit 3)
+  // Space 25: Chennai Central (Transit 3 - Southern Gateway)
   {
     spaceIndex: 25,
     type: 'TRANSIT',
@@ -377,13 +365,12 @@ export const BOARD_SPACES: BoardSpaceDefinition[] = [
     unmortgageCost: 1100,
     baseRent: 250,
   },
-  // Space 26: Bengaluru Brigade Road (Yellow)
+  // Space 26: Bengaluru (Yellow - Tier 1 Mega Metropolitan Hub)
   {
     spaceIndex: 26,
     type: 'PROPERTY',
-    id: 'bengaluru_brigade_road',
-    name: 'Bengaluru Brigade Road',
-    hindiName: 'बेंगलुरु ब्रिगेड रोड',
+    id: 'bengaluru',
+    name: 'Bengaluru',
     group: 'YELLOW',
     price: 2600,
     mortgageValue: 1300,
@@ -396,13 +383,12 @@ export const BOARD_SPACES: BoardSpaceDefinition[] = [
     rentTower: 11500,
     buildingCost: 1500,
   },
-  // Space 27: Kolkata Park Street (Yellow)
+  // Space 27: Chennai (Yellow - Tier 1 Mega Metropolitan Hub)
   {
     spaceIndex: 27,
     type: 'PROPERTY',
-    id: 'kolkata_park_street',
-    name: 'Kolkata Park Street',
-    hindiName: 'कोलकाता पार्क स्ट्रीट',
+    id: 'chennai',
+    name: 'Chennai',
     group: 'YELLOW',
     price: 2600,
     mortgageValue: 1300,
@@ -425,13 +411,12 @@ export const BOARD_SPACES: BoardSpaceDefinition[] = [
     mortgageValue: 750,
     unmortgageCost: 825,
   },
-  // Space 29: Bhubaneswar Janpath (Yellow)
+  // Space 29: Kolkata (Yellow - Tier 1 Mega Metropolitan Hub)
   {
     spaceIndex: 29,
     type: 'PROPERTY',
-    id: 'bhubaneswar_janpath',
-    name: 'Bhubaneswar Janpath',
-    hindiName: 'भुवनेश्वर जनपथ',
+    id: 'kolkata',
+    name: 'Kolkata',
     group: 'YELLOW',
     price: 2800,
     mortgageValue: 1400,
@@ -451,13 +436,12 @@ export const BOARD_SPACES: BoardSpaceDefinition[] = [
     id: 'go_to_jail',
     name: 'Go To Jail',
   },
-  // Space 31: Chennai Anna Salai (Green)
+  // Space 31: Chandigarh (Green - Tier 1 Capital & Corporate Corridors)
   {
     spaceIndex: 31,
     type: 'PROPERTY',
-    id: 'chennai_anna_salai',
-    name: 'Chennai Anna Salai',
-    hindiName: 'चेन्नई अन्ना सलाई',
+    id: 'chandigarh',
+    name: 'Chandigarh',
     group: 'GREEN',
     price: 3000,
     mortgageValue: 1500,
@@ -470,13 +454,12 @@ export const BOARD_SPACES: BoardSpaceDefinition[] = [
     rentTower: 12750,
     buildingCost: 2000,
   },
-  // Space 32: Chennai Marina Beach (Green)
+  // Space 32: Gurugram (Green - Tier 1 Corporate & Financial Hub)
   {
     spaceIndex: 32,
     type: 'PROPERTY',
-    id: 'chennai_marina_beach',
-    name: 'Chennai Marina Beach',
-    hindiName: 'चेन्नई मरीना बीच',
+    id: 'gurugram',
+    name: 'Gurugram',
     group: 'GREEN',
     price: 3000,
     mortgageValue: 1500,
@@ -497,13 +480,12 @@ export const BOARD_SPACES: BoardSpaceDefinition[] = [
     deck: 'CIVIC',
     name: 'Civic Fund',
   },
-  // Space 34: Chennai Boat Club Road (Green)
+  // Space 34: Noida (Green - Tier 1 High-Tech Corporate Corridor)
   {
     spaceIndex: 34,
     type: 'PROPERTY',
-    id: 'chennai_boat_club_road',
-    name: 'Chennai Boat Club Road',
-    hindiName: 'चेन्नई बोट क्लब रोड',
+    id: 'noida',
+    name: 'Noida',
     group: 'GREEN',
     price: 3200,
     mortgageValue: 1600,
@@ -516,12 +498,12 @@ export const BOARD_SPACES: BoardSpaceDefinition[] = [
     rentTower: 14000,
     buildingCost: 2000,
   },
-  // Space 35: New Delhi Railway Station (Transit 4)
+  // Space 35: New Delhi Railway Station (Transit 4 - Northern Gateway)
   {
     spaceIndex: 35,
     type: 'TRANSIT',
     id: 'delhi_railway_station',
-    name: 'New Delhi Railway Station',
+    name: 'New Delhi Terminal',
     price: 2000,
     mortgageValue: 1000,
     unmortgageCost: 1100,
@@ -535,13 +517,12 @@ export const BOARD_SPACES: BoardSpaceDefinition[] = [
     deck: 'MARKET',
     name: 'Market Buzz',
   },
-  // Space 37: Delhi Connaught Place (Dark Blue)
+  // Space 37: New Delhi (Dark Blue - Tier 1+ National Political Capital)
   {
     spaceIndex: 37,
     type: 'PROPERTY',
-    id: 'delhi_connaught_place',
-    name: 'Delhi Connaught Place',
-    hindiName: 'दिल्ली कनॉट प्लेस',
+    id: 'new_delhi',
+    name: 'New Delhi',
     group: 'DARKBLUE',
     price: 3500,
     mortgageValue: 1750,
@@ -554,7 +535,7 @@ export const BOARD_SPACES: BoardSpaceDefinition[] = [
     rentTower: 15000,
     buildingCost: 2000,
   },
-  // Space 38: Infrastructure Levy (Tax)
+  // Space 38: Infrastructure Wealth Tax
   {
     spaceIndex: 38,
     type: 'TAX',
@@ -562,13 +543,12 @@ export const BOARD_SPACES: BoardSpaceDefinition[] = [
     name: 'Infrastructure Levy',
     amount: 1000,
   },
-  // Space 39: Mumbai Marine Drive (Dark Blue)
+  // Space 39: Mumbai (Dark Blue - Tier 1+ Supreme Financial Capital)
   {
     spaceIndex: 39,
     type: 'PROPERTY',
-    id: 'mumbai_marine_drive',
-    name: 'Mumbai Marine Drive',
-    hindiName: 'मुंबई मरीन ड्राइव',
+    id: 'mumbai',
+    name: 'Mumbai',
     group: 'DARKBLUE',
     price: 4000,
     mortgageValue: 2000,
@@ -616,7 +596,7 @@ export const CIVIC_FUND_CARDS: CardAction[] = [
     id: 'civic_2',
     deck: 'CIVIC',
     title: 'Festival Bonus',
-    description: 'Diwali festive dividend declared! Collect ₹1,000.',
+    description: 'Festive bonus dividend declared! Collect ₹1,000.',
     actionType: 'CASH_BANK',
     amount: 1000,
   },
@@ -624,7 +604,7 @@ export const CIVIC_FUND_CARDS: CardAction[] = [
     id: 'civic_3',
     deck: 'CIVIC',
     title: 'Hospital Donation',
-    description: 'Charitable contribution to AIIMS healthcare fund. Pay ₹1,000.',
+    description: 'Charitable contribution to healthcare fund. Pay ₹1,000.',
     actionType: 'PAY_BANK',
     amount: 1000,
   },
@@ -640,7 +620,7 @@ export const CIVIC_FUND_CARDS: CardAction[] = [
     id: 'civic_5',
     deck: 'CIVIC',
     title: 'Get Out of Jail Free',
-    description: 'Special legal writ granted by High Court. Keep this card.',
+    description: 'Special legal writ granted by court. Keep this card.',
     actionType: 'JAIL_FREE',
   },
   {
@@ -677,7 +657,7 @@ export const MARKET_BUZZ_CARDS: CardAction[] = [
     id: 'market_1',
     deck: 'MARKET',
     title: 'Stock Market Surge',
-    description: 'Sensex hits all-time high! Portfolio gains ₹1,500.',
+    description: 'Market indices hit all-time high! Portfolio gains ₹1,500.',
     actionType: 'CASH_BANK',
     amount: 1500,
   },
@@ -685,23 +665,23 @@ export const MARKET_BUZZ_CARDS: CardAction[] = [
     id: 'market_2',
     deck: 'MARKET',
     title: 'Speeding Fine on Expressway',
-    description: 'Over-speeding on Samruddhi Mahamarg. Pay ₹1,500.',
+    description: 'Over-speeding on expressway corridor. Pay ₹1,500.',
     actionType: 'PAY_BANK',
     amount: 1500,
   },
   {
     id: 'market_3',
     deck: 'MARKET',
-    title: 'Advance to Mumbai Marine Drive',
-    description: 'Visit the Queen\'s Necklace! Move to Mumbai Marine Drive. If you pass START, collect ₹2,000.',
+    title: 'Advance to Mumbai',
+    description: 'Visit the Financial Capital! Move to Mumbai. If you pass START, collect ₹2,000.',
     actionType: 'MOVE_TO',
     targetSpace: 39,
   },
   {
     id: 'market_4',
     deck: 'MARKET',
-    title: 'Take Trip to Western Express',
-    description: 'Catch the Mumbai Western Line. If you pass START, collect ₹2,000.',
+    title: 'Trip to CST Mumbai Terminal',
+    description: 'Catch the express at Chhatrapati Shivaji Terminus. If you pass START, collect ₹2,000.',
     actionType: 'MOVE_TO',
     targetSpace: 5,
   },
@@ -709,7 +689,7 @@ export const MARKET_BUZZ_CARDS: CardAction[] = [
     id: 'market_5',
     deck: 'MARKET',
     title: 'E-commerce Sale Cashback',
-    description: 'Mega festive shopping cashback credited to UPI. Collect ₹500.',
+    description: 'Mega shopping cashback credited to UPI account. Collect ₹500.',
     actionType: 'CASH_BANK',
     amount: 500,
   },
@@ -717,7 +697,7 @@ export const MARKET_BUZZ_CARDS: CardAction[] = [
     id: 'market_6',
     deck: 'MARKET',
     title: 'Road Works Toll Surcharge',
-    description: 'Toll barrier toll fees: Pay ₹250 per house and ₹1,000 per tower.',
+    description: 'Toll barrier maintenance fee: Pay ₹250 per house and ₹1,000 per tower.',
     actionType: 'REPAIR_TAX',
     perHouse: 250,
     perTower: 1000,
@@ -726,17 +706,16 @@ export const MARKET_BUZZ_CARDS: CardAction[] = [
     id: 'market_7',
     deck: 'MARKET',
     title: 'Go Back 3 Spaces',
-    description: 'Severe monsoon waterlogging! Move back 3 spaces.',
+    description: 'Severe weather waterlogging! Move back 3 spaces.',
     actionType: 'MOVE_RELATIVE',
     amount: -3,
   },
   {
     id: 'market_8',
     deck: 'MARKET',
-    title: 'Wedding Gift Distribution',
-    description: 'Celebrate royal wedding in Udaipur! Give ₹500 to every player.',
+    title: 'Celebration Gift Distribution',
+    description: 'Grand celebration hosted in Udaipur! Give ₹500 to every player.',
     actionType: 'PAY_PLAYERS',
     amount: 500,
   },
 ];
-

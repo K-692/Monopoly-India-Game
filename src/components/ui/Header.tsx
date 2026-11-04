@@ -33,9 +33,6 @@ export const Header: React.FC = () => {
             <span className="font-serif font-black text-base sm:text-lg text-indian-terracotta-600 dark:text-indian-terracotta-400 tracking-wide block leading-none">
               INDIAN MONOPOLY
             </span>
-            <span className="text-[9px] text-indian-navy-600 dark:text-indian-parchment-400 font-semibold tracking-wider">
-              भारत व्यापार
-            </span>
           </div>
         </Link>
 
