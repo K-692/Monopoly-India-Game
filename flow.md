@@ -41,86 +41,73 @@ The property trading paradigm is mapped onto the contemporary Indian urban-econo
 - **Total Board Invariant**:
   $$\text{Total Spaces} = 24 \text{ (Cities)} + 4 \text{ (Transit)} + 2 \text{ (Civic)} + 2 \text{ (Market)} + 2 \text{ (Utilities)} + 2 \text{ (Taxes)} + 4 \text{ (Corners)} = 40$$
 
-### 1.2 Mathematical Formulations & Rule Invariants
-- **Discrete Currency Resolution**: All transactions are discrete integer values in Indian Rupees ($\mathbb{Z}^+$). Fractional money (paise) is strictly disallowed:
-  $$\Delta \text{Cash} \in \mathbb{Z}$$
-- **START Invariant**:
-  $$\text{reward} = \begin{cases} R_{\text{start}} & \text{if } (p_{\text{old}} + d) \ge 40 \text{ and clockwise movement} \\ 0 & \text{otherwise} \end{cases}$$
-  Direct incarceration movement to Jail ($p = 10$) bypasses index 0 and explicitly yields 0 reward.
-- **Rent Multiplier Formalism**:
-  - Unimproved property rent: Base rent $R_0$.
-  - Monopolized group (all 3 properties of color set $C$ owned by single entity, no buildings): $2 \times R_0$.
-  - Developed tiers (1 to 4 blocks): $R_1, R_2, R_3, R_4$.
-  - Commercial Skyscraper Tower tier: $R_5$.
-  - Transit spaces owned ($k \in \{1, 2, 3, 4\}$):
-    $$\text{Rent}_{\text{transit}}(k) = 250 \times 2^{k-1}$$
-  - Utility rent scaling: $4 \times (\text{dice}_1 + \text{dice}_2)$ for 1 utility owned; $10 \times (\text{dice}_1 + \text{dice}_2)$ for both utilities owned.
+### 1.2 Canonical 12 Market Buzz & 12 Civic Fund Card Decks
+The card engine manages two authoritative 12-card decks:
+- **Market Buzz (12 Cards)**:
+  1. `Startup grant`: Receive ₹800 from the bank (`CASH_BANK: 800`).
+  2. `Festival travel`: Advance to Start and collect ₹2,000 (`MOVE_TO: 0`).
+  3. `Business conference`: Move to Delhi – Connaught Place (#38). Collect Start money if passed (`MOVE_TO: 38`).
+  4. `Railway expansion`: Advance to next Transit space (#5, #15, #25, #35). If owned by another player, pay $2\times$ normal transit rent (`ADVANCE_NEXT_TRANSIT: 2x rent`).
+  5. `Road diversion`: Move backwards 3 spaces and resolve destination space (`MOVE_RELATIVE: -3`).
+  6. `Highway toll`: Pay ₹300 to the bank (`PAY_BANK: 300`).
+  7. `Property maintenance`: Pay ₹250 for each development block and ₹750 for each commercial tower (`REPAIR_TAX: 250/750`).
+  8. `Successful tender`: Receive ₹1,200 from the bank (`CASH_BANK: 1200`).
+  9. `Regulatory violation`: Go directly to Jail. Do not collect Start money (`GO_TO_JAIL`).
+  10. `Transit dividend`: Receive ₹400 for each Transit space owned (`TRANSIT_DIVIDEND: 400`).
+  11. `Emergency procurement`: Pay ₹700 to the bank (`PAY_BANK: 700`).
+  12. `Mumbai investment trip`: Advance to Mumbai – Marine Drive (#39). Collect Start money if passed (`MOVE_TO: 39`).
+- **Civic Fund (12 Cards)**:
+  1. `Bank interest`: Receive ₹500 (`CASH_BANK: 500`).
+  2. `Tax refund`: Receive ₹700 (`CASH_BANK: 700`).
+  3. `Education expense`: Pay ₹400 (`PAY_BANK: 400`).
+  4. `Festival gathering`: Pay ₹200 to every other active player (`PAY_PLAYERS: 200`).
+  5. `Development grant`: Receive ₹100 for each development block and ₹300 for each commercial tower (`DEVELOPMENT_GRANT: 100/300`).
+  6. `Municipal maintenance`: Pay ₹250 for every property deed owned (`DEED_TAX: 250`).
+  7. `Community development grant`: Receive ₹1,000 (`CASH_BANK: 1000`).
+  8. `Road repair contribution`: Pay ₹1,000 (`PAY_BANK: 1000`).
+  9. `Special legal exemption`: Keep Get Out of Jail card until used or traded (`JAIL_FREE`).
+  10. `Civic investigation`: Go directly to Jail. Do not collect Start money (`GO_TO_JAIL`).
+  11. `Legal settlement`: Receive ₹1,500 (`CASH_BANK: 1500`).
+  12. `Water and electricity expenses`: Pay ₹600 (`PAY_BANK: 600`).
 
 ---
 
 ## 2. Information Architecture, Board Geometry & Visual Hierarchy
 
-### 2.1 Compact Extreme Corners, Asymmetrical Grid & Two-Line Decreased Typography
-To maximize cell readability and eliminate word wrapping:
-- **Grid Proportions**:
-  $$\text{grid-template-columns: } 1.15\text{fr repeat}(9, 1\text{fr}) 1.15\text{fr}$$
-  $$\text{grid-template-rows: } 1.1\text{fr repeat}(9, 1\text{fr}) 1.1\text{fr}$$
-- **Corner Compression & Extreme Placement**:
-  - The four corner spaces (Rest House at #20, Jail at #10, START at #0, and Go To Jail at #30) are contained in compact boxes at the extreme four corners ($1.15\text{fr} \times 1.1\text{fr}$).
-  - This liberates maximum area exclusively for the 9 inner columns along top and bottom lanes, and the 9 inner rows along left and right lanes.
-- **Two-Line Grid Architecture**:
-  - Every city and edge grid is formatted strictly across **two distinct lines**:
-    - **Line 1 (Top)**: City / Place Name.
-    - **Line 2 (Bottom)**: Price / Rupee Amount or Card Category.
-- **Decreased Adaptive Typography**:
-  - String-length-based dynamic font scaling prevents awkward mid-word breaking or truncation:
-    $$\text{Font Size} = \begin{cases} \text{text-[7px] sm:text-[7.5px] md:text-[8px]} & \text{if } \text{length} > 12 \\ \text{text-[7.5px] sm:text-[8px] md:text-[8.5px]} & \text{if } \text{length} > 8 \\ \text{text-[8.5px] sm:text-[9px] md:text-[9.5px]} & \text{otherwise} \end{cases}$$
-  - Prices render in crisp `text-[8px] sm:text-[8.5px] md:text-[9px] font-black`.
-  - Every place name (e.g., "Visakhapatnam", "Chennai Airport", "Jal Board Grid", "Ahmedabad") fits on a single line without wrapping.
-- **In-Grid Railway & Airport Vector Illustrations**:
-  - Express locomotive engine with headlights and railway track ties on CST Mumbai (#5) and Howrah Railway (#15).
-  - High-altitude passenger jetliner airliner on Chennai Airport (#25) and IGI Airport (#35).
-- **Non-Obscuring Corner Player Tokens**:
-  - Player tokens sit as compact floating badges in the tile corners, keeping the two centered lines (Name & Price) 100% visible and unblocked at all times.
+### 2.1 Center Card Layout & Central Dice Placement
+- **Center Board Arrangement**:
+  - Left: Civic Fund card with complete written title and instruction.
+  - Center: 3D interactive rolling dice arena with outcome indicator and roll action button.
+  - Right: Market Buzz card with complete written title and instruction.
+- **No Line-Clamping**: Instructions are fully articulated within the card surface with zero truncation.
 
-### 2.2 Strict Zero-Scroll Architecture Across Game Tab
-- **Zero Scrollbars Policy**: The entire game tab is engineered to fit strictly within `h-[calc(100dvh-54px)]` with `overflow-hidden` across all top-level wrappers and columns.
-- **Left Column (`210px` / `xl:230px`)**:
-  - Contains `PlayerStrip` (ultra-compact player cards, height $\approx 32\text{px}$) and `SpaceDeedInspector` (compact 2-column rent grid, height $\approx 160\text{px}$). Sits comfortably within ~380px vertical space.
-  - Click-to-inspect player details with zero hovering dependency.
-- **Center Column (`1fr`)**:
-  - Stretched board spanning 100% of available viewport width and height.
-  - Center area houses face-up Civic Fund and Market Buzz cards and 3D tumbling dice arena.
-- **Right Column (`250px` / `xl:270px`)**:
-  - Action panel and "My Info" section with compact property chips, completely eliminating vertical scrolling.
+### 2.2 Visiting Building Logic & Direct In-Grid House/Tower Display
+- **Visiting Trigger Requirement**:
+  - If the owner player is visiting the city with sufficient cash ($\text{cash} \ge \text{buildingCost}$), they can construct a house (levels 1–4) or upgrade to a commercial tower (level 5).
+  - Full color-group monopoly is no longer mandatory for building; landing on/visiting your owned property is the key requirement.
+- **In-Grid Development Visualization**:
+  - Houses are rendered directly inside the city tile: $1$ to $4$ green house icons (`🏠`).
+  - Level 5 is rendered as a prominent golden Commercial Tower badge (`🏢 TOWER`).
+  - Owner identification for un-upgraded properties is rendered via a clean, compact text pill.
+- **Removal of City Colour Coding**:
+  - Color bars, owner borders, and group strips are removed. All tiles feature clean, neutral parchment aesthetics.
 
-### 2.3 2-Player Practice Match State Machine Formalism
-The Practice Match sandbox is configured strictly as a **2-Player Head-to-Head Duel**:
-- **Entities**: Player 1 (`player_human`, Maharaja user) and Player 2 (`player_ai_1`, Priya Mumbai).
-- **Turn Transition Cycle**:
-  $$\text{Turn}_{k+1} = \begin{cases} \text{player\_ai\_1} & \text{if } \text{Turn}_k = \text{player\_human} \\ \text{player\_human} & \text{if } \text{Turn}_k = \text{player\_ai\_1} \end{cases}$$
-- **Direct Destination Arrival**:
-  - When rolling the dice, pawns land directly at the destination space:
-    $$P_{\text{final}} = (P_{\text{start}} + \text{dice}_1 + \text{dice}_2) \pmod{40}$$
-  - UI focus immediately updates to the destination deed in `SpaceDeedInspector`.
+### 2.3 Universal Mortgaging at First or Action Step
+- Active players can mortgage or redeem any city they own at either:
+  - **First Step**: Before rolling dice (`AWAIT_ROLL`).
+  - **Action Step**: During post-roll resolution (`PROPERTY_DECISION`, `MANAGEMENT`, `ACTION_REQUIRED`, `TURN_END`).
+- Accessible directly from `SpaceDeedInspector` and the `ActionPanel` portfolio list.
+
+### 2.4 Left Panel Close (Cross) Button & Non-Overlapping Icon Geometry
+- **PlayerStrip Inspector**: Added an explicit cross button (`X`) to close the detailed "Other Player" card.
+- **Icon Non-Overlap Guarantee**: All icons (locomotives, aircraft, utilities, taxes) are in strict flex-column flow, preventing text overlap.
+- **Enlarged Player Pawn Badges**: Player tokens on the board are enlarged to `w-6 h-6 sm:w-7 sm:h-7` (24px–28px) with bold `text-[10px]–text-[11px]` initial letters, white borders, and drop shadows. Contextual tile padding ensures player pawns never collide with city names or prices.
 
 ---
 
-## 3. Universal Responsive & Ownership Visualization
+## 3. Production Deployment & Verification
 
-### 3.1 Dynamic Buyer-Color Ownership Formalism
-- **Unowned Spaces**: Completely uncolored (clean neutral parchment with white border).
-- **Purchased Spaces**: Dynamically adopt the **purchasing player's assigned token color** (`owner.colorToken`), accompanied by an owner name badge and building count pips (`🏠xN` or `🏢 Tower`).
-
-### 3.2 Dynamic State-Change Glow Feedback
-- **Board Space Tiles**: When a deed is acquired, mortgaged, upgraded, or landed upon, the tile activates `isHighlighted` with an animated pulsing amber/gold neon glow ring (`ring-4 ring-amber-400 dark:ring-amber-300 scale-105 shadow-[0_0_20px_rgba(251,191,36,0.9)] animate-pulse`).
-- **Player Cards & Financial Changes**: Active player card pulses with an amber glow ring. Cash balance updates trigger green (+ cash) or red (- cash) flash badges with scale-up animations.
-
----
-
-## 4. Production Deployment & Verification
-
-### 4.1 Automated CI/CD & Testing Verification
+### 3.1 Automated CI/CD & Testing Verification
 - **Unit & State Machine Tests**: Vitest suite (7/7 tests passing) verifies discrete currency resolution, rent scaling, 3-consecutive doubles incarceration, and 2-player turn cycles.
 - **Cross-Platform End-to-End Suite**: Playwright multi-worker browser verification (27/27 tests passing) validates two-tab navigation, practice match launching, dice rolling, sound synthesis toggles, and responsive layouts across Chromium, WebKit, and mobile viewport simulations.
 - **Production Build**: Verified with `npm run build` (`tsc -b && vite build`) with zero TypeScript errors.

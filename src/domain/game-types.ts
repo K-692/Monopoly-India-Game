@@ -106,7 +106,11 @@ export interface CardAction {
     | 'MOVE_RELATIVE'
     | 'GO_TO_JAIL'
     | 'JAIL_FREE'
-    | 'REPAIR_TAX';
+    | 'REPAIR_TAX'
+    | 'ADVANCE_NEXT_TRANSIT'
+    | 'TRANSIT_DIVIDEND'
+    | 'DEVELOPMENT_GRANT'
+    | 'DEED_TAX';
   amount?: number;
   targetSpace?: number;
   perHouse?: number;

@@ -39,6 +39,13 @@ export const SpaceDeedInspector: React.FC<SpaceDeedInspectorProps> = ({
   const isProperty = space.type === 'PROPERTY';
   const isTransit = space.type === 'TRANSIT';
   const isUtility = space.type === 'UTILITY';
+
+  const isOwnerVisiting = owner && isProperty ? owner.position === space.spaceIndex : false;
+  const buildingCost = isProperty ? (space as PropertyDefinition).buildingCost : 0;
+  const hasEnoughCash = owner ? owner.cash >= buildingCost : false;
+  const currentBuildings = propertyState?.buildings ?? 0;
+  const isMaxBuildings = currentBuildings >= 5;
+  const canBuild = isOwner && isOwnerVisiting && hasEnoughCash && !isMaxBuildings && !propertyState?.isMortgaged;
   const isTax = space.type === 'TAX';
 
   const groupColor = isProperty && 'group' in space ? GROUP_COLOR_MAP[space.group] : undefined;
@@ -166,39 +173,50 @@ export const SpaceDeedInspector: React.FC<SpaceDeedInspectorProps> = ({
         )}
 
         {/* Mortgage / Building Management Controls (Visible to Owner) */}
-        {isOwner && isProperty && propertyState && onDispatch && (
-          <div className="mt-1 pt-1 border-t border-indian-parchment-200 dark:border-indian-navy-700 flex gap-1">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => onDispatch('BUILD', { spaceIndex: space.spaceIndex })}
-              className="flex-1 text-[8.5px] py-0.5 flex items-center justify-center gap-0.5"
-            >
-              <Hammer className="w-2.5 h-2.5 text-emerald-600" />
-              <span>
-                Build (₹{(space as PropertyDefinition).buildingCost.toLocaleString('en-IN')})
-              </span>
-            </Button>
-
-            {!propertyState.isMortgaged ? (
+        {isOwner && propertyState && onDispatch && (
+          <div className="mt-1 pt-1 border-t border-indian-parchment-200 dark:border-indian-navy-700 flex flex-col gap-1">
+            {isProperty && (
               <Button
                 size="sm"
-                variant="ghost"
-                onClick={() => onDispatch('MORTGAGE', { spaceIndex: space.spaceIndex })}
-                className="text-[8.5px] py-0.5 text-red-600 hover:text-red-700"
+                variant={canBuild ? 'primary' : 'outline'}
+                disabled={!canBuild}
+                onClick={() => onDispatch('BUILD', { spaceIndex: space.spaceIndex })}
+                className="w-full text-[8.5px] py-1 flex items-center justify-center gap-1 font-bold"
               >
-                Mortgage
-              </Button>
-            ) : (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => onDispatch('UNMORTGAGE', { spaceIndex: space.spaceIndex })}
-                className="text-[8.5px] py-0.5 text-emerald-700 border-emerald-300 bg-emerald-50"
-              >
-                Redeem
+                <Hammer className="w-3 h-3 text-emerald-500" />
+                <span>
+                  {isMaxBuildings
+                    ? 'Commercial Tower Maxed'
+                    : !isOwnerVisiting
+                    ? 'Visit City to Build'
+                    : currentBuildings === 4
+                    ? `Build Tower (₹${buildingCost.toLocaleString('en-IN')})`
+                    : `Build House (₹${buildingCost.toLocaleString('en-IN')})`}
+                </span>
               </Button>
             )}
+
+            <div className="flex gap-1 w-full">
+              {'mortgageValue' in space && !propertyState.isMortgaged ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onDispatch('MORTGAGE', { spaceIndex: space.spaceIndex })}
+                  className="flex-1 text-[8px] py-0.5 text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700 font-bold"
+                >
+                  Mortgage (+₹{space.mortgageValue.toLocaleString('en-IN')})
+                </Button>
+              ) : 'unmortgageCost' in space && propertyState.isMortgaged ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onDispatch('UNMORTGAGE', { spaceIndex: space.spaceIndex })}
+                  className="flex-1 text-[8px] py-0.5 text-emerald-700 border-emerald-300 bg-emerald-50 hover:bg-emerald-100 font-bold"
+                >
+                  Redeem (-₹{space.unmortgageCost.toLocaleString('en-IN')})
+                </Button>
+              ) : null}
+            </div>
           </div>
         )}
       </div>

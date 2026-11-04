@@ -144,39 +144,39 @@ export const GameBoard: React.FC<GameBoardProps> = ({
           </div>
 
           {/* Middle Row: Civic Fund Card, 3D Dice Rolling Arena, and Market Buzz Card */}
-          <div className="w-full flex items-center justify-around gap-1.5 sm:gap-3 my-auto z-10 px-0.5 sm:px-1">
-            {/* Card 1: Civic Fund (Terracotta Card with visible contents) */}
+          <div className="w-full flex items-center justify-around gap-1 sm:gap-2 md:gap-3 my-auto z-10 px-1 sm:px-2">
+            {/* Card 1: Civic Fund (Terracotta Card with written contents) */}
             <div
               onClick={() => setInspectedCard(activeCivicCard)}
               title="Click to inspect Civic Fund details"
-              className="relative w-18 sm:w-22 md:w-26 h-22 sm:h-26 md:h-30 rounded-lg bg-gradient-to-br from-indian-terracotta-600 via-indian-terracotta-700 to-amber-900 p-1.5 text-white shadow-md border border-amber-300/80 cursor-pointer flex flex-col justify-between hover:scale-105 transition-transform shrink-0"
+              className="relative w-24 sm:w-28 md:w-36 min-h-[96px] sm:min-h-[110px] md:min-h-[124px] rounded-xl bg-gradient-to-br from-indian-terracotta-700 via-indian-terracotta-800 to-amber-950 p-2 text-white shadow-md border border-amber-300/80 cursor-pointer flex flex-col justify-between hover:scale-105 transition-transform shrink-0"
             >
-              <div className="flex items-center justify-between border-b border-amber-300/40 pb-0.5 sm:pb-1 text-[7px] sm:text-[8px] text-amber-200 uppercase font-black tracking-wider">
+              <div className="flex items-center justify-between border-b border-amber-300/40 pb-0.5 sm:pb-1 text-[7.5px] sm:text-[8.5px] text-amber-200 uppercase font-black tracking-wider">
                 <span>CIVIC FUND</span>
-                <Sparkles className="w-2 h-2 text-amber-300" />
+                <Sparkles className="w-2.5 h-2.5 text-amber-300" />
               </div>
 
-              {/* Card Visible Content */}
-              <div className="my-auto text-left space-y-0.5">
-                <h4 className="font-serif font-black text-[8.5px] sm:text-[10px] md:text-[11px] text-amber-100 leading-tight">
+              {/* Card Written Content */}
+              <div className="my-auto text-left space-y-0.5 py-0.5">
+                <h4 className="font-serif font-black text-[9px] sm:text-[10px] md:text-[11px] text-amber-100 leading-tight">
                   {activeCivicCard.title}
                 </h4>
-                <p className="text-[7px] sm:text-[8px] md:text-[8.5px] text-amber-100/90 leading-tight line-clamp-2">
+                <p className="text-[7.5px] sm:text-[8px] md:text-[8.5px] text-amber-100/90 leading-tight">
                   {activeCivicCard.description}
                 </p>
                 {activeCivicCard.amount && (
-                  <span className="inline-block mt-0.5 px-1 py-0.2 rounded-full text-[6.5px] sm:text-[7.5px] font-bold bg-amber-300 text-indian-navy-950">
+                  <span className="inline-block mt-0.5 px-1.5 py-0.2 rounded-full text-[7px] sm:text-[7.5px] font-black bg-amber-300 text-indian-navy-950">
                     ₹{activeCivicCard.amount.toLocaleString('en-IN')}
                   </span>
                 )}
               </div>
 
-              <div className="text-[6.5px] sm:text-[7.5px] text-amber-200/90 font-medium text-center border-t border-amber-300/30 pt-0.5">
+              <div className="text-[6.5px] sm:text-[7.5px] text-amber-200/90 font-bold text-center border-t border-amber-300/30 pt-0.5">
                 COMMUNITY TREASURY
               </div>
             </div>
 
-            {/* In-Board Dice Roll Arena: Bold, Highly Visible Dice */}
+            {/* In-Board Dice Roll Arena: Bold, Highly Visible Dice at Center */}
             <div className="flex flex-col items-center justify-center gap-1 sm:gap-1.5 z-20 shrink-0">
               {/* Interactive 3D Tumbling Dice with Bold Black Dots */}
               <div
@@ -229,33 +229,33 @@ export const GameBoard: React.FC<GameBoardProps> = ({
               )}
             </div>
 
-            {/* Card 2: Market Buzz (Teal Card with visible contents) */}
+            {/* Card 2: Market Buzz (Teal Card with written contents) */}
             <div
               onClick={() => setInspectedCard(activeMarketCard)}
               title="Click to inspect Market Buzz details"
-              className="relative w-18 sm:w-22 md:w-26 h-22 sm:h-26 md:h-30 rounded-lg bg-gradient-to-br from-teal-700 via-emerald-800 to-teal-950 p-1.5 text-white shadow-md border border-emerald-300/80 cursor-pointer flex flex-col justify-between hover:scale-105 transition-transform shrink-0"
+              className="relative w-24 sm:w-28 md:w-36 min-h-[96px] sm:min-h-[110px] md:min-h-[124px] rounded-xl bg-gradient-to-br from-teal-800 via-emerald-900 to-teal-950 p-2 text-white shadow-md border border-emerald-300/80 cursor-pointer flex flex-col justify-between hover:scale-105 transition-transform shrink-0"
             >
-              <div className="flex items-center justify-between border-b border-emerald-300/40 pb-0.5 sm:pb-1 text-[7px] sm:text-[8px] text-teal-200 uppercase font-black tracking-wider">
+              <div className="flex items-center justify-between border-b border-emerald-300/40 pb-0.5 sm:pb-1 text-[7.5px] sm:text-[8.5px] text-teal-200 uppercase font-black tracking-wider">
                 <span>MARKET BUZZ</span>
-                <Sparkles className="w-2 h-2 text-emerald-300" />
+                <Sparkles className="w-2.5 h-2.5 text-emerald-300" />
               </div>
 
-              {/* Card Visible Content */}
-              <div className="my-auto text-left space-y-0.5">
-                <h4 className="font-serif font-black text-[8.5px] sm:text-[10px] md:text-[11px] text-emerald-100 leading-tight">
+              {/* Card Written Content */}
+              <div className="my-auto text-left space-y-0.5 py-0.5">
+                <h4 className="font-serif font-black text-[9px] sm:text-[10px] md:text-[11px] text-emerald-100 leading-tight">
                   {activeMarketCard.title}
                 </h4>
-                <p className="text-[7px] sm:text-[8px] md:text-[8.5px] text-emerald-100/90 leading-tight line-clamp-2">
+                <p className="text-[7.5px] sm:text-[8px] md:text-[8.5px] text-emerald-100/90 leading-tight">
                   {activeMarketCard.description}
                 </p>
                 {activeMarketCard.amount && (
-                  <span className="inline-block mt-0.5 px-1 py-0.2 rounded-full text-[7px] sm:text-[8px] font-bold bg-emerald-400 text-indian-navy-950">
+                  <span className="inline-block mt-0.5 px-1.5 py-0.2 rounded-full text-[7px] sm:text-[7.5px] font-black bg-emerald-400 text-indian-navy-950">
                     ₹{activeMarketCard.amount.toLocaleString('en-IN')}
                   </span>
                 )}
               </div>
 
-              <div className="text-[7px] sm:text-[8px] text-teal-200/90 font-medium text-center border-t border-emerald-300/30 pt-0.5">
+              <div className="text-[6.5px] sm:text-[7.5px] text-teal-200/90 font-bold text-center border-t border-emerald-300/30 pt-0.5">
                 FORTUNE & CHANCE
               </div>
             </div>

@@ -60,11 +60,10 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
   const coord = getSpaceGridCoord(space.spaceIndex);
   const isCorner = coord.orientation === 'corner';
 
-  // Find owner: ONLY show player's color if bought! Otherwise NO color at all.
+  // Find owner
   const owner = propertyState?.ownerUid
     ? allPlayers.find((p) => p.uid === propertyState.ownerUid)
     : null;
-  const ownerColor = owner ? owner.colorToken : null;
 
   // Render transit image illustration (Railway vs Airport)
   const isRailway =
@@ -93,46 +92,14 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
       style={{
         gridRow: coord.row,
         gridColumn: coord.col,
-        ...(ownerColor ? { borderColor: ownerColor } : {}),
       }}
       className={cn(
         'relative flex flex-col justify-between border border-indian-parchment-400 bg-white dark:bg-indian-navy-900 text-indian-navy-950 dark:text-white select-none cursor-pointer transition-all duration-200 p-0.5 overflow-hidden',
         isSelected && 'ring-2 ring-indian-terracotta-500 bg-amber-50 dark:bg-indian-navy-800 z-20',
         isHighlighted && 'ring-4 ring-amber-400 dark:ring-amber-300 scale-105 z-30 shadow-[0_0_20px_rgba(251,191,36,0.9)] animate-pulse',
-        propertyState?.isMortgaged && 'opacity-60 bg-gray-200/80',
-        ownerColor && 'border-2 shadow-xs'
+        propertyState?.isMortgaged && 'opacity-65 bg-gray-100/90 dark:bg-gray-900/80'
       )}
     >
-      {/* Property Owner Color Bar - ONLY rendered when bought by a player! */}
-      {ownerColor && (
-        <div
-          className={cn(
-            'absolute transition-all z-10 flex items-center justify-center',
-            coord.orientation === 'bottom' && 'top-0 left-0 right-0 h-1.5 sm:h-2',
-            coord.orientation === 'left' && 'top-0 bottom-0 right-0 w-1.5 sm:w-2',
-            coord.orientation === 'top' && 'bottom-0 left-0 right-0 h-1.5 sm:h-2',
-            coord.orientation === 'right' && 'top-0 bottom-0 left-0 w-1.5 sm:w-2'
-          )}
-          style={{ backgroundColor: ownerColor }}
-        >
-          {/* Buildings (Houses / Tower) */}
-          {propertyState && propertyState.buildings > 0 && (
-            <div className="w-full h-full flex items-center justify-center gap-0.5">
-              {propertyState.buildings === 5 ? (
-                <div className="w-1.5 h-1.5 rounded-full bg-red-600 border border-white" />
-              ) : (
-                Array.from({ length: propertyState.buildings }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="w-1 h-1 bg-emerald-500 border border-white rounded-xs"
-                  />
-                ))
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
       {/* Corner Space Special Styling: Smaller compact boxes in extreme corners */}
       {isCorner ? (
         <div className="w-full h-full flex flex-col items-center justify-center text-center p-0.5 sm:p-1 bg-indian-parchment-100 dark:bg-indian-navy-950/60 overflow-hidden select-none">
@@ -163,17 +130,17 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
           )}
         </div>
       ) : (
-        /* Regular Edge City & Space Tile: Exactly TWO LINES (Decreased Font Size) */
+        /* Regular Edge City & Space Tile: Clean, No City Colour Coding, Clear Houses/Tower */
         <div
           className={cn(
-            'w-full h-full flex flex-col justify-center items-center text-center px-0.5 sm:px-1 overflow-hidden select-none gap-0.5',
-            ownerColor && coord.orientation === 'bottom' && 'pt-2',
-            ownerColor && coord.orientation === 'top' && 'pb-2',
-            ownerColor && coord.orientation === 'left' && 'pr-2',
-            ownerColor && coord.orientation === 'right' && 'pl-2'
+            'w-full h-full flex flex-col justify-center items-center text-center px-0.5 sm:px-1 overflow-hidden select-none gap-0.5 transition-all',
+            playersHere.length > 0 && coord.orientation === 'bottom' && 'pt-2.5',
+            playersHere.length > 0 && coord.orientation === 'top' && 'pb-2.5',
+            playersHere.length > 0 && coord.orientation === 'left' && 'pr-2.5',
+            playersHere.length > 0 && coord.orientation === 'right' && 'pl-2.5'
           )}
         >
-          {/* Line 1: City / Place Name (Refined Decreased Font Size) */}
+          {/* Line 1: City / Place Name */}
           <span
             title={space.name}
             className={cn(
@@ -184,6 +151,40 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
             {space.name}
           </span>
 
+          {/* Built Houses (1-4) or Commercial Tower (5) shown directly inside the city grid */}
+          {propertyState && propertyState.buildings > 0 && (
+            <div className="my-0.5 shrink-0 flex items-center justify-center">
+              {propertyState.buildings === 5 ? (
+                <div className="flex items-center gap-0.5 px-1 py-0.2 rounded bg-amber-500 text-white font-black text-[7px] sm:text-[7.5px] shadow-2xs leading-none">
+                  <span>🏢</span>
+                  <span>TOWER</span>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center gap-0.5 leading-none">
+                  {Array.from({ length: propertyState.buildings }).map((_, i) => (
+                    <span key={i} title={`House ${i + 1}`} className="text-[8.5px] sm:text-[9.5px] leading-none">
+                      🏠
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Owner pill if owned with 0 buildings */}
+          {owner && (!propertyState || propertyState.buildings === 0) && !propertyState?.isMortgaged && (
+            <span className="text-[6.5px] sm:text-[7px] font-semibold text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 px-1 rounded-full truncate max-w-[50px] leading-none my-0.2">
+              {owner.displayName.split(' ')[0]}
+            </span>
+          )}
+
+          {/* Mortgaged indicator tag */}
+          {propertyState?.isMortgaged && (
+            <span className="text-[6.5px] sm:text-[7px] font-black text-red-600 bg-red-100 dark:bg-red-950/60 border border-red-300 dark:border-red-800 px-1 rounded-full leading-none my-0.2">
+              MORTGAGED
+            </span>
+          )}
+
           {/* Transit Image: Railway or Airport in-grid illustration */}
           {isRailway && <RailwayImage className="w-4 h-4 sm:w-5 sm:h-5 my-0.5 shrink-0" />}
           {isAirport && <AirportImage className="w-4 h-4 sm:w-5 sm:h-5 my-0.5 shrink-0" />}
@@ -191,23 +192,23 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
           {/* Special Space Icons (Utility / Tax / Card) when not transit */}
           {!isRailway && !isAirport && space.type === 'UTILITY' && (
             space.id.includes('power') ? (
-              <Zap className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+              <Zap className="w-3.5 h-3.5 text-amber-500 shrink-0 my-0.2" />
             ) : (
-              <Droplets className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+              <Droplets className="w-3.5 h-3.5 text-blue-500 shrink-0 my-0.2" />
             )
           )}
           {!isRailway && !isAirport && space.type === 'TAX' && (
-            <ShieldAlert className="w-3.5 h-3.5 text-red-600 shrink-0" />
+            <ShieldAlert className="w-3.5 h-3.5 text-red-600 shrink-0 my-0.2" />
           )}
           {!isRailway && !isAirport && space.type === 'CARD' && (
             space.deck === 'CIVIC' ? (
-              <Gift className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+              <Gift className="w-3.5 h-3.5 text-amber-600 shrink-0 my-0.2" />
             ) : (
-              <Flame className="w-3.5 h-3.5 text-orange-600 shrink-0" />
+              <Flame className="w-3.5 h-3.5 text-orange-600 shrink-0 my-0.2" />
             )
           )}
 
-          {/* Line 2: Price / Category (Refined Decreased Font Size) */}
+          {/* Line 2: Price / Category */}
           {'price' in space && (
             <span className="text-[8px] sm:text-[8.5px] md:text-[9px] font-black text-emerald-700 dark:text-emerald-400 whitespace-nowrap leading-none">
               ₹{space.price.toLocaleString('en-IN')}
@@ -223,31 +224,19 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
               {space.deck === 'CIVIC' ? 'Treasury' : 'Fortune'}
             </span>
           )}
-
-          {/* Small Owner Tag Pill if Owned */}
-          {owner && (
-            <div className="absolute top-0.5 left-1/2 -translate-x-1/2 z-10 pointer-events-none">
-              <span
-                style={{ backgroundColor: owner.colorToken }}
-                className="text-white text-[7px] sm:text-[7.5px] font-black px-1 rounded-full shadow-2xs truncate max-w-[48px] block"
-              >
-                {owner.displayName.split(' ')[0]}
-              </span>
-            </div>
-          )}
         </div>
       )}
 
-      {/* Players currently positioned on this tile (Placed in corner to never block city name or price) */}
+      {/* Players currently positioned on this tile: Prominently sized circle with initial letter */}
       {playersHere.length > 0 && (
         <div
           className={cn(
-            'absolute pointer-events-none flex items-center gap-0.5 z-20',
-            coord.orientation === 'left' && 'right-1 top-1',
-            coord.orientation === 'right' && 'left-1 top-1',
-            coord.orientation === 'top' && 'bottom-1 right-1',
-            coord.orientation === 'bottom' && 'top-1 right-1',
-            coord.orientation === 'corner' && 'bottom-1 right-1'
+            'absolute pointer-events-none flex items-center z-20',
+            coord.orientation === 'left' && 'right-0.5 top-0.5 flex-col -space-y-1',
+            coord.orientation === 'right' && 'left-0.5 top-0.5 flex-col -space-y-1',
+            coord.orientation === 'top' && 'bottom-0.5 right-0.5 -space-x-1',
+            coord.orientation === 'bottom' && 'top-0.5 right-0.5 -space-x-1',
+            coord.orientation === 'corner' && 'bottom-1 right-1 -space-x-1'
           )}
         >
           {playersHere.map((p) => (
@@ -255,7 +244,7 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
               key={p.uid}
               title={p.displayName}
               style={{ backgroundColor: p.colorToken }}
-              className="w-4 sm:w-4.5 h-4 sm:h-4.5 rounded-full border-2 border-white shadow-token-glow flex items-center justify-center text-[8px] sm:text-[8.5px] text-white font-black transition-all duration-150 animate-pulse"
+              className="w-5.5 h-5.5 sm:w-6 sm:h-6 rounded-full border-2 border-white shadow-token-glow flex items-center justify-center text-[10px] sm:text-[11px] text-white font-black transition-all duration-150 animate-pulse shrink-0"
             >
               {p.displayName.charAt(0).toUpperCase()}
             </div>

@@ -14,9 +14,9 @@ import {
   MapPin,
   ShieldAlert,
   KeyRound,
+  Hammer,
 } from 'lucide-react';
-import { GROUP_COLOR_MAP } from '../board/board-layout-utils';
-import { GAME_CONSTANTS } from '@/domain/ruleset';
+import { GAME_CONSTANTS, canBuildOnProperty } from '@/domain/ruleset';
 
 interface ActionPanelProps {
   gameState: GameState;
@@ -56,6 +56,14 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({
 
   const myCurrentSpace = myPlayer ? BOARD_SPACES[myPlayer.position] : null;
 
+  const canBuildWhileVisiting =
+    Boolean(
+      isMyTurn &&
+      myPlayer &&
+      myCurrentSpace?.type === 'PROPERTY' &&
+      canBuildOnProperty(myPlayer.position, myPlayer.uid, gameState.properties, myPlayer.cash, myPlayer.position).allowed
+    );
+
   return (
     <div className="flex flex-col gap-2.5 w-full select-none">
       {/* 1. TOP: Current Turn Action Card */}
@@ -77,6 +85,23 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({
 
         {/* Action Controls */}
         <div className="mt-2.5 flex flex-col gap-2">
+          {/* Owner Visiting Owned City Build Action */}
+          {canBuildWhileVisiting && myCurrentSpace && 'buildingCost' in myCurrentSpace && (
+            <Button
+              size="md"
+              variant="primary"
+              onClick={() => onDispatch('BUILD', { spaceIndex: myPlayer.position })}
+              className="w-full text-xs font-bold py-2 bg-emerald-600 hover:bg-emerald-700 flex items-center justify-center gap-1.5 shadow-sm"
+            >
+              <Hammer className="w-3.5 h-3.5" />
+              <span>
+                {gameState.properties[myPlayer.position]?.buildings === 4
+                  ? `Build Tower on ${myCurrentSpace.name} (₹${myCurrentSpace.buildingCost.toLocaleString('en-IN')})`
+                  : `Build House on ${myCurrentSpace.name} (₹${myCurrentSpace.buildingCost.toLocaleString('en-IN')})`}
+              </span>
+            </Button>
+          )}
+
           {/* Phase 1: Awaiting Roll */}
           {gameState.phase === 'AWAIT_ROLL' && (
             <Button
@@ -279,31 +304,47 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({
                     No properties purchased yet.
                   </span>
                 ) : (
-                  <div className="flex flex-wrap gap-1 max-h-24 overflow-hidden">
+                  <div className="flex flex-wrap gap-1 max-h-28 overflow-hidden">
                     {myOwnedProps.map(({ spaceIndex, space, state }) => {
-                      const groupColor = 'group' in space && space.group ? GROUP_COLOR_MAP[space.group] : '#888888';
                       return (
                         <div
                           key={spaceIndex}
-                          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border bg-white dark:bg-indian-navy-950 shadow-2xs text-[9px]"
-                          style={{ borderLeftColor: groupColor, borderLeftWidth: '3px' }}
+                          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border border-indian-parchment-300 dark:border-indian-navy-700 bg-white dark:bg-indian-navy-950 shadow-2xs text-[9px]"
                         >
-                          <span className="font-bold text-indian-navy-900 dark:text-white truncate max-w-[80px]">
+                          <span className="font-bold text-indian-navy-900 dark:text-white truncate max-w-[65px]">
                             {space.name}
                           </span>
                           {state.buildings > 0 && (
-                            <span className="text-[7.5px] text-amber-700">
+                            <span className="text-[7.5px] font-bold text-amber-700">
                               {state.buildings === 5 ? '🏢' : `🏠${state.buildings}`}
                             </span>
                           )}
-                          {state.isMortgaged ? (
-                            <span className="text-[8px] text-red-500 font-bold">[M]</span>
+                          {!state.isMortgaged ? (
+                            <button
+                              type="button"
+                              disabled={!isMyTurn}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDispatch('MORTGAGE', { spaceIndex });
+                              }}
+                              className="text-[7.5px] px-1 py-0.2 rounded bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 font-bold cursor-pointer disabled:opacity-40"
+                              title={`Mortgage for ₹${'mortgageValue' in space ? space.mortgageValue.toLocaleString('en-IN') : 0}`}
+                            >
+                              Mortgage
+                            </button>
                           ) : (
-                            'price' in space && (
-                              <span className="text-[8.5px] font-bold text-emerald-700 dark:text-emerald-400">
-                                ₹{space.price.toLocaleString('en-IN')}
-                              </span>
-                            )
+                            <button
+                              type="button"
+                              disabled={!isMyTurn || myPlayer.cash < ('unmortgageCost' in space ? space.unmortgageCost : 0)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDispatch('UNMORTGAGE', { spaceIndex });
+                              }}
+                              className="text-[7.5px] px-1 py-0.2 rounded bg-emerald-50 text-emerald-700 border border-emerald-300 hover:bg-emerald-100 font-bold cursor-pointer disabled:opacity-40"
+                              title={`Redeem for ₹${'unmortgageCost' in space ? space.unmortgageCost.toLocaleString('en-IN') : 0}`}
+                            >
+                              Redeem
+                            </button>
                           )}
                         </div>
                       );

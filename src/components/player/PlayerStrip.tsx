@@ -3,7 +3,7 @@ import { PlayerState, PropertyState } from '@/domain/game-types';
 import { BOARD_SPACES } from '@/domain/board-config';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import { IndianRupee, Building2, ShieldAlert, Clock, MapPin } from 'lucide-react';
+import { IndianRupee, Building2, ShieldAlert, Clock, MapPin, X } from 'lucide-react';
 import { GROUP_COLOR_MAP } from '../board/board-layout-utils';
 import { cn } from '@/lib/utils/cn';
 
@@ -27,16 +27,14 @@ export const PlayerStrip: React.FC<PlayerStripProps> = ({
   onSelectSpace,
 }) => {
   // Selected player state for click-to-view details (No hovering)
-  const [selectedPlayerUid, setSelectedPlayerUid] = useState<string>(
-    players[0]?.uid || currentPlayerUid
-  );
+  const [selectedPlayerUid, setSelectedPlayerUid] = useState<string | null>(null);
 
   // Keep selected player valid if players list changes
   useEffect(() => {
-    if (!players.some((p) => p.uid === selectedPlayerUid)) {
-      setSelectedPlayerUid(players[0]?.uid || currentPlayerUid);
+    if (selectedPlayerUid && !players.some((p) => p.uid === selectedPlayerUid)) {
+      setSelectedPlayerUid(null);
     }
-  }, [players, selectedPlayerUid, currentPlayerUid]);
+  }, [players, selectedPlayerUid]);
 
   // Track cash updates for animated glowing effect
   const prevCashRef = useRef<Record<string, number>>({});
@@ -103,7 +101,7 @@ export const PlayerStrip: React.FC<PlayerStripProps> = ({
             <Card
               key={player.uid}
               onClick={() => {
-                setSelectedPlayerUid(player.uid);
+                setSelectedPlayerUid(player.uid === selectedPlayerUid ? null : player.uid);
                 onSelectPlayer?.(player.uid);
               }}
               className={cn(
@@ -176,8 +174,8 @@ export const PlayerStrip: React.FC<PlayerStripProps> = ({
       </div>
 
       {/* Selected Player Detailed Info (Ultra-Compact, Non-Scrollable) */}
-      {selectedPlayer && (
-        <Card className="p-2 border-indian-terracotta-400 dark:border-indian-navy-700 bg-white dark:bg-indian-navy-900 shadow-sm rounded-lg text-xs space-y-1.5 overflow-hidden">
+      {selectedPlayerUid !== null && selectedPlayer && (
+        <Card className="p-2 border-indian-terracotta-400 dark:border-indian-navy-700 bg-white dark:bg-indian-navy-900 shadow-sm rounded-lg text-xs space-y-1.5 overflow-hidden animate-fade-in">
           {/* Header */}
           <div className="flex items-center justify-between pb-1 border-b border-indian-parchment-300 dark:border-indian-navy-700">
             <div className="flex items-center gap-1.5 min-w-0">
@@ -192,12 +190,25 @@ export const PlayerStrip: React.FC<PlayerStripProps> = ({
               </span>
             </div>
 
-            <Badge
-              variant={selectedPlayer.uid === currentPlayerUid ? 'terracotta' : 'neutral'}
-              className="text-[8px] py-0 px-1 font-bold"
-            >
-              {selectedPlayer.uid === currentPlayerUid ? 'Active' : 'Waiting'}
-            </Badge>
+            <div className="flex items-center gap-1 shrink-0">
+              <Badge
+                variant={selectedPlayer.uid === currentPlayerUid ? 'terracotta' : 'neutral'}
+                className="text-[8px] py-0 px-1 font-bold"
+              >
+                {selectedPlayer.uid === currentPlayerUid ? 'Active' : 'Waiting'}
+              </Badge>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedPlayerUid(null);
+                }}
+                className="p-0.5 rounded-full hover:bg-indian-parchment-200 dark:hover:bg-indian-navy-800 text-gray-400 hover:text-red-600 transition-colors cursor-pointer"
+                title="Close player info"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
 
           {/* Financial Breakdown: 2 Columns */}

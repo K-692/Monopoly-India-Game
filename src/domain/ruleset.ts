@@ -124,13 +124,15 @@ export function calculateRent(
 }
 
 /**
- * Checks if a player can build a house/tower on a property (enforcing even-building rule).
+ * Checks if a player can build a house/tower on a property.
+ * Rule: If the owner player is visiting the city with sufficient money, the player can build it.
  */
 export function canBuildOnProperty(
   spaceIndex: number,
   playerUid: string,
   properties: Record<number, PropertyState>,
-  playerCash: number
+  playerCash: number,
+  playerPosition?: number
 ): { allowed: boolean; reason?: string } {
   const space = BOARD_SPACES[spaceIndex];
   if (!space || space.type !== 'PROPERTY') {
@@ -146,14 +148,9 @@ export function canBuildOnProperty(
     return { allowed: false, reason: 'Property is currently mortgaged' };
   }
 
-  if (!hasFullColorGroup(space.group, playerUid, properties)) {
-    return { allowed: false, reason: 'Must own all properties in the color set to build' };
-  }
-
-  const groupIndices = PROPERTY_GROUPS[space.group];
-  const hasMortgagedInGroup = groupIndices.some((idx) => properties[idx]?.isMortgaged);
-  if (hasMortgagedInGroup) {
-    return { allowed: false, reason: 'Cannot build while any property in the group is mortgaged' };
+  // Owner player must be visiting this city
+  if (playerPosition !== undefined && playerPosition !== spaceIndex) {
+    return { allowed: false, reason: 'Must be visiting this city to build on it' };
   }
 
   if (propState.buildings >= GAME_CONSTANTS.TOWER_BUILDING_LEVEL) {
@@ -161,15 +158,7 @@ export function canBuildOnProperty(
   }
 
   if (playerCash < space.buildingCost) {
-    return { allowed: false, reason: `Insufficient cash (needs ₹${space.buildingCost})` };
-  }
-
-  const currentLevel = propState.buildings;
-  const groupLevels = groupIndices.map((idx) => properties[idx]?.buildings ?? 0);
-  const minLevel = Math.min(...groupLevels);
-
-  if (currentLevel > minLevel) {
-    return { allowed: false, reason: 'Must develop evenly across all properties in the group' };
+    return { allowed: false, reason: `Insufficient cash (needs ₹${space.buildingCost.toLocaleString('en-IN')})` };
   }
 
   return { allowed: true };

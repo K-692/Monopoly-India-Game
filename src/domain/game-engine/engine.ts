@@ -3,7 +3,7 @@
  * Evaluates state transitions deterministically with zero side effects.
  */
 
-import { BOARD_SPACES, CIVIC_FUND_CARDS, MARKET_BUZZ_CARDS } from '../board-config';
+import { BOARD_SPACES, CIVIC_FUND_CARDS, MARKET_BUZZ_CARDS, TRANSIT_SPACES } from '../board-config';
 import {
   CardAction,
   GameCommand,
@@ -252,7 +252,7 @@ export function applyGameCommand(
       const player = state.players.find((p) => p.uid === actorUid);
       if (!player) throw new GameEngineError('INVALID_ACTION', 'Player not found');
 
-      const check = canBuildOnProperty(spaceIdx, actorUid, state.properties, player.cash);
+      const check = canBuildOnProperty(spaceIdx, actorUid, state.properties, player.cash, player.position);
       if (!check.allowed) {
         throw new GameEngineError('INVALID_ACTION', check.reason || 'Cannot build here');
       }
@@ -274,6 +274,9 @@ export function applyGameCommand(
       const propState = state.properties[spaceIdx];
       const space = BOARD_SPACES[spaceIdx] as PropertyDefinition;
 
+      if (actorUid !== state.currentPlayerUid) {
+        throw new GameEngineError('NOT_YOUR_TURN', 'You can only mortgage properties during your turn');
+      }
       if (!propState || propState.ownerUid !== actorUid) {
         throw new GameEngineError('INVALID_ACTION', 'You do not own this property');
       }
@@ -281,7 +284,7 @@ export function applyGameCommand(
         throw new GameEngineError('INVALID_ACTION', 'Already mortgaged');
       }
       if (propState.buildings > 0) {
-        throw new GameEngineError('INVALID_ACTION', 'Must sell all buildings in group before mortgaging');
+        throw new GameEngineError('INVALID_ACTION', 'Must sell buildings on this property before mortgaging');
       }
 
       propState.isMortgaged = true;
@@ -382,7 +385,8 @@ function resolveLandingSpace(
   state: GameState,
   player: PlayerState,
   spaceIndex: number,
-  diceTotal: number
+  diceTotal: number,
+  options?: { rentMultiplier?: number }
 ): void {
   const space = BOARD_SPACES[spaceIndex];
   if (!space) return;
@@ -402,7 +406,10 @@ function resolveLandingSpace(
         };
       } else if (propState.ownerUid !== player.uid && !propState.isMortgaged) {
         // Rent owed to owner
-        const rentDue = calculateRent(spaceIndex, state.properties, diceTotal);
+        let rentDue = calculateRent(spaceIndex, state.properties, diceTotal);
+        if (options?.rentMultiplier) {
+          rentDue *= options.rentMultiplier;
+        }
         const owner = state.players.find((p) => p.uid === propState.ownerUid);
 
         if (player.cash >= rentDue) {
@@ -508,11 +515,69 @@ function applyCardEffect(state: GameState, player: PlayerState, card: CardAction
           player.cash += GAME_CONSTANTS.START_REWARD;
         }
         player.position = card.targetSpace;
+        resolveLandingSpace(state, player, player.position, 0);
       }
       break;
     case 'MOVE_RELATIVE':
       player.position = (player.position + (card.amount ?? 0) + 40) % 40;
+      resolveLandingSpace(state, player, player.position, 0);
       break;
+    case 'ADVANCE_NEXT_TRANSIT': {
+      const nextTransit = TRANSIT_SPACES.find((idx) => idx > player.position) ?? TRANSIT_SPACES[0];
+      if (nextTransit < player.position) {
+        player.cash += GAME_CONSTANTS.START_REWARD;
+      }
+      player.position = nextTransit;
+      resolveLandingSpace(state, player, nextTransit, 0, { rentMultiplier: 2 });
+      break;
+    }
+    case 'TRANSIT_DIVIDEND': {
+      const ownedTransits = TRANSIT_SPACES.filter(
+        (idx) => state.properties[idx]?.ownerUid === player.uid
+      ).length;
+      player.cash += ownedTransits * (card.amount ?? 400);
+      break;
+    }
+    case 'REPAIR_TAX': {
+      let totalBlocks = 0;
+      let totalTowers = 0;
+      for (const prop of Object.values(state.properties)) {
+        if (prop.ownerUid === player.uid) {
+          if (prop.buildings === 5) {
+            totalTowers += 1;
+          } else if (prop.buildings > 0) {
+            totalBlocks += prop.buildings;
+          }
+        }
+      }
+      const cost = totalBlocks * (card.perHouse ?? 250) + totalTowers * (card.perTower ?? 750);
+      player.cash = Math.max(0, player.cash - cost);
+      break;
+    }
+    case 'DEVELOPMENT_GRANT': {
+      let totalBlocks = 0;
+      let totalTowers = 0;
+      for (const prop of Object.values(state.properties)) {
+        if (prop.ownerUid === player.uid) {
+          if (prop.buildings === 5) {
+            totalTowers += 1;
+          } else if (prop.buildings > 0) {
+            totalBlocks += prop.buildings;
+          }
+        }
+      }
+      const grant = totalBlocks * (card.perHouse ?? 100) + totalTowers * (card.perTower ?? 300);
+      player.cash += grant;
+      break;
+    }
+    case 'DEED_TAX': {
+      const totalDeeds = Object.values(state.properties).filter(
+        (p) => p.ownerUid === player.uid
+      ).length;
+      const cost = totalDeeds * (card.amount ?? 250);
+      player.cash = Math.max(0, player.cash - cost);
+      break;
+    }
     case 'JAIL_FREE':
       player.jailFreeCards += 1;
       break;
