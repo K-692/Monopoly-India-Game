@@ -6,6 +6,12 @@ import {
   onSnapshot,
   setDoc,
   getDoc,
+  getDocs,
+  query,
+  where,
+  updateDoc,
+  runTransaction,
+  writeBatch,
   serverTimestamp,
   type Unsubscribe,
   type Firestore,
@@ -31,4 +37,19 @@ if (app) {
   }
 }
 
-export { db, doc, collection, onSnapshot, setDoc, getDoc, serverTimestamp, type Unsubscribe };
+export {
+  db,
+  doc,
+  collection,
+  onSnapshot,
+  setDoc,
+  getDoc,
+  getDocs,
+  query,
+  where,
+  updateDoc,
+  runTransaction,
+  writeBatch,
+  serverTimestamp,
+  type Unsubscribe,
+};

@@ -54,21 +54,26 @@ The objective of Indian Monopoly is to accumulate wealth, acquire high-yield Ind
 
 ---
 
-### 3. Visual Grid Identity & Color Ramp
-- **City Grids Price Spectrum (Orange to Green)**:
-  - All 24 cities are color-coded in a continuous gradient based on deed purchase price:
-    - **₹600 - ₹800**: Deep Fiery Orange (`#EA580C`, Jaipur & Jodhpur) to Vivid Orange (`#F97316`, Udaipur)
-    - **₹1,000 - ₹1,600**: Tangerine & Amber (`#FB923C`, `#F59E0B`, Agra, Lucknow, Varanasi) to Sun Gold (`#EAB308`, `#FACC15`, Indore, Bhopal, Surat)
-    - **₹1,800 - ₹2,400**: Lime & Chartreuse (`#D9E74C`, `#A3E635`, `#84CC16`, `#65A30D`, Kochi, Goa, Ahmedabad, Pune, Hyderabad)
-    - **₹2,600 - ₹3,200**: Emerald & Forest Green (`#22C55E`, `#16A34A`, `#15803D`, `#166534`, Bengaluru, Chennai, Kolkata, Chandigarh, Gurugram, Noida)
-    - **₹3,500 - ₹4,000**: Deep Emerald to Supreme Green (`#0F5132`, `#064E3B`, `#047857`, Navi Mumbai, New Delhi, Mumbai)
-  - When a player buys a city, the grid border, background tint, and name banner recolor to the player's personal color token.
+### 3. Visual Grid Identity & Green Shades Price Spectrum
+- **City Grids Price Spectrum in Green Shades (Light to Deep Green)**:
+  - All 24 cities are color-coded in a continuous spectrum of **green shades** strictly based on deed purchase price (from ₹600 to ₹4,000):
+    - **₹600 - ₹800 (Light Mint & Spring Green)**: Jaipur & Jodhpur (`#D1FADF`), Udaipur (`#BBF7D0`)
+    - **₹1,000 - ₹1,400 (Soft to Vivid Light Green)**: Agra & Lucknow (`#A7F3D0`), Varanasi (`#86EFAC`), Indore & Bhopal (`#4ADE80`)
+    - **₹1,600 - ₹2,000 (Emerald & Rich Green)**: Surat (`#34D399`), Visakhapatnam & Kochi (`#22C55E`), Goa (`#16A34A`)
+    - **₹2,200 - ₹2,800 (Forest & Dark Evergreen)**: Ahmedabad & Pune (`#15803D`), Hyderabad (`#166534`), Bengaluru & Chennai (`#14532D`), Kolkata (`#0F4824`)
+    - **₹3,000 - ₹3,500 (Deep Pine & Dark Jade)**: Chandigarh (`#0B3C1D`), Gurugram & Noida (`#064E3B`), Navi Mumbai (`#063A2D`)
+    - **₹3,800 - ₹4,000 (Midnight to Supreme Deep Emerald)**: New Delhi (`#042D23`), Mumbai (`#02241C`)
+  - **Grid Fill & Text Contrast**: The city grid tile is completely filled with that green shade. Typography automatically balances luminance:
+    - **Light green backgrounds ($\le ₹1,400$)**: Deep dark pine/black text (`#022C22`, contrast ratio $> 9:1$) for razor-sharp legibility.
+    - **Deep green backgrounds ($> ₹1,400$)**: Crisp white text (`#FFFFFF`) with a subtle text shadow (`drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]`) for stellar legibility.
+    - **In-Grid Buying Price Badges**: Every city tile features an explicit purchase price badge (`₹600` to `₹4,000`) right under the city name.
+  - When a player buys a city, the grid border updates to the owner's personal color token, and an owner name accent bar displays along the top edge.
 - **Non-City Grids**:
-  - Transits, Utilities, Taxes, Cards, and Rest House are styled with a solid crisp white fill, glowing orange border (`border-2 border-orange-500 shadow-[0_0_12px_rgba(249,115,22,0.65)]`), and high-opacity (90%) illustrations.
+  - Transits, Utilities, Taxes, Cards, and Rest House are styled with a solid crisp white fill, glowing orange border (`border-2 border-orange-500 shadow-[0_0_12px_rgba(249,115,22,0.65)]`), and high-opacity (95%) vector illustrations.
 - **Central Jail**:
   - Features an intense glowing red border and black & white vertical steel jail bars overlay with a red `JAIL / Visiting` plaque.
-- **Center Board Arena**:
-  - Non-scrollable Civic Fund and Market Buzz panels display all 12 canonical rules simultaneously with large, bold text, centered symmetrically around the 3D dice.
+- **Timer Seconds in Pop-up Windows**:
+  - All countdown timer seconds inside pop-up dialogs (City Deed certificates, Civic Fund / Market Buzz rule popups, transaction notices, player inspection dialogs) feature a high-definition **thin black border** (`border border-black`) around the countdown seconds badge (`{timeRemaining}s`).
 
 ---
 

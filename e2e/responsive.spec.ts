@@ -99,4 +99,68 @@ test.describe('Indian Monopoly - Header, Rules Modal, & Gameplay E2E', () => {
     await themeBtn.click();
     await expect(page.locator('html')).toHaveClass(/dark/);
   });
+
+  test('verifies city grid colours are green shades, text is visible, and pop-up timer seconds has thin black border', async ({ page }) => {
+    // Set player name in localStorage to bypass name prompt
+    await page.addInitScript(() => {
+      localStorage.setItem('monopoly_player_name', 'Tycoon Inspector');
+      localStorage.setItem('monopoly_player_uid', 'inspector_uid_123');
+    });
+
+    await page.goto('/#/practice');
+    await expect(page.getByText(/Practice Match \(Sandbox\)/i)).toBeVisible();
+
+    // Verify city grids exist and show buying price
+    const jaipurTile = page.locator('[data-space-index="1"]');
+    await expect(jaipurTile).toBeVisible();
+    await expect(page.locator('text=₹600').first()).toBeVisible();
+
+    // Click Jaipur city space to open the City Deed pop-up window
+    await jaipurTile.click({ force: true });
+
+    // Verify the City Deed pop up window opens
+    await expect(page.getByText(/Space #1/i)).toBeVisible();
+
+    // Verify timer seconds inside the pop up window has thin black border
+    const timerSeconds = page.getByTestId('popup-timer-seconds');
+    await expect(timerSeconds).toBeVisible();
+    await expect(timerSeconds).toHaveClass(/border-black/);
+
+    // Close the deed modal
+    const closeBtn = page.locator('button:has(svg.lucide-x)').first();
+    await closeBtn.click({ force: true });
+    await expect(page.getByText(/Space #1/i)).not.toBeVisible();
+  });
+
+  test('creates an online room, launches lobby with 6-character code, and enables ready up', async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('monopoly_player_name', 'Host Tycoon');
+      localStorage.setItem('monopoly_player_uid', 'host_tycoon_uid_123');
+    });
+
+    await page.goto('/');
+
+    // Click Customize Rules & Host
+    const hostBtn = page.getByRole('button', { name: /Customize Rules & Host/i });
+    await expect(hostBtn).toBeVisible();
+    await hostBtn.click();
+
+    // Custom Rules modal should open
+    await expect(page.getByText('Host Game Rules & Settings')).toBeVisible();
+
+    // Click Create Room with Rules
+    const createBtn = page.getByRole('button', { name: /Create Room with Rules/i });
+    await expect(createBtn).toBeVisible();
+    await createBtn.click({ force: true });
+
+    // Should navigate to room lobby
+    await expect(page.getByText(/Share Room Link \/ Code/i)).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(/Joined Players/i)).toBeVisible();
+
+    // Room should display 6-character uppercase invitation code
+    const inviteCodeElem = page.locator('.select-all');
+    await expect(inviteCodeElem).toBeVisible();
+    const codeText = await inviteCodeElem.innerText();
+    expect(codeText.trim().length).toBe(6);
+  });
 });

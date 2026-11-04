@@ -5,7 +5,7 @@ import { BOARD_SPACES } from '@/domain/board-config';
 import { X, Wallet, TrendingUp, MapPin, ShieldAlert, Home, Building2, Landmark, Train, Plane, Zap, Droplets } from 'lucide-react';
 import { calculateRent } from '@/domain/ruleset';
 import { PopupTurnTimer } from '@/components/feedback/PopupTurnTimer';
-import { getCityPriceColor } from '@/components/board/BoardSpaceTile';
+import { getCityPriceColor } from '@/domain/city-colors';
 
 interface PlayerDetailModalProps {
   player: PlayerState | null;

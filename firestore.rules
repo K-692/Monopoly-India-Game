@@ -11,16 +11,17 @@ service cloud.firestore {
     // Authenticated users can read rooms to query by inviteCodeHash and subscribe
     match /rooms/{roomId} {
       allow read: if isAuthenticated();
-      allow write: if false; // All room mutations strictly via Cloud Functions
+      allow create: if isAuthenticated() && request.resource.data.hostUid == request.auth.uid;
+      allow update: if isAuthenticated();
+      allow delete: if isAuthenticated() && resource.data.hostUid == request.auth.uid;
 
       match /members/{memberId} {
         allow read: if isAuthenticated();
-        allow write: if false;
+        allow write: if isAuthenticated();
       }
 
       match /reactions/{reactionId} {
-        allow read: if isAuthenticated();
-        allow write: if false;
+        allow read, write: if isAuthenticated();
       }
     }
 

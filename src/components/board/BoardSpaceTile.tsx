@@ -1,29 +1,9 @@
 import React from 'react';
 import { BoardSpaceDefinition, PlayerState, PropertyState } from '@/domain/game-types';
 import { getSpaceGridCoord } from './board-layout-utils';
+import { getCityPriceColor, getCityTextColor, getCityBorderColor } from '@/domain/city-colors';
 import { ArrowLeft, Zap, Droplets, ShieldAlert, Gift, Flame } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
-
-// Smooth color ramp from Orange (lowest deed price ₹600) to Green (highest deed price ₹4,000)
-export const getCityPriceColor = (price: number): string => {
-  if (price <= 600) return '#EA580C'; // Jaipur, Jodhpur (Deep Orange)
-  if (price <= 800) return '#F97316'; // Udaipur (Vivid Orange)
-  if (price <= 1000) return '#FB923C'; // Agra, Lucknow (Tangerine)
-  if (price <= 1200) return '#F59E0B'; // Varanasi (Golden Amber)
-  if (price <= 1400) return '#EAB308'; // Indore, Bhopal (Warm Gold)
-  if (price <= 1600) return '#FACC15'; // Surat (Bright Gold)
-  if (price <= 1800) return '#D9E74C'; // Visakhapatnam, Kochi (Citron)
-  if (price <= 2000) return '#A3E635'; // Goa (Chartreuse Lime)
-  if (price <= 2200) return '#84CC16'; // Ahmedabad, Pune (Bright Lime)
-  if (price <= 2400) return '#65A30D'; // Hyderabad (Olive Green)
-  if (price <= 2600) return '#22C55E'; // Bengaluru, Chennai (Vibrant Emerald)
-  if (price <= 2800) return '#16A34A'; // Kolkata (Medium Green)
-  if (price <= 3000) return '#15803D'; // Chandigarh (Forest Green)
-  if (price <= 3200) return '#166534'; // Gurugram, Noida (Deep Pine)
-  if (price <= 3500) return '#0F5132'; // Navi Mumbai (Dark Emerald)
-  if (price <= 3800) return '#064E3B'; // New Delhi (Royal Forest)
-  return '#047857'; // Mumbai (₹4,000 Supreme Green)
-};
 
 // Realistic, crisp SVG illustrations for Railways and Airports
 const RailwayImage: React.FC<{ className?: string }> = ({ className = 'w-5 h-5 sm:w-6 sm:h-6' }) => (
@@ -110,19 +90,19 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
   // Dynamic Tile Styling:
   // 1. Jail: Red glowing border + vertical black/white jail bars
   // 2. Non-city grids: Glowing orange border + crisp white fill
-  // 3. City grids: Tinted with shade from Orange to Green based on price (or owner player color when purchased)
+  // 3. City grids: Filled with green shades from light green to deep green based on buying price (or owner player color when purchased)
   const tileStyle: React.CSSProperties = {
     gridRow: coord.row,
     gridColumn: coord.col,
-    ...(ownerColor
+    ...(isCity && priceColor
       ? {
-          borderColor: ownerColor,
-          backgroundColor: `${ownerColor}24`, // Color grid with player color when bought
+          backgroundColor: priceColor, // Fill the city grid with green shade!
+          borderColor: ownerColor || getCityBorderColor(cityPrice),
         }
-      : isCity && priceColor
+      : ownerColor
         ? {
-            borderColor: priceColor,
-            backgroundColor: `${priceColor}12`, // Subtle shade from orange to green based on city price
+            borderColor: ownerColor,
+            backgroundColor: `${ownerColor}24`, // Color grid with player color when bought
           }
         : {}),
   };
@@ -162,9 +142,11 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
   };
 
   // Clean, high-legibility Space Name Rendering:
-  // Splits multi-word names into stacked rows so "Chennai Airport", "Howrah Railway", "Urja Power Grid", "CST Mumbai" never get truncated with ellipses ("Chennai Airp...")
-  // Adds generous top breathing room so ascenders like 'K' in 'Kochi' or 'B' in 'Bhopal' never clip.
+  // Uses high-contrast text color (dark pine for light green, crisp white for deep green)
   const renderSpaceName = () => {
+    const cityTextColor = isCity ? getCityTextColor(cityPrice) : undefined;
+    const isDarkGreen = isCity && cityPrice > 1400;
+
     const parts = space.name.split(' ');
     if (parts.length > 1 && space.name.length > 8) {
       return (
@@ -172,8 +154,14 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
           {parts.map((part, idx) => (
             <span
               key={idx}
+              style={{ color: cityTextColor }}
               className={cn(
-                'font-black tracking-tight text-center text-indian-navy-950 dark:text-white block max-w-full truncate drop-shadow-2xs',
+                'font-black tracking-tight text-center block max-w-full truncate',
+                isCity
+                  ? isDarkGreen
+                    ? 'drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]'
+                    : 'drop-shadow-none'
+                  : 'text-indian-navy-950 dark:text-white drop-shadow-2xs',
                 isNonCity && 'text-indian-navy-950 font-black',
                 part.length > 9
                   ? 'text-[8px] sm:text-[9px] md:text-[9.5px]'
@@ -192,8 +180,14 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
       <div className="w-full pt-0.5 sm:pt-1 px-0.5 flex items-center justify-center shrink-0">
         <span
           title={space.name}
+          style={{ color: cityTextColor }}
           className={cn(
-            'font-black leading-tight text-center tracking-tight text-indian-navy-950 dark:text-white block max-w-full truncate drop-shadow-2xs',
+            'font-black leading-tight text-center tracking-tight block max-w-full truncate',
+            isCity
+              ? isDarkGreen
+                ? 'drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]'
+                : 'drop-shadow-none'
+              : 'text-indian-navy-950 dark:text-white drop-shadow-2xs',
             isNonCity && 'text-indian-navy-950 font-black',
             space.name.length > 11
               ? 'text-[8.5px] sm:text-[9.5px] md:text-[10.5px]'
@@ -211,6 +205,8 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
   return (
     <div
       onClick={onSelect}
+      data-space-index={space.spaceIndex}
+      data-testid={`space-tile-${space.spaceIndex}`}
       style={tileStyle}
       className={cn(
         'relative flex flex-col justify-between border select-none cursor-pointer transition-all duration-200 overflow-hidden',
@@ -218,12 +214,12 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
         isNonCity && 'bg-white dark:bg-white text-indian-navy-950 border-2 border-orange-500 shadow-[0_0_12px_rgba(249,115,22,0.65)] ring-1 ring-orange-400/50',
         // Jail grid: Glow red with authentic prison styling
         isJail && 'border-2 border-red-600 shadow-[0_0_18px_rgba(239,68,68,0.85)] ring-2 ring-red-500/50 bg-white dark:bg-zinc-900',
-        // City grid styling
-        isCity && !ownerColor && 'bg-white dark:bg-indian-navy-900 text-indian-navy-950 dark:text-white border-2',
-        isCity && ownerColor && 'border-2',
+        // City grid styling: filled with green shades
+        isCity && !ownerColor && 'border-2 shadow-2xs',
+        isCity && ownerColor && 'border-3 shadow-xs',
         // Corners fallback
         isStart && 'bg-indian-parchment-100 dark:bg-indian-navy-950 border-indian-parchment-400 text-indian-navy-950 dark:text-white',
-        isSelected && 'ring-2 ring-indian-terracotta-500 bg-amber-50 dark:bg-indian-navy-800 z-20',
+        isSelected && 'ring-2 ring-indian-terracotta-500 z-20',
         isHighlighted && 'ring-4 ring-amber-400 dark:ring-amber-300 scale-105 z-30 shadow-[0_0_20px_rgba(251,191,36,0.9)] animate-pulse',
         propertyState?.isMortgaged && 'opacity-65 bg-gray-100/90 dark:bg-gray-900/80'
       )}
@@ -281,14 +277,6 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
       ) : (
         /* Regular Edge City & Non-City Tile */
         <div className="relative w-full h-full flex flex-col justify-between items-center text-center overflow-hidden select-none">
-          {/* City Top Price Shade Bar (Orange to Green based on lowest to highest city price) */}
-          {isCity && priceColor && !ownerColor && (
-            <div
-              style={{ backgroundColor: priceColor }}
-              className="w-full h-1.5 sm:h-2 shrink-0 shadow-2xs"
-            />
-          )}
-
           {/* Owner Accent Bar when city is bought */}
           {ownerColor && renderOwnerAccentBar()}
 
@@ -296,6 +284,20 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
           <div className="relative z-10 flex-1 flex flex-col justify-between items-center text-center w-full min-h-0 overflow-hidden px-0.5 pb-0.5">
             {/* City / Place Name (Multi-word wrapped or single-line fit without clipping) */}
             {renderSpaceName()}
+
+            {/* City Deed Price Badge - Visible and High-Contrast */}
+            {isCity && (
+              <div
+                style={{
+                  backgroundColor: cityPrice <= 1400 ? 'rgba(0,0,0,0.12)' : 'rgba(0,0,0,0.35)',
+                  color: getCityTextColor(cityPrice),
+                  borderColor: cityPrice <= 1400 ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.25)',
+                }}
+                className="px-1 py-0.2 rounded text-[7.5px] sm:text-[8.5px] font-mono font-black border leading-none my-0.5 shadow-2xs shrink-0"
+              >
+                ₹{cityPrice.toLocaleString('en-IN')}
+              </div>
+            )}
 
             {/* Non-City High-Opacity Vector Illustrations (scales dynamically when player lands) */}
             {isNonCity && (

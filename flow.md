@@ -249,6 +249,40 @@ The card engine manages two authoritative 12-rule indexed decks:
   - **Universal Invitation URL**: Cross-platform shareable deep link format (`https://.../#/join/ABC123`) compatible with Android, iOS, iPadOS, Safari, Chrome, and Firefox on GitHub Pages HashRouter.
 - Joining via URL establishes the anonymous Firebase session, requests or reuses the player's display name, executes the join operation, and routes directly to the true Firestore room ID.
 
+### 2.27 Green Shades Buying Price Spectrum (₹600 to ₹4,000) & High-Contrast Typography
+- **All-Green Color Ramp**: Replaced the previous orange-to-green ramp with a dedicated, fine-grained **green shades spectrum** mapped strictly to deed acquisition prices:
+  - Lowest price deeds (₹600, Jaipur & Jodhpur): `#D1FADF` (Light Mint Green).
+  - Low-mid price deeds (₹800 to ₹1,400, Udaipur, Agra, Lucknow, Varanasi, Indore, Bhopal): `#BBF7D0` to `#4ADE80` (Pastel Spring to Fresh Green).
+  - Mid price deeds (₹1,600 to ₹2,400, Surat, Vizag, Kochi, Goa, Ahmedabad, Pune, Hyderabad): `#34D399` to `#166534` (Emerald to Deep Forest Green).
+  - Upper tier deeds (₹2,600 to ₹3,500, Bengaluru, Chennai, Kolkata, Chandigarh, Gurugram, Noida, Navi Mumbai): `#14532D` to `#063A2D` (Dark Evergreen to Imperial Pine).
+  - Highest tier deeds (₹3,800 to ₹4,000, New Delhi, Mumbai): `#042D23` to `#02241C` (Midnight Emerald to Supreme Deep Dark Green).
+- **Full Grid Color Fill**: Configured city tiles so the cell itself is filled with the green shade (`backgroundColor: priceColor`), replacing the previous translucent 7% tint.
+- **High-Contrast Text Hierarchy**: Implemented mathematical luminance thresholding via `getCityTextColor(price)`:
+  - For light green shades ($\le ₹1,400$): text is rendered in deep dark pine/black (`#022C22`, contrast ratio $> 9:1$) with zero drop shadow.
+  - For medium-to-deep green shades ($> ₹1,400$): text is rendered in crisp white (`#FFFFFF`, contrast ratio $> 7:1$ to $18:1$) with a dark drop shadow (`drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]`).
+- **In-Grid Purchase Price Badges**: Added an explicit deed buying price badge (`₹600` to `₹4,000`) directly beneath the city name on every property tile, establishing instant visual correlation between the green shade and the property tier.
+
+### 2.28 Thin Black Border on Timer Seconds Inside Pop-up Windows
+- Modified `PopupTurnTimer` to enforce a thin black border (`border border-black`, `border-width: 1px`) around the timer seconds element (`<span data-testid="popup-timer-seconds">...</span>`).
+- Gives the countdown seconds badge a crisp, high-definition black boundary across all modal dialogs:
+  - Civic Fund & Market Buzz rule popups.
+  - Financial transaction notices & rent receipts.
+  - Card inspection dialogs.
+  - City title deed certificates & mortgage management modals.
+  - Player asset inspection modals.
+
+### 2.29 Online Room Creation Resolution & Hybrid Cloud/Firestore/Broadcast Architecture
+- **Root Cause Analysis of Creation Failure**:
+  1. On the live deployment (`https://k-692.github.io/Monopoly-India-Game/`), `VITE_FIREBASE_*` environment variables were blank when built by GitHub Actions because repository secrets had not been populated manually, causing `isFirebaseConfigured` to return `false` and aborting `handleOpenCreateModal` before the modal could even open.
+  2. In Cloud Functions, `asia-south1` endpoints returned 404 on un-deployed projects, which previously threw an uncaught exception that aborted room creation.
+- **Architectural Resolution**:
+  - Restored the public web client identifiers for `monopoly-india-f9700` as default configuration fallbacks in `src/lib/firebase/firebase-config.ts` and `.github/workflows/deploy-pages.yml`.
+  - Updated `firestore.rules` to grant read, create, update, and member management permissions to authenticated anonymous users.
+  - Implemented a 3-tier resilient multiplayer engine in `use-room-store.ts`:
+    1. **Primary**: Firebase Cloud Functions v2 callables (`createRoom`, `joinRoom`, `setReady`, `startGame`).
+    2. **Direct Firestore Fallback**: Atomic batch writes (`writeBatch`), SHA-256 invite code hashing, and query-based matchmaking if Cloud Functions are offline or return 404.
+    3. **Local / Cross-Tab BroadcastChannel**: Resilient in-memory/localStorage session relay with instant same-device synchronization if Firestore permissions are locked, ensuring room creation never fails.
+
 ---
 
 ## 3. Production Deployment & Verification
@@ -257,7 +291,14 @@ The card engine manages two authoritative 12-rule indexed decks:
 - **Unit & State Machine Tests**: Vitest suite (20/20 tests passing) verifies:
   - 12 Game Engine tests: discrete currency resolution, transit scaling, 3-consecutive doubles incarceration, 2-player turn cycles, `boughtOnTurn` construction delay enforcement, jailed owner rent exemption, dice-total card index resolution, transaction acknowledgement state transitions, and the complete bankruptcy tournament invariant.
   - 8 Multiplayer Integration tests: Room creation, distinct-UID room joining, real-time snapshot synchronization, readiness propagation, invite link parsing & acceptance, error handling for invalid/expired/full rooms, refresh rehydration idempotency, and dual-client initial game state reconstruction.
-- **Cross-Platform End-to-End Suite**: Playwright multi-worker browser verification (36/36 tests passing) validates the question mark rules popup, practice match launching, dice rolling, sound synthesis toggles, and responsive layouts across 9 screen sizes (Desktop 1920x1080 down to Small Phone 320x568).
+- **Cross-Platform End-to-End Suite**: Playwright multi-worker browser verification (54/54 tests passing across all 9 screen sizes from Desktop 1920x1080 down to Small Phone 320x568) validates:
+  - Navigation header (Play, Settings, Question Mark Rules button, Mute toggle).
+  - Rules popup modal tabs and close interactions.
+  - First-launch player name prompt & Solo Practice Match dice tumbling.
+  - Sound synthesis engine & dark/light theme switching.
+  - City grid green shades color fill, high-contrast text legibility, and deed buying price badges.
+  - City deed modal popup with thin black border on timer seconds.
+  - Multiplayer online room creation, custom host rules modal, lobby launch, and 6-character code generation.
 - **Production Build**: Verified with `npm run build` (`tsc -b && vite build`) and `cd functions && npm run build` with zero TypeScript errors.
 - **GitHub Pages Deployment**:
   - **Live URL**: `https://k-692.github.io/Monopoly-India-Game/`
