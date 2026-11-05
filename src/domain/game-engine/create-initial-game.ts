@@ -19,10 +19,19 @@ export function createInitialGame(
   roomId: string,
   gameId: string,
   members: Record<string, RoomMember>,
-  customRules: HostCustomRules = DEFAULT_HOST_RULES
+  customRules: HostCustomRules = DEFAULT_HOST_RULES,
+  startingPlayerUid?: string
 ): GameState {
   const memberList = Object.values(members);
-  const playerOrder = memberList.map((m) => m.uid);
+  const initialPlayerOrder = memberList.map((m) => m.uid);
+
+  // Requirement 1: Authoritative starting player selection and turn order rotation
+  const startIdx = startingPlayerUid ? initialPlayerOrder.indexOf(startingPlayerUid) : 0;
+  const validStartIdx = startIdx >= 0 ? startIdx : 0;
+  const playerOrder =
+    validStartIdx > 0
+      ? [...initialPlayerOrder.slice(validStartIdx), ...initialPlayerOrder.slice(0, validStartIdx)]
+      : initialPlayerOrder;
 
   // Initialize all properties on the board as unowned
   const properties: Record<number, PropertyState> = {};

@@ -264,9 +264,13 @@ describe('Indian Monopoly LAN Multiplayer Server Integration', () => {
         });
 
         expect(gameStartReceivedA!.gameId).toBe(gameStartReceivedB!.gameId);
-        expect(gameStartReceivedA!.currentPlayerUid).toBe(playerA!.uid);
+        // Requirement 1: Both clients agree on the randomly chosen starting player
+        expect(gameStartReceivedA!.currentPlayerUid).toBe(gameStartReceivedB!.currentPlayerUid);
+        const startingUid = gameStartReceivedA!.currentPlayerUid;
+        const startingClient = startingUid === playerA!.uid ? clientA : clientB;
+        const nonStartingClient = startingUid === playerA!.uid ? clientB : clientA;
 
-        // Client B attempts to ROLL_DICE when it's Client A's turn
+        // Non-starting client attempts to ROLL_DICE when it's not their turn
         const unauthorizedRoll = await new Promise<{ ok: boolean; error?: string }>((resolve) => {
           const cmd: GameCommand = {
             commandId: 'cmd_hack_1',
@@ -276,12 +280,12 @@ describe('Indian Monopoly LAN Multiplayer Server Integration', () => {
             type: 'ROLL_DICE',
             payload: {},
           };
-          clientB.emit('game:command', cmd, (res) => resolve(res));
+          nonStartingClient.emit('game:command', cmd, (res) => resolve(res));
         });
         expect(unauthorizedRoll.ok).toBe(false);
         expect(unauthorizedRoll.error).toContain('turn');
 
-        // Client A rolls dice
+        // Authoritative starting client rolls dice
         let eventA: GameEvent | null = null;
         let eventB: GameEvent | null = null;
         let stateA: GameState | null = null;
@@ -301,7 +305,7 @@ describe('Indian Monopoly LAN Multiplayer Server Integration', () => {
           payload: {},
         };
 
-        const rollRes = await new Promise<GameCommandResponse>((res) => clientA.emit('game:command', rollCmd, res));
+        const rollRes = await new Promise<GameCommandResponse>((res) => startingClient.emit('game:command', rollCmd, res));
         expect(rollRes.ok).toBe(true);
 
         await new Promise<void>((resolve) => {
@@ -321,7 +325,7 @@ describe('Indian Monopoly LAN Multiplayer Server Integration', () => {
         expect(stateA!.version).toBe(stateB!.version);
 
         // Test duplicate command idempotency
-        const dupRes = await new Promise<GameCommandResponse>((res) => clientA.emit('game:command', rollCmd, res));
+        const dupRes = await new Promise<GameCommandResponse>((res) => startingClient.emit('game:command', rollCmd, res));
         expect(dupRes.ok).toBe(true);
 
         // Test stale version rejection

@@ -21,7 +21,7 @@ interface PlayerAuthState {
   pendingRedirectUrl: string | null;
 
   initializeAuth: () => Promise<string | null>;
-  setPlayerName: (name: string) => Promise<void>;
+  setPlayerName: (name: string, color?: string) => Promise<void>;
   openNamePrompt: (redirectUrl?: string) => void;
   closeNamePrompt: () => void;
 }
@@ -165,12 +165,12 @@ export const useAuthStore = create<PlayerAuthState>((set, get) => {
       });
     },
 
-    setPlayerName: async (name: string) => {
+    setPlayerName: async (name: string, chosenColor?: string) => {
       const cleanName = name.trim() || 'Player ' + Math.floor(100 + Math.random() * 900);
       const socket = getSocket();
       const currentPrefs = getStoredPlayerPreferences();
 
-      let color = get().player?.avatarColor || currentPrefs.color;
+      let color = chosenColor || get().player?.avatarColor || currentPrefs.color;
       if (!color) {
         color = PLAYER_COLORS[Math.floor(Math.random() * PLAYER_COLORS.length)];
       }

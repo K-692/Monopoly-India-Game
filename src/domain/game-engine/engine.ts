@@ -29,6 +29,7 @@ import {
   canBuildOnProperty,
   GAME_CONSTANTS,
 } from '../ruleset';
+import { generateFairDicePair } from './dice-fairness';
 
 export class GameEngineError extends Error {
   constructor(
@@ -134,15 +135,25 @@ export function applyGameCommand(
         throw new GameEngineError('INVALID_ACTION', 'Must resolve jail status before normal roll');
       }
 
-      // Generate server dice (1-6)
-      const d1 = injectedDice ? injectedDice[0] : Math.floor(Math.random() * 6) + 1;
-      const d2 = injectedDice ? injectedDice[1] : Math.floor(Math.random() * 6) + 1;
+      // Generate fair server dice (1-6) without modulo bias
+      const [f1, f2] = injectedDice || generateFairDicePair();
+      const d1 = f1;
+      const d2 = f2;
       const isDouble = d1 === d2;
       const consecutiveDoubles = isDouble
         ? (state.dice?.consecutiveDoubles ?? 0) + 1
         : 0;
 
+      const rollId =
+        'roll_' +
+        state.turnNumber +
+        '_' +
+        Date.now() +
+        '_' +
+        Math.random().toString(36).slice(2, 8);
+
       state.dice = {
+        rollId,
         first: d1,
         second: d2,
         isDouble,
@@ -151,7 +162,7 @@ export function applyGameCommand(
       };
 
       summary = `${player.displayName} rolled ${d1} + ${d2} = ${d1 + d2}${isDouble ? ' (Doubles!)' : ''}`;
-      eventPayload = { d1, d2, isDouble, consecutiveDoubles };
+      eventPayload = { rollId, d1, d2, isDouble, consecutiveDoubles };
 
       // Three consecutive doubles sends player directly to Central Jail
       if (consecutiveDoubles >= 3) {
@@ -341,11 +352,21 @@ export function applyGameCommand(
         throw new GameEngineError('INVALID_ACTION', 'Player is not in jail');
       }
 
-      const d1 = injectedDice ? injectedDice[0] : Math.floor(Math.random() * 6) + 1;
-      const d2 = injectedDice ? injectedDice[1] : Math.floor(Math.random() * 6) + 1;
+      const [f1, f2] = injectedDice || generateFairDicePair();
+      const d1 = f1;
+      const d2 = f2;
       const isDouble = d1 === d2;
 
+      const rollId =
+        'roll_jail_' +
+        state.turnNumber +
+        '_' +
+        Date.now() +
+        '_' +
+        Math.random().toString(36).slice(2, 8);
+
       state.dice = {
+        rollId,
         first: d1,
         second: d2,
         isDouble,

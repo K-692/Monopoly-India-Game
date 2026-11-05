@@ -16,7 +16,8 @@ type SoundType =
   | 'DRAW_CARD'
   | 'EMOTE'
   | 'BUTTON_CLICK'
-  | 'VICTORY';
+  | 'VICTORY'
+  | 'NOTIFICATION';
 
 class SoundEngine {
   private ctx: AudioContext | null = null;
@@ -24,16 +25,20 @@ class SoundEngine {
   private masterVolume: number = 0.5;
 
   constructor() {
-    // Check saved preferences
-    if (typeof window !== 'undefined') {
-      const savedMute = localStorage.getItem('monopoly_sound_muted');
-      if (savedMute !== null) {
-        this.isMuted = savedMute === 'true';
+    // Check saved preferences safely across node and browser
+    try {
+      if (typeof localStorage !== 'undefined' && typeof localStorage.getItem === 'function') {
+        const savedMute = localStorage.getItem('monopoly_sound_muted');
+        if (savedMute !== null) {
+          this.isMuted = savedMute === 'true';
+        }
+        const savedVol = localStorage.getItem('monopoly_sound_volume');
+        if (savedVol !== null) {
+          this.masterVolume = Math.max(0, Math.min(1, parseFloat(savedVol)));
+        }
       }
-      const savedVol = localStorage.getItem('monopoly_sound_volume');
-      if (savedVol !== null) {
-        this.masterVolume = Math.max(0, Math.min(1, parseFloat(savedVol)));
-      }
+    } catch {
+      // Ignore storage restrictions
     }
   }
 
@@ -59,8 +64,12 @@ class SoundEngine {
 
   public setMuted(muted: boolean): void {
     this.isMuted = muted;
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('monopoly_sound_muted', String(muted));
+    try {
+      if (typeof localStorage !== 'undefined' && typeof localStorage.setItem === 'function') {
+        localStorage.setItem('monopoly_sound_muted', String(muted));
+      }
+    } catch {
+      // Ignore storage errors
     }
   }
 
@@ -70,8 +79,12 @@ class SoundEngine {
 
   public setVolume(vol: number): void {
     this.masterVolume = Math.max(0, Math.min(1, vol));
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('monopoly_sound_volume', String(this.masterVolume));
+    try {
+      if (typeof localStorage !== 'undefined' && typeof localStorage.setItem === 'function') {
+        localStorage.setItem('monopoly_sound_volume', String(this.masterVolume));
+      }
+    } catch {
+      // Ignore storage errors
     }
   }
 
@@ -124,6 +137,9 @@ class SoundEngine {
           break;
         case 'VICTORY':
           this.playVictory(ctx);
+          break;
+        case 'NOTIFICATION':
+          this.playNotification(ctx);
           break;
       }
     } catch {
@@ -390,6 +406,36 @@ class SoundEngine {
 
       osc.start(t0 + delay);
       osc.stop(t0 + delay + 0.52);
+    });
+  }
+
+  /**
+   * Requirement 4: Consistent, subtle notification chime.
+   * Dual-tone soft sine chime (E5 -> G#5) replacing harsh or jail sound effects.
+   */
+  private playNotification(ctx: AudioContext): void {
+    const t0 = ctx.currentTime;
+    const notes = [
+      { freq: 659.25, time: 0, duration: 0.12 }, // E5
+      { freq: 830.61, time: 0.08, duration: 0.2 }, // G#5
+    ];
+
+    notes.forEach(({ freq, time, duration }) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, t0 + time);
+
+      gain.gain.setValueAtTime(0, t0 + time);
+      gain.gain.linearRampToValueAtTime(this.masterVolume * 0.18, t0 + time + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.001, t0 + time + duration);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(t0 + time);
+      osc.stop(t0 + time + duration + 0.02);
     });
   }
 }

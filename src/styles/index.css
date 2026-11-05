@@ -135,6 +135,48 @@
   animation: diceRoll3D_Die1 0.48s cubic-bezier(0.25, 1, 0.5, 1) infinite;
 }
 
+/* Crisp physical landing bounce when dice roll settles on outcome */
+@keyframes diceSettle {
+  0% {
+    transform: scale(1.15) translateY(-6px);
+  }
+  50% {
+    transform: scale(0.95) translateY(2px);
+  }
+  80% {
+    transform: scale(1.03) translateY(-1px);
+  }
+  100% {
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-dice-settle {
+  animation: diceSettle 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-dice-roll-1,
+  .animate-dice-roll-2,
+  .animate-dice-tumble {
+    animation: diceReducedMotion 0.35s ease-in-out infinite alternate !important;
+  }
+  .animate-dice-settle {
+    animation: none !important;
+  }
+}
+
+@keyframes diceReducedMotion {
+  0% {
+    opacity: 0.65;
+    transform: scale(0.97);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1.03);
+  }
+}
+
 @keyframes slideInLeft {
   from {
     opacity: 0;

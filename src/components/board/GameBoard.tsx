@@ -5,7 +5,7 @@ import { CardAction, GameActionType, GameEvent, GameState, PropertyDefinition, W
 import { BoardSpaceTile } from './BoardSpaceTile';
 import { CityDeedModal } from './CityDeedModal';
 import { FinancialResolutionModal } from './FinancialResolutionModal';
-import { getSpaceGridCoord } from './board-layout-utils';
+import { usePopupPosition } from './use-popup-position';
 import { calculateMortgageValue, canBuildOnProperty } from '@/domain/ruleset';
 import { TurnStepAcknowledgment } from '@/components/feedback/TurnStepAcknowledgment';
 import { PopupTurnTimer } from '@/components/feedback/PopupTurnTimer';
@@ -82,6 +82,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({
 
   // Section 7: Automatically bridge activeMoneyTransaction to floating toast in bottom-left corner
   useEffect(() => {
+    // Requirement 4: Wait until pawn finishes walking and lands on destination before displaying notification
+    if (walkingAnimation) return;
+
     if (gameState.activeMoneyTransaction) {
       const tx = gameState.activeMoneyTransaction;
       const isPayer = tx.payerUid === userUid;
@@ -101,6 +104,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
           : 'Financial Notice';
 
       useToastStore.getState().addToast({
+        eventId: tx.id,
         type: isPayer ? 'warning' : 'success',
         title: typeLabel,
         message: tx.description,
@@ -113,16 +117,20 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         onDismissMoneyAck();
       }
     }
-  }, [gameState.activeMoneyTransaction, userUid, onDismissMoneyAck]);
+  }, [gameState.activeMoneyTransaction, userUid, onDismissMoneyAck, walkingAnimation]);
 
   // Section 7b: Automatically bridge activeCardPopup to floating toast in bottom-left corner (3-second auto-dismiss)
   useEffect(() => {
+    // Wait until token arrives at tile
+    if (walkingAnimation) return;
+
     if (gameState.activeCardPopup) {
       const popup = gameState.activeCardPopup;
       const isCivic = popup.deck === 'CIVIC';
       const deckName = isCivic ? 'Civic Fund' : 'Market Buzz';
 
       useToastStore.getState().addToast({
+        eventId: `card_${gameState.turnNumber}_${popup.deck}_${popup.ruleIndex}`,
         type: isCivic ? 'warning' : 'success',
         deck: popup.deck,
         ruleIndex: popup.ruleIndex,
@@ -141,7 +149,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         onDismissCardPopup();
       }
     }
-  }, [gameState.activeCardPopup, onDismissCardPopup]);
+  }, [gameState.activeCardPopup, gameState.turnNumber, onDismissCardPopup, walkingAnimation]);
 
   // Determine which space should have the glowing / zoomed in state-update effect
   const highlightedSpaceIndex =
@@ -149,9 +157,13 @@ export const GameBoard: React.FC<GameBoardProps> = ({
 
   // Active player location & Pointed Comment Box computations
   const playerPos = activePlayer ? activePlayer.position : 0;
-  const playerCoord = getSpaceGridCoord(playerPos);
   const playerSpace = BOARD_SPACES[playerPos];
   const playerPropState = gameState.properties[playerPos];
+
+  // Collision-aware viewport clamping popup positioning hook
+  const popupRef = useRef<HTMLDivElement>(null);
+  const boardContainerRef = useRef<HTMLDivElement>(null);
+  const popupPos = usePopupPosition(playerPos, popupRef, boardContainerRef);
 
   // City purchase affordability (Section 2.1)
   const spacePrice = playerSpace && 'price' in playerSpace ? (playerSpace as { price: number }).price : 0;
@@ -226,6 +238,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
       if (lastInsuffNoticeRef.current !== noticeKey) {
         lastInsuffNoticeRef.current = noticeKey;
         useToastStore.getState().addToast({
+          dedupKey: noticeKey,
           type: 'error',
           title: 'Purchase Unavailable',
           message: 'Insufficient balance to purchase this property.',
@@ -242,6 +255,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
       if (lastInsuffNoticeRef.current !== noticeKey) {
         lastInsuffNoticeRef.current = noticeKey;
         useToastStore.getState().addToast({
+          dedupKey: noticeKey,
           type: 'warning',
           title: 'Construction Unavailable',
           message: 'Insufficient balance to build on this property.',
@@ -255,6 +269,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
       if (lastInsuffNoticeRef.current !== noticeKey) {
         lastInsuffNoticeRef.current = noticeKey;
         useToastStore.getState().addToast({
+          dedupKey: noticeKey,
           type: 'warning',
           title: 'Reacquisition Unavailable',
           message: 'Insufficient balance to reacquire this property.',
@@ -278,7 +293,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     onDispatch,
   ]);
 
-  // Dice dot positions (1 to 6) or dynamic random dots coming while rolling
+  // Requirement 5: Premium digital board game 3D dice appearance with clear pips and authentic depth
   const renderDiceFace = (val: number, dieIndex: 0 | 1) => {
     const safeVal = val >= 1 && val <= 6 ? val : 3;
     const dots: Record<number, number[]> = {
@@ -290,15 +305,17 @@ export const GameBoard: React.FC<GameBoardProps> = ({
       6: [0, 2, 3, 5, 6, 8],
     };
     // If rolling, display dynamic random dots coming on this die
-    const activeDots = isRolling && rollingPips[dieIndex].length > 0
-      ? rollingPips[dieIndex]
-      : (dots[safeVal] || [4]);
+    const activeDots =
+      isRolling && rollingPips[dieIndex].length > 0
+        ? rollingPips[dieIndex]
+        : dots[safeVal] || [4];
 
     return (
       <div
         className={cn(
-          'w-10 h-10 sm:w-12 sm:h-12 bg-white border-2 border-gray-950 rounded-xl shadow-lg grid grid-cols-3 grid-rows-3 p-1 sm:p-1.5 gap-0.5 transition-all duration-75',
-          isRolling && 'shadow-[0_0_16px_rgba(234,88,12,0.7)] scale-105'
+          'w-11 h-11 sm:w-13 sm:h-13 rounded-2xl border-2 border-stone-800/80 bg-gradient-to-br from-white via-zinc-50 to-zinc-100 dark:from-zinc-100 dark:to-zinc-200 shadow-[0_6px_16px_rgba(0,0,0,0.35),inset_0_2px_4px_rgba(255,255,255,0.9),inset_0_-2px_4px_rgba(0,0,0,0.2)] grid grid-cols-3 grid-rows-3 p-1 sm:p-1.5 gap-0.5 transition-all duration-100 select-none',
+          isRolling && 'shadow-[0_0_18px_rgba(234,88,12,0.8)] scale-105',
+          !isRolling && gameState.dice && 'animate-dice-settle'
         )}
       >
         {Array.from({ length: 9 }).map((_, i) => (
@@ -306,8 +323,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             {activeDots.includes(i) && (
               <div
                 className={cn(
-                  'w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full shadow-xs transition-colors duration-75',
-                  isRolling ? 'bg-indian-terracotta-600 animate-pulse' : 'bg-black'
+                  'rounded-full transition-colors duration-75',
+                  // Iconic central pip of 1 has rich signature Indian Terracotta styling
+                  !isRolling && safeVal === 1 && i === 4
+                    ? 'w-3 h-3 sm:w-3.5 sm:h-3.5 bg-indian-terracotta-600 ring-1 ring-amber-500/70 shadow-[inset_0_1.5px_2px_rgba(0,0,0,0.6)]'
+                    : 'w-2 h-2 sm:w-2.5 sm:h-2.5 bg-slate-950 shadow-[inset_0_1px_2px_rgba(0,0,0,0.7),0_1px_1px_rgba(255,255,255,0.5)]',
+                  isRolling && 'bg-indian-terracotta-600 animate-pulse'
                 )}
               />
             )}
@@ -318,7 +339,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   };
 
   return (
-    <div className="relative w-full h-full max-h-full mx-auto p-0.5 sm:p-1 bg-indian-parchment-200 border-2 border-indian-parchment-400 rounded-xl shadow-board-elevation select-none flex flex-col justify-center overflow-hidden">
+    <div
+      ref={boardContainerRef}
+      className="relative w-full h-full max-h-full mx-auto p-0.5 sm:p-1 bg-indian-parchment-200 border-2 border-indian-parchment-400 rounded-xl shadow-board-elevation select-none flex flex-col justify-center overflow-hidden"
+    >
       {/* 11x11 Grid with Expanded Perimeter Dimensions and Spacious City Grids */}
       <div
         className="w-full h-full grid gap-[1px] bg-indian-parchment-400 rounded-lg overflow-hidden relative"
@@ -584,57 +608,26 @@ export const GameBoard: React.FC<GameBoardProps> = ({
           </div>
         </div>
 
-        {/* POINTED COMMENT BOX: Pops near the player's current position to Buy or Build or Reacquire the city */}
+        {/* Requirement 3: POINTED COMMENT BOX with Viewport Clamping & Collision Awareness */}
         {((isPropertyDecision && canAffordCity) || canBuildHere || (isOwnMortgagedCity && canAffordReacquire)) && (
           <div
-            style={{
-              gridRow: playerCoord.row,
-              gridColumn: playerCoord.col,
-            }}
-            className="relative z-50 pointer-events-none"
+            ref={popupRef}
+            style={popupPos.style}
+            className="w-64 sm:w-72 p-3.5 rounded-2xl bg-[#070A12]/95 text-white border-2 border-amber-400 shadow-[0_12px_36px_rgba(0,0,0,0.85)] flex flex-col gap-2.5 animate-scale-in text-xs backdrop-blur-md"
           >
+            {/* Dynamic Pointer Arrow aligned with target space */}
             <div
+              style={popupPos.arrowStyle}
               className={cn(
-                'absolute pointer-events-auto w-60 sm:w-68 p-3.5 rounded-2xl bg-[#070A12] text-white border-2 border-amber-400 shadow-[0_12px_36px_rgba(0,0,0,0.85)] flex flex-col gap-2.5 animate-scale-in text-xs',
-                playerCoord.orientation === 'bottom' && 'bottom-[calc(100%+14px)] left-1/2 -translate-x-1/2',
-                playerCoord.orientation === 'top' && 'top-[calc(100%+14px)] left-1/2 -translate-x-1/2',
-                playerCoord.orientation === 'left' && 'left-[calc(100%+14px)] top-1/2 -translate-y-1/2',
-                playerCoord.orientation === 'right' && 'right-[calc(100%+14px)] top-1/2 -translate-y-1/2',
-                playerCoord.orientation === 'corner' && (
-                  playerPos === 0 ? 'bottom-[calc(100%+14px)] right-0' :
-                  playerPos === 10 ? 'bottom-[calc(100%+14px)] left-0' :
-                  playerPos === 20 ? 'top-[calc(100%+14px)] left-0' :
-                  'top-[calc(100%+14px)] right-0'
-                )
+                'w-0 h-0',
+                popupPos.placement === 'top' &&
+                  'border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-t-[8px] border-t-amber-400',
+                popupPos.placement === 'bottom' &&
+                  'border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-b-[8px] border-b-amber-400'
               )}
-            >
-              {/* Pointer Triangle pointing directly at the city tile */}
-              {playerCoord.orientation === 'bottom' && (
-                <div className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-t-[10px] border-t-amber-400" />
-              )}
-              {playerCoord.orientation === 'top' && (
-                <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-b-[10px] border-b-amber-400" />
-              )}
-              {playerCoord.orientation === 'left' && (
-                <div className="absolute -left-2.5 top-1/2 -translate-y-1/2 w-0 h-0 border-t-[8px] border-t-transparent border-b-[8px] border-b-transparent border-r-[10px] border-r-amber-400" />
-              )}
-              {playerCoord.orientation === 'right' && (
-                <div className="absolute -right-2.5 top-1/2 -translate-y-1/2 w-0 h-0 border-t-[8px] border-t-transparent border-b-[8px] border-b-transparent border-l-[10px] border-l-amber-400" />
-              )}
-              {playerCoord.orientation === 'corner' && playerPos === 0 && (
-                <div className="absolute -bottom-2.5 right-6 w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-t-[10px] border-t-amber-400" />
-              )}
-              {playerCoord.orientation === 'corner' && playerPos === 10 && (
-                <div className="absolute -bottom-2.5 left-6 w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-t-[10px] border-t-amber-400" />
-              )}
-              {playerCoord.orientation === 'corner' && playerPos === 20 && (
-                <div className="absolute -top-2.5 left-6 w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-b-[10px] border-b-amber-400" />
-              )}
-              {playerCoord.orientation === 'corner' && playerPos === 30 && (
-                <div className="absolute -top-2.5 right-6 w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-b-[10px] border-b-amber-400" />
-              )}
+            />
 
-              {/* Pointed Box Content: Buy Property Prompt */}
+            {/* Pointed Box Content: Buy Property Prompt */}
               {isPropertyDecision && canAffordCity && 'price' in playerSpace && (
                 <>
                   <div className="flex items-center justify-between border-b border-white/20 pb-1.5">
@@ -735,7 +728,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                   </div>
                 </>
               )}
-            </div>
           </div>
         )}
       </div>

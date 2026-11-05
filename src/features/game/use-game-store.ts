@@ -47,6 +47,7 @@ interface GameStoreState {
 }
 
 let activeWalkingTimer: NodeJS.Timeout | null = null;
+let pendingServerState: GameState | null = null;
 
 export const useGameStore = create<GameStoreState>((set, get) => ({
   gameState: null,
@@ -93,10 +94,10 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
 
     // Handle authoritative game state broadcast from server
     const handleServerGameState = (nextState: GameState) => {
-      // If we are currently running a walking animation, hold committing position until animation finishes
-      const { walkingAnimation } = get();
-      if (walkingAnimation) {
-        // Queue latest state to commit when animation completes
+      // If we are currently tumbling dice or walking, hold committing state until destination is reached
+      const { isRolling, walkingAnimation } = get();
+      if (isRolling || walkingAnimation) {
+        pendingServerState = nextState;
         return;
       }
       set({ gameState: nextState, isLiveMultiplayer: true });
@@ -109,23 +110,44 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       }));
 
       // Presentation triggers based on authoritative event
-      if (event.type === 'ROLL_DICE') {
+      if (event.type === 'ROLL_DICE' || event.type === 'TRY_DOUBLES') {
         const { gameState } = get();
         if (!gameState) return;
 
-        const payload = event.payload as { d1?: number; d2?: number } | undefined;
+        const payload = event.payload as { d1?: number; d2?: number; isDouble?: boolean } | undefined;
         const actorUid = event.actorUid;
         const player = gameState.players.find((p) => p.uid === actorUid);
-        const startPos = player?.position ?? 0;
+        const isTryDoubles = event.type === 'TRY_DOUBLES';
+        const isDouble = Boolean(payload?.isDouble);
+        const startPos = player?.position ?? (isTryDoubles ? 10 : 0);
 
         sound.play('DICE_ROLL');
         set({ isRolling: true });
 
+        // Phase 1: 3D Dice tumble and settle on the authoritative values
         setTimeout(() => {
           set({ isRolling: false });
-          const totalSteps = payload?.d1 && payload?.d2 ? payload.d1 + payload.d2 : 0;
-          if (totalSteps <= 0) return;
+          sound.play('DICE_LAND');
 
+          // If failed jail double, no movement occurs
+          if (isTryDoubles && !isDouble) {
+            setTimeout(() => {
+              const finalState = pendingServerState;
+              pendingServerState = null;
+              if (finalState) set({ gameState: finalState });
+            }, 300);
+            return;
+          }
+
+          const totalSteps = payload?.d1 && payload?.d2 ? payload.d1 + payload.d2 : 0;
+          if (totalSteps <= 0) {
+            const finalState = pendingServerState;
+            pendingServerState = null;
+            if (finalState) set({ gameState: finalState });
+            return;
+          }
+
+          // Phase 2: Token walking begins ONLY AFTER the roll finishes settling
           const targetPos = (startPos + totalSteps) % 40;
           let currentStep = 0;
 
@@ -151,21 +173,29 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
               },
             });
 
+            // Phase 3: Token reaches destination
             if (currentStep >= totalSteps) {
               if (activeWalkingTimer) clearInterval(activeWalkingTimer);
               activeWalkingTimer = null;
+
               setTimeout(() => {
-                set({ walkingAnimation: null });
-              }, 400);
+                const finalState = pendingServerState;
+                pendingServerState = null;
+                set({
+                  walkingAnimation: null,
+                  ...(finalState ? { gameState: finalState } : {}),
+                });
+              }, 300);
             }
-          }, 450);
-        }, 350);
+          }, 380);
+        }, 600);
       } else if (event.type === 'BUY_PROPERTY') {
         sound.play('BUY_PROPERTY');
       } else if (event.type === 'MORTGAGE') {
         const mortgageAmount = (event.payload as { mortgageAmount?: number })?.mortgageAmount;
         const myUid = useAuthStore.getState().player?.uid;
         useToastStore.getState().addToast({
+          eventId: event.commandId || `mortgage_${event.sequence}`,
           type: event.actorUid === myUid ? 'warning' : 'info',
           title: 'Property Mortgaged',
           message: event.summary,
@@ -176,6 +206,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         const cost = (event.payload as { cost?: number })?.cost;
         const myUid = useAuthStore.getState().player?.uid;
         useToastStore.getState().addToast({
+          eventId: event.commandId || `unmortgage_${event.sequence}`,
           type: event.actorUid === myUid ? 'success' : 'info',
           title: 'Property Reacquired',
           message: event.summary,
@@ -185,12 +216,14 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       } else if (event.type === 'RESOLVE_OBLIGATION') {
         const myUid = useAuthStore.getState().player?.uid;
         useToastStore.getState().addToast({
+          eventId: event.commandId || `resolve_${event.sequence}`,
           type: event.actorUid === myUid ? 'success' : 'info',
           title: 'Payment Completed',
           message: event.summary,
         });
       } else if (event.type === 'GIVE_UP') {
         useToastStore.getState().addToast({
+          eventId: event.commandId || `giveup_${event.sequence}`,
           type: 'error',
           title: 'Player Disqualified',
           message: event.summary,

@@ -198,6 +198,7 @@ export interface PendingAction {
 }
 
 export interface DiceState {
+  rollId?: string;
   first: number;
   second: number;
   isDouble: boolean;

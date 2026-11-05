@@ -11,6 +11,7 @@
   [![Socket.IO](https://img.shields.io/badge/Socket.IO-4.8+-010101.svg)](https://socket.io/)
   [![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4+-38b2ac.svg)](https://tailwindcss.com/)
   [![Vite](https://img.shields.io/badge/Vite-6.0+-646cff.svg)](https://vite.dev/)
+  [![Tests](https://img.shields.io/badge/Vitest-51%20Passing-brightgreen.svg)](https://vitest.dev/)
 
   **Zero-cloud, zero-Internet, 100% private Wi-Fi LAN multiplayer for phones, tablets, and laptops!**
 </div>
@@ -26,55 +27,75 @@
 
 ## 🎲 Core Game Rules & Invariants
 
-- **Strict Single-Roll Invariant**: If a player rolls doubles (e.g., 2,2 or 6,6), they will **not** receive another chance to roll the dice. Only one time rolling is allowed per turn.
+- **Authoritative Random Starting Player**: Every new game session randomly selects one eligible player using cryptographically unbiased server-side RNG. The starting player and turn order are persisted and identical across all clients; page refreshes or reconnects never change the starting player.
+- **Fair & Unbiased Cryptographic Dice Rolls**: Server-generated dice utilize rejection sampling on OS entropy, completely eliminating modulo bias. Mathematically verified via Pearson's Chi-Square Goodness-of-Fit test across 12,000+ rolls ($\chi^2 < 15.086$ at $\alpha = 0.01$).
+- **Strict Single-Roll Invariant**: If a player rolls doubles outside jail, they do **not** receive another chance to roll. Only one roll is permitted per turn.
 - **Jail & "Try Double" Mechanics**: An incarcerated player can attempt to roll doubles on each of their first three eligible turns. Rolling doubles releases them immediately and advances them by the roll sum without granting an extra turn. On the 4th eligible turn, automatic release is granted.
-- **Authoritative Balance Validation**: City purchases and building upgrades strictly validate liquid balances on both client and server before committing any transaction.
-- **Zero-Cloud LAN Multiplayer**: Fully private, server-authoritative multiplayer synchronization over local Wi-Fi.
+- **Viewport & Collision-Aware City Purchase Popup**: Dynamic calculation via `usePopupPosition` guarantees the purchase prompt never crosses browser boundaries or bottom margins, remaining completely visible on all viewports.
+- **Strict Display Timing**: Purchase prompts appear **strictly after** the player token finishes walking to the destination grid, never mid-movement.
+- **Deduplicated Bottom-Left Notifications**: Only 1 active notification at a time, strictly deduplicated across network events and state updates by `eventId`, accompanied by a subtle alert chime.
+- **Landing Page Tycoon Identity Setup**: New players configure their name (2–20 characters) and token color directly on the landing page before creating or joining multiplayer rooms.
 
 ---
 
 ## 🏛️ Comprehensive Gameplay Logic & Financial Systems
 
-### 1. Jail Mechanics & "Try Double" System
+### 1. Authoritative Random First Player Selection
+- At match start, the backend executes `crypto.randomInt(0, memberCount)` to select the initial player.
+- The player order array is rotated to start with the selected player, synchronizing turn order across all devices.
+- State is immutable against reloads: reconnecting clients receive the active session state without re-randomizing.
+
+### 2. Fair Cryptographic Dice Engine & 3D Rolling
+- **Rejection Sampling**: Avoids modulo bias ($252/6 = 42$ uniform probability per face).
+- **Statistical Goodness-of-Fit**: Chi-square test on 6-face uniformity and 36-pair independence.
+- **Unique Roll IDs & Idempotency**: Each roll is stamped with a unique `rollId`, rejecting duplicate command requests.
+- **Modern 3D Visuals**: Tactile ivory gradient cubes, deep rounded bevels, signature Terracotta Crimson 1-pip styling, dynamic 3D tumbling, and physical landing bounce settle (`animate-dice-settle`). Full accessibility support via `@media (prefers-reduced-motion: reduce)`.
+- **Movement Gating**: Token stepping begins only after the roll finishes settling on the authoritative outcome.
+
+### 3. Collision-Aware City Purchase Popup (`usePopupPosition`)
+- **Viewport Clamping**: Measures board tile bounding rect and viewport space. For bottom-row tiles (spaces 0 to 10), the popup renders above the bottom grid into the lower board area, strictly clamped within `MIN_MARGIN = 12px`.
+- **Display Sequence**:
+  1. Player rolls dice.
+  2. 3D dice tumble and settle on server result.
+  3. Token walks step-by-step through the board.
+  4. Token reaches destination grid.
+  5. Landing resolves and purchase popup appears (if eligible unowned city).
+- **Turn Duration Gating**: Stays open until the player acts or the turn timer runs out (auto-decline).
+
+### 4. Single-Active Notification System & Sound Normalization
+- **Strict 1-Notification Invariant**: At most 1 active notification box at any time (`toasts: [newToast]`).
+- **Cross-Channel Deduplication**: Prevents duplicates between Socket.IO game events and local state triggers via `eventId` tracking.
+- **Debounced Balance Warnings**: Uses `dedupKey` to prevent spamming insufficient balance warnings within 3.5 seconds.
+- **Subtle Alert Chime**: Dedicated dual-tone sine wave chime (E5 $\to$ G#5) replacing harsh clangs and eliminating jail sound leaks.
+
+### 5. Landing Page Tycoon Identity Setup
+- When visiting `PlayPage.tsx`, missing usernames display an inline Tycoon Identity Card.
+- Enforces 2 to 20 trimmed characters with permitted letters, numbers, spaces, hyphens, and underscores.
+- Visual token color picker from the 6 canonical player colors.
+- Room creation and joining are locked until identity is confirmed.
+- Once configured, displays a sleek player badge with a quick-edit button.
+
+### 6. Jail Mechanics & "Try Double" System
 - **Three Double Attempts**: An incarcerated player may attempt to roll doubles on each of their first three eligible turns.
 - **Immediate Escape with Movement**: Rolling doubles immediately releases the player and advances their token by the dice roll total.
-- **Extra Turn Suppression**: Rolling doubles while escaping jail **never grants an additional turn**. The player resolves their destination space and finishes their single turn.
+- **Extra Turn Suppression**: Rolling doubles while escaping jail **never grants an additional turn**.
 - **Incarcerated Stasis on Failure**: Non-double rolls keep the player in Central Jail with zero movement.
-- **Automatic 4th Eligible Turn Release**: A player who fails all three attempts is automatically released at the beginning of their 4th eligible turn without needing to roll Try Double, proceeding with normal rolling and movement.
+- **Automatic 4th Eligible Turn Release**: A player who fails all three attempts is automatically released at the beginning of their 4th eligible turn without needing to roll Try Double.
 
-### 2. Insufficient Balance Gating & Backend Verification
-- **City Purchase Protection**: Landing on an unowned property with insufficient cash suppresses the purchase prompt and triggers a non-blocking notification: `"Insufficient balance to purchase this property."`
-- **Construction Protection**: Visiting an owned city with insufficient cash suppresses the building prompt and triggers: `"Insufficient balance to build on this property."`
-- **Server Validation**: The authoritative engine validates cash balances before every acquisition or construction, eliminating negative balances or race condition exploits.
-
-### 3. Distinct Airport Visiting Tariffs
+### 7. Distinct Airport Visiting Tariffs
 - **Aviation Tariff Scaling**: Landing on an airport owned by another player costs:
   - **1 Airport Owned**: ₹1,000
   - **2 Airports Owned (Both)**: ₹2,500
 - **Railways Comparison**: CST Mumbai (#5) and Howrah Railway (#15) scale at ₹250 and ₹500.
 - **Immunity Conditions**: Rent is waived if the owner is in jail, the airport is mortgaged, or the owner is in the `BLOCKED` state.
 
-### 4. Complete Mortgaging & Financial Resolution System
+### 8. Complete Mortgaging & Financial Resolution System
 - **Development-Inclusive Valuation Formula**:
   $$\text{Mortgage Payout} = \min\left(P_{\text{base}}, \left\lfloor 0.5 \times P_{\text{base}} + 0.5 \sum_{i=1}^{B} C_{\text{build}}\right\rfloor\right)$$
-  Undeveloped properties yield 50% of purchase price. Developed properties receive credit for 50% of construction investments without exceeding 100% of the property's original purchase price.
-- **Development Asset Preservation**: Houses and Commercial Towers are **not demolished** during mortgage. Physical developments remain intact on the deed.
-- **Exact Payout Reacquisition**: The redemption cost strictly equals the exact mortgage payout originally received:
-  $$C_{\text{reacquire}} = V_{\text{payout\_received}}$$
-- **Mandatory Financial Resolution Window**: When a financial obligation (rent, airport rent, tax) exceeds available liquid cash, the match pauses, opening a non-bypassable resolution window for the debtor to mortgage eligible properties or surrender.
-- **Surrender / Give Up & BLOCKED Property State**: If unable or unwilling to settle, choosing "Give Up" transfers remaining liquid cash to the creditor, marks the debtor as disqualified, and transitions all their properties to the `BLOCKED` state (cannot be purchased, traded, mortgaged, and generates ₹0 rent).
-
-### 5. Non-Blocking Floating Toast Notifications
-- **Bottom-Left Positioning**: Floating notifications appear at `fixed bottom-4 left-4 z-50`, completely clear of board spaces, dice arena, and action controls.
-- **Zero Acknowledgment Buttons**: Acknowledgment buttons are removed entirely. Notifications feature an automatic 3-second dismissal with an animated progress bar and a small cross (`×`) icon for manual dismissal.
-- **Hardware-Accelerated Animation**: Smooth entry (`slideInLeft`) and exit (`slideOutLeft`) CSS transitions.
-- **Per-Player Client Isolation**: Toast notifications and dismissal actions are strictly local to each player's browser.
-
-### 6. Authoritative Financial Ledger & Transaction History
-- **Structured Transaction Records**: Every balance adjustment records an immutable entry in the authoritative transaction history:
-  - `STARTING_BALANCE`, `START_REWARD`, `CITY_PURCHASE`, `HOUSE_PURCHASE`, `BUILDING_PURCHASE`, `RENT_RECEIVED`, `RENT_PAID`, `AIRPORT_RENT_RECEIVED`, `AIRPORT_RENT_PAID`, `MORTGAGE_PROCEEDS`, `MORTGAGE_REACQUISITION`, `TAX_PAYMENT`, `CARD_REWARD`, `CARD_PENALTY`, `JAIL_PAYMENT`, `DISQUALIFICATION_ADJUSTMENT`.
-- **Linked Transaction IDs**: Player-to-player transfers generate paired debit and credit records linked by the exact same `transactionId`.
-- **In-Game Financial Statement**: Viewable in the Player Profile modal with reverse-chronological ordering, timestamp, counterparty, property name, and signed currency amounts (`+₹1,500` / `-₹800`).
+- **Development Asset Preservation**: Physical developments are not demolished during mortgage; they remain attached to the deed.
+- **Exact Payout Reacquisition**: The redemption cost strictly equals the exact mortgage payout originally received ($C_{\text{reacquire}} = V_{\text{payout\_received}}$).
+- **Mandatory Financial Resolution Window**: When debt exceeds liquid cash, a resolution window opens to mortgage properties or surrender.
+- **Surrender / Give Up & BLOCKED Property State**: Choosing "Give Up" transfers remaining cash to creditor, disqualifies the debtor, and transitions debtor properties to `BLOCKED` (permanent board feature, generates ₹0 rent, cannot be purchased or traded).
 
 ---
 
@@ -92,7 +113,8 @@
       │                │                                     │                   │
       │   +────────────▼─────────────────────────────────────▼───────────────+   │
       │   │             Authoritative In-Memory Game Manager                 │   │
-      │   │  - Cryptographic Dice (crypto.randomInt)                         │   │
+      │   │  - Unbiased Random First Player Selection                        │   │
+      │   │  - Cryptographic Fair Dice (Rejection Sampling, Zero Modulo Bias)│   │
       │   │  - Serialized Action Queue (Zero Race Conditions)                │   │
       │   │  - 30s Server Turn Timer & Auto-Timeouts                         │   │
       │   │  - Monotonic State Versioning (State Sync)                       │   │
@@ -159,12 +181,12 @@ Waiting for players...
 ```
 
 ### 4. Join & Play!
-1. **Host**: Open `http://localhost:4173` (or your LAN IP) in your browser. Click **Host Room**, customize your game rules, and click **Create Room**.
+1. **Host**: Open `http://localhost:4173` (or your LAN IP) in your browser. Set your tycoon name, click **Customize Rules & Host**, and click **Create Room**.
 2. **Share Invite**:
    - Show the **on-screen QR Code** for mobile players to scan with their camera.
    - Or share the unique 6-character room code (e.g. `K9W2XP`).
    - Or click **Copy Invite Link** to share `http://192.168.1.8:4173/#/join/K9W2XP`.
-3. **Guests**: Open the link or enter the 6-character code from any phone, tablet, or laptop on the Wi-Fi. Choose a display name, click **Ready**, and the host starts the match!
+3. **Guests**: Open the link or enter the 6-character code from any phone, tablet, or laptop on the Wi-Fi. Choose a player name, click **Ready**, and the host starts the match!
 
 ---
 
@@ -177,19 +199,18 @@ Waiting for players...
 | `npm run build:lan` | Builds the React frontend with `/` base path explicitly targeted for LAN hosting. |
 | `npm run build` | Builds the React frontend for production distribution. |
 | `npm run server` | Starts the Node.js server directly using `tsx server/index.ts`. |
-| `npm test` | Runs the full Vitest suite (38 passing tests covering game engine invariants, jail escapes, mortgages, paired transaction IDs, and real multi-client Socket.IO integration). |
-| `npm run test:e2e` | Runs multi-browser Playwright E2E suite. |
-| `npm run typecheck` | Strict TypeScript validation across client, server, and tests (`tsc --noEmit`). |
+| `npm test` | Runs the full Vitest suite (51 passing tests covering game engine invariants, fairness, statistical tests, mortgages, and multi-client Socket.IO integration). |
+| `npm run typecheck` | Strict TypeScript validation across client, server, and tests (`tsc -b --noEmit`). |
 | `npm run lint` | ESLint validation across all TypeScript and React files with zero warnings. |
 
 ---
 
 ## 📱 Cross-Device Compatibility & Network Setup
 
-### Supported Devices & Browsers
-- **Laptops / Desktops**: macOS (Safari, Chrome, Firefox, Edge, Brave), Windows 10/11 (Edge, Chrome, Firefox), Linux.
-- **Smartphones**: Apple iOS 14+ (Mobile Safari, Chrome), Android 9+ (Chrome, Samsung Internet, Firefox).
-- **Tablets**: iPadOS, Android tablets, Microsoft Surface.
+### Supported Devices & Viewports
+- **Mobile Phones**: iPhone SE (320×568), iPhone 8 (375×667), iPhone 13/14 (390×844), iPhone 14/15 Pro Max (430×932), Android devices.
+- **Tablets**: iPad Portrait (768×1024), iPad Landscape (1024×768), Surface tablets.
+- **Laptops & Desktops**: 1366×768, 1440×900, 1920×1080 (Full HD), 2K, 4K displays.
 
 ### How to Find Your Host IP Address Manually
 If you need to verify your host computer's IPv4 address manually:
@@ -232,6 +253,7 @@ We warmly welcome contributions from developers, game designers, and open-source
 5. **Verify the Test Suite**:
    ```bash
    npm run typecheck
+   npm run lint
    npm test
    npm run build
    ```

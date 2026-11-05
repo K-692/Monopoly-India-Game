@@ -1,7 +1,7 @@
 # Indian Monopoly — Implementation Flow & Research Architecture Record
 
 ## Abstract
-This document chronicles the design, formal state transitions, mathematical models, architectural paradigms, and implementation journey of **Indian Monopoly**, a server-authoritative, real-time multiplayer property trading board game built for universal web standards. Designed for scholarly reference, reproducibility, and academic documentation, this record highlights state-machine formalisms, cryptographic integrity protocols, cross-platform responsive interface engineering, and ergonomic touch/click-first interaction models.
+This document chronicles the design, formal state transitions, mathematical models, architectural paradigms, and implementation journey of **Indian Monopoly**, a server-authoritative, real-time multiplayer property trading board game built for universal web standards. Designed for scholarly reference, reproducibility, and academic documentation, this record highlights state-machine formalisms, cryptographic integrity protocols, statistical randomness validation, cross-platform responsive interface engineering, and ergonomic touch/click-first interaction models.
 
 ---
 
@@ -90,134 +90,138 @@ The card engine manages two authoritative 12-rule indexed decks:
 - **Removal of Monetary Prices from Grids**: Board grids strictly communicate property identity, color groups, developments, and ownership status. Prices are removed from in-grid tiles and preserved in property deed inspection modals and purchase popups.
 - **Blocked State Badge**: Properties owned by disqualified players feature a distinct `BLOCKED` badge with grayscale styling.
 
-### 2.3 Pointed Comment Box (Contextual Action Callout)
-- Positioned dynamically adjacent to the active player's space on the perimeter grid with an authentic pointer triangle pointing at the tile.
-- **Affordability Gating**:
-  - Purchase prompt is displayed only when player has sufficient funds (`cash >= price`). If balance is insufficient, the prompt is suppressed and an `"Insufficient balance to purchase this property."` toast is triggered.
-  - Construction prompt is displayed only when player has sufficient funds (`cash >= buildingCost`). If balance is insufficient, the prompt is suppressed and an `"Insufficient balance to build on this property."` toast is triggered.
-  - Reacquisition prompt is displayed when an owner visits their mortgaged property with sufficient funds (`cash >= mortgagePayout`).
+### 2.3 Viewport and Collision-Aware Pointed Comment Box (`usePopupPosition`)
+- The purchase, development, and reacquisition prompt is positioned using a dedicated, collision-aware positioning engine (`use-popup-position.ts`):
+  1. Computes the exact DOM bounding rect of the target space grid cell.
+  2. Dynamically measures the popup width and height.
+  3. Evaluates available viewport space (`window.innerWidth`, `window.innerHeight`).
+  4. For cities along the bottom edge (spaces 0 to 10), the popup is placed above the bottom tile directly inside the lower board interior (`targetY = cellRect.top - popupHeight - GAP`).
+  5. Clamps position within `MIN_MARGIN = 12px`, guaranteeing the popup never crosses the bottom browser margin or viewport boundaries.
+  6. Positions a dynamic pointer arrow (`popupPos.arrowStyle`) aligned with the cell center.
+  7. Re-evaluates continuously on resize, scroll, and orientation change events.
+- **Strict Movement Timing Invariant**:
+  - The purchase popup is **strictly suppressed** while the player token is stepping through the board (`walkingAnimation !== null`).
+  - The purchase prompt appears **only after** the pawn walking animation finishes settling on the final destination grid.
+- **Turn Duration Gating**:
+  - Remains visible for the full decision window until the player explicitly executes an action (Buy or Decline) or the authoritative server turn timer expires (triggering automatic decline/timeout transition).
 
 ---
 
 ## 3. Mathematical Models & Financial State Formulations
 
-### 3.1 Dice Dynamics, Single-Roll Invariant & Jail Incarceration
-- **Strict Single-Roll Invariant**:
-  - If a player rolls doubles (e.g. 2,2 or 6,6) during their turn, they do **not** receive another chance to roll. Only one roll is allowed per turn.
-  - Upon resolving board landing effects and property decisions, ending the turn strictly advances play to the next player.
-- **Jail Try Double Window (Turns 1, 2, and 3)**:
-  - An incarcerated player may attempt to roll doubles on their first three eligible turns ($N_{\text{jail}} \in \{0, 1, 2\}$).
-  - **Success Case**: If $d_1 = d_2$, the player is released immediately ($\text{inJail} = \text{false}$), moves forward by $d_1 + d_2$, and **does not receive an extra turn**. Flag `escapedJailThisTurn = true` prevents the standard doubles re-roll invariant.
-  - **Failure Case**: If $d_1 \ne d_2$, the player remains in jail, incrementing $N_{\text{jail}} \leftarrow N_{\text{jail}} + 1$. The player does not move and their turn ends immediately.
-- **Automatic 4th Eligible Turn Release**:
-  - If a player fails all 3 double attempts ($N_{\text{jail}} \ge 3$), the engine automatically releases them at the beginning of their 4th eligible turn ($\text{inJail} \leftarrow \text{false}, N_{\text{jail}} \leftarrow 0$) without requiring a Try Double roll. The player proceeds to roll and move normally.
+### 3.1 Random Authoritative Starting Player Selection
+At the initialization of every match:
+- The authoritative server invokes `crypto.randomInt(0, memberCount)` to select an initial player index $S$.
+- Starting player UID is designated:
+  $$\text{currentPlayerUid} \leftarrow \text{playerOrder}[S]$$
+- The player order array is rotated so the starting player is positioned at index 0:
+  $$\text{playerOrder}' = [\text{playerOrder}[S \dots N-1], \text{playerOrder}[0 \dots S-1]]$$
+- Persisted within `initialGame` on the server and broadcast via `game:started` and `game:state`.
+- **Reconnection Invariant**: Reconnecting or refreshing clients receive the persisted authoritative session state without re-randomizing or resetting the starting player.
 
-### 3.2 Distinct Airport Visiting Rent Scaling
+### 3.2 Cryptographic Fair Dice Engine & Statistical Goodness-of-Fit
+- **Elimination of Modulo Bias via Rejection Sampling**:
+  - Raw unsigned 8-bit bytes ($[0, 255]$) have 256 states. Since $256 \pmod 6 = 4$, standard modulo creates systematic bias favoring 1, 2, 3, and 4.
+  - Rejection sampling rejects raw values $\ge 252$ ($42 \times 6$). Each outcome $d \in \{1, 2, 3, 4, 5, 6\}$ achieves an exact probability:
+    $$P(d) = \frac{42}{252} = \frac{1}{6} \approx 16.6667\%$$
+- **Pearson's Chi-Square Goodness-of-Fit Test**:
+  $$\chi^2 = \sum_{i=1}^{6} \frac{(O_i - E_i)^2}{E_i}, \quad E_i = \frac{N}{6}$$
+  Across $N = 12,000$ simulated rolls ($E_i = 2,000$), testing confirms $\chi^2 < 15.086$ (critical value for 5 degrees of freedom at $\alpha = 0.01$).
+- **Independence of Two Dice**:
+  Across $N = 18,000$ simulated pairs, all 36 combinations $(d_1, d_2)$ appear with equal probability ($E = 500$), and doubles occur within $3\sigma$ bounds ($E = 3,000, \sigma = 50$).
+- **Unique Roll ID & Idempotency**:
+  Each roll is stamped with a unique `rollId` (`roll_<turn>_<timestamp>_<uuid>`). Duplicate command submissions return cached results without rerolling.
+
+### 3.3 Jail Incarceration & Try Double Mechanics
+- **Strict Single-Roll Invariant**: Rolling doubles outside jail does not grant extra turns. Only one roll is permitted per turn.
+- **Jail Try Double Window (Turns 1, 2, and 3)**:
+  - An incarcerated player may attempt doubles on their first three eligible turns ($N_{\text{jail}} \in \{0, 1, 2\}$).
+  - If $d_1 = d_2$: Released immediately, moves forward by $d_1 + d_2$, and **does not receive an extra turn**. Flag `escapedJailThisTurn = true` prevents double-roll recurrence.
+  - If $d_1 \ne d_2$: Remains in jail, $N_{\text{jail}} \leftarrow N_{\text{jail}} + 1$. Zero movement.
+- **Automatic 4th Eligible Turn Release**:
+  - If a player fails all 3 double attempts ($N_{\text{jail}} \ge 3$), the engine automatically releases them at the beginning of their 4th eligible turn without requiring another Try Double attempt.
+
+### 3.4 Distinct Airport Visiting Rent Scaling
 Airport transit charges scale distinctly higher than railways to reflect high-value aviation infrastructure:
 $$\text{Rent}_{\text{airport}}(k) = \begin{cases} 
 ₹1,000 & \text{if } k = 1 \\
 ₹2,500 & \text{if } k = 2 
 \end{cases}$$
-Where $k$ is the number of airports owned by the same proprietor (Chennai Airport #25 and IGI Airport #35). In contrast, railways (CST Mumbai #5 and Howrah #15) scale at ₹250 and ₹500 respectively. Rent collection is nullified if the owner is in jail, the airport is mortgaged, or the owner is disqualified.
+Where $k$ is the number of airports owned by the same proprietor (Chennai Airport #25 and IGI Airport #35). In contrast, railways (CST Mumbai #5 and Howrah #15) scale at ₹250 and ₹500 respectively.
 
-### 3.3 Mortgage Valuation Model with Development Recovery
-To prevent exploits while fairly crediting invested capital:
+### 3.5 Mortgage Valuation Model with Development Recovery
 $$V_{\text{mortgage}}(S, P) = \min\left(P_{\text{base}}, \left\lfloor 0.5 \times P_{\text{base}} + 0.5 \times \sum_{i=1}^{B} C_{\text{build}}\right\rfloor\right)$$
-Where:
-- $P_{\text{base}}$ is the property's initial purchase price.
-- $B$ is the number of houses built ($B \in [0, 5]$ where 5 represents a Commercial Tower).
-- $C_{\text{build}}$ is the building cost per unit.
-- **Asset Integrity**: Physical developments are **not demolished** upon mortgaging. They remain physically attached to the deed.
-- **Exact Reacquisition Cost**:
-  $$C_{\text{reacquire}} = V_{\text{payout\_received}}$$
-  The redemption cost strictly equals the exact mortgage proceeds credited when the property was mortgaged.
+- Physical developments remain attached to deeds upon mortgaging.
+- Redemption cost strictly equals the exact mortgage payout received: $C_{\text{reacquire}} = V_{\text{payout\_received}}$.
 
-### 3.4 Mandatory Financial Resolution & Blocked Property Invariant
-When a financial obligation $D$ (rent, tax, or fine) exceeds available liquid cash $C$:
-1. The transaction pauses, entering state `pendingFinancialObligation`.
-2. A non-bypassable **Financial Resolution Window** opens for the debtor.
-3. The debtor must mortgage eligible properties to raise cash until $C \ge D$, then click `Pay Outstanding Debt` (`RESOLVE_OBLIGATION`).
-4. **Surrender / Give Up (`GIVE_UP`)**:
-   - If unable or unwilling to settle, debtor surrenders.
-   - All remaining cash ($C$) is transferred to the creditor.
-   - Debtor is marked $\text{isBankrupt} = \text{true}$ and $\text{isDisqualified} = \text{true}$.
-   - All debtor properties transition to ownership state `BLOCKED`:
-     $$\text{ownershipState}(p) \leftarrow \text{'BLOCKED'}$$
-     Blocked properties remain permanently on the board, produce zero rent, and cannot be acquired, traded, or mortgaged.
-
-### 3.5 Immutable Financial Ledger (`FinancialTransaction`)
-Every balance modification atomically appends an immutable transaction record:
-```typescript
-export interface FinancialTransaction {
-  transactionId: string;
-  gameSessionId: string;
-  playerUid: string;
-  type: FinancialTransactionType;
-  direction: 'CREDIT' | 'DEBIT';
-  amount: number;
-  balanceBefore: number;
-  balanceAfter: number;
-  spaceIndex?: number;
-  propertyName?: string;
-  counterpartyUid?: string | null;
-  counterpartyName?: string | null;
-  description: string;
-  timestamp: number;
-  eventId?: string;
-}
-```
-Records are synchronized across all clients and viewable in reverse-chronological order within the Player Profile statement.
+### 3.6 Mandatory Financial Resolution & Blocked Property Invariant
+When debt $D$ exceeds cash $C$:
+1. State pauses into `pendingFinancialObligation`.
+2. Debtor mortgages properties to raise liquid funds.
+3. If debtor surrenders (`GIVE_UP`), remaining cash transfers to creditor, debtor is marked $\text{isBankrupt} = \text{true}, \text{isDisqualified} = \text{true}$, and all debtor properties enter `BLOCKED` state. Blocked properties remain on the board permanently, produce zero rent, and cannot be acquired or traded.
 
 ---
 
-## 4. UI/UX Transformation: Toast Notifications & Responsive Engineering
+## 4. UI/UX Transformation: Notifications, 3D Dice & Identity Setup
 
-### 4.1 Non-Blocking Floating Toasts & Complete Removal of Acknowledgment Modals
-- **Zero Screen Obstruction**: Replaced disruptive blocking acknowledgment popups with lightweight floating notifications anchored at the bottom-left corner of the viewport (`fixed bottom-4 left-4 z-50`).
-- **Complete Removal of Acknowledgment Button**: As per Section 7 requirements, all acknowledgment buttons have been removed entirely. Notifications never hijack user interaction or obstruct dice rolling or player action buttons.
-- **Autonomic Dismissal Invariant**: Notifications automatically dismiss after exactly 3,000ms, featuring an animated SVG/CSS countdown progress bar.
-- **Manual Control**: Each notification includes a small, unobtrusive cross (`×`) icon for immediate manual dismissal.
-- **Smooth Dynamic Transitions**: Styled with dedicated hardware-accelerated CSS keyframe animations: `slideInLeft` (entry) and `slideOutLeft` (exit).
-- **Per-Player Client Isolation**: Toast state is maintained strictly in client-local memory (`useToastStore`). Dismissal on one device has zero side effects on counterparties.
+### 4.1 Strict Notification Deduplication & Audio Normalization
+- **Single Active Notification Constraint**: Exactly 1 active toast at any time (`toasts: [newToast]`), eliminating visual clutter.
+- **Cross-Channel Deduplication**: A global bounded LRU set tracks `eventId`s (transactions, card draws, mortgage actions). Redundant events across Socket.IO broadcasts and state bridges are completely suppressed.
+- **Logical Key Debouncing**: Insufficient balance warnings use `dedupKey` to prevent multiple notices within 3.5 seconds.
+- **Post-Landing Display Timing**: Landing notifications (rent payments, START salary, card draws) are held until pawn walking finishes (`!walkingAnimation`).
+- **Normalized Subtle Chime**: Employs a soft dual-tone sine wave chime (E5 $\to$ G#5) replacing harsh clangs and eliminating jail audio leaks.
 
-### 4.2 Universal Device Layout Matrix
-- Tested and verified across desktop monitors, iPads/tablets, and mobile viewports.
-- Center arena perspective preservation maintains 3D dice readability while preventing overlapping perimeter cells.
-- Single-line city typography with responsive font scaling and truncation safeguards deed legibility.
+### 4.2 Modernized 3D Digital Board Game Dice
+- **Realistic Bevels & Depth**: Ivory gradient cubes with smooth rounded corners (`rounded-2xl`), deep inset shadow bevels (`shadow-[0_6px_16px_rgba(0,0,0,0.35),inset_0_2px_4px_rgba(255,255,255,0.9)]`), and indented pips.
+- **Heritage 1-Pip Styling**: The central pip of 1 features rich Indian Terracotta Crimson (`#C85A32`) with a gold rim accent.
+- **Physical Landing Settle**: Keyframe animation `animate-dice-settle` simulates physical deceleration and bounce upon settling on authoritative outcomes.
+- **Accessibility**: Includes full `@media (prefers-reduced-motion: reduce)` overrides.
 
-### 4.3 Resilient Clipboard Architecture
-- **Cross-Platform Clipboard Pipeline**: Implemented dual-strategy copying (`copyToClipboard`) prioritizing modern `navigator.clipboard.writeText` and falling back to an invisible DOM element with `document.execCommand('copy')`, ensuring flawless copying of invite codes and shareable URLs across unencrypted HTTP LAN environments, mobile Safari, and Android browsers.
+### 4.3 Inline Tycoon Setup Prompt on Landing Page
+- If player identity is missing or unconfigured:
+  - An inline Tycoon Identity Setup Card renders prominently on `PlayPage.tsx`.
+  - Input validation: Trimmed length between 2 and 20 characters, strictly alphanumeric, spaces, hyphens, and underscores (`/^[a-zA-Z0-9 _-]+$/`).
+  - Visual color picker for player token selection.
+  - Room creation and joining cards are gated with locked state indicators until a valid name is confirmed.
+- Once configured, displays an active player identity badge with a convenient change button.
 
 ---
 
 ## 5. Architectural Migration: Zero-Cloud Authoritative LAN Server
 
-### 5.1 Retirement of Firebase / Firestore
-All cloud dependencies (Firebase Auth, Cloud Firestore, Realtime Database, Cloud Functions) have been completely removed:
-- Deleted unused Firebase client SDKs (`src/lib/firebase/`), configuration manifests (`firebase.json`, `.firebaserc`, `firestore.rules`), and GitHub action deployments.
-- Removed `firebase` npm dependency.
-
-### 5.2 Standalone Node.js & Socket.IO Architecture
-- **In-Memory Authoritative Engine**: Matches run entirely on an authoritative Node.js process using pure functional state reducers (`engine.ts`).
-- **Cryptographic Reconnection Tokens**: Resumed sessions verify ephemeral cryptographically generated tokens, guaranteeing zero identity spoofing across network drops.
-- **QR Code Discovery**: Automatic LAN IP resolution generates instant 2D QR matrices for frictionless mobile browser onboarding.
+### 5.1 In-Memory Server-Authoritative Architecture
+- Complete retirement of Firebase/Firestore dependencies.
+- LAN server runs on Node.js using Socket.IO with authoritative serialized command queues (`GameManager`).
+- Ephemeral cryptographic reconnection tokens allow seamless session resumption across network reconnects.
+- Automatic LAN IP resolution and 2D QR matrix generation facilitate instant multi-device onboarding.
 
 ---
 
 ## 6. Verification, Test Coverage & Benchmark Results
 
 ### 6.1 Test Suite Summary
-- **Total Passing Tests**: 38 tests passing with 0 failures:
+- **Total Passing Tests**: 51 tests passing with 0 failures:
   - **Unit & Invariant Suite (`engine.test.ts` - 28 tests passing)**:
     - 1st, 2nd, and 3rd jail escape double attempts with extra turn suppression.
     - Incarcerated failed attempts maintaining zero movement.
     - 4th turn automatic release without Try Double requirement.
     - Insufficient cash rejection for property purchases and building.
-    - Distinct airport visiting rent scaling (₹1,000 for 1, ₹2,500 for 2) and blocked airport rent immunity.
+    - Distinct airport visiting rent scaling and blocked property immunity.
     - Mortgage valuation formula with house recovery and capped bounds.
     - Exact payout reacquisition without penalty.
     - Financial resolution debt handling, surrender, and `BLOCKED` deed retention.
-    - Linked transaction IDs for counterparty debit/credit records.
-  - **Multiplayer Integration Suite (`multiplayer-integration.test.ts` - 7 tests passing)**: Real socket connections, room creation, join, ready toggling, turn authority, and command idempotency.
-  - **Clipboard & Environment Suite (`clipboard.test.ts` - 3 tests passing)**: Fallback copy execution and LAN HTTP compatibility.
-- **Production Build**: Verified with Vite production build completing in ~2.04s with zero TypeScript compilation errors.
+  - **Fairness & Statistical Suite (`dice-and-player-fairness.test.ts` - 6 tests passing)**:
+    - Cryptographically random starting player assignment and player order rotation.
+    - Chi-Square goodness-of-fit test across 12,000 rolls ($\chi^2 < 15.086$ at $\alpha = 0.01$).
+    - 2-Dice independence across 18,000 pairs (all 36 combinations verified).
+    - Unique `rollId` tracking and command idempotency.
+  - **Popup & Notification Suite (`popup-and-notification.test.ts` - 7 tests passing)**:
+    - Single active notification enforcement.
+    - Event ID cross-channel deduplication.
+    - Dedup key throttling for balance warnings.
+    - Comprehensive username validation rules (length, characters, empty/whitespace rejection).
+  - **Multiplayer Integration Suite (`multiplayer-integration.test.ts` - 7 tests passing)**:
+    - Two-client real-time synchronization, room lifecycle, turn authorization, and session resumption.
+  - **Clipboard & Environment Suite (`clipboard.test.ts` - 3 tests passing)**:
+    - Dual-strategy clipboard fallback across unencrypted HTTP LAN environments.
+- **Production Build**: Verified with Vite production build completing in ~2.22s with zero TypeScript compilation errors.

@@ -9,6 +9,7 @@ import crypto from 'crypto';
 import { GameCommand, GameState } from '../../src/domain/game-types';
 import { createInitialGame } from '../../src/domain/game-engine/create-initial-game';
 import { applyGameCommand, EngineResult, GameEngineError } from '../../src/domain/game-engine/engine';
+import { generateFairDicePair } from '../../src/domain/game-engine/dice-fairness';
 import { ServerRoom } from '../types/server-types';
 
 export type GameBroadcastCallback = (
@@ -58,8 +59,19 @@ export class GameManager {
       return { ok: false, error: 'All players must be Ready before starting.' };
     }
 
+    const memberUids = Object.keys(room.members);
+    // Requirement 1: Authoritative cryptographically unbiased random selection of first player
+    const startingIndex = crypto.randomInt(0, memberUids.length);
+    const startingPlayerUid = memberUids[startingIndex];
+
     const gameId = 'game_' + Date.now() + '_' + crypto.randomUUID().slice(0, 8);
-    const initialGame = createInitialGame(room.roomId, gameId, room.members, room.customRules);
+    const initialGame = createInitialGame(
+      room.roomId,
+      gameId,
+      room.members,
+      room.customRules,
+      startingPlayerUid
+    );
 
     this.games.set(gameId, initialGame);
     room.status = 'IN_PROGRESS';
@@ -130,11 +142,9 @@ export class GameManager {
 
     let injectedDice: [number, number] | undefined = undefined;
 
-    // Generate cryptographic dice on the server for ROLL_DICE and TRY_DOUBLES
+    // Generate cryptographic unbiased dice on the server for ROLL_DICE and TRY_DOUBLES
     if (command.type === 'ROLL_DICE' || command.type === 'TRY_DOUBLES') {
-      const d1 = crypto.randomInt(1, 7);
-      const d2 = crypto.randomInt(1, 7);
-      injectedDice = [d1, d2];
+      injectedDice = generateFairDicePair();
     }
 
     const result = applyGameCommand(currentState, command, actorUid, injectedDice);
