@@ -241,8 +241,8 @@ export const CityDeedModal: React.FC<CityDeedModalProps> = ({
             </div>
           )}
 
-          {/* Mortgage / Unmortgage Action Button for Owner */}
-          {isOwner && onDispatch && (
+          {/* Mortgage Action Button for Owner (Reacquisition requires physically landing on the city) */}
+          {isOwner && onDispatch && propertyState?.ownershipState !== 'BLOCKED' && (
             <div className="pt-2">
               {!propertyState?.isMortgaged ? (
                 <button
@@ -256,16 +256,14 @@ export const CityDeedModal: React.FC<CityDeedModalProps> = ({
                   <span>Mortgage Property (Receive ₹{mortgageVal.toLocaleString('en-IN')})</span>
                 </button>
               ) : (
-                <button
-                  type="button"
-                  onClick={() => {
-                    onDispatch('UNMORTGAGE', { spaceIndex: space.spaceIndex });
-                    onClose();
-                  }}
-                  className="w-full py-2.5 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-md active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-1.5"
-                >
-                  <span>Reacquire Property (Pay ₹{reacquisitionCost.toLocaleString('en-IN')})</span>
-                </button>
+                <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700/60 text-center">
+                  <p className="text-xs text-amber-900 dark:text-amber-200 font-bold leading-tight">
+                    City is currently mortgaged.
+                  </p>
+                  <p className="text-[10.5px] text-amber-700 dark:text-amber-300/80 mt-1 leading-normal">
+                    To reacquire for ₹{reacquisitionCost.toLocaleString('en-IN')}, you must physically land on this city again during your turn.
+                  </p>
+                </div>
               )}
             </div>
           )}

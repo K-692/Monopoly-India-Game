@@ -193,7 +193,8 @@ export class GameManager {
       const nextRemaining = currentRemaining - 1;
 
       if (nextRemaining <= 0) {
-        // Authoritative server timeout action
+        // Authoritative server timeout action: stop the ticking timer first to prevent duplicate firings
+        this.stopTurnTimer(gameId);
         this.handleTimeout(current);
       } else {
         current.turnTimeRemaining = nextRemaining;
@@ -228,76 +229,100 @@ export class GameManager {
    * Executes an authoritative server timeout action when turn countdown hits zero.
    */
   private handleTimeout(gameState: GameState): void {
-    const activeUid = gameState.currentPlayerUid;
+    const freshState = this.games.get(gameState.gameId) || gameState;
+    if (freshState.status === 'COMPLETED') {
+      this.stopTurnTimer(freshState.gameId);
+      return;
+    }
+
+    const activeUid = freshState.currentPlayerUid;
     const commandId = 'timeout_' + Date.now() + '_' + crypto.randomUUID().slice(0, 6);
 
     try {
-      if (gameState.phase === 'AWAIT_ROLL') {
+      if (freshState.phase === 'AWAIT_ROLL') {
         const cmd: GameCommand = {
           commandId,
-          roomId: gameState.roomId,
-          gameId: gameState.gameId,
-          expectedVersion: gameState.version,
+          roomId: freshState.roomId,
+          gameId: freshState.gameId,
+          expectedVersion: freshState.version,
           type: 'ROLL_DICE',
           payload: {},
         };
-        this.processCommand(gameState.gameId, cmd, activeUid).catch((e) => {
+        this.processCommand(freshState.gameId, cmd, activeUid).catch((e) => {
           console.warn('Timeout ROLL_DICE failed:', e);
+          this.recoverStuckTurn(freshState.gameId);
         });
-      } else if (gameState.phase === 'PROPERTY_DECISION') {
+      } else if (freshState.phase === 'PROPERTY_DECISION') {
         const cmd: GameCommand = {
           commandId,
-          roomId: gameState.roomId,
-          gameId: gameState.gameId,
-          expectedVersion: gameState.version,
+          roomId: freshState.roomId,
+          gameId: freshState.gameId,
+          expectedVersion: freshState.version,
           type: 'DECLINE_PROPERTY',
           payload: {},
         };
-        this.processCommand(gameState.gameId, cmd, activeUid).catch((e) => {
+        this.processCommand(freshState.gameId, cmd, activeUid).catch((e) => {
           console.warn('Timeout DECLINE_PROPERTY failed:', e);
+          this.recoverStuckTurn(freshState.gameId);
         });
-      } else if (gameState.phase === 'MANAGEMENT' || gameState.phase === 'TURN_END') {
+      } else if (freshState.phase === 'MANAGEMENT' || freshState.phase === 'TURN_END') {
         const cmd: GameCommand = {
           commandId,
-          roomId: gameState.roomId,
-          gameId: gameState.gameId,
-          expectedVersion: gameState.version,
+          roomId: freshState.roomId,
+          gameId: freshState.gameId,
+          expectedVersion: freshState.version,
           type: 'END_TURN',
           payload: {},
         };
-        this.processCommand(gameState.gameId, cmd, activeUid).catch((e) => {
+        this.processCommand(freshState.gameId, cmd, activeUid).catch((e) => {
           console.warn('Timeout END_TURN failed:', e);
+          this.recoverStuckTurn(freshState.gameId);
         });
-      } else if (gameState.phase === 'JAIL_DECISION') {
+      } else if (freshState.phase === 'JAIL_DECISION') {
         const cmd: GameCommand = {
           commandId,
-          roomId: gameState.roomId,
-          gameId: gameState.gameId,
-          expectedVersion: gameState.version,
+          roomId: freshState.roomId,
+          gameId: freshState.gameId,
+          expectedVersion: freshState.version,
           type: 'TRY_DOUBLES',
           payload: {},
         };
-        this.processCommand(gameState.gameId, cmd, activeUid).catch((e) => {
+        this.processCommand(freshState.gameId, cmd, activeUid).catch((e) => {
           console.warn('Timeout TRY_DOUBLES failed:', e);
+          this.recoverStuckTurn(freshState.gameId);
         });
-      } else if (gameState.phase === 'ACTION_REQUIRED' && gameState.pendingFinancialObligation) {
-        const debtor = gameState.players.find((p) => p.uid === gameState.pendingFinancialObligation?.debtorUid);
-        const canResolve = debtor && debtor.cash >= gameState.pendingFinancialObligation.amountDue;
+      } else if (freshState.phase === 'ACTION_REQUIRED' && freshState.pendingFinancialObligation) {
+        const debtor = freshState.players.find((p) => p.uid === freshState.pendingFinancialObligation?.debtorUid);
+        const canResolve = debtor && debtor.cash >= freshState.pendingFinancialObligation.amountDue;
         const cmd: GameCommand = {
           commandId,
-          roomId: gameState.roomId,
-          gameId: gameState.gameId,
-          expectedVersion: gameState.version,
+          roomId: freshState.roomId,
+          gameId: freshState.gameId,
+          expectedVersion: freshState.version,
           type: canResolve ? 'RESOLVE_OBLIGATION' : 'GIVE_UP',
           payload: {},
         };
-        this.processCommand(gameState.gameId, cmd, activeUid).catch((e) => {
+        this.processCommand(freshState.gameId, cmd, activeUid).catch((e) => {
           console.warn('Timeout financial resolution failed:', e);
+          this.recoverStuckTurn(freshState.gameId);
         });
+      } else {
+        this.recoverStuckTurn(freshState.gameId);
       }
     } catch (err) {
       console.warn('Timeout execution error:', err);
+      this.recoverStuckTurn(freshState.gameId);
     }
+  }
+
+  /**
+   * Fail-safe recovery if a turn action threw an error or rejected,
+   * restarting countdown to prevent game freeze.
+   */
+  private recoverStuckTurn(gameId: string): void {
+    const state = this.games.get(gameId);
+    if (!state || state.status === 'COMPLETED') return;
+    this.resetTurnTimer(state);
   }
 
   public getGame(gameId: string): GameState | null {

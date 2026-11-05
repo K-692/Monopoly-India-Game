@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 240" fill="none">
+  <defs>
+    <linearGradient id="bg_urja" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fffbeb" stop-opacity="0.95" />
+      <stop offset="100%" stop-color="#fef3c7" stop-opacity="0.9" />
+    </linearGradient>
+    <linearGradient id="urja_amber" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b" />
+      <stop offset="100%" stop-color="#d97706" />
+    </linearGradient>
+  </defs>
+  <rect width="200" height="240" fill="url(#bg_urja)" />
+  <!-- High Voltage Transmission Tower / Power Grid Motif -->
+  <g opacity="0.22" transform="translate(25, 40)">
+    <!-- Electrical Pylon Lattice -->
+    <path d="M75,10 L45,130 M75,10 L105,130" stroke="url(#urja_amber)" stroke-width="4" stroke-linecap="round" />
+    <!-- Horizontal Arms -->
+    <path d="M50,35 L100,35 M35,65 L115,65 M45,95 L105,95" stroke="url(#urja_amber)" stroke-width="3" stroke-linecap="round" />
+    <!-- Cross Bracing -->
+    <path d="M50,35 L115,65 M100,35 L35,65 M35,65 L105,95 M115,65 L45,95 M45,95 L105,130 M105,95 L45,130" stroke="url(#urja_amber)" stroke-width="2" stroke-linecap="round" />
+    <!-- Electric Bolt Glow -->
+    <path d="M78,45 L68,68 L80,68 L72,92" stroke="#b45309" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" />
+  </g>
+</svg>

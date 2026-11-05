@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { FinancialTransaction, PlayerState, PropertyState } from '@/domain/game-types';
 import { Card } from '@/components/ui/Card';
-import { IndianRupee, Clock } from 'lucide-react';
+import { IndianRupee, Clock, Flag } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { PlayerDetailModal } from './PlayerDetailModal';
+import { useAuthStore } from '@/features/auth/use-auth-store';
 
 interface PlayerStripProps {
   players: PlayerState[];
@@ -12,8 +13,10 @@ interface PlayerStripProps {
   transactions?: FinancialTransaction[];
   turnTimeRemaining?: number;
   turnTimeLimit?: number;
+  userUid?: string;
   onSelectPlayer?: (uid: string) => void;
   onSelectSpace?: (spaceIndex: number) => void;
+  onGiveUp?: () => void;
 }
 
 export const PlayerStrip: React.FC<PlayerStripProps> = ({
@@ -23,10 +26,17 @@ export const PlayerStrip: React.FC<PlayerStripProps> = ({
   transactions = [],
   turnTimeRemaining,
   turnTimeLimit = 30,
+  userUid,
   onSelectPlayer,
+  onGiveUp,
 }) => {
   // Modal state when clicking a player name/card
   const [inspectedPlayerUid, setInspectedPlayerUid] = useState<string | null>(null);
+  const [showGiveUpConfirm, setShowGiveUpConfirm] = useState(false);
+
+  const { player: authPlayer } = useAuthStore();
+  const effectiveUid = userUid || authPlayer?.uid || 'player_1';
+  const viewerPlayer = players.find((p) => p.uid === effectiveUid) || players[0];
 
   // Track cash updates for animated glowing effect
   const prevCashRef = useRef<Record<string, number>>({});
@@ -144,6 +154,59 @@ export const PlayerStrip: React.FC<PlayerStripProps> = ({
           );
         })}
       </div>
+
+      {/* Requirement 7: Give Up Button Below Player Cards in Left Panel */}
+      {viewerPlayer && !viewerPlayer.isBankrupt && !viewerPlayer.isDisqualified && (
+        <button
+          type="button"
+          onClick={() => setShowGiveUpConfirm(true)}
+          className="w-full mt-1.5 py-1.5 px-2 rounded-lg font-bold text-[10px] sm:text-xs text-red-600 dark:text-red-400 bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/50 border border-red-300 dark:border-red-800 shadow-2xs transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 shrink-0"
+        >
+          <Flag className="w-3.5 h-3.5" />
+          <span>Give Up</span>
+        </button>
+      )}
+
+      {/* Confirmation Modal for Give Up (Requirement 7) */}
+      {showGiveUpConfirm && (
+        <div className="fixed inset-0 z-[150] bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+          <div className="max-w-md w-full p-5 rounded-2xl bg-white dark:bg-indian-navy-900 border-2 border-red-500 shadow-2xl text-left flex flex-col gap-3">
+            <div className="flex items-center gap-2.5 text-red-600 dark:text-red-400">
+              <div className="w-8 h-8 rounded-full bg-red-100 dark:bg-red-950/60 flex items-center justify-center shrink-0 border border-red-300">
+                <Flag className="w-4 h-4" />
+              </div>
+              <h3 className="font-serif font-black text-base text-indian-navy-900 dark:text-white">
+                Give Up & Surrender Match
+              </h3>
+            </div>
+
+            <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed font-medium">
+              You are about to give up and leave this game. All cities owned by you will become blocked for the rest of this session. Other players will not be able to purchase, sell, trade, mortgage, or collect rent from these cities. This action cannot be undone.
+            </p>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-200 dark:border-indian-navy-800">
+              <button
+                type="button"
+                onClick={() => setShowGiveUpConfirm(false)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-indian-navy-800 hover:bg-gray-200 cursor-pointer transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowGiveUpConfirm(false);
+                  onGiveUp?.();
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-red-600 hover:bg-red-700 shadow-md active:scale-95 cursor-pointer transition-all flex items-center gap-1.5"
+              >
+                <Flag className="w-3.5 h-3.5" />
+                <span>Confirm Give Up</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Pop-up Window for Detailed Player Info when Clicked */}
       {inspectedPlayer && (

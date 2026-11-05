@@ -10,6 +10,7 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Trophy, ArrowLeft, AlertCircle, Users, Loader2 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { getSocket } from '@/lib/socket/socket-client';
 
 export const GamePage: React.FC = () => {
   const { gameId } = useParams<{ gameId: string }>();
@@ -47,6 +48,20 @@ export const GamePage: React.FC = () => {
       navigate('/');
       return;
     }
+
+    const socket = getSocket();
+
+    // Authoritatively join game room on the server to retrieve active state and attach presence
+    socket.emit('game:join', { gameId }, (response) => {
+      if (response && response.ok) {
+        if (response.gameState) {
+          useGameStore.getState().setLiveGameState(response.gameState);
+        }
+        if (response.room) {
+          useRoomStore.setState({ currentRoom: response.room, activeRoomId: response.room.roomId });
+        }
+      }
+    });
 
     if (currentRoom && currentRoom.members && Object.keys(currentRoom.members).length >= 1) {
       return initializeGameFromRoom(
@@ -110,9 +125,14 @@ export const GamePage: React.FC = () => {
             <Users className="w-3.5 h-3.5" />
             {`Room #${gameState.roomId.replace('room_', '').slice(0, 6).toUpperCase()}`}
           </Badge>
-          <span className="text-xs text-gray-500 font-mono font-bold">
-            Turn #{gameState.turnNumber}
-          </span>
+          <Badge
+            variant={isMyTurn ? "emerald" : "neutral"}
+            className="text-xs font-bold"
+          >
+            {isMyTurn
+              ? "Your Turn"
+              : `Waiting for ${gameState.players.find((p) => p.uid === gameState.currentPlayerUid)?.displayName || 'Player'}`}
+          </Badge>
           <button
             onClick={() => setMobileDrawerOpen(!mobileDrawerOpen)}
             className="sm:hidden text-xs text-indian-terracotta-600 font-bold underline"
@@ -180,6 +200,8 @@ export const GamePage: React.FC = () => {
             turnTimeLimit={gameState.turnTimeLimit}
             onSelectPlayer={() => {}}
             onSelectSpace={selectSpace}
+            userUid={player?.uid || 'player_1'}
+            onGiveUp={() => dispatchAction('GIVE_UP')}
           />
         </div>
 

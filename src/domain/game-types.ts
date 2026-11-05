@@ -229,6 +229,15 @@ export interface PendingFinancialObligation {
   idempotencyKey: string;
 }
 
+export interface ReacquisitionOpportunity {
+  landingId: string;
+  turnNumber: number;
+  playerUid: string;
+  spaceIndex: number;
+  cost: number;
+  status: 'PENDING' | 'REACQUIRED' | 'DECLINED';
+}
+
 export type FinancialTransactionType =
   | 'STARTING_BALANCE'
   | 'START_REWARD'
@@ -281,6 +290,7 @@ export interface GameState {
   properties: Record<number, PropertyState>;
   pendingAction: PendingAction | null;
   pendingFinancialObligation?: PendingFinancialObligation | null;
+  reacquisitionOpportunity?: ReacquisitionOpportunity | null;
   transactions?: FinancialTransaction[];
   activeCardPopup?: {
     deck: CardDeckType;
@@ -314,6 +324,7 @@ export type GameActionType =
   | 'ROLL_DICE'
   | 'BUY_PROPERTY'
   | 'DECLINE_PROPERTY'
+  | 'DECLINE_REACQUISITION'
   | 'PLACE_BID'
   | 'PASS_BID'
   | 'PAY_BAIL'

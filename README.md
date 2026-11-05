@@ -10,7 +10,7 @@
   [![Socket.IO](https://img.shields.io/badge/Socket.IO-4.8+-010101.svg)](https://socket.io/)
   [![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4+-38b2ac.svg)](https://tailwindcss.com/)
   [![Vite](https://img.shields.io/badge/Vite-6.0+-646cff.svg)](https://vite.dev/)
-  [![Tests](https://img.shields.io/badge/Vitest-55%20Passing-brightgreen.svg)](https://vitest.dev/)
+  [![Tests](https://img.shields.io/badge/Vitest-61%20Passing-brightgreen.svg)](https://vitest.dev/)
 
   **Zero-cloud, zero-Internet, 100% private Wi-Fi LAN multiplayer for phones, tablets, and laptops!**
 </div>
@@ -92,21 +92,41 @@
 - **Railways Comparison**: CST Mumbai (#5) and Howrah Railway (#15) scale at ₹250 and ₹500.
 - **Immunity Conditions**: Rent is waived if the owner is in jail, the airport is mortgaged, or the owner is in the `BLOCKED` state.
 
-### 8. Complete Mortgaging, Dual-Modal Resolution & Timer Renewal
+### 8. Complete Mortgaging, Dual-Modal Resolution & Physical Landing Reacquisition
 - **Dual-Modal Spatial Pop-ups**:
   - **For Mortgaging Player**: Displays a centered modal dialog (`fixed inset-0 z-[120] bg-black/80 flex items-center justify-center`) where they select cities to mortgage, view development statuses, and settle debts or surrender.
   - **For Other Players (Spectators)**: Displays an informative floating pop-up card at the **left below** (`fixed bottom-4 left-4 z-[120]`). It never covers the center of the screen, allowing other players to view the board while tracking debtor progress.
+- **Physical Landing Required for Reacquisition**:
+  - A player cannot reacquire mortgaged cities from property lists or deed modals.
+  - Reacquisition is strictly offered when the owner **physically lands on that specific city again** in an eligible turn.
+  - Declining marks the opportunity `DECLINED`, preventing reacquisition in the same turn.
+  - Reacquisition price strictly equals the exact mortgage payout originally received ($C_{\text{reacquire}} = V_{\text{payout\_received}}$), and all buildings are preserved intact.
 - **Turn Timer Renewal**: Every mortgage action and debt entry immediately resets the player's turn timer to the full 30 seconds (`turnTimeRemaining = 30`), ensuring ample time to resolve finances.
 - **Voluntary Mortgaging**: Active players can open the center mortgage dialog anytime during management phases directly from the turn controls.
 - **Development-Inclusive Valuation Formula**:
   $$\text{Mortgage Payout} = \min\left(P_{\text{base}}, \left\lfloor 0.5 \times P_{\text{base}} + 0.5 \sum_{i=1}^{B} C_{\text{build}}\right\rfloor\right)$$
-- **Development Asset Preservation**: Physical developments are not demolished during mortgage; they remain attached to the deed.
-- **Exact Payout Reacquisition**: The redemption cost strictly equals the exact mortgage payout originally received ($C_{\text{reacquire}} = V_{\text{payout\_received}}$).
-- **Surrender / Give Up & BLOCKED Property State**: Choosing "Give Up" transfers remaining cash to creditor, disqualifies the debtor, and transitions debtor properties to `BLOCKED` (permanent board feature, generates ₹0 rent, cannot be purchased or traded).
 
-### 9. Stale Version Concurrency Resilience
+### 9. Voluntary Give Up Functionality & Blocked City Mechanics
+- **Player Strip Surrender Action**: A prominent Give Up button is positioned immediately below player cards in the left panel for the active viewer.
+- **Strict Confirmation Warning**: Prompts players with a modal confirming irreversible removal and permanent city blocking.
+- **Permanent City Blocking (`BLOCKED`)**: All cities owned by the surrendered player become permanently `BLOCKED`.
+  - Cannot be bought, sold, traded, mortgaged, or reacquired by any player.
+  - Landing on a blocked city generates **₹0 rent**.
+  - Historical ownership, mortgage, and building records remain preserved.
+  - Turn advancement safely cycles to the next player without interrupting active turns.
+
+### 10. Canonical Civic Fund & Market Buzz Execution
+- **Civic Fund (12 Canonical Cards)**: All 12 canonical cards execute authoritatively (municipal refunds, tax audits, deed taxes, development grants, player gatherings, jail exemptions, utility bills). Insufficient cash triggers `ACTION_REQUIRED` and debt resolution. Blocked cities are strictly excluded from deed taxes and grants.
+- **Market Buzz (12 Canonical Cards)**: All 12 canonical cards execute authoritatively (startup grants, festival travel to Start collecting ₹2,000, business conference to Connaught Place #38 with purchase option, railway expansion with $2\times$ rent, road diversion -3 spaces, highway tolls, property maintenance, transit dividends, and Mumbai investment trip to #39).
+
+### 11. Clean Player-Facing Board UI & Grid Background Artworks
+- **Debug Info Elimination**: Technical identifiers (`Turn #X`, `Phase: AWAIT_ROLL`, raw state machine names) are removed from the player-facing board. Replaced with polished player-facing badges ("Your Turn — Roll the Dice", "Processing Move...", "Waiting for [Player Name]").
+- **Rich SVG Backgrounds**: Non-city board spaces feature responsive, high-contrast SVG background illustrations with dark translucent overlays for Civic Fund, Market Buzz, GST Tax, Infra Levy, Urja Power, Jal Board, Railway, and Airport grids.
+
+### 12. Stale Version Concurrency Resilience & Seamless Reconnection (`game:join`)
 - Eliminates `Stale version (client expected X, current is Y)` errors caused by concurrent client acknowledgment actions (`DISMISS_CARD_POPUP`, `DISMISS_MONEY_ACK`).
 - State mutations are cleanly separated from transient client toasts, and UI acknowledgments are version-resilient.
+- Seamless reconnection: Refreshing clients emit `game:join` to authoritatively attach to active matches, restoring full room and game states.
 
 ---
 
@@ -210,7 +230,7 @@ Waiting for players...
 | `npm run build:lan` | Builds the React frontend with `/` base path explicitly targeted for LAN hosting. |
 | `npm run build` | Builds the React frontend for production distribution. |
 | `npm run server` | Starts the Node.js server directly using `tsx server/index.ts`. |
-| `npm test` | Runs the full Vitest suite (51 passing tests covering game engine invariants, fairness, statistical tests, mortgages, and multi-client Socket.IO integration). |
+| `npm test` | Runs the full Vitest suite (61 passing tests covering game engine invariants, fairness, statistical tests, mortgages, canonical cards, surrender, and multi-client Socket.IO integration). |
 | `npm run typecheck` | Strict TypeScript validation across client, server, and tests (`tsc -b --noEmit`). |
 | `npm run lint` | ESLint validation across all TypeScript and React files with zero warnings. |
 

@@ -2,42 +2,34 @@ import React from 'react';
 import { BoardSpaceDefinition, PlayerState, PropertyState } from '@/domain/game-types';
 import { getSpaceGridCoord } from './board-layout-utils';
 import { getCityPriceColor, getCityTextColor, getCityBorderColor } from '@/domain/city-colors';
-import { ArrowLeft, Zap, Droplets, ShieldAlert, Gift, Flame } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 
-// Realistic, crisp SVG illustrations for Railways and Airports
-const RailwayImage: React.FC<{ className?: string }> = ({ className = 'w-5 h-5 sm:w-6 sm:h-6' }) => (
-  <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-    {/* Express Locomotive Engine */}
-    <rect x="11" y="7" width="26" height="26" rx="5" fill="#1E3A8A" stroke="#172554" strokeWidth="2" />
-    <path d="M13 19H35V22C35 24 33 26 31 26H17C15 26 13 24 13 22V19Z" fill="#3B82F6" />
-    <rect x="14" y="11" width="8" height="6" rx="1" fill="#E0F2FE" />
-    <rect x="26" y="11" width="8" height="6" rx="1" fill="#E0F2FE" />
-    <circle cx="16" cy="28.5" r="2.5" fill="#FDE047" stroke="#CA8A04" strokeWidth="1" />
-    <circle cx="32" cy="28.5" r="2.5" fill="#FDE047" stroke="#CA8A04" strokeWidth="1" />
-    <rect x="21" y="27" width="6" height="3" rx="1" fill="#DC2626" />
-    {/* Tracks and Ties */}
-    <path d="M14 34L7 43M34 34L41 43" stroke="#475569" strokeWidth="2.5" strokeLinecap="round" />
-    <path d="M9 41H39" stroke="#475569" strokeWidth="2" strokeLinecap="round" />
-    <path d="M13 36H35" stroke="#475569" strokeWidth="2" strokeLinecap="round" />
-  </svg>
-);
-
-const AirportImage: React.FC<{ className?: string }> = ({ className = 'w-5 h-5 sm:w-6 sm:h-6' }) => (
-  <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-    {/* Passenger Airliner Plane */}
-    <path
-      d="M24 4C22.5 4 21.5 5.5 21.5 7.5L21 20L6 28V31.5L21 26.5L21.5 37L16 41V43L24 41L32 43V41L26.5 37L27 26.5L42 31.5V28L27 20L26.5 7.5C26.5 5.5 25.5 4 24 4Z"
-      fill="#0284C7"
-      stroke="#0369A1"
-      strokeWidth="1.5"
-      strokeLinejoin="round"
-    />
-    <path d="M23 8C23 7.5 23.5 7 24 7C24.5 7 25 7.5 25 8V11H23V8Z" fill="#E0F2FE" />
-    <ellipse cx="14" cy="27" rx="1.5" ry="2.5" fill="#0369A1" />
-    <ellipse cx="34" cy="27" rx="1.5" ry="2.5" fill="#0369A1" />
-  </svg>
-);
+/**
+ * Returns the localized visual background image for non-city board grids
+ * (Civic Fund, Market Buzz, GST Tax, Infra Levy, Utilities, and Transits).
+ */
+function getGridBackgroundImage(space: BoardSpaceDefinition): string | null {
+  if (space.type === 'CARD') {
+    return space.deck === 'CIVIC' ? '/assets/grids/civic_fund.svg' : '/assets/grids/market_buzz.svg';
+  }
+  if (space.type === 'TAX') {
+    return space.id.includes('infrastructure') || space.name.toLowerCase().includes('infra')
+      ? '/assets/grids/infra_levy.svg'
+      : '/assets/grids/gst_tax.svg';
+  }
+  if (space.type === 'UTILITY') {
+    return space.id.includes('power') || space.name.toLowerCase().includes('urja')
+      ? '/assets/grids/urja_power.svg'
+      : '/assets/grids/jal_board.svg';
+  }
+  if (space.type === 'TRANSIT') {
+    return space.id.includes('airport') || space.name.toLowerCase().includes('airport')
+      ? '/assets/grids/airport.svg'
+      : '/assets/grids/railway.svg';
+  }
+  return null;
+}
 
 interface BoardSpaceTileProps {
   space: BoardSpaceDefinition;
@@ -63,7 +55,7 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
   const isCity = space.type === 'PROPERTY';
   const isJail = space.spaceIndex === 10;
   const isStart = space.spaceIndex === 0;
-  const isNonCity = !isCity && !isJail && !isStart;
+  const isNonCity = !isCity && !isJail && !isStart && !isCorner;
   const isBlocked = propertyState?.ownershipState === 'BLOCKED';
 
   // Find owner player
@@ -76,36 +68,36 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
   const cityPrice = 'price' in space ? (space as { price: number }).price : 0;
   const priceColor = isCity ? getCityPriceColor(cityPrice) : null;
 
-  // Transit illustration check
-  const isRailway =
-    space.type === 'TRANSIT' &&
-    (space.name.toLowerCase().includes('railway') ||
-      space.id.includes('railway') ||
-      space.id.includes('cst') ||
-      space.id.includes('howrah'));
+  // Background visual image for non-city grids (Civic, Market, Transit, Tax, Utility)
+  const bgImage = !isCity ? getGridBackgroundImage(space) : null;
 
-  const isAirport =
-    space.type === 'TRANSIT' &&
-    (space.name.toLowerCase().includes('airport') || space.id.includes('airport'));
-
-  // Dynamic Tile Styling:
-  // 1. Jail: Red glowing border + vertical black/white jail bars
-  // 2. Non-city grids: Glowing orange border + crisp white fill
-  // 3. City grids: Filled with green shades from light green to deep green based on buying price (or owner player color when purchased)
   const tileStyle: React.CSSProperties = {
     gridRow: coord.row,
     gridColumn: coord.col,
     ...(isCity && priceColor
       ? {
-          backgroundColor: priceColor, // Fill the city grid with green shade!
+          backgroundColor: priceColor,
           borderColor: ownerColor || getCityBorderColor(cityPrice),
         }
       : ownerColor
         ? {
             borderColor: ownerColor,
-            backgroundColor: `${ownerColor}24`, // Color grid with player color when bought
+            backgroundColor: `${ownerColor}24`,
+            ...(bgImage
+              ? {
+                  backgroundImage: `url(${bgImage})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                }
+              : {}),
           }
-        : {}),
+        : bgImage
+          ? {
+              backgroundImage: `url(${bgImage})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+            }
+          : {}),
   };
 
   // Dedicated Player Tokens Row Component
@@ -133,7 +125,7 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
     return (
       <div
         style={{ backgroundColor: ownerColor }}
-        className="w-full h-2 shrink-0 flex items-center justify-center"
+        className="w-full h-2 shrink-0 flex items-center justify-center z-10"
       >
         <span className="text-[7px] sm:text-[7.5px] font-black text-white leading-none tracking-tighter truncate px-1">
           {owner?.displayName.split(' ')[0]}
@@ -142,15 +134,13 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
     );
   };
 
-  // Clean, high-legibility Space Name Rendering:
-  // Requirement 3: Display each city name strictly on a single line with responsive font sizing,
-  // ellipsis only when necessary, and full name available in tooltip/title.
+  // Clean, high-legibility Space Name Rendering
   const renderSpaceName = () => {
     const cityTextColor = isCity ? getCityTextColor(cityPrice) : undefined;
     const isDarkGreen = isCity && cityPrice > 1400;
 
     return (
-      <div className="w-full pt-1 px-1 flex items-center justify-center shrink-0 overflow-hidden">
+      <div className="w-full pt-1 px-1 flex items-center justify-center shrink-0 overflow-hidden z-10">
         <span
           title={space.name}
           style={{ color: cityTextColor }}
@@ -160,8 +150,8 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
               ? isDarkGreen
                 ? 'drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]'
                 : 'drop-shadow-none'
-              : 'text-indian-navy-950 dark:text-white drop-shadow-2xs',
-            isNonCity && 'text-indian-navy-950 font-black',
+              : 'text-indian-navy-950 drop-shadow-2xs',
+            isNonCity && 'text-indian-navy-950 font-black px-1.5 py-0.5 rounded-md bg-white/80 dark:bg-white/85 shadow-2xs border border-white/60',
             space.name.length > 14
               ? 'text-[7.5px] sm:text-[8.5px] md:text-[9.5px]'
               : space.name.length > 10
@@ -185,19 +175,19 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
       style={tileStyle}
       className={cn(
         'relative flex flex-col justify-between border select-none cursor-pointer transition-all duration-200 overflow-hidden',
-        // Non-city grids: Glowing Orange colour effect with white filled color
-        isNonCity && 'bg-white dark:bg-white text-indian-navy-950 border-2 border-orange-500 shadow-[0_0_12px_rgba(249,115,22,0.65)] ring-1 ring-orange-400/50',
+        // Non-city grids: subtle ambient border with responsive background styling
+        isNonCity && 'border-2 border-orange-500/80 shadow-[0_0_10px_rgba(249,115,22,0.35)] ring-1 ring-orange-400/40',
         // Jail grid: Glow red with authentic prison styling
         isJail && 'border-2 border-red-600 shadow-[0_0_18px_rgba(239,68,68,0.85)] ring-2 ring-red-500/50 bg-white dark:bg-zinc-900',
-        // City grid styling: filled with green shades
+        // City grid styling
         isCity && !ownerColor && 'border-2 shadow-2xs',
         isCity && ownerColor && 'border-3 shadow-xs',
         // Corners fallback
         isStart && 'bg-indian-parchment-100 dark:bg-indian-navy-950 border-indian-parchment-400 text-indian-navy-950 dark:text-white',
         isSelected && 'ring-2 ring-indian-terracotta-500 z-20',
         isHighlighted && 'ring-4 ring-amber-400 dark:ring-amber-300 scale-105 z-30 shadow-[0_0_20px_rgba(251,191,36,0.9)] animate-pulse',
-        propertyState?.isMortgaged && 'opacity-65 bg-gray-100/90 dark:bg-gray-900/80',
-        isBlocked && 'opacity-55 grayscale bg-zinc-200 dark:bg-zinc-800 border-zinc-500'
+        propertyState?.isMortgaged && !isBlocked && 'opacity-65 bg-gray-100/90 dark:bg-gray-900/80',
+        isBlocked && 'opacity-65 grayscale bg-zinc-300 dark:bg-zinc-800 border-zinc-600'
       )}
     >
       {/* Corner Spaces: START, JAIL, REST HOUSE, GO TO JAIL */}
@@ -214,7 +204,7 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
           )}
 
           <div className="relative z-10 flex-1 flex flex-col items-center justify-center text-center w-full">
-            {/* START Corner: User requirement: Remove Rs 2000 from start grid */}
+            {/* START Corner */}
             {space.spaceIndex === 0 && (
               <div className="flex flex-col items-center justify-center text-indian-terracotta-600 gap-0.5">
                 <span className="font-serif text-xs sm:text-sm md:text-base font-black tracking-wider whitespace-nowrap">START</span>
@@ -222,7 +212,7 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
               </div>
             )}
 
-            {/* JAIL Corner: User requirement: Glow red with black & white jail bars */}
+            {/* JAIL Corner */}
             {space.spaceIndex === 10 && (
               <div className="px-2 py-0.5 rounded bg-red-700/95 border border-red-400 text-white shadow-md text-center">
                 <span className="block text-xs sm:text-sm md:text-base font-black tracking-wider leading-none text-white drop-shadow">
@@ -253,47 +243,22 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
       ) : (
         /* Regular Edge City & Non-City Tile */
         <div className="relative w-full h-full flex flex-col justify-between items-center text-center overflow-hidden select-none">
+          {/* Subtle gradient overlay to enhance background image contrast without clutter */}
+          {bgImage && (
+            <div className="absolute inset-0 bg-white/20 dark:bg-black/15 pointer-events-none z-0" />
+          )}
+
           {/* Owner Accent Bar when city is bought */}
           {ownerColor && renderOwnerAccentBar()}
 
           {/* Core Content Layout */}
           <div className="relative z-10 flex-1 flex flex-col justify-between items-center text-center w-full min-h-0 overflow-hidden px-0.5 pb-0.5">
-            {/* City / Place Name (Single line fit without clipping or overflow) */}
+            {/* City / Place Name */}
             {renderSpaceName()}
-
-            {/* Non-City High-Opacity Vector Illustrations (scales dynamically when player lands) */}
-            {isNonCity && (
-              <div
-                className={cn(
-                  'flex items-center justify-center opacity-95 transition-all',
-                  playersHere.length > 0 ? 'my-0.5 scale-75' : 'my-auto'
-                )}
-              >
-                {isRailway && <RailwayImage className={playersHere.length > 0 ? 'w-4 h-4' : 'w-5 h-5 sm:w-6 sm:h-6'} />}
-                {isAirport && <AirportImage className={playersHere.length > 0 ? 'w-4 h-4' : 'w-5 h-5 sm:w-6 sm:h-6'} />}
-                {!isRailway && !isAirport && space.type === 'UTILITY' && (
-                  space.id.includes('power') ? (
-                    <Zap className={cn('text-amber-500 fill-amber-400', playersHere.length > 0 ? 'w-4 h-4' : 'w-5 h-5 sm:w-6 sm:h-6')} />
-                  ) : (
-                    <Droplets className={cn('text-blue-500 fill-blue-400', playersHere.length > 0 ? 'w-4 h-4' : 'w-5 h-5 sm:w-6 sm:h-6')} />
-                  )
-                )}
-                {!isRailway && !isAirport && space.type === 'TAX' && (
-                  <ShieldAlert className={cn('text-red-600 fill-red-100', playersHere.length > 0 ? 'w-4 h-4' : 'w-5 h-5 sm:w-6 sm:h-6')} />
-                )}
-                {!isRailway && !isAirport && space.type === 'CARD' && (
-                  space.deck === 'CIVIC' ? (
-                    <Gift className={cn('text-amber-600 fill-amber-300', playersHere.length > 0 ? 'w-4 h-4' : 'w-5 h-5 sm:w-6 sm:h-6')} />
-                  ) : (
-                    <Flame className={cn('text-orange-600 fill-orange-400', playersHere.length > 0 ? 'w-4 h-4' : 'w-5 h-5 sm:w-6 sm:h-6')} />
-                  )
-                )}
-              </div>
-            )}
 
             {/* In-Grid Development: Built Houses (1-4) or Commercial Tower (5) */}
             {propertyState && propertyState.buildings > 0 && (
-              <div className="mt-0.5 shrink-0 flex items-center justify-center">
+              <div className="mt-0.5 shrink-0 flex items-center justify-center z-10">
                 {propertyState.buildings === 5 ? (
                   <div className="flex items-center gap-0.5 px-1 py-0.2 rounded bg-amber-500 text-white font-black text-[7.5px] sm:text-[8.5px] shadow-2xs leading-none">
                     <span>🏢</span>
@@ -311,16 +276,16 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
               </div>
             )}
 
-            {/* Blocked indicator tag for disqualified players */}
+            {/* Blocked indicator tag for disqualified players (Requirement 8) */}
             {isBlocked && (
-              <span className="text-[7px] sm:text-[7.5px] font-black text-white bg-zinc-700 border border-zinc-500 px-1.5 py-0.2 rounded-full leading-none mt-0.5">
+              <span className="text-[7px] sm:text-[7.5px] font-black text-white bg-zinc-800 border border-zinc-600 px-1.5 py-0.2 rounded-full leading-none mt-0.5 z-10 shadow-xs">
                 BLOCKED
               </span>
             )}
 
             {/* Mortgaged indicator tag */}
             {propertyState?.isMortgaged && !isBlocked && (
-              <span className="text-[7px] sm:text-[7.5px] font-black text-red-600 bg-red-100 dark:bg-red-950/60 border border-red-300 dark:border-red-800 px-1 rounded-full leading-none mt-0.5">
+              <span className="text-[7px] sm:text-[7.5px] font-black text-red-600 bg-red-100 dark:bg-red-950/60 border border-red-300 dark:border-red-800 px-1 rounded-full leading-none mt-0.5 z-10">
                 MORTGAGED
               </span>
             )}

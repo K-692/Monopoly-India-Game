@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 240" fill="none">
+  <defs>
+    <linearGradient id="bg_market" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ecfdf5" stop-opacity="0.95" />
+      <stop offset="100%" stop-color="#d1fae5" stop-opacity="0.9" />
+    </linearGradient>
+    <linearGradient id="market_emerald" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#059669" />
+      <stop offset="100%" stop-color="#047857" />
+    </linearGradient>
+  </defs>
+  <rect width="200" height="240" fill="url(#bg_market)" />
+  <!-- Financial Market Chart & Growth Bull Silhouette -->
+  <g opacity="0.22" transform="translate(15, 45)">
+    <!-- Chart Bars -->
+    <rect x="15" y="90" width="16" height="40" rx="3" fill="url(#market_emerald)" />
+    <rect x="42" y="70" width="16" height="60" rx="3" fill="url(#market_emerald)" />
+    <rect x="69" y="80" width="16" height="50" rx="3" fill="url(#market_emerald)" />
+    <rect x="96" y="45" width="16" height="85" rx="3" fill="url(#market_emerald)" />
+    <rect x="123" y="30" width="16" height="100" rx="3" fill="url(#market_emerald)" />
+    <rect x="150" y="15" width="16" height="115" rx="3" fill="url(#market_emerald)" />
+    <!-- Uptrend Arrow -->
+    <path d="M15,95 L50,75 L77,85 L104,50 L131,35 L166,12" stroke="#047857" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" />
+    <polygon points="166,5 174,18 158,18" fill="#047857" />
+  </g>
+</svg>

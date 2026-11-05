@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 240" fill="none">
+  <defs>
+    <linearGradient id="bg_gst" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fff1f2" stop-opacity="0.95" />
+      <stop offset="100%" stop-color="#ffe4e6" stop-opacity="0.9" />
+    </linearGradient>
+    <linearGradient id="gst_red" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#e11d48" />
+      <stop offset="100%" stop-color="#be123c" />
+    </linearGradient>
+  </defs>
+  <rect width="200" height="240" fill="url(#bg_gst)" />
+  <!-- Official Fiscal Tax Stamp & Rupee Shield -->
+  <g opacity="0.22" transform="translate(25, 45)">
+    <!-- Stamp Octagon / Seal -->
+    <path d="M50,15 L100,15 L135,50 L135,100 L100,135 L50,135 L15,100 L15,50 Z" stroke="url(#gst_red)" stroke-width="4.5" fill="#fda4af" fill-opacity="0.25" stroke-dasharray="8 4" />
+    <!-- Center Rupee Symbol -->
+    <path d="M55,48 H95 M55,62 H95 M55,48 V105 M55,62 C85,62 85,90 55,90 L95,115" stroke="url(#gst_red)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+  </g>
+</svg>

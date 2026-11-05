@@ -1093,6 +1093,17 @@ describe('Pure Game Engine', () => {
       state.properties[1].mortgagePayout = 300;
       state.properties[1].buildings = 1; // Preserve development!
       state.players[0].cash = 1000;
+      state.players[0].position = 1; // Landed on space 1
+
+      // Requirement 3: Active landing reacquisition opportunity
+      state.reacquisitionOpportunity = {
+        landingId: 'landing_1_1',
+        turnNumber: state.turnNumber,
+        playerUid: 'user_1',
+        spaceIndex: 1,
+        cost: 300,
+        status: 'PENDING',
+      };
 
       // Reacquire property
       state = applyGameCommand(
@@ -1103,7 +1114,7 @@ describe('Pure Game Engine', () => {
           gameId: 'game_1',
           expectedVersion: state.version,
           type: 'UNMORTGAGE',
-          payload: { spaceIndex: 1 },
+          payload: { spaceIndex: 1, landingId: 'landing_1_1' },
         },
         'user_1'
       ).nextState;

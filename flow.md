@@ -200,7 +200,14 @@ When debt $D$ exceeds cash $C$:
 ## 6. Verification, Test Coverage & Benchmark Results
 
 ### 6.1 Test Suite Summary
-- **Total Passing Tests**: 55 tests passing with 0 failures:
+- **Total Passing Tests**: 61 tests passing across 6 comprehensive suites with 0 failures:
+  - **Hardening & Canonical Rules Suite (`multiplayer-turns-and-cards.test.ts` - 6 tests passing)**:
+    - *Scenario A*: Multiplayer turn reliability, non-active roll rejection, double roll rejection, and turn progression.
+    - *Scenario B*: Strict physical landing required for mortgage reacquisition; rejection from popups/lists; decline persistence; subsequent landing re-eligibility at exact original cost.
+    - *Scenario C*: Comprehensive execution of all 12 canonical Civic Fund cards, financial obligations on insufficient cash, and exclusion of blocked properties from deed taxes and grants.
+    - *Scenario D*: Comprehensive execution of all 12 canonical Market Buzz cards, navigation cards (Start, Connaught Place #38 with property decision, Mumbai #39, relative -3, advance transit 2x rent), and financial obligations.
+    - *Scenario E*: Voluntary surrender (`GIVE_UP`), automatic property blocking (`BLOCKED`), preservation of historical ownership, mortgage, and buildings, zero rent on blocked cities, and safe turn advancement.
+    - *Scenario F*: Reconnection and authoritative state recovery via `game:join`.
   - **Unit & Invariant Suite (`engine.test.ts` - 28 tests passing)**:
     - 1st, 2nd, and 3rd jail escape double attempts with extra turn suppression.
     - Incarcerated failed attempts maintaining zero movement.
@@ -227,7 +234,7 @@ When debt $D$ exceeds cash $C$:
     - Two-client real-time synchronization, room lifecycle, turn authorization, and session resumption.
   - **Clipboard & Environment Suite (`clipboard.test.ts` - 3 tests passing)**:
     - Dual-strategy clipboard fallback across unencrypted HTTP LAN environments.
-- **Production Build**: Verified with Vite production build completing in ~2.12s with zero TypeScript compilation errors.
+- **Production Build**: Verified with Vite production build completing in ~2.18s with zero TypeScript compilation errors.
 
 ---
 
@@ -272,3 +279,71 @@ When debt $D$ exceeds cash $C$:
 ### 7.5 Retirement of Legacy GitHub Actions Workflows
 - Per deployment directives, the `.github/workflows/` directory (`ci.yml`, `deploy-pages.yml`) was completely retired and removed.
 - Repository CI status badges and workflow references updated to reflect standalone zero-cloud LAN distribution.
+
+---
+
+## 8. Hardening Milestone: Multiplayer Turn Reliability, Board Aesthetics, Canonical Decks & Surrender
+
+### 8.1 Multiplayer Turn Reliability & Authoritative State Synchronization
+- **Authoritative Gatekeeping**: Only the active player (`actorUid === state.currentPlayerUid`) is permitted to submit `ROLL_DICE`, `BUY_PROPERTY`, `DECLINE_PROPERTY`, or `END_TURN` commands. Non-active submissions are rejected server-side with `NOT_YOUR_TURN`.
+- **Single Roll Per Turn Invariant**: The engine strictly enforces `phase === 'AWAIT_ROLL'` for dice rolls outside jail. Once rolled, the turn transitions to `MANAGEMENT`, `PROPERTY_DECISION`, `CARD`, or `ACTION_REQUIRED`, completely blocking duplicate roll commands.
+- **Timeout De-duplication & Freeze Prevention**:
+  - `GameManager.startTurnTimer` stops ticking intervals immediately when `turnTimeRemaining <= 0` before executing timeout logic, preventing concurrent timeout executions.
+  - Fail-safe timeout execution automatically recovers stuck phases (`recoverStuckTurn`), resetting the countdown if a command fails, guaranteeing turns never lock up.
+- **Authoritative Session Hydration via `game:join`**:
+  - Reconnecting or refreshing clients emit `game:join` with `{ gameId }`.
+  - The server authoritatively looks up the game instance, joins the client socket to `game.roomId`, associates the session, emits presence to peers, and hydrates the client with fresh `gameState` and `room`.
+
+### 8.2 Clean Player-Facing Board UI (Debug Info Suppression)
+- **Technical Identifier Elimination**: All raw developer debug labels (`Turn #X`, `Phase: AWAIT_ROLL`, raw status strings, internal event names) have been removed from the player-facing board tiles, center status area, and navigation header.
+- **Polished Player Indicators**: Replaced with human-readable, context-aware badges:
+  - "Your Turn — Roll the Dice" (for active player in `AWAIT_ROLL`).
+  - "Processing Move..." (during active rolling or token stepping).
+  - "Waiting for [Player Name]" (for non-active players).
+  - Clean Room Badges (`Room #XXXXXX`).
+
+### 8.3 Physical Landing Requirement for Mortgage Reacquisition
+- **Mathematical Invariant**: A mortgaged city cannot be redeemed from deed popups, player information panels, or merely visiting the space in earlier turns.
+- **Formal State Transition**:
+  $$\text{Reacquisition Eligible} \iff (S_{\text{dest}} = S_{\text{city}}) \land (\text{ownerUid} = P_{\text{active}}) \land (\text{isMortgaged} = \text{true}) \land (\text{status} \ne \text{BLOCKED})$$
+- When an active player physically lands on their mortgaged city during an eligible turn:
+  1. The engine generates a unique `reacquisitionOpportunity`:
+     $$\text{reacquisitionOpportunity} = \{\text{landingId}, \text{turnNumber}, \text{playerUid}, \text{spaceIndex}, \text{cost}, \text{status}: \text{PENDING}\}$$
+  2. The prompt presents the reacquisition opportunity at the exact mortgage payout originally received ($C_{\text{reacquire}} = V_{\text{mortgage\_received}}$).
+  3. If declined (`DECLINE_REACQUISITION` or `DECLINE_PROPERTY`), status transitions to `DECLINED`. Re-attempting within the same turn without landing again is strictly blocked.
+  4. In a subsequent turn, physically landing on the space again issues a new `reacquisitionOpportunity`, allowing the player to pay and unmortgage the property while keeping all existing buildings intact.
+
+### 8.4 Responsive Grid Background Images
+- **Replacement of Standalone Icons**: Raw icons (`RailwayImage`, `AirportImage`, `Zap`, `Droplets`, `ShieldAlert`, `Gift`, `Flame`) on non-city board grids were completely removed.
+- **Dedicated High-Contrast SVG Artworks**: Replaced with optimized local SVG background illustrations with translucent overlays and high-contrast typography:
+  - `civic_fund.svg` (Civic Fund grids #2 and #22)
+  - `market_buzz.svg` (Market Buzz grids #12 and #32)
+  - `gst_tax.svg` (GST Tax grid #8)
+  - `infra_levy.svg` (Infrastructure Levy grid #37)
+  - `urja_power.svg` (Urja Power Grid #17)
+  - `jal_board.svg` (Jal Board Grid #28)
+  - `railway.svg` (CST Mumbai #5 & Howrah Railway #15)
+  - `airport.svg` (Chennai Airport #25 & IGI Airport #35)
+- All grid titles render on a single line with `truncate whitespace-nowrap`, maintaining legibility across mobile, tablet, and desktop screens.
+
+### 8.5 Authoritative Execution of Civic Fund & Market Buzz
+- **Civic Fund (All 12 Canonical Cards)**:
+  - Every card executes atomically and records appropriate financial ledger transactions.
+  - Cash credits (cards 1, 2, 7, 11), bank payments (cards 3, 8, 12), player gatherings (card 4), development grants (card 5), deed taxes (card 6), get out of jail free (card 9), and go to jail (card 10).
+  - Insufficient cash on penalties and taxes triggers `ACTION_REQUIRED` and `pendingFinancialObligation` rather than ignoring the debt.
+  - Blocked properties owned by surrendered players are excluded from deed taxes and development grants.
+- **Market Buzz (All 12 Canonical Cards)**:
+  - Startup grant (card 1), festival travel to Start collecting ₹2,000 (card 2), business conference to Connaught Place #38 with unowned property purchase option (card 3), railway expansion with $2\times$ transit rent (card 4), road diversion moving backwards 3 spaces (card 5), highway toll (card 6), property maintenance (card 7), successful tender (card 8), regulatory violation (card 9), transit dividends (card 10), emergency procurement (card 11), and Mumbai investment trip to space #39 (card 12).
+  - Movement cards properly trigger property decision or destination landing effects.
+
+### 8.6 Voluntary Surrender (`GIVE_UP`) & Permanent City Blocking
+- **User Interface**: A dedicated "Give Up" button is positioned prominently below player cards in `PlayerStrip` for the viewing player.
+- **Two-Step Confirmation**: Clicking triggers a modal dialog with explicit warning:
+  > *"Are you sure you want to give up? You will be removed from the game, and all your cities will be blocked permanently. This action cannot be undone."*
+- **Authoritative Engine Consequences**:
+  1. Player state: $\text{isBankrupt} \leftarrow \text{true}, \text{isDisqualified} \leftarrow \text{true}, \text{cash} \leftarrow 0$.
+  2. Property state: All properties owned by the player transition to $\text{ownershipState} \leftarrow \text{'BLOCKED'}$.
+  3. Historical preservation: Property ownership (`ownerUid`), mortgage status (`isMortgaged`), and development levels (`buildings`) are preserved intact.
+  4. Board mechanics: Blocked properties cannot be bought, sold, traded, mortgaged, or reacquired. Any player landing on a blocked property pays ₹0 rent.
+  5. Concurrency safety: If the active player surrenders, the turn cleanly advances to the next eligible player; if a non-active player surrenders, the active player's turn continues uninterrupted.
+

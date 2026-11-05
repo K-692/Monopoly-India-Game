@@ -97,7 +97,8 @@ export function applyGameCommand(
   currentState: GameState,
   command: GameCommand,
   actorUid: string,
-  injectedDice?: [number, number]
+  injectedDice?: [number, number],
+  options?: { cardRuleIndex?: number }
 ): EngineResult {
   // Validate basic state preconditions
   if (currentState.status === 'COMPLETED') {
@@ -233,7 +234,12 @@ export function applyGameCommand(
       }
 
       // Resolve destination space
-      resolveLandingSpace(state, player, newPos, d1 + d2);
+      const landingOptions =
+        options ??
+        (typeof command.payload?.cardRuleIndex === 'number'
+          ? { cardRuleIndex: command.payload.cardRuleIndex }
+          : undefined);
+      resolveLandingSpace(state, player, newPos, d1 + d2, landingOptions);
       break;
     }
 
@@ -299,14 +305,18 @@ export function applyGameCommand(
       break;
     }
 
-    case 'DECLINE_PROPERTY': {
+    case 'DECLINE_PROPERTY':
+    case 'DECLINE_REACQUISITION': {
       if (actorUid !== state.currentPlayerUid) {
         throw new GameEngineError('NOT_YOUR_TURN', 'Only active player can decline');
       }
       const player = state.players.find((p) => p.uid === actorUid);
+      if (state.reacquisitionOpportunity && state.reacquisitionOpportunity.spaceIndex === player?.position) {
+        state.reacquisitionOpportunity.status = 'DECLINED';
+      }
       state.pendingAction = null;
       state.phase = 'MANAGEMENT';
-      summary = `${player?.displayName ?? 'Player'} declined to buy property`;
+      summary = `${player?.displayName ?? 'Player'} declined to buy or reacquire property`;
       break;
     }
 
@@ -536,6 +546,9 @@ export function applyGameCommand(
       const propState = state.properties[spaceIdx];
       const space = BOARD_SPACES[spaceIdx];
 
+      if (actorUid !== state.currentPlayerUid) {
+        throw new GameEngineError('NOT_YOUR_TURN', 'Only active player can reacquire properties');
+      }
       if (!player) throw new GameEngineError('INVALID_ACTION', 'Player not found');
       if (!propState || propState.ownerUid !== actorUid) {
         throw new GameEngineError('INVALID_ACTION', 'You do not own this property');
@@ -545,6 +558,23 @@ export function applyGameCommand(
       }
       if (propState.ownershipState === 'BLOCKED') {
         throw new GameEngineError('INVALID_ACTION', 'Property is blocked and cannot be reacquired');
+      }
+
+      // Requirement 3: Mortgage reacquisition must require landing on that specific city again in an eligible turn
+      const opportunity = state.reacquisitionOpportunity;
+      const isValidLanding =
+        opportunity &&
+        opportunity.status === 'PENDING' &&
+        opportunity.playerUid === actorUid &&
+        opportunity.turnNumber === state.turnNumber &&
+        opportunity.spaceIndex === spaceIdx &&
+        player.position === spaceIdx;
+
+      if (!isValidLanding) {
+        throw new GameEngineError(
+          'INVALID_ACTION',
+          'Mortgaged property can only be reacquired by landing on it during an eligible turn.'
+        );
       }
 
       // Requirement 6.6: Reacquisition cost must equal the exact mortgage amount originally received!
@@ -572,6 +602,12 @@ export function applyGameCommand(
       propState.ownershipState = 'OWNED';
       propState.mortgagePayout = 0;
       // All existing development (houses/tower) remains intact!
+
+      // Fulfill reacquisition opportunity
+      opportunity.status = 'REACQUIRED';
+      state.reacquisitionOpportunity = null;
+      state.pendingAction = null;
+      state.phase = 'MANAGEMENT';
 
       recordTx(
         state,
@@ -659,9 +695,12 @@ export function applyGameCommand(
       const obligation = state.pendingFinancialObligation;
       const debtor = state.players.find((p) => p.uid === actorUid);
       if (!debtor) throw new GameEngineError('INVALID_ACTION', 'Player not found');
+      if (debtor.isBankrupt || debtor.isDisqualified) {
+        throw new GameEngineError('INVALID_ACTION', 'Player has already surrendered or left');
+      }
 
-      // Transfer any remaining cash to creditor
-      if (obligation && obligation.creditorUid) {
+      // Transfer any remaining cash to creditor if surrender happens during an active financial obligation
+      if (obligation && obligation.debtorUid === actorUid && obligation.creditorUid) {
         const creditor = state.players.find((p) => p.uid === obligation.creditorUid);
         const remainingCash = debtor.cash;
         if (remainingCash > 0 && creditor) {
@@ -691,27 +730,30 @@ export function applyGameCommand(
             { transactionId: sharedTxId, counterpartyUid: debtor.uid, counterpartyName: debtor.displayName }
           );
         }
-      } else {
-        debtor.cash = 0;
       }
 
       debtor.isBankrupt = true;
       debtor.isDisqualified = true;
 
-      // Requirement 6.5: Disqualified player's properties enter BLOCKED state!
-      // Must NOT become unowned; preserved for game records
+      // Requirement 8: Disqualified player's properties enter permanently BLOCKED state!
+      // Must NOT become unowned; historical ownership, mortgage status, and building records are preserved!
       for (const prop of Object.values(state.properties)) {
         if (prop && prop.ownerUid === debtor.uid) {
           prop.ownershipState = 'BLOCKED';
-          prop.isMortgaged = false;
+          // Preserve prop.isMortgaged and prop.buildings intact
         }
       }
 
-      if (obligation) {
+      if (obligation && obligation.debtorUid === actorUid) {
         obligation.status = 'CANCELLED';
         state.pendingFinancialObligation = null;
       }
-      state.pendingAction = null;
+      if (state.pendingAction?.playerUid === debtor.uid) {
+        state.pendingAction = null;
+      }
+      if (state.reacquisitionOpportunity?.playerUid === debtor.uid) {
+        state.reacquisitionOpportunity = null;
+      }
 
       recordTx(
         state,
@@ -719,13 +761,14 @@ export function applyGameCommand(
         'DISQUALIFICATION_ADJUSTMENT',
         'DEBIT',
         0,
-        0,
-        0,
-        `${debtor.displayName} surrendered and was disqualified. All properties marked BLOCKED.`
+        debtor.cash,
+        debtor.cash,
+        `${debtor.displayName} surrendered and gave up. All owned properties permanently marked BLOCKED.`
       );
 
       summary = `${debtor.displayName} chose Give Up and is disqualified. Properties are blocked.`;
 
+      // Requirement 7: If it is their turn, advance safely. If not, do not interrupt current player!
       if (state.currentPlayerUid === debtor.uid) {
         advanceTurn(state);
       }
@@ -841,7 +884,7 @@ function resolveLandingSpace(
   player: PlayerState,
   spaceIndex: number,
   diceTotal: number,
-  options?: { rentMultiplier?: number }
+  options?: { rentMultiplier?: number; cardRuleIndex?: number }
 ): void {
   const space = BOARD_SPACES[spaceIndex];
   if (!space) return;
@@ -988,7 +1031,6 @@ function resolveLandingSpace(
               for (const prop of Object.values(state.properties)) {
                 if (prop && prop.ownerUid === player.uid) {
                   prop.ownershipState = 'BLOCKED';
-                  prop.isMortgaged = false;
                 }
               }
               state.phase = 'MANAGEMENT';
@@ -1001,8 +1043,41 @@ function resolveLandingSpace(
           // Zero rent
           state.phase = 'MANAGEMENT';
         }
+      } else if (
+        propState.ownerUid === player.uid &&
+        (propState.isMortgaged || propState.ownershipState === 'MORTGAGED') &&
+        propState.ownershipState !== 'BLOCKED'
+      ) {
+        // Requirement 3: Mortgage Reacquisition Must Require Landing Again!
+        const reacquisitionCost =
+          propState.mortgagePayout && propState.mortgagePayout > 0
+            ? propState.mortgagePayout
+            : calculateMortgageValue(spaceIndex, propState);
+
+        const landingId = `reacquire_${state.turnNumber}_${spaceIndex}_${Date.now()}`;
+        state.reacquisitionOpportunity = {
+          landingId,
+          turnNumber: state.turnNumber,
+          playerUid: player.uid,
+          spaceIndex,
+          cost: reacquisitionCost,
+          status: 'PENDING',
+        };
+
+        if (player.cash >= reacquisitionCost) {
+          state.phase = 'PROPERTY_DECISION';
+          state.pendingAction = {
+            type: 'BUY_OR_AUCTION',
+            playerUid: player.uid,
+            spaceIndex,
+          };
+        } else {
+          state.reacquisitionOpportunity.status = 'DECLINED';
+          state.phase = 'MANAGEMENT';
+          state.pendingAction = null;
+        }
       } else {
-        // Owned by current player, mortgaged, or blocked
+        // Owned by current player (unmortgaged) or blocked
         state.phase = 'MANAGEMENT';
       }
       break;
@@ -1061,7 +1136,6 @@ function resolveLandingSpace(
           for (const prop of Object.values(state.properties)) {
             if (prop && prop.ownerUid === player.uid) {
               prop.ownershipState = 'BLOCKED';
-              prop.isMortgaged = false;
             }
           }
           state.phase = 'MANAGEMENT';
@@ -1078,18 +1152,26 @@ function resolveLandingSpace(
       // that index rule (1..12) gets applied.
       const deck = space.deck === 'CIVIC' ? CIVIC_FUND_CARDS : MARKET_BUZZ_CARDS;
       const ruleIndex =
-        diceTotal >= 1 && diceTotal <= deck.length
+        options?.cardRuleIndex ??
+        (diceTotal >= 1 && diceTotal <= deck.length
           ? diceTotal
-          : ((state.turnNumber % deck.length) + 1);
+          : ((state.turnNumber % deck.length) + 1));
       const card = deck[ruleIndex - 1];
-      applyCardEffect(state, player, card);
       state.activeCardPopup = {
         deck: space.deck,
         card,
         ruleIndex,
         playerUid: player.uid,
       };
-      state.phase = 'MANAGEMENT';
+      applyCardEffect(state, player, card);
+      // Only transition to MANAGEMENT if card effect didn't transition to PROPERTY_DECISION, ACTION_REQUIRED, or TURN_END
+      if (
+        state.phase !== 'PROPERTY_DECISION' &&
+        state.phase !== 'ACTION_REQUIRED' &&
+        state.phase !== 'TURN_END'
+      ) {
+        state.phase = 'MANAGEMENT';
+      }
       break;
     }
 
@@ -1107,6 +1189,78 @@ function resolveLandingSpace(
     default:
       state.phase = 'MANAGEMENT';
       break;
+  }
+}
+
+/**
+ * Helper to process authoritative payments for cards with financial obligations.
+ */
+function handleCardPayment(
+  state: GameState,
+  player: PlayerState,
+  amount: number,
+  cardTitle: string,
+  cardId: string
+): void {
+  if (amount <= 0) return;
+  if (player.cash >= amount) {
+    const prev = player.cash;
+    player.cash -= amount;
+    recordTx(
+      state,
+      player.uid,
+      'CARD_PENALTY',
+      'DEBIT',
+      amount,
+      prev,
+      player.cash,
+      `${player.displayName} paid ₹${amount.toLocaleString('en-IN')} for card: ${cardTitle}.`
+    );
+  } else {
+    // Insufficient cash: check for mortgageable properties
+    const hasMortgageable = Object.values(state.properties).some(
+      (p) => p && p.ownerUid === player.uid && !p.isMortgaged && p.ownershipState === 'OWNED'
+    );
+    if (hasMortgageable) {
+      state.phase = 'ACTION_REQUIRED';
+      state.turnTimeRemaining = state.rules?.turnTimerSeconds ?? 30;
+      state.pendingFinancialObligation = {
+        obligationId: `ob_card_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        debtorUid: player.uid,
+        creditorUid: null, // Bank
+        amountDue: amount,
+        paymentType: 'CARD',
+        status: 'PENDING',
+        createdAt: Date.now(),
+        idempotencyKey: `card_${cardId}_${state.turnNumber}`,
+      };
+    } else {
+      const paid = player.cash;
+      player.cash = 0;
+      if (paid > 0) {
+        recordTx(
+          state,
+          player.uid,
+          'CARD_PENALTY',
+          'DEBIT',
+          paid,
+          paid,
+          0,
+          `${player.displayName} paid remaining ₹${paid.toLocaleString('en-IN')} for card: ${cardTitle} before bankruptcy.`
+        );
+      }
+      player.isBankrupt = true;
+      player.isDisqualified = true;
+      for (const prop of Object.values(state.properties)) {
+        if (prop && prop.ownerUid === player.uid) {
+          prop.ownershipState = 'BLOCKED';
+        }
+      }
+      state.phase = 'MANAGEMENT';
+      state.pendingAction = null;
+      state.pendingFinancialObligation = null;
+      advanceTurn(state);
+    }
   }
 }
 
@@ -1133,19 +1287,7 @@ function applyCardEffect(state: GameState, player: PlayerState, card: CardAction
     }
     case 'PAY_BANK': {
       const amt = card.amount ?? 0;
-      const prev = player.cash;
-      const actualPaid = Math.min(player.cash, amt);
-      player.cash -= actualPaid;
-      recordTx(
-        state,
-        player.uid,
-        'CARD_PENALTY',
-        'DEBIT',
-        actualPaid,
-        prev,
-        player.cash,
-        `${player.displayName} paid ₹${actualPaid.toLocaleString('en-IN')} for card: ${card.title}.`
-      );
+      handleCardPayment(state, player, amt, card.title, card.id);
       break;
     }
     case 'CASH_PLAYERS': {
@@ -1153,7 +1295,7 @@ function applyCardEffect(state: GameState, player: PlayerState, card: CardAction
       if (player.inJail) break;
       const perPlayer = card.amount ?? 0;
       for (const other of state.players) {
-        if (other.uid !== player.uid && !other.isBankrupt) {
+        if (other.uid !== player.uid && !other.isBankrupt && !other.isDisqualified) {
           const paid = Math.min(other.cash, perPlayer);
           const otherPrev = other.cash;
           const playerPrev = player.cash;
@@ -1188,24 +1330,28 @@ function applyCardEffect(state: GameState, player: PlayerState, card: CardAction
     }
     case 'PAY_PLAYERS': {
       const perPlayer = card.amount ?? 0;
-      for (const other of state.players) {
-        // User Rule: If the player is in jail, he/she should not earn any money from other players
-        if (other.uid !== player.uid && !other.isBankrupt && !other.inJail) {
-          const paid = Math.min(player.cash, perPlayer);
+      const eligibleRecipients = state.players.filter(
+        (other) => other.uid !== player.uid && !other.isBankrupt && !other.isDisqualified && !other.inJail
+      );
+      const totalNeeded = eligibleRecipients.length * perPlayer;
+      if (totalNeeded <= 0) break;
+
+      if (player.cash >= totalNeeded) {
+        for (const other of eligibleRecipients) {
           const playerPrev = player.cash;
           const otherPrev = other.cash;
-          player.cash -= paid;
-          other.cash += paid;
+          player.cash -= perPlayer;
+          other.cash += perPlayer;
           const sharedTxId = `tx_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
           recordTx(
             state,
             player.uid,
             'CARD_PENALTY',
             'DEBIT',
-            paid,
+            perPlayer,
             playerPrev,
             player.cash,
-            `${player.displayName} paid ₹${paid.toLocaleString('en-IN')} to ${other.displayName} for card: ${card.title}.`,
+            `${player.displayName} paid ₹${perPlayer.toLocaleString('en-IN')} to ${other.displayName} for card: ${card.title}.`,
             { transactionId: sharedTxId, counterpartyUid: other.uid, counterpartyName: other.displayName }
           );
           recordTx(
@@ -1213,19 +1359,55 @@ function applyCardEffect(state: GameState, player: PlayerState, card: CardAction
             other.uid,
             'CARD_REWARD',
             'CREDIT',
-            paid,
+            perPlayer,
             otherPrev,
             other.cash,
-            `${other.displayName} received ₹${paid.toLocaleString('en-IN')} from ${player.displayName} for card: ${card.title}.`,
-            { transactionId: sharedTxId, counterpartyUid: player.uid, counterpartyName: player.displayName }
+            `${other.displayName} received ₹${perPlayer.toLocaleString('en-IN')} from ${player.displayName} for card: ${card.title}.`,
+            { transactionId: sharedTxId, counterpartyUid: other.uid, counterpartyName: other.displayName }
           );
+        }
+      } else {
+        const hasMortgageable = Object.values(state.properties).some(
+          (p) => p && p.ownerUid === player.uid && !p.isMortgaged && p.ownershipState === 'OWNED'
+        );
+        if (hasMortgageable) {
+          state.phase = 'ACTION_REQUIRED';
+          state.turnTimeRemaining = state.rules?.turnTimerSeconds ?? 30;
+          state.pendingFinancialObligation = {
+            obligationId: `ob_card_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+            debtorUid: player.uid,
+            creditorUid: null,
+            amountDue: totalNeeded,
+            paymentType: 'CARD',
+            status: 'PENDING',
+            createdAt: Date.now(),
+            idempotencyKey: `card_${card.id}_${state.turnNumber}`,
+          };
+        } else {
+          // Distribute available cash equally to recipients
+          const perRecipient = Math.floor(player.cash / eligibleRecipients.length);
+          for (const other of eligibleRecipients) {
+            other.cash += perRecipient;
+          }
+          player.cash = 0;
+          player.isBankrupt = true;
+          player.isDisqualified = true;
+          for (const prop of Object.values(state.properties)) {
+            if (prop && prop.ownerUid === player.uid) {
+              prop.ownershipState = 'BLOCKED';
+            }
+          }
+          state.phase = 'MANAGEMENT';
+          state.pendingAction = null;
+          state.pendingFinancialObligation = null;
+          advanceTurn(state);
         }
       }
       break;
     }
     case 'MOVE_TO':
       if (card.targetSpace !== undefined) {
-        if (card.targetSpace < player.position) {
+        if (card.targetSpace < player.position || card.targetSpace === 0) {
           const prev = player.cash;
           player.cash += GAME_CONSTANTS.START_REWARD;
           recordTx(
@@ -1269,7 +1451,7 @@ function applyCardEffect(state: GameState, player: PlayerState, card: CardAction
     }
     case 'TRANSIT_DIVIDEND': {
       const ownedTransits = TRANSIT_SPACES.filter(
-        (idx) => state.properties[idx]?.ownerUid === player.uid
+        (idx) => state.properties[idx]?.ownerUid === player.uid && state.properties[idx]?.ownershipState !== 'BLOCKED'
       ).length;
       const amt = ownedTransits * (card.amount ?? 400);
       const prev = player.cash;
@@ -1290,7 +1472,7 @@ function applyCardEffect(state: GameState, player: PlayerState, card: CardAction
       let totalBlocks = 0;
       let totalTowers = 0;
       for (const prop of Object.values(state.properties)) {
-        if (prop.ownerUid === player.uid) {
+        if (prop.ownerUid === player.uid && prop.ownershipState !== 'BLOCKED') {
           if (prop.buildings === 5) {
             totalTowers += 1;
           } else if (prop.buildings > 0) {
@@ -1299,26 +1481,14 @@ function applyCardEffect(state: GameState, player: PlayerState, card: CardAction
         }
       }
       const cost = totalBlocks * (card.perHouse ?? 250) + totalTowers * (card.perTower ?? 750);
-      const prev = player.cash;
-      const actualPaid = Math.min(player.cash, cost);
-      player.cash -= actualPaid;
-      recordTx(
-        state,
-        player.uid,
-        'CARD_PENALTY',
-        'DEBIT',
-        actualPaid,
-        prev,
-        player.cash,
-        `${player.displayName} paid ₹${actualPaid.toLocaleString('en-IN')} for civic infrastructure repairs.`
-      );
+      handleCardPayment(state, player, cost, card.title, card.id);
       break;
     }
     case 'DEVELOPMENT_GRANT': {
       let totalBlocks = 0;
       let totalTowers = 0;
       for (const prop of Object.values(state.properties)) {
-        if (prop.ownerUid === player.uid) {
+        if (prop.ownerUid === player.uid && prop.ownershipState !== 'BLOCKED') {
           if (prop.buildings === 5) {
             totalTowers += 1;
           } else if (prop.buildings > 0) {
@@ -1343,22 +1513,10 @@ function applyCardEffect(state: GameState, player: PlayerState, card: CardAction
     }
     case 'DEED_TAX': {
       const totalDeeds = Object.values(state.properties).filter(
-        (p) => p.ownerUid === player.uid
+        (p) => p.ownerUid === player.uid && p.ownershipState !== 'BLOCKED'
       ).length;
       const cost = totalDeeds * (card.amount ?? 250);
-      const prev = player.cash;
-      const actualPaid = Math.min(player.cash, cost);
-      player.cash -= actualPaid;
-      recordTx(
-        state,
-        player.uid,
-        'CARD_PENALTY',
-        'DEBIT',
-        actualPaid,
-        prev,
-        player.cash,
-        `${player.displayName} paid ₹${actualPaid.toLocaleString('en-IN')} Property Deed Tax.`
-      );
+      handleCardPayment(state, player, cost, card.title, card.id);
       break;
     }
     case 'JAIL_FREE':
@@ -1388,6 +1546,7 @@ function advanceTurn(state: GameState): void {
       state.turnNumber += 1;
       state.dice = null;
       state.pendingAction = null;
+      state.reacquisitionOpportunity = null;
       state.activeMoneyTransaction = null;
       state.activeCardPopup = null;
       state.turnTimeRemaining = state.turnTimeLimit || 30;

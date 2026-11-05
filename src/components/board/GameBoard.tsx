@@ -199,22 +199,42 @@ export const GameBoard: React.FC<GameBoardProps> = ({
       ).allowed
     );
 
-  // Mortgaged City Reacquisition (Section 6.5)
+  // Mortgaged City Reacquisition (Requirement 3: Only offered upon landing on own mortgaged city)
   const isOwnMortgagedCity = Boolean(
     isMyTurn &&
-    gameState.phase === 'MANAGEMENT' &&
     !walkingAnimation &&
     activePlayer &&
+    gameState.reacquisitionOpportunity &&
+    gameState.reacquisitionOpportunity.status === 'PENDING' &&
+    gameState.reacquisitionOpportunity.spaceIndex === playerPos &&
+    gameState.reacquisitionOpportunity.playerUid === activePlayer.uid &&
     playerPropState?.ownerUid === activePlayer.uid &&
-    (playerPropState?.isMortgaged || playerPropState?.ownershipState === 'MORTGAGED')
+    (playerPropState?.isMortgaged || playerPropState?.ownershipState === 'MORTGAGED') &&
+    playerPropState?.ownershipState !== 'BLOCKED'
   );
 
   const reacquisitionCost =
-    playerPropState?.mortgagePayout && playerPropState.mortgagePayout > 0
+    gameState.reacquisitionOpportunity?.cost ??
+    (playerPropState?.mortgagePayout && playerPropState.mortgagePayout > 0
       ? playerPropState.mortgagePayout
-      : calculateMortgageValue(playerPos, playerPropState);
+      : calculateMortgageValue(playerPos, playerPropState));
 
   const canAffordReacquire = (activePlayer?.cash ?? 0) >= reacquisitionCost;
+
+  // Requirement 2: Derived polished player-facing turn indicator without technical debug info
+  const playerFacingTurnMessage = (() => {
+    if (walkingAnimation) {
+      return isMyTurn ? 'Processing Move...' : `Moving ${activePlayer?.displayName || 'Player'}...`;
+    }
+    if (isMyTurn) {
+      if (gameState.phase === 'AWAIT_ROLL') return 'Your Turn — Roll the Dice';
+      if (gameState.phase === 'JAIL_DECISION') return 'Your Turn — In Jail (Pay Bail or Try Doubles)';
+      if (gameState.phase === 'PROPERTY_DECISION') return 'Your Turn — Property Decision';
+      if (gameState.phase === 'ACTION_REQUIRED') return 'Action Required — Financial Resolution';
+      return 'Your Turn — Manage or End Turn';
+    }
+    return `Waiting for ${activePlayer?.displayName || 'Player'}`;
+  })();
 
   // Toast triggers for insufficient balance
   const lastInsuffNoticeRef = useRef<string | null>(null);
@@ -545,8 +565,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                   🎉 DOUBLES!
                 </span>
               ) : (
-                <span className="text-[8.5px] font-semibold text-gray-500 bg-white/80 px-2 py-0.5 rounded-full border border-indian-parchment-300">
-                  {activePlayer?.displayName || 'Player'}
+                <span className="text-[8.5px] font-bold text-indian-navy-800 bg-white/90 px-2.5 py-0.5 rounded-full border border-indian-parchment-300 shadow-2xs">
+                  {isMyTurn ? 'Your Turn' : `Waiting for ${activePlayer?.displayName || 'Player'}`}
                 </span>
               )}
             </div>
@@ -611,9 +631,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             </div>
           </div>
 
-          {/* Bottom Center: Game Status Banner */}
-          <div className="z-10 text-[8.5px] sm:text-[9.5px] text-indian-navy-800 dark:text-indian-parchment-200 font-bold bg-white/80 dark:bg-indian-navy-900/80 px-2.5 py-0.5 rounded-full border border-indian-parchment-300 shadow-2xs shrink-0">
-            Turn #{gameState.turnNumber} • Phase: {gameState.phase}
+          {/* Bottom Center: Polished Player-Facing Turn Indicator (Requirement 2: Zero internal state/phase debug info) */}
+          <div className="z-10 text-[8.5px] sm:text-[9.5px] text-indian-navy-900 dark:text-indian-parchment-100 font-bold bg-white/90 dark:bg-indian-navy-900/90 px-3 py-0.5 rounded-full border border-indian-parchment-300 dark:border-indian-navy-700 shadow-2xs shrink-0 flex items-center gap-1.5">
+            <span className={cn('w-2 h-2 rounded-full shrink-0', isMyTurn ? 'bg-indian-terracotta-500 animate-ping' : 'bg-gray-400')} />
+            <span>{playerFacingTurnMessage}</span>
           </div>
         </div>
 
@@ -704,7 +725,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                 </>
               )}
 
-              {/* Pointed Box Content: Reacquire Mortgaged Property Prompt (Section 6.5) */}
+              {/* Pointed Box Content: Reacquire Mortgaged Property Prompt (Requirement 3) */}
               {isOwnMortgagedCity && canAffordReacquire && (
                 <>
                   <div className="flex items-center justify-between border-b border-white/20 pb-1.5">
@@ -721,7 +742,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                   <div className="flex items-center gap-1.5 pt-1">
                     <button
                       type="button"
-                      onClick={() => onDispatch?.('UNMORTGAGE', { spaceIndex: playerPos })}
+                      onClick={() =>
+                        onDispatch?.('UNMORTGAGE', {
+                          spaceIndex: playerPos,
+                          landingId: gameState.reacquisitionOpportunity?.landingId,
+                        })
+                      }
                       className="flex-1 py-1.5 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-500 text-white shadow-md active:scale-95 transition-all flex items-center justify-center gap-1 cursor-pointer"
                     >
                       <Check className="w-3.5 h-3.5" />
@@ -729,10 +755,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                     </button>
                     <button
                       type="button"
-                      onClick={() => onDispatch?.('END_TURN')}
+                      onClick={() => onDispatch?.('DECLINE_PROPERTY')}
                       className="px-3 py-1.5 rounded-xl font-bold text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 active:scale-95 transition-all cursor-pointer"
                     >
-                      Done
+                      Decline
                     </button>
                   </div>
                 </>

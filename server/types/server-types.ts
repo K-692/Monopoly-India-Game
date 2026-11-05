@@ -119,6 +119,11 @@ export interface ClientToServerEvents {
     callback?: (res: GameCommandResponse) => void
   ) => void;
 
+  'game:join': (
+    data: { gameId: string },
+    callback?: (res: { ok: boolean; gameState?: GameState; room?: RoomState; error?: string }) => void
+  ) => void;
+
   'reaction:send': (
     data: { emote: string }
   ) => void;

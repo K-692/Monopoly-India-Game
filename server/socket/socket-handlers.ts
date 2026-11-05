@@ -261,6 +261,35 @@ export function setupSocketHandlers(
       }
     });
 
+    socket.on('game:join', ({ gameId }, callback) => {
+      const session = socket.data.session;
+      const game = gameManager.getGame(gameId);
+      if (!game) {
+        if (typeof callback === 'function') {
+          callback({ ok: false, error: 'Game not found' });
+        }
+        return;
+      }
+
+      socket.join(game.roomId);
+      if (session) {
+        session.roomId = game.roomId;
+      }
+      const room = roomManager.getRoom(game.roomId);
+      if (room && session) {
+        io.to(game.roomId).emit('player:presence', { uid: session.uid, connected: true });
+      }
+
+      socket.emit('game:state', game);
+      if (room) {
+        socket.emit('room:state', room);
+      }
+
+      if (typeof callback === 'function') {
+        callback({ ok: true, gameState: game, room: room || undefined });
+      }
+    });
+
     // ==========================================
     // 3. AUTHORITATIVE GAME COMMANDS & EMOTES
     // ==========================================
