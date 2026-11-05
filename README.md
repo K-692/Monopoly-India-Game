@@ -10,7 +10,7 @@
   [![Socket.IO](https://img.shields.io/badge/Socket.IO-4.8+-010101.svg)](https://socket.io/)
   [![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4+-38b2ac.svg)](https://tailwindcss.com/)
   [![Vite](https://img.shields.io/badge/Vite-6.0+-646cff.svg)](https://vite.dev/)
-  [![Tests](https://img.shields.io/badge/Vitest-61%20Passing-brightgreen.svg)](https://vitest.dev/)
+  [![Tests](https://img.shields.io/badge/Vitest-71%20Passing-brightgreen.svg)](https://vitest.dev/)
 
   **Zero-cloud, zero-Internet, 100% private Wi-Fi LAN multiplayer for phones, tablets, and laptops!**
 </div>
@@ -127,6 +127,43 @@
 - Eliminates `Stale version (client expected X, current is Y)` errors caused by concurrent client acknowledgment actions (`DISMISS_CARD_POPUP`, `DISMISS_MONEY_ACK`).
 - State mutations are cleanly separated from transient client toasts, and UI acknowledgments are version-resilient.
 - Seamless reconnection: Refreshing clients emit `game:join` to authoritatively attach to active matches, restoring full room and game states.
+
+### 13. Authoritative Session-Wide Bail Rule Consistency
+- **Single Source of Truth**: The host-configured room rule `rules.jailBail` (with canonical default ₹500) governs all bail operations across the lifetime of the match.
+- **Universal Synchronization**: Jail action buttons (`Pay ₹{bail} Bail`), status indicators, rules popups, notifications, deductions, and financial transaction ledgers reference the exact same authoritative accessor with zero hardcoded fallbacks or component drift.
+- **Affordability Gating**: If an incarcerated player lacks sufficient cash for statutory bail, the payment action is cleanly disabled with visual opacity and cursor feedback.
+
+### 14. Synchronized Authoritative Dice Values & Exact Circular Token Movement
+- **Single Source of Truth**: Backend validates the active turn, generates fair cryptographic dice $(d_1, d_2)$, computes total steps $S = d_1 + d_2$, records `oldPos`, and computes `newPos = (oldPos + S) % 40`.
+- **Unique Roll Metadata**: Every roll event persists `rollId`, `gameSessionId`, `playerId`, `turnId`, `die1`, `die2`, `total`, `oldPos`, `newPos`, and `createdAt`.
+- **Race Condition Elimination**: Client store maintains idempotent `processedRollIds`, immediately committing authoritative dice faces upon receipt to eliminate stale-dice display during pawn animations.
+- **Deterministic Stepping**: Tokens walk step-by-step for exactly $S$ steps, ensuring complete visual and mathematical alignment between rolled dice and final destination coordinates.
+
+### 15. Dedicated Elevated Player Token Layer (Zero Clipping & Unobscured Visibility)
+- **Top Visual Layer**: Tokens are rendered on a dedicated elevated grid overlay ($z$-index 35/40, `pointer-events-none`, `overflow-visible`) above all board tiles.
+- **Uncompromised Legibility**: Tokens are never clipped by tile boundaries or `overflow-hidden`, and always render proudly above SVG background artworks, ownership color bands, houses, towers, and tile borders.
+- **Multi-Player Stacking**: Spaces occupied by multiple players utilize an offset grouping layout (`-space-x-1.5`) with drop shadows, ensuring all tokens remain visible.
+- **Active Trajectory Highlighting**: Stepping tokens enlarge to 125% scale with playful bounce animations during movement.
+
+### 16. Mortgaged City Ownership Integrity & Visiting Landing Isolation
+- **Ownership Preservation**: Mortgaged properties remain strictly owned by their mortgagors and can never be bought or treated as unowned from any entry point.
+- **Visiting Non-Owner Protection**: When another player lands on a mortgaged city:
+  - Pays **₹0 rent**.
+  - Receives **zero purchase popups** and **zero reacquisition popups**.
+  - No cash or ownership transfers take place.
+  - Phase smoothly advances to `MANAGEMENT`.
+- **Physical Landing Reacquisition**: Reacquisition is offered exclusively to the mortgagor when they physically land on their mortgaged property during an eligible turn, requiring the exact mortgage payout received ($C_{\text{reacquire}} = V_{\text{mortgage\_received}}$).
+
+### 17. Standardized Property Terminology ("City" vs "Property")
+- **Formal Lexical Taxonomy**:
+  - **"City"**: Exclusively used for municipal property spaces (space type `'PROPERTY'`), e.g., Jaipur, Connaught Place, Marine Drive (`Buy City`, `Reacquire City`, `Mortgage City`, `City Owner`, `City Payment`).
+  - **"Property"**: Applied to infrastructural spaces (type `'TRANSIT'` or `'UTILITY'`), e.g., Santacruz Airport, Howrah Station, Urja Power Grid (`Buy Property`, `Reacquire Property`, `Mortgage Property`, `Property Owner`).
+
+### 18. Symmetrical 3-Zone Navigation Header & Universal Responsiveness
+- **3-Zone Navbar**: CSS Grid `grid-cols-[1fr_auto_1fr]` guarantees the central Play and Settings tabs remain mathematically centered across all viewports, balanced by the Game Logo on the extreme left and Rules (`?`), Audio Toggle, and Player Name on the right.
+- **Square Aspect Ratio**: The board container enforces `aspect-square max-h-full max-w-full`, preventing vertical stretching on tall mobile portrait viewports.
+- **Mobile-Adaptive Layout**: On small screens ($< 768\text{px}$), the bulky 12-rule side panels collapse into compact quick-access buttons, granting the 3D dice arena and primary controls full prominence with $\ge 44\text{px}$ tap targets.
+- **iOS Safe Areas**: Native toolbar and home indicator bar support via `env(safe-area-inset-bottom)` and `env(safe-area-inset-top)`.
 
 ---
 

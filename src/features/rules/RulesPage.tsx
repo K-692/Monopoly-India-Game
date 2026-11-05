@@ -281,7 +281,7 @@ export const RulesPage: React.FC = () => {
               <li><strong>Zero Income While Incarcerated:</strong> In strict accordance with the updated rules, a player currently in Jail <strong>CANNOT earn rent</strong> from other players landing on their cities, nor collect cash awards from player contributions.</li>
               <li><strong>Ways to Exit Jail:</strong>
                 <ul className="list-circle list-inside ml-4 mt-1 space-y-1 text-xs text-gray-600 dark:text-gray-400">
-                  <li>Pay ₹500 statutory bail to the Bank on your turn.</li>
+                  <li>Pay your room's configured statutory bail (default ₹500) to the Bank on your turn.</li>
                   <li>Roll doubles on any of your 3 turn attempts.</li>
                   <li>Redeem a &quot;Special Legal Exemption&quot; Get Out of Jail Free card.</li>
                 </ul>

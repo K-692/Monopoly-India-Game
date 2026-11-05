@@ -225,7 +225,7 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
                 <ul className="text-xs text-gray-700 dark:text-gray-300 space-y-2 list-disc list-inside leading-relaxed">
                   <li><strong>Automatic Freedom:</strong> If a player fails all 3 double attempts, they are <strong>automatically released on their 4th eligible turn</strong> without needing to roll Try Double.</li>
                   <li><strong>Seamless Progression:</strong> The player is released at turn start and proceeds to roll normally.</li>
-                  <li><strong>Alternative Options:</strong> At any eligible jail turn, a player may pay ₹500 statutory bail or redeem a Get Out of Jail Free card.</li>
+                  <li><strong>Alternative Options:</strong> At any eligible jail turn, a player may pay their room's configured statutory bail (default ₹500) or redeem a Get Out of Jail Free card.</li>
                   <li><strong>Zero Income in Jail:</strong> Players in Jail cannot collect rent or cash rewards.</li>
                 </ul>
               </div>

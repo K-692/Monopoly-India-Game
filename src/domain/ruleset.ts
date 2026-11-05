@@ -54,6 +54,33 @@ export const GAME_CONSTANTS = {
 };
 
 /**
+ * Authoritative accessor for game session bail amount.
+ * Reads the session's host-configured rules first, falling back to canonical constant only if undefined.
+ */
+export function getAuthoritativeBailAmount(
+  state?: { rules?: { jailBail?: number } } | null
+): number {
+  if (state?.rules?.jailBail && typeof state.rules.jailBail === 'number' && state.rules.jailBail > 0) {
+    return state.rules.jailBail;
+  }
+  return GAME_CONSTANTS.JAIL_BAIL;
+}
+
+/**
+ * Standardizes property terminology across all UI, popups, and financial descriptions.
+ * Returns 'City' for developable municipal spaces (type: 'PROPERTY'),
+ * and 'Property' for non-city properties (Stations, Airports, Utilities).
+ */
+export function getPropertyNoun(
+  space?: { type: string } | null
+): 'City' | 'Property' {
+  if (space && space.type === 'PROPERTY') {
+    return 'City';
+  }
+  return 'Property';
+}
+
+/**
  * Authoritative Airport Rent Table
  * Visiting player pays significant airport visiting rent based on number of airports owned by owner.
  * - 1 Airport owned: ₹1,000

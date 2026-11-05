@@ -110,7 +110,7 @@ export const GamePage: React.FC = () => {
   const winner = gameState.players.find((p) => p.uid === gameState.winnerUid);
 
   return (
-    <div className="h-[calc(100dvh-50px)] max-h-screen overflow-hidden flex flex-col justify-between w-full max-w-none px-2 sm:px-3 py-1 gap-1 select-none">
+    <div className="h-[calc(100dvh-50px)] max-h-screen overflow-hidden flex flex-col justify-between w-full max-w-none px-2 sm:px-3 py-1 gap-1 select-none pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)]">
       {/* Top Header Bar */}
       <div className="flex items-center justify-between pb-1 border-b border-indian-parchment-300 dark:border-indian-navy-700 shrink-0">
         <button

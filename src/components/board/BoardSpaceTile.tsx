@@ -39,6 +39,7 @@ interface BoardSpaceTileProps {
   isSelected: boolean;
   isHighlighted?: boolean;
   onSelect: () => void;
+  showTokens?: boolean;
 }
 
 export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
@@ -49,6 +50,7 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
   isSelected,
   isHighlighted = false,
   onSelect,
+  showTokens = false,
 }) => {
   const coord = getSpaceGridCoord(space.spaceIndex);
   const isCorner = coord.orientation === 'corner';
@@ -100,9 +102,9 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
           : {}),
   };
 
-  // Dedicated Player Tokens Row Component
+  // Dedicated Player Tokens Row Component (renders when showTokens is true)
   const renderPlayerTokens = (className?: string) => {
-    if (playersHere.length === 0) return null;
+    if (!showTokens || playersHere.length === 0) return null;
     return (
       <div className={cn('flex items-center justify-center -space-x-1.5 shrink-0 z-20 pb-0.5', className)}>
         {playersHere.map((p) => (

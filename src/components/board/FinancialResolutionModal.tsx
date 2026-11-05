@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { GameActionType, PendingFinancialObligation, PlayerState, PropertyState } from '@/domain/game-types';
 import { BOARD_SPACES } from '@/domain/board-config';
-import { calculateMortgageValue } from '@/domain/ruleset';
+import { calculateMortgageValue, getPropertyNoun } from '@/domain/ruleset';
 import { Landmark, Building2, Home, CheckCircle2, ShieldAlert, ArrowRight, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 
@@ -255,7 +255,7 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
                         onClick={() => onDispatch?.('MORTGAGE', { spaceIndex })}
                         className="px-3 py-1.5 rounded-lg font-bold text-[11px] bg-amber-500 hover:bg-amber-400 text-indian-navy-950 active:scale-95 transition-all shadow-md cursor-pointer"
                       >
-                        Mortgage City
+                        Mortgage {getPropertyNoun(space)}
                       </button>
                     </div>
                   </div>

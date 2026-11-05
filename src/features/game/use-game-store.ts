@@ -48,6 +48,7 @@ interface GameStoreState {
 
 let activeWalkingTimer: NodeJS.Timeout | null = null;
 let pendingServerState: GameState | null = null;
+const processedRollIds = new Set<string>();
 
 export const useGameStore = create<GameStoreState>((set, get) => ({
   gameState: null,
@@ -100,6 +101,14 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         pendingServerState = nextState;
         return;
       }
+
+      // If incoming state contains a fresh dice roll that has not yet completed walking animation,
+      // hold state to prevent snapping the token prematurely to newPos before walking begins
+      if (nextState.dice?.rollId && !processedRollIds.has(nextState.dice.rollId)) {
+        pendingServerState = nextState;
+        return;
+      }
+
       set({ gameState: nextState, isLiveMultiplayer: true });
     };
 
@@ -114,15 +123,69 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         const { gameState } = get();
         if (!gameState) return;
 
-        const payload = event.payload as { d1?: number; d2?: number; isDouble?: boolean } | undefined;
+        const payload = event.payload as {
+          rollId?: string;
+          die1?: number;
+          die2?: number;
+          d1?: number;
+          d2?: number;
+          total?: number;
+          steps?: number;
+          oldPos?: number;
+          newPos?: number;
+          isDouble?: boolean;
+          consecutiveDoubles?: number;
+        } | undefined;
+
+        const rollId = payload?.rollId || `roll_${event.sequence}`;
+        if (processedRollIds.has(rollId)) {
+          return; // Idempotent: do not replay movement
+        }
+        processedRollIds.add(rollId);
+
         const actorUid = event.actorUid;
-        const player = gameState.players.find((p) => p.uid === actorUid);
         const isTryDoubles = event.type === 'TRY_DOUBLES';
         const isDouble = Boolean(payload?.isDouble);
-        const startPos = player?.position ?? (isTryDoubles ? 10 : 0);
+
+        const d1 = Number(payload?.die1 ?? payload?.d1 ?? 1);
+        const d2 = Number(payload?.die2 ?? payload?.d2 ?? 1);
+        const totalSteps = Number(payload?.steps ?? (payload?.total ?? (d1 + d2)));
+
+        // Authoritative start position: Use payload.oldPos if available to prevent race conditions
+        const playerInState = gameState.players.find((p) => p.uid === actorUid);
+        const startPos = typeof payload?.oldPos === 'number'
+          ? payload.oldPos
+          : (playerInState?.position ?? (isTryDoubles ? 10 : 0));
+
+        const targetPos = typeof payload?.newPos === 'number'
+          ? payload.newPos
+          : (startPos + (isTryDoubles && !isDouble ? 0 : totalSteps)) % 40;
+
+        // Authoritatively update gameState.dice IMMEDIATELY so the dice faces on the board
+        // settle on the exact authoritative values without displaying stale or previous-turn numbers
+        set((s) => ({
+          gameState: s.gameState
+            ? {
+                ...s.gameState,
+                dice: {
+                  rollId,
+                  first: d1,
+                  second: d2,
+                  die1: d1,
+                  die2: d2,
+                  total: d1 + d2,
+                  oldPos: startPos,
+                  newPos: targetPos,
+                  isDouble,
+                  consecutiveDoubles: Number(payload?.consecutiveDoubles ?? 0),
+                  rolledAt: Date.now(),
+                },
+              }
+            : s.gameState,
+          isRolling: true,
+        }));
 
         sound.play('DICE_ROLL');
-        set({ isRolling: true });
 
         // Phase 1: 3D Dice tumble and settle on the authoritative values
         setTimeout(() => {
@@ -138,7 +201,6 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
             return;
           }
 
-          const totalSteps = payload?.d1 && payload?.d2 ? payload.d1 + payload.d2 : 0;
           if (totalSteps <= 0) {
             const finalState = pendingServerState;
             pendingServerState = null;
@@ -146,10 +208,9 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
             return;
           }
 
-          // Phase 2: Token walking begins ONLY AFTER the roll finishes settling
-          const targetPos = (startPos + totalSteps) % 40;
+          // Phase 2: Token walking begins ONLY AFTER the roll finishes settling.
+          // Sequential step-by-step movement along circular path.
           let currentStep = 0;
-
           if (activeWalkingTimer) clearInterval(activeWalkingTimer);
 
           activeWalkingTimer = setInterval(() => {

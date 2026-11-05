@@ -347,3 +347,76 @@ When debt $D$ exceeds cash $C$:
   4. Board mechanics: Blocked properties cannot be bought, sold, traded, mortgaged, or reacquired. Any player landing on a blocked property pays ₹0 rent.
   5. Concurrency safety: If the active player surrenders, the turn cleanly advances to the next eligible player; if a non-active player surrenders, the active player's turn continues uninterrupted.
 
+---
+
+## 9. Architectural Hardening: Bail Consistency, Authoritative Movement Synchronization, Token Layering, Mortgage Isolation, Standardized Terminology & Universal Responsiveness
+
+### 9.1 Authoritative Session-Wide Bail Consistency
+- **Single Source of Truth**: The host-configured room rule `rules.jailBail` (or canonical fallback `GAME_CONSTANTS.JAIL_BAIL`) acts as the single authoritative source of the statutory bail amount for the entire lifetime of a match.
+- **Unified Accessor**:
+  $$\text{bailAmount}(S) = \begin{cases} S.\text{rules}.\text{jailBail} & \text{if } S.\text{rules}.\text{jailBail} > 0 \\ 500 & \text{otherwise} \end{cases}$$
+- **Zero-Mismatch Guarantee**: All UI elements (jail action button `Pay ₹{bail} Bail`, turn status indicator, rules modal, transaction history, financial resolution ledger, and backend validation) derive their values directly from this accessor.
+- **Verification**: Tested against customized bail values (₹200, ₹500, ₹1,000) ensuring exact ledger deductions and balance verifications without fallback drift.
+
+### 9.2 Authoritative Dice & Token Movement Synchronization
+- **Root Cause Analysis**: Prior client implementations experienced a race condition where incoming `game:state` socket broadcasts updated player coordinates before the client's sequential walking animation commenced, causing client token walks to compute `startPos` from the already-updated destination, effectively doubling the travel distance and rendering previous-turn dice values during pawn movement.
+- **Authoritative Roll Event Schema**:
+  $$\text{RollEventPayload} = \{\text{rollId}, \text{gameSessionId}, \text{playerId}, \text{turnId}, \text{die1}, \text{die2}, \text{total}, \text{steps}, \text{oldPos}, \text{newPos}, \text{isDouble}, \text{consecutiveDoubles}, \text{createdAt}\}$$
+- **State Machine Synchronization Protocol**:
+  1. Engine evaluates fair cryptographic dice pair $(d_1, d_2)$ without modulo bias.
+  2. Engine records $\text{oldPos} = P.\text{position}$, $\text{total} = d_1 + d_2$, and computes:
+     $$\text{newPos} = (\text{oldPos} + \text{total}) \pmod{40}$$
+  3. Client receives `ROLL_DICE` / `TRY_DOUBLES` event. Roll ID idempotency (`processedRollIds` set) guarantees no duplicate walks or replayed events.
+  4. Client store immediately commits authoritative dice faces to `gameState.dice`, ensuring 3D dice faces and the rolled sum indicator settle on the exact authoritative values without displaying stale prior-turn dice.
+  5. State updates during tumbling or walking are held in `pendingServerState` and committed only after the walking token arrives at $\text{newPos}$.
+  6. The client pawn steps along the circular path tile-by-tile for exactly $\text{total}$ steps, reaching the authoritative destination with mathematical precision.
+
+### 9.3 Dedicated Elevated Player Token Layer
+- **Visual Stacking Invariant**: Player pawns must render above all grid artwork, background SVG illustrations, property ownership accent bars, houses, commercial towers, and tile borders without clipping.
+- **Architecture**:
+  - Implemented an overlay container rendered on top of the 11x11 grid hierarchy:
+    $$\text{Overlay} \subset \text{monopoly-board-grid}, \quad z\text{-index} = 35, \quad \text{pointer-events} = \text{none}, \quad \text{overflow} = \text{visible}$$
+  - Each space cell in the overlay coordinates precisely with the board layout grid ($\text{row}, \text{col}$).
+  - Tokens render with elevated $z$-index 40, distinct colored avatar tokens, white contrast borders, drop shadows, and responsive scaling.
+  - Multi-token occupancy utilizes staggered offset grouping (`-space-x-1.5`) ensuring zero tokens disappear behind neighboring elements.
+  - Walking pawns animate with active scale enlargement and bounce physics along their tile-by-tile trajectory.
+
+### 9.4 Mortgage-City Ownership & Visiting Landing Isolation
+- **Mortgaged Property Ownership Integrity**: A mortgaged property remains fully owned by its mortgagor. It is strictly never unowned or available for purchase.
+- **Engine Invariant**: `BUY_PROPERTY` throws `INVALID_ACTION` if `propState.isMortgaged || propState.ownershipState === 'MORTGAGED'`.
+- **Visiting Non-Owner Landing Rule**:
+  When any player other than the owner lands on a mortgaged property:
+  $$\text{Rent Due} = 0, \quad \Delta\text{Cash}_{\text{debtor}} = 0, \quad \Delta\text{Cash}_{\text{owner}} = 0, \quad \text{Owner} \leftarrow \text{Unchanged}$$
+  - Zero rent is deducted or recorded.
+  - No purchase popup or reacquisition popup is shown.
+  - The turn phase advances cleanly and directly to `MANAGEMENT`.
+- **Owner Landing Rule (Reacquisition)**:
+  When the original mortgagor physically lands on their own mortgaged property:
+  - An atomic `reacquisitionOpportunity` is instantiated with the exact mortgage payout originally received ($C_{\text{reacquire}} = V_{\text{mortgage\_received}}$).
+  - If the owner has sufficient funds, a reacquisition prompt offers to restore the property to `OWNED` status while preserving all built developments intact.
+  - If the owner cannot afford or declines, the property remains mortgaged with zero error.
+
+### 9.5 Standardized Property Terminology ("City" vs "Property")
+- **Lexical Taxonomy**:
+  - **"City"**: Reserved strictly for developable municipal spaces (space type `'PROPERTY'`), e.g., Jaipur, Connaught Place, Marine Drive.
+    - Used in: `Buy City`, `Reacquire City`, `Mortgage City`, `City Owner`, `City Payment`.
+  - **"Property"**: Applied to non-city infrastructural spaces (space type `'TRANSIT'` or `'UTILITY'`), e.g., Santacruz Airport, Howrah Station, Urja Power Grid.
+    - Used in: `Buy Property`, `Reacquire Property`, `Mortgage Property`, `Property Owner`, `Property Payment`.
+- **Domain Accessor**: Implemented `getPropertyNoun(space): 'City' | 'Property'` and applied across deed modals, pointed comment boxes, action buttons, financial resolution windows, and ledger transaction summaries.
+
+### 9.6 Symmetrical 3-Zone Navigation Header
+- **Layout Equilibrium**:
+  - Implemented mathematical centering using CSS Grid:
+    $$\text{header-container} = \text{grid-cols-[1fr\_auto\_1fr]}$$
+  - **Zone 1 (Left)**: Game Logo on the extreme left with proportional margins and collapsible brand title on compact viewports.
+  - **Zone 2 (Center)**: Play and Settings tabs positioned at the exact visual center relative to the full header width, completely unaffected by asymmetric left/right content dimensions.
+  - **Zone 3 (Right)**: Right-aligned group holding 1. Game Rules button (`?` HelpCircle), 2. Procedural Audio toggle (Speaker icon), and 3. Player Name badge with ellipsis text truncation (`max-w-[65px] sm:max-w-[120px]`).
+
+### 9.7 Universal Responsive Design & Device Adaptability
+- **Preservation of Desktop UI**: The established visual hierarchy, dimensions, and styling of the desktop board are fully preserved on large screens ($\ge 768\text{px}$).
+- **Square Aspect-Ratio Enforcement**: The board container is bound to `aspect-square max-h-full max-w-full`, preventing vertical stretching on tall mobile viewports (e.g., iPhone 14/15/16 Pro Max at 430×932px).
+- **Mobile-Optimized Middle Row**: On viewports $< 768\text{px}$, the bulky 12-rule Civic Fund and Market Buzz panels collapse into compact quick-access rule pills (`hidden md:flex`), granting the centered 3D dice arena and primary controls full breathing room.
+- **Ergonomic Touch Targets**: Primary action buttons (`ROLL DICE`, `END TURN`, `PAY BAIL`, `TRY DOUBLES`, `BUY CITY`) enforce minimum tap target heights of $\ge 44\text{px}$ adhering to mobile accessibility guidelines.
+- **Viewport Safe-Area Insets**: Enhanced layout with `pb-[env(safe-area-inset-bottom)]` and `pt-[env(safe-area-inset-top)]` ensuring full compatibility with mobile browser toolbars and home indicator bars.
+
+

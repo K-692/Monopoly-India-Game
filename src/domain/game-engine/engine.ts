@@ -28,6 +28,7 @@ import {
   calculateRent,
   canBuildOnProperty,
   GAME_CONSTANTS,
+  getAuthoritativeBailAmount,
 } from '../ruleset';
 import { generateFairDicePair } from './dice-fairness';
 
@@ -177,17 +178,46 @@ export function applyGameCommand(
         '_' +
         Math.random().toString(36).slice(2, 8);
 
+      const oldPos = player.position;
+      const steps = d1 + d2;
+      const newPos = (oldPos + steps) % 40;
+
       state.dice = {
         rollId,
+        gameSessionId: state.gameId,
+        playerId: player.uid,
+        turnId: state.turnNumber,
+        die1: d1,
+        die2: d2,
+        total: steps,
+        oldPos,
+        newPos,
         first: d1,
         second: d2,
         isDouble,
         consecutiveDoubles,
         rolledAt: Date.now(),
+        createdAt: Date.now(),
       };
 
       summary = `${player.displayName} rolled ${d1} + ${d2} = ${d1 + d2}${isDouble ? ' (Doubles!)' : ''}`;
-      eventPayload = { rollId, d1, d2, isDouble, consecutiveDoubles };
+      eventPayload = {
+        rollId,
+        gameSessionId: state.gameId,
+        playerId: player.uid,
+        turnId: state.turnNumber,
+        die1: d1,
+        die2: d2,
+        d1,
+        d2,
+        total: steps,
+        steps,
+        oldPos,
+        newPos,
+        isDouble,
+        consecutiveDoubles,
+        createdAt: Date.now(),
+      };
 
       // Three consecutive doubles sends player directly to Central Jail
       if (consecutiveDoubles >= 3) {
@@ -200,9 +230,6 @@ export function applyGameCommand(
       }
 
       // Normal movement
-      const oldPos = player.position;
-      const steps = d1 + d2;
-      const newPos = (oldPos + steps) % 40;
       player.position = newPos;
 
       // Passing or landing on START awards host-configured reward (default ₹2,000)
@@ -259,8 +286,13 @@ export function applyGameCommand(
       }
 
       const propState = state.properties[space.spaceIndex];
-      if (propState.ownerUid || propState.ownershipState === 'BLOCKED') {
-        throw new GameEngineError('INVALID_ACTION', 'Property is already owned or blocked');
+      if (
+        propState.ownerUid ||
+        propState.ownershipState === 'BLOCKED' ||
+        propState.isMortgaged ||
+        propState.ownershipState === 'MORTGAGED'
+      ) {
+        throw new GameEngineError('INVALID_ACTION', 'Property is already owned, mortgaged, or blocked');
       }
 
       const price = (space as PropertyDefinition | TransitDefinition | UtilityDefinition).price;
@@ -322,7 +354,7 @@ export function applyGameCommand(
 
     case 'PAY_BAIL': {
       const player = state.players.find((p) => p.uid === actorUid);
-      const bailAmount = state.rules?.jailBail ?? GAME_CONSTANTS.JAIL_BAIL;
+      const bailAmount = getAuthoritativeBailAmount(state);
       if (!player || !player.inJail) {
         throw new GameEngineError('INVALID_ACTION', 'Player is not in jail');
       }
@@ -399,16 +431,47 @@ export function applyGameCommand(
         '_' +
         Math.random().toString(36).slice(2, 8);
 
+      const oldPos = 10;
+      const steps = isDouble ? d1 + d2 : 0;
+      const newPos = isDouble ? (10 + d1 + d2) % 40 : 10;
+
       state.dice = {
         rollId,
+        gameSessionId: state.gameId,
+        playerId: player.uid,
+        turnId: state.turnNumber,
+        die1: d1,
+        die2: d2,
+        total: d1 + d2,
+        oldPos,
+        newPos,
         first: d1,
         second: d2,
         isDouble,
         consecutiveDoubles: 0,
         rolledAt: Date.now(),
+        createdAt: Date.now(),
       };
 
       summary = `${player.displayName} rolled ${d1} & ${d2} in jail`;
+      eventPayload = {
+        rollId,
+        gameSessionId: state.gameId,
+        playerId: player.uid,
+        turnId: state.turnNumber,
+        die1: d1,
+        die2: d2,
+        d1,
+        d2,
+        total: d1 + d2,
+        steps,
+        oldPos,
+        newPos,
+        isDouble,
+        consecutiveDoubles: 0,
+        isJailRoll: true,
+        createdAt: Date.now(),
+      };
 
       // Requirement 1.1: If double rolled on attempt 1, 2, or 3:
       // Immediately released, moves according to dice result.
@@ -417,7 +480,7 @@ export function applyGameCommand(
         player.inJail = false;
         player.jailTurns = 0;
         player.escapedJailThisTurn = true;
-        player.position = (10 + d1 + d2) % 40;
+        player.position = newPos;
         summary += ' — Doubles! Released from jail!';
         resolveLandingSpace(state, player, player.position, d1 + d2);
       } else {
@@ -894,7 +957,7 @@ function resolveLandingSpace(
     case 'TRANSIT':
     case 'UTILITY': {
       const propState = state.properties[spaceIndex];
-      if (!propState.ownerUid && propState.ownershipState !== 'BLOCKED') {
+      if (!propState.ownerUid && !propState.isMortgaged && propState.ownershipState === 'UNOWNED') {
         const price = (space as PropertyDefinition | TransitDefinition | UtilityDefinition).price;
         // Requirement 2.1: City purchase insufficient balance check
         if (player.cash >= price) {
@@ -1044,6 +1107,20 @@ function resolveLandingSpace(
           state.phase = 'MANAGEMENT';
         }
       } else if (
+        propState.ownerUid &&
+        propState.ownerUid !== player.uid &&
+        (propState.isMortgaged || propState.ownershipState === 'MORTGAGED')
+      ) {
+        // Requirement 4: Visiting player lands on mortgaged property owned by another player:
+        // - Pays zero rent
+        // - Does not receive purchase popup
+        // - Does not receive reacquisition popup
+        // - No money or ownership is transferred
+        // - State advances smoothly to MANAGEMENT
+        state.reacquisitionOpportunity = null;
+        state.pendingAction = null;
+        state.phase = 'MANAGEMENT';
+      } else if (
         propState.ownerUid === player.uid &&
         (propState.isMortgaged || propState.ownershipState === 'MORTGAGED') &&
         propState.ownershipState !== 'BLOCKED'
@@ -1078,6 +1155,8 @@ function resolveLandingSpace(
         }
       } else {
         // Owned by current player (unmortgaged) or blocked
+        state.reacquisitionOpportunity = null;
+        state.pendingAction = null;
         state.phase = 'MANAGEMENT';
       }
       break;

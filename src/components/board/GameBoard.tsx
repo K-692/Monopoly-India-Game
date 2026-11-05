@@ -6,7 +6,8 @@ import { BoardSpaceTile } from './BoardSpaceTile';
 import { CityDeedModal } from './CityDeedModal';
 import { FinancialResolutionModal } from './FinancialResolutionModal';
 import { usePopupPosition } from './use-popup-position';
-import { calculateMortgageValue, canBuildOnProperty } from '@/domain/ruleset';
+import { getSpaceGridCoord } from './board-layout-utils';
+import { calculateMortgageValue, canBuildOnProperty, getAuthoritativeBailAmount, getPropertyNoun } from '@/domain/ruleset';
 import { TurnStepAcknowledgment } from '@/components/feedback/TurnStepAcknowledgment';
 import { PopupTurnTimer } from '@/components/feedback/PopupTurnTimer';
 import { useToastStore } from '@/components/feedback/toast-store';
@@ -162,9 +163,23 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   const boardContainerRef = useRef<HTMLDivElement>(null);
   const popupPos = usePopupPosition(playerPos, popupRef, boardContainerRef);
 
-  // City purchase affordability (Section 2.1)
+  // Authoritative bail amount & property terminology
+  const authoritativeBail = getAuthoritativeBailAmount(gameState);
+  const propertyNoun = getPropertyNoun(playerSpace);
+
+  // Property purchase affordability & unowned eligibility (Requirement 4 & 5)
   const spacePrice = playerSpace && 'price' in playerSpace ? (playerSpace as { price: number }).price : 0;
   const canAffordCity = (activePlayer?.cash ?? 0) >= spacePrice;
+
+  // Mortgaged property is NEVER treated as unowned
+  const isUnownedPurchasable = Boolean(
+    playerSpace &&
+    'price' in playerSpace &&
+    !playerPropState?.ownerUid &&
+    !playerPropState?.isMortgaged &&
+    playerPropState?.ownershipState !== 'MORTGAGED' &&
+    playerPropState?.ownershipState !== 'BLOCKED'
+  );
 
   const isPropertyDecision =
     isMyTurn &&
@@ -228,8 +243,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     }
     if (isMyTurn) {
       if (gameState.phase === 'AWAIT_ROLL') return 'Your Turn — Roll the Dice';
-      if (gameState.phase === 'JAIL_DECISION') return 'Your Turn — In Jail (Pay Bail or Try Doubles)';
-      if (gameState.phase === 'PROPERTY_DECISION') return 'Your Turn — Property Decision';
+      if (gameState.phase === 'JAIL_DECISION') return `Your Turn — In Jail (Pay ₹${authoritativeBail.toLocaleString('en-IN')} Bail or Try Doubles)`;
+      if (gameState.phase === 'PROPERTY_DECISION') return `Your Turn — ${propertyNoun} Decision`;
       if (gameState.phase === 'ACTION_REQUIRED') return 'Action Required — Financial Resolution';
       return 'Your Turn — Manage or End Turn';
     }
@@ -358,7 +373,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   return (
     <div
       ref={boardContainerRef}
-      className="relative w-full h-full max-h-full mx-auto p-0.5 sm:p-1 bg-indian-parchment-200 border-2 border-indian-parchment-400 rounded-xl shadow-board-elevation select-none flex flex-col justify-center overflow-hidden"
+      data-testid="monopoly-board-grid"
+      className="relative w-full h-full max-h-full aspect-square mx-auto p-0.5 sm:p-1 bg-indian-parchment-200 border-2 border-indian-parchment-400 rounded-xl shadow-board-elevation select-none flex flex-col justify-center overflow-hidden"
     >
       {/* 11x11 Grid with Expanded Perimeter Dimensions and Spacious City Grids */}
       <div
@@ -396,6 +412,57 @@ export const GameBoard: React.FC<GameBoardProps> = ({
           );
         })}
 
+        {/* Dedicated Elevated Player Tokens Layer (Requirement 3: Never obscured by backgrounds, artwork, or borders) */}
+        <div
+          className="absolute inset-0 grid gap-[1px] pointer-events-none z-35 overflow-visible"
+          style={{
+            gridTemplateColumns: '1.35fr repeat(9, 1fr) 1.35fr',
+            gridTemplateRows: '1.4fr repeat(9, 1fr) 1.4fr',
+          }}
+        >
+          {BOARD_SPACES.map((space) => {
+            const coord = getSpaceGridCoord(space.spaceIndex);
+            const playersHere = gameState.players.filter((p) => {
+              const effectivePos =
+                walkingAnimation && walkingAnimation.uid === p.uid
+                  ? walkingAnimation.currentPos
+                  : p.position;
+              return effectivePos === space.spaceIndex;
+            });
+
+            if (playersHere.length === 0) return null;
+
+            return (
+              <div
+                key={`elevated-tokens-${space.spaceIndex}`}
+                style={{ gridRow: coord.row, gridColumn: coord.col }}
+                className="relative w-full h-full flex items-end justify-center pb-1 pointer-events-none overflow-visible"
+              >
+                <div className="flex items-center justify-center -space-x-1 sm:-space-x-1.5 shrink-0 z-40 filter drop-shadow-md">
+                  {playersHere.map((p) => {
+                    const isWalkingThisPawn = walkingAnimation?.uid === p.uid;
+                    const isActivePawn = gameState.currentPlayerUid === p.uid;
+                    return (
+                      <div
+                        key={`elevated-pawn-${p.uid}-${space.spaceIndex}`}
+                        title={`${p.displayName} (${space.name})`}
+                        style={{ backgroundColor: p.colorToken }}
+                        className={cn(
+                          'w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 border-white shadow-token-glow flex items-center justify-center text-[9px] sm:text-[10px] text-white font-black shrink-0 transition-transform duration-150',
+                          isWalkingThisPawn && 'scale-125 ring-2 ring-amber-400 animate-bounce',
+                          isActivePawn && !isWalkingThisPawn && 'animate-pulse scale-105 ring-1 ring-white'
+                        )}
+                      >
+                        {p.displayName.charAt(0).toUpperCase()}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
         {/* Center Area: Civic Fund & Market Buzz Indexed Rule Lists & 3D Dice Arena */}
         <div
           className="relative flex flex-col items-center justify-between p-1 sm:p-2 bg-gradient-to-br from-indian-parchment-100/95 via-white/95 to-amber-50/90 dark:from-indian-navy-950/95 dark:to-indian-navy-900/95 rounded-lg border border-indian-parchment-300 dark:border-indian-navy-700 shadow-inner overflow-hidden"
@@ -419,8 +486,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({
 
           {/* Middle Row: Civic Fund Indexed List, 3D Dice Rolling Arena, and Market Buzz Indexed List */}
           <div className="w-full flex-1 flex items-stretch justify-between gap-1.5 sm:gap-3 my-auto z-10 px-1 sm:px-2 min-h-0 overflow-hidden">
-            {/* Panel 1: Civic Fund (All 12 Community Treasury Rules Indexed 1..12 — Non-scrollable) */}
-            <div className="w-[37%] max-w-[280px] min-w-[180px] h-full rounded-xl bg-gradient-to-br from-indian-terracotta-800 via-amber-950 to-stone-900 text-white p-1.5 border-2 border-amber-400/80 shadow-xl flex flex-col justify-between overflow-hidden shrink-0">
+            {/* Panel 1: Civic Fund (All 12 Community Treasury Rules Indexed 1..12 — Desktop: visible; Mobile: compact drawer) */}
+            <div className="hidden md:flex md:w-[37%] max-w-[280px] min-w-[160px] h-full rounded-xl bg-gradient-to-br from-indian-terracotta-800 via-amber-950 to-stone-900 text-white p-1.5 border-2 border-amber-400/80 shadow-xl flex-col justify-between overflow-hidden shrink-0">
               <div className="flex items-center justify-between border-b border-amber-300/40 pb-0.5 shrink-0">
                 <div className="flex items-center gap-1.5">
                   <Gift className="w-3.5 h-3.5 text-amber-300" />
@@ -479,12 +546,32 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             </div>
 
             {/* In-Board Dice Roll Arena: Symmetrically Centered 3D Dice & Controls */}
-            <div className="flex-1 flex flex-col items-center justify-center gap-1.5 sm:gap-2 z-20 shrink-0 px-1 [perspective:1000px]">
+            <div className="flex-1 flex flex-col items-center justify-center gap-1.5 sm:gap-2 z-20 shrink-0 px-1 [perspective:1000px] w-full max-w-sm mx-auto">
+              {/* Mobile Quick-Rule Access Buttons */}
+              <div className="md:hidden flex items-center justify-center gap-1.5 mb-0.5">
+                <button
+                  type="button"
+                  onClick={() => setInspectedCard(CIVIC_FUND_CARDS[0])}
+                  className="px-2 py-0.5 rounded-full text-[9px] font-bold text-amber-200 bg-amber-950/80 border border-amber-500/50 flex items-center gap-1 shadow-xs cursor-pointer"
+                >
+                  <Gift className="w-2.5 h-2.5 text-amber-300" />
+                  <span>Civic Fund (12)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setInspectedCard(MARKET_BUZZ_CARDS[0])}
+                  className="px-2 py-0.5 rounded-full text-[9px] font-bold text-emerald-200 bg-emerald-950/80 border border-emerald-500/50 flex items-center gap-1 shadow-xs cursor-pointer"
+                >
+                  <Flame className="w-2.5 h-2.5 text-emerald-300" />
+                  <span>Market Buzz (12)</span>
+                </button>
+              </div>
+
               {/* Interactive 3D Tumbling Dice with Authentic Perspective Roll Effect */}
               <div
                 onClick={isMyTurn && gameState.phase === 'AWAIT_ROLL' && !isRolling && !walkingAnimation ? onRollDice : undefined}
                 className={cn(
-                  'flex items-center gap-2.5 sm:gap-3.5 transition-all p-2 rounded-2xl',
+                  'flex items-center gap-2.5 sm:gap-3.5 transition-all p-2 rounded-2xl min-h-[44px]',
                   isMyTurn && gameState.phase === 'AWAIT_ROLL' && !isRolling && !walkingAnimation
                     ? 'cursor-pointer hover:scale-105 active:scale-95 ring-2 ring-indian-terracotta-400 bg-amber-50/90 shadow-md'
                     : ''
@@ -511,7 +598,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                   type="button"
                   disabled={isRolling}
                   onClick={onRollDice}
-                  className="px-4 py-2 rounded-full font-black text-xs text-white bg-gradient-to-r from-indian-terracotta-500 to-indian-terracotta-600 hover:from-indian-terracotta-600 hover:to-indian-terracotta-700 shadow-md active:scale-95 transition-all flex items-center gap-1.5 border border-indian-terracotta-400 animate-pulse-subtle cursor-pointer"
+                  className="px-5 py-2.5 rounded-full font-black text-xs text-white bg-gradient-to-r from-indian-terracotta-500 to-indian-terracotta-600 hover:from-indian-terracotta-600 hover:to-indian-terracotta-700 shadow-md active:scale-95 transition-all flex items-center gap-1.5 border border-indian-terracotta-400 animate-pulse-subtle cursor-pointer min-h-[44px]"
                 >
                   <Dices className="w-4 h-4" />
                   <span>{isRolling ? 'Rolling...' : 'ROLL DICE'}</span>
@@ -522,7 +609,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                     <button
                       type="button"
                       onClick={() => setVoluntaryMortgageOpen(true)}
-                      className="px-2.5 py-1.5 rounded-full font-bold text-xs text-amber-200 bg-amber-950/80 hover:bg-amber-900 border border-amber-600/60 shadow-md active:scale-95 transition-all flex items-center gap-1 cursor-pointer"
+                      className="px-3 py-2 rounded-full font-bold text-xs text-amber-200 bg-amber-950/80 hover:bg-amber-900 border border-amber-600/60 shadow-md active:scale-95 transition-all flex items-center gap-1 cursor-pointer min-h-[44px]"
                     >
                       <Landmark className="w-3.5 h-3.5" />
                       <span>Mortgage</span>
@@ -531,28 +618,34 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                   <button
                     type="button"
                     onClick={() => onDispatch?.('END_TURN')}
-                    className="px-4 py-1.5 rounded-full font-bold text-xs text-white bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 shadow-md active:scale-95 transition-all flex items-center gap-1.5 border border-emerald-400 cursor-pointer"
+                    className="px-4 py-2 rounded-full font-bold text-xs text-white bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 shadow-md active:scale-95 transition-all flex items-center gap-1.5 border border-emerald-400 cursor-pointer min-h-[44px]"
                   >
                     <span>END TURN</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
               ) : isMyTurn && gameState.phase === 'JAIL_DECISION' && !walkingAnimation ? (
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1.5 flex-wrap justify-center">
                   <button
                     type="button"
                     onClick={() => onDispatch?.('PAY_BAIL')}
-                    className="px-2.5 py-1 rounded-full font-bold text-[10px] text-white bg-red-600 hover:bg-red-500 shadow-xs cursor-pointer flex items-center gap-1"
+                    disabled={activePlayer ? activePlayer.cash < authoritativeBail : false}
+                    className={cn(
+                      'px-3 py-2 rounded-full font-bold text-xs text-white shadow-xs flex items-center gap-1.5 transition-all min-h-[44px]',
+                      activePlayer && activePlayer.cash < authoritativeBail
+                        ? 'bg-gray-500 opacity-60 cursor-not-allowed'
+                        : 'bg-red-600 hover:bg-red-500 active:scale-95 cursor-pointer'
+                    )}
                   >
-                    <KeyRound className="w-3 h-3" />
-                    <span>Pay ₹500 Bail</span>
+                    <KeyRound className="w-3.5 h-3.5" />
+                    <span>Pay ₹{authoritativeBail.toLocaleString('en-IN')} Bail</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => onDispatch?.('TRY_DOUBLES')}
-                    className="px-2.5 py-1 rounded-full font-bold text-[10px] text-white bg-amber-600 hover:bg-amber-500 shadow-xs cursor-pointer flex items-center gap-1"
+                    className="px-3 py-2 rounded-full font-bold text-xs text-white bg-amber-600 hover:bg-amber-500 active:scale-95 shadow-xs cursor-pointer flex items-center gap-1.5 min-h-[44px]"
                   >
-                    <Dices className="w-3 h-3" />
+                    <Dices className="w-3.5 h-3.5" />
                     <span>Try Doubles</span>
                   </button>
                 </div>
@@ -571,8 +664,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({
               )}
             </div>
 
-            {/* Panel 2: Market Buzz (All 12 Fortune & Chance Rules Indexed 1..12 — Non-scrollable) */}
-            <div className="w-[37%] max-w-[280px] min-w-[180px] h-full rounded-xl bg-gradient-to-br from-teal-900 via-emerald-950 to-stone-900 text-white p-1.5 border-2 border-emerald-400/80 shadow-xl flex flex-col justify-between overflow-hidden shrink-0">
+            {/* Panel 2: Market Buzz (All 12 Fortune & Chance Rules Indexed 1..12 — Desktop: visible; Mobile: compact drawer) */}
+            <div className="hidden md:flex md:w-[37%] max-w-[280px] min-w-[160px] h-full rounded-xl bg-gradient-to-br from-teal-900 via-emerald-950 to-stone-900 text-white p-1.5 border-2 border-emerald-400/80 shadow-xl flex-col justify-between overflow-hidden shrink-0">
               <div className="flex items-center justify-between border-b border-emerald-300/40 pb-0.5 shrink-0">
                 <div className="flex items-center gap-1.5">
                   <Flame className="w-3.5 h-3.5 text-emerald-300" />
@@ -639,7 +732,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         </div>
 
         {/* Requirement 3: POINTED COMMENT BOX with Viewport Clamping & Collision Awareness */}
-        {((isPropertyDecision && canAffordCity) || canBuildHere || (isOwnMortgagedCity && canAffordReacquire)) && (
+        {((isPropertyDecision && isUnownedPurchasable && canAffordCity) || canBuildHere || (isOwnMortgagedCity && canAffordReacquire)) && (
           <div
             ref={popupRef}
             style={popupPos.style}
@@ -658,11 +751,11 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             />
 
             {/* Pointed Box Content: Buy Property Prompt */}
-              {isPropertyDecision && canAffordCity && 'price' in playerSpace && (
+              {isPropertyDecision && isUnownedPurchasable && canAffordCity && 'price' in playerSpace && (
                 <>
                   <div className="flex items-center justify-between border-b border-white/20 pb-1.5">
                     <span className="font-serif font-black text-xs text-amber-200">
-                      🏙️ Buy Property?
+                      🏙️ Buy {propertyNoun}?
                     </span>
                     <span className="font-black text-emerald-400 text-xs">
                       ₹{playerSpace.price.toLocaleString('en-IN')}
@@ -675,15 +768,15 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                     <button
                       type="button"
                       onClick={() => onDispatch?.('BUY_PROPERTY', { spaceIndex: playerPos })}
-                      className="flex-1 py-1.5 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-500 text-white shadow-md active:scale-95 transition-all flex items-center justify-center gap-1 cursor-pointer"
+                      className="flex-1 py-2 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-500 text-white shadow-md active:scale-95 transition-all flex items-center justify-center gap-1 cursor-pointer min-h-[44px]"
                     >
                       <Check className="w-3.5 h-3.5" />
-                      <span>Buy City</span>
+                      <span>Buy {propertyNoun}</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => onDispatch?.('DECLINE_PROPERTY')}
-                      className="px-3 py-1.5 rounded-xl font-bold text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 active:scale-95 transition-all cursor-pointer"
+                      className="px-3.5 py-2 rounded-xl font-bold text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 active:scale-95 transition-all cursor-pointer min-h-[44px]"
                     >
                       Decline
                     </button>
@@ -709,7 +802,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                     <button
                       type="button"
                       onClick={() => onDispatch?.('BUILD', { spaceIndex: playerPos })}
-                      className="flex-1 py-1.5 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-500 text-white shadow-md active:scale-95 transition-all flex items-center justify-center gap-1 cursor-pointer"
+                      className="flex-1 py-2 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-500 text-white shadow-md active:scale-95 transition-all flex items-center justify-center gap-1 cursor-pointer min-h-[44px]"
                     >
                       <Check className="w-3.5 h-3.5" />
                       <span>{playerPropState?.buildings === 4 ? 'Build Tower' : 'Build House'}</span>
@@ -717,7 +810,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                     <button
                       type="button"
                       onClick={() => onDispatch?.('END_TURN')}
-                      className="px-3 py-1.5 rounded-xl font-bold text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 active:scale-95 transition-all cursor-pointer"
+                      className="px-3.5 py-2 rounded-xl font-bold text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 active:scale-95 transition-all cursor-pointer min-h-[44px]"
                     >
                       Done
                     </button>
@@ -725,12 +818,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                 </>
               )}
 
-              {/* Pointed Box Content: Reacquire Mortgaged Property Prompt (Requirement 3) */}
+              {/* Pointed Box Content: Reacquire Mortgaged Property Prompt (Requirement 3 & 4) */}
               {isOwnMortgagedCity && canAffordReacquire && (
                 <>
                   <div className="flex items-center justify-between border-b border-white/20 pb-1.5">
                     <span className="font-serif font-black text-xs text-amber-200">
-                      🔄 Reacquire Property?
+                      🔄 Reacquire {propertyNoun}?
                     </span>
                     <span className="font-black text-emerald-400 text-xs">
                       ₹{reacquisitionCost.toLocaleString('en-IN')}
@@ -748,15 +841,15 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                           landingId: gameState.reacquisitionOpportunity?.landingId,
                         })
                       }
-                      className="flex-1 py-1.5 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-500 text-white shadow-md active:scale-95 transition-all flex items-center justify-center gap-1 cursor-pointer"
+                      className="flex-1 py-2 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-500 text-white shadow-md active:scale-95 transition-all flex items-center justify-center gap-1 cursor-pointer min-h-[44px]"
                     >
                       <Check className="w-3.5 h-3.5" />
-                      <span>Reacquire City</span>
+                      <span>Reacquire {propertyNoun}</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => onDispatch?.('DECLINE_PROPERTY')}
-                      className="px-3 py-1.5 rounded-xl font-bold text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 active:scale-95 transition-all cursor-pointer"
+                      className="px-3.5 py-2 rounded-xl font-bold text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 active:scale-95 transition-all cursor-pointer min-h-[44px]"
                     >
                       Decline
                     </button>

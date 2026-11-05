@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { BoardSpaceDefinition, GameActionType, PlayerState, PropertyDefinition, PropertyState } from '@/domain/game-types';
 import { X, Landmark, Home, Building2, ShieldAlert } from 'lucide-react';
 import { PopupTurnTimer } from '@/components/feedback/PopupTurnTimer';
-import { calculateMortgageValue } from '@/domain/ruleset';
+import { calculateMortgageValue, getPropertyNoun } from '@/domain/ruleset';
 import { cn } from '@/lib/utils/cn';
 
 interface CityDeedModalProps {
@@ -45,6 +45,7 @@ export const CityDeedModal: React.FC<CityDeedModalProps> = ({
   const isUtility = space.type === 'UTILITY';
   const isTax = space.type === 'TAX';
   const isAirport = space.spaceIndex === 25 || space.spaceIndex === 35;
+  const noun = getPropertyNoun(space);
 
   const mortgageVal = calculateMortgageValue(space.spaceIndex, propertyState || undefined);
   const reacquisitionCost =
@@ -98,7 +99,7 @@ export const CityDeedModal: React.FC<CityDeedModalProps> = ({
             <div className="flex items-center gap-2">
               <Landmark className="w-4 h-4 text-gray-500 shrink-0" />
               <div>
-                <span className="text-[10px] text-gray-500 font-medium block">Current Owner</span>
+                <span className="text-[10px] text-gray-500 font-medium block">{noun} Owner</span>
                 {owner ? (
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <span
@@ -253,15 +254,15 @@ export const CityDeedModal: React.FC<CityDeedModalProps> = ({
                   }}
                   className="w-full py-2.5 rounded-xl font-bold text-xs bg-amber-500 hover:bg-amber-600 text-white shadow-md active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-1.5"
                 >
-                  <span>Mortgage Property (Receive ₹{mortgageVal.toLocaleString('en-IN')})</span>
+                  <span>Mortgage {noun} (Receive ₹{mortgageVal.toLocaleString('en-IN')})</span>
                 </button>
               ) : (
                 <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700/60 text-center">
                   <p className="text-xs text-amber-900 dark:text-amber-200 font-bold leading-tight">
-                    City is currently mortgaged.
+                    {noun} is currently mortgaged.
                   </p>
                   <p className="text-[10.5px] text-amber-700 dark:text-amber-300/80 mt-1 leading-normal">
-                    To reacquire for ₹{reacquisitionCost.toLocaleString('en-IN')}, you must physically land on this city again during your turn.
+                    To reacquire for ₹{reacquisitionCost.toLocaleString('en-IN')}, you must physically land on this {noun.toLowerCase()} again during your turn.
                   </p>
                 </div>
               )}

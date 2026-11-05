@@ -199,11 +199,20 @@ export interface PendingAction {
 
 export interface DiceState {
   rollId?: string;
+  gameSessionId?: string;
+  playerId?: string;
+  turnId?: number;
+  die1?: number;
+  die2?: number;
+  total?: number;
+  oldPos?: number;
+  newPos?: number;
   first: number;
   second: number;
   isDouble: boolean;
   consecutiveDoubles: number;
   rolledAt: number;
+  createdAt?: number;
 }
 
 export interface MoneyTransactionAcknowledgment {
