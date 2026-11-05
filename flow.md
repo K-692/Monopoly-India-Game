@@ -75,362 +75,138 @@ The card engine manages two authoritative 12-rule indexed decks:
 ## 2. Information Architecture, Board Geometry & Visual Hierarchy
 
 ### 2.1 Center Board Architecture: Dual 1–12 Indexed Rule Panels & Central Tumbling Dice
-- **Dual Indexed Rule Panels in Place of Cards**:
-  - Instead of displaying isolated card backs or single face-up cards, the board center features two structured panels:
-    - **Left Panel**: Civic Fund (12 Community Treasury Rules, indexed #1 to #12) with terracotta/amber theme.
-    - **Right Panel**: Market Buzz (12 Fortune & Chance Rules, indexed #1 to #12) with emerald/teal theme.
-  - All 12 rules are visible simultaneously with index numbers, titles, and amounts.
-  - Active rules light up with a vibrant pulse highlight matching the rolled dice total.
+- **Dual Indexed Rule Panels**:
+  - The board center features two structured panels:
+    - **Civic Fund (Left)**: 12 Community Treasury Rules, indexed #1 to #12 with terracotta/amber theme.
+    - **Market Buzz (Right)**: 12 Fortune & Chance Rules, indexed #1 to #12 with emerald/teal theme.
+  - Active rules highlight dynamically based on the authoritative dice roll sum.
 - **Central 3D Tumbling Dice Arena & Center Turn Controls**:
-  - Located directly between the two indexed panels.
+  - Located symmetrically between the indexed panels.
   - Houses interactive 3D dice faces with tumbling animations and rolled total indicator.
   - Features the primary action button (`ROLL DICE`, `END TURN`, `TRY DOUBLES`, `PAY BAIL`) right at the center of the board, eliminating the need for disconnected side control panels.
 
-### 2.2 Two-Line City Grids with In-Grid Prices and Mortgage Values
-- Each city cell presents a structured, two-line vertical hierarchy:
-  - **Line 1**: Full City Name (single line without wrapping, dynamic length-adaptive font sizing).
-  - **Line 2**: Purchase Price alongside Mortgage Value (`M: ₹{mortgageValue}`) in a clean, legible font.
-- Extreme corner cells (`START`, `JAIL`, `REST`, `GO TO JAIL`) are styled compactly, preserving perimeter grid width and height for metropolitan city cells.
+### 2.2 Board Space Presentation & Clean Typography
+- **Single-Line City Names**: All 24 cities render on a single line (`truncate whitespace-nowrap`) with adaptive font scaling and full title tooltips to ensure zero wrapping or grid overflow across mobile, iPad, and desktop viewports.
+- **Removal of Monetary Prices from Grids**: Board grids strictly communicate property identity, color groups, developments, and ownership status. Prices are removed from in-grid tiles and preserved in property deed inspection modals and purchase popups.
+- **Blocked State Badge**: Properties owned by disqualified players feature a distinct `BLOCKED` badge with grayscale styling.
 
-### 2.3 Pointed Comment Box (Callout Tooltip for Buy & Build Actions)
-- Replaced cumbersome right-side action panels with a floating in-board **Pointed Comment Box**.
-- Positioned dynamically adjacent to the active player's space on the perimeter grid.
-- Features an exact geometric pointer triangle directed straight at the player's active tile.
-- Handles context-sensitive turn operations:
-  - **Buy Property Decision**: Displays property name, purchase price, mortgage value, and action buttons (`Buy City`, `Decline`).
-  - **House / Tower Construction**: Displays construction cost, building level target, and action buttons (`Build House/Tower`, `Done`).
-
-### 2.4 City Deed Modal & Player Detail Modal via Top-Level Portals
-- **CityDeedModal (Triggered on City Grid Click)**:
-  - Clicking any space on the board opens a deed inspection modal showing space index, color band, ownership status, purchase price, mortgage value, unmortgage cost, and complete rent schedule (Base, House 1-4, Commercial Tower).
-  - Owners can mortgage or unmortgage directly from this dialog.
-- **PlayerDetailModal (Triggered on Player Card Click)**:
-  - Clicking any player's name card in the slim left panel opens an in-depth financial dossier showing liquid cash, total net worth, current position, jail status, and their complete portfolio of owned deeds with current rent yields.
-- **Full-Screen React Portal Architecture**:
-  - Both modals, along with the card rule popup and transaction acknowledgements, are rendered via `createPortal(..., document.body)` with `z-[100]` and `bg-black/70 backdrop-blur-sm`, guaranteeing zero stacking-context conflicts with board grid elements.
-
-### 2.5 Jailed Player Economic Exemption Rule
-- **Incarceration Rule Invariant**:
-  - Incarcerated players located in Central Jail earn **₹0 rent** when opponents land on their properties (`calculateRent(..., isOwnerInJail = true) => 0`).
-  - Incarcerated players receive **₹0** from card payment redistributions (`CASH_PLAYERS` / `PAY_PLAYERS`).
-  - Economic earnings resume immediately upon release via bail or rolling doubles.
-
-### 2.6 Money Transaction Acknowledgement Receipt Modal
-- Whenever currency changes hands (rent payments, property deeds, construction costs, statutory taxes, START rewards), a dedicated transaction acknowledgement modal appears:
-  - Displays transaction type icon, payer name (spent, highlighted in red), recipient name (earned, highlighted in emerald), formatted amount, and explanatory description.
-  - Requires explicit confirmation via a prominent, high-contrast, gold `✓ ACKNOWLEDGE` button, ensuring both players have full awareness of financial state updates.
-
-### 2.7 Delayed Building Logic (Next Turn Construction Constraint)
-- When a player purchases a property, the engine records `propState.boughtOnTurn = state.turnNumber`.
-- Construction of houses or towers on that property is strictly prohibited during the turn of purchase (`currentTurnNumber <= propState.boughtOnTurn`).
-- Building is permitted starting from subsequent turns (`currentTurnNumber > propState.boughtOnTurn`) when the owner visits their city with sufficient funds.
-
-### 2.8 Purchased City Ownership Grid Coloring
-- When a player purchases a city, utility, or transit space, the entire grid cell adopts the player's theme:
-  - **Cell Border**: 2px solid border styled with `owner.colorToken`.
-  - **Cell Background**: Tinted with an alpha-blended wash of `owner.colorToken + '18'` (light mode) / `'28'` (dark mode).
-  - **Accent Header**: Sleek top/inner banner colored with `owner.colorToken` displaying the owner's display name.
-  - **In-Grid Development**: Up to 4 house icons (`🏠`) or golden commercial tower (`🏢 TOWER`).
-
-### 2.9 Maximized Full-Screen Board with Slim Left Panel & Zero Footer
-- Removed the right action container (`ActionPanel`) and bottom footer/emoji reaction bar entirely.
-- Slimmed the left panel to `w-32 sm:w-36 md:w-40`.
-- Maximized board canvas across `flex-1` width and `h-[calc(100dvh-50px)]`, providing expansive, comfortable grid cells with zero page scrolling.
-
-### 2.10 Grid Visual Hierarchy: Name-Only Focus & Dynamic Player Token Positioning
-- In strict adherence to legibility standards and viewport geometry, individual city grids display **strictly the city/place name** without in-grid price or mortgage clutter.
-- When players land on a tile, their avatar tokens (`(K)`, `(P)`) are rendered directly beneath the city name with zero clipping, overflow, or occlusion. The city name remains 100% visible at all times.
-- Full financial intelligence (deed purchase price, mortgage value, unmortgage cost, and complete tier-by-tier rent schedules) is seamlessly accessible by clicking any grid cell to open the authoritative `CityDeedModal`.
-- Subtle vector motifs for special spaces (Transit express trains/airports, utilities, taxes, cards) are positioned in the background with reduced opacity so text remains crystal clear.
-
-### 2.11 Discrete Step-by-Step Walking Animation (0.5s per Space)
-- Movement across the 40-space board utilizes a discrete step-by-step traversal loop:
-  - When dice are rolled, the active player's pawn hops from tile to tile, advancing one space at a time.
-  - Each individual step lasts strictly **0.5 seconds** ($500\text{ms}$), playing procedural footstep audio (`PAWN_STEP`) or START salary fanfare (`PASS_START`).
-  - Active space glowing highlights and player coordinates update synchronously on every hop.
-  - Upon arrival at the target tile, the final position holds for 0.5s before triggering context-sensitive decisions (Buy/Build pointed boxes or card modals).
-
-### 2.12 Complete Bankruptcy & Game-Over Invariant
-- Under tournament rules, a player becomes **completely bankrupt** when:
-  $$\text{Player Cash} \le 0 \quad \text{AND} \quad \text{Mortgageable Properties Count} = 0$$
-- When triggered:
-  1. The player's status is permanently updated to `isBankrupt = true` with cash set to 0.
-  2. All deeds held by the player are immediately liquidated back to the Reserve Bank.
-  3. Turn advancement shifts to the next solvent player in round-robin order.
-  4. The engine checks solvent player count:
-     $$\text{Solvent Players} = \{p \in \text{Players} \mid \neg p.\text{isBankrupt}\}$$
-     If $|\text{Solvent Players}| \le 1$, the game transitions to `status = 'COMPLETED'` and records `winnerUid` with victory fanfare.
-
-### 2.13 Universal Turn Timer Integration across All Popup Dialogs
-- To ensure players never lose track of active turn progression while reviewing modals, an authoritative `PopupTurnTimer` badge is rendered inside:
-  - `activeCardPopup` (Civic Fund & Market Buzz indexed rule receipts).
-  - `activeMoneyTransaction` (Rent payments, taxes, rewards).
-  - `CityDeedModal` (City deed information and mortgage panel).
-  - `PlayerDetailModal` (Player financial dossiers).
-  - `inspectedCard` (Rule inspection dialogs).
-- Features live countdown seconds (`30s`), active player token avatar, and pulse warnings when $t \le 10\text{s}$.
-
-### 2.14 3D Rolling Dice Arena with Dynamic Random Dots & Web Audio Sound Engine
-- Two 3D dice cubes feature individual rotation, perspective skew, and pitch keyframe animations (`animate-dice-roll-1`, `animate-dice-roll-2`).
-- **Dynamic Random Dots During Roll**: While rolling (`isRolling = true`), both cubes rapidly cycle random active dot configurations (2 to 6 dots across the $3\times3$ grid positions) and perspective shifts every 55ms, simulating fast tumbling motion blur with procedural wooden rattle clicking sounds (`DICE_TICK`).
-- **Clean Settled Landing Impact**: Upon roll completion, the dice cubes snap instantly into their authoritative rolled states (`dice.first`, `dice.second`) in solid black, accompanied by a solid dual-thud landing impact sound (`DICE_LAND`).
-- Outcome badge underneath presents strictly the single combined total (`🎲 Rolled: {first + second}`), removing breakdown noise.
-
-### 2.15 Jail Space Barred Cell & Glowing Red Prison Plaque
-- The Central Jail corner grid (Space #10) features an authentic prison visual aesthetic:
-  - **Glowing Red Outer Frame**: `border-2 border-red-600 shadow-[0_0_18px_rgba(239,68,68,0.85)] ring-2 ring-red-500/50`.
-  - **Black & White Vertical Jail Bars**: CSS repeating linear gradient (`repeating-linear-gradient(90deg, #18181b 0px, #18181b 4px, #ffffff 4px, #ffffff 9px)`) spanning the entire background.
-  - **Centered Plaque**: High-contrast red badge (`bg-red-700/95 border border-red-400 text-white`) with prominent `JAIL` and `Visiting` text.
-
-### 2.16 Non-City Grids: Glowing Orange Frame, Solid White Fill & High-Opacity Vector Motifs
-- All non-city grid spaces (Transits #5, #15, #25, #35; Utilities #17, #28; Taxes #8, #37; Cards #2, #12, #22, #32; Rest House #20):
-  - **Solid White Fill**: High-contrast, clean white backdrop (`bg-white text-indian-navy-950`).
-  - **Glowing Orange Accent**: `border-2 border-orange-500 shadow-[0_0_12px_rgba(249,115,22,0.65)] ring-1 ring-orange-400/50`.
-  - **High-Opacity Crisp Vector Icons**: Increased illustration opacity from 15% to 90% (`opacity-90`), rendering locomotives, airplanes, lightning bolts, water droplets, and event icons in rich, vivid detail without text overlap.
-
-### 2.17 24-Step Continuous City Price Spectrum (Orange to Green)
-- The 24 metropolitan city properties feature a mathematically continuous color ramp mapped directly to property deed value:
-  - **Lowest Value (₹600 - ₹800)**: Deep Orange (`#EA580C`, Jaipur & Jodhpur) to Vivid Orange (`#F97316`, Udaipur).
-  - **Moderate Value (₹1,000 - ₹1,600)**: Tangerine/Amber (`#FB923C`, `#F59E0B`, Agra, Lucknow, Varanasi) to Warm Gold (`#EAB308`, `#FACC15`, Indore, Bhopal, Surat).
-  - **Mid-Tier Metropolitan (₹1,800 - ₹2,400)**: Lime/Citron (`#D9E74C`, `#A3E635`, `#84CC16`, `#65A30D`, Kochi, Goa, Ahmedabad, Pune, Hyderabad).
-  - **High-Value Tech Hubs (₹2,600 - ₹3,200)**: Vibrant Emerald to Forest Green (`#22C55E`, `#16A34A`, `#15803D`, `#166534`, Bengaluru, Chennai, Kolkata, Chandigarh, Gurugram, Noida).
-  - **Premier Tier (₹3,500 - ₹4,000)**: Dark Emerald to Supreme Green (`#0F5132`, `#064E3B`, `#047857`, Navi Mumbai, New Delhi, Mumbai).
-- Unowned city grids display a top colored header bar and border corresponding to their price shade.
-- Upon purchase, the grid dynamically adopts the owner's player color token and branding banner.
-
-### 2.18 Non-Scrollable Symmetrical Center Arena with All 12 Rules in Enlarged Font
-- Both the **Civic Fund** and **Market Buzz** center panels have been engineered to fit all 12 indexed canonical rules simultaneously with **zero scrollbars** (`overflow-hidden`).
-- Positioned symmetrically on opposite sides of the central 3D dice arena.
-- Increased rule title typography to `text-[10px] sm:text-[11px] md:text-[12.5px] font-black` for effortless legibility across all screen sizes.
-- Symmetrical flex alignment guarantees perfect center balance.
-
-### 2.19 Multiplayer Private Rooms & Isolated Sandbox Practice Mode
-- Streamlined the game hub by providing dedicated **Host Multiplayer Room** (custom rulesets, turn timer, starting capital) and **Join with Room Code / Invite Link**, while preserving an isolated **Launch Solo Practice Match** card for zero-risk gameplay testing.
-- State synchronization, 0.5s pawn traversal, and tournament bankruptcy checking are synchronized through real-time Firestore listeners (`/room/:roomId` and `/game/:gameId`).
-
-### 2.20 Question Mark Rules Modal & Streamlined Top Navigation
-- Removed the separate **Rules** navigation tab from the header, standardizing navigation on **Play** and **Settings**.
-- Added a high-contrast **Question Mark button** (`?` / `HelpCircle` icon) positioned immediately to the left of the speaker mute button.
-- Clicking the question mark button triggers an on-page modal popup window displaying the complete official rulebook across four tabbed categories (Core Game Flow, Civic Fund 12 Rules, Market Buzz 12 Rules, Bankruptcy & Jail), with escape key, overlay click, and close button handling.
-
-### 2.21 Retirement of Color-Set Monopoly Double Rent
-- With the transition of metropolitan cities from legacy color groupings to an individual price spectrum from Orange to Green based on property deed value (₹600 to ₹4,000), color-set monopoly grouping was retired.
-- Base rent calculation on undeveloped properties no longer doubles based on color-group sets; rent on unimproved deeds is the listed base rent ($p.\text{baseRent}$), while development progression is driven by residential blocks (1-4 houses) and commercial skyscraper towers.
-
-### 2.22 Anti-Clipping Typography, Non-Overlapping Player Tokens & Cache-Resilient Architecture
-- **Multi-Word Stacked Typography**: Addressed edge tile truncation ("Chennai Airp...", "CST To...") by rendering multi-word destinations in vertically stacked, auto-scaled typography. Top ascender clipping (such as the top stem of "Kochi") is eliminated through generous vertical padding and unclipped text containers.
-- **Collision-Free Token Layout**: Vector illustrations on non-city tiles automatically scale down (`scale-75 w-4 h-4`) when player pawns occupy the grid, ensuring zero collision between icons, city names, and player tokens. When multiple players share a space, tokens stack using negative horizontal margins (`-space-x-1.5`) without vertical overflow.
-- **Deed Modals Harmonization**: Eliminated obsolete Monopoly color group stripes from property portfolio listings in player detail views, synchronizing all deed badges with the continuous orange-to-green price spectrum (`getCityPriceColor`).
-- **High-Visibility Acknowledgment Controls**: Upgraded rule card popups and financial transaction receipts with prominent, high-contrast action buttons (`Acknowledge & Continue`) equipped with live turn timers for both parties.
-- **Cache-Busting & Clean Distribution**: Added strict HTTP cache-control meta headers to `index.html` (`no-cache, no-store, must-revalidate`) to guarantee that visitors to the GitHub Pages live deployment immediately load the latest application bundle.
-
-### 2.23 Real-Time Cloud Firestore & Server-Authoritative Cloud Functions Integration
-- **Zero-Polling Reactive Architecture**: Replaced client-side Zustand room simulations with real-time Cloud Firestore listeners (`onSnapshot`) on both the room document (`rooms/{roomId}`) and the members subcollection (`rooms/{roomId}/members`).
-- **Cloud Functions Region Standardization**: Standardized all callable endpoints on region `asia-south1`:
-  - `createRoom`: Generates cryptographically secure 6-character room codes, hashes them with SHA-256, and atomically commits the room document and host member.
-  - `joinRoom`: Normalizes and hashes incoming invite codes, discovers the matching room, performs atomic capacity checks inside a Firestore transaction, and enrolls the player into the members subcollection.
-  - `setReady`: Manages server-side readiness states with real-time fanout to all connected clients.
-  - `startGame`: Enforces host-only permissions, validates minimum 2 ready players, and atomically transitions the room to `IN_PROGRESS` with a canonical `gameId`.
-  - `submitGameAction`: Idempotent command receipt logging and turn validation.
-
-### 2.24 Frictionless Firebase Anonymous Authentication & Stable Identity
-- Integrated `signInAnonymously` from Firebase Authentication as the canonical identity provider.
-- Player preferences (display name, token color) are persisted in `localStorage` and mapped directly to the persistent Firebase UID.
-- Sessions remain strictly stable across browser reloads, eliminating duplicate room seat allocation upon refresh.
-
-### 2.25 Zero-Fabrication Invariant & Concurrency-Safe Matchmaking
-- Completely eradicated all simulated fallback players ("Rajesh", "Priya") and mock lobby generators.
-- A room's roster strictly reflects actual documents committed in Firestore.
-- Room capacity checks execute inside `db.runTransaction` on the backend, preventing race conditions from simultaneous join requests.
-
-### 2.26 Universal Cross-Device Invitation Links (`#/join/:code`)
-- Supported two friction-free joining workflows:
-  - **Direct Code Input**: Upper-cased 6-character code entry directly on the Play Hub.
-  - **Universal Invitation URL**: Cross-platform shareable deep link format (`https://.../#/join/ABC123`) compatible with Android, iOS, iPadOS, Safari, Chrome, and Firefox on GitHub Pages HashRouter.
-- Joining via URL establishes the anonymous Firebase session, requests or reuses the player's display name, executes the join operation, and routes directly to the true Firestore room ID.
-
-### 2.27 Green Shades Buying Price Spectrum (₹600 to ₹4,000) & High-Contrast Typography
-- **All-Green Color Ramp**: Replaced the previous orange-to-green ramp with a dedicated, fine-grained **green shades spectrum** mapped strictly to deed acquisition prices:
-  - Lowest price deeds (₹600, Jaipur & Jodhpur): `#D1FADF` (Light Mint Green).
-  - Low-mid price deeds (₹800 to ₹1,400, Udaipur, Agra, Lucknow, Varanasi, Indore, Bhopal): `#BBF7D0` to `#4ADE80` (Pastel Spring to Fresh Green).
-  - Mid price deeds (₹1,600 to ₹2,400, Surat, Vizag, Kochi, Goa, Ahmedabad, Pune, Hyderabad): `#34D399` to `#166534` (Emerald to Deep Forest Green).
-  - Upper tier deeds (₹2,600 to ₹3,500, Bengaluru, Chennai, Kolkata, Chandigarh, Gurugram, Noida, Navi Mumbai): `#14532D` to `#063A2D` (Dark Evergreen to Imperial Pine).
-  - Highest tier deeds (₹3,800 to ₹4,000, New Delhi, Mumbai): `#042D23` to `#02241C` (Midnight Emerald to Supreme Deep Dark Green).
-- **Full Grid Color Fill**: Configured city tiles so the cell itself is filled with the green shade (`backgroundColor: priceColor`), replacing the previous translucent 7% tint.
-- **High-Contrast Text Hierarchy**: Implemented mathematical luminance thresholding via `getCityTextColor(price)`:
-  - For light green shades ($\le ₹1,400$): text is rendered in deep dark pine/black (`#022C22`, contrast ratio $> 9:1$) with zero drop shadow.
-  - For medium-to-deep green shades ($> ₹1,400$): text is rendered in crisp white (`#FFFFFF`, contrast ratio $> 7:1$ to $18:1$) with a dark drop shadow (`drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]`).
-- **In-Grid Purchase Price Badges**: Added an explicit deed buying price badge (`₹600` to `₹4,000`) directly beneath the city name on every property tile, establishing instant visual correlation between the green shade and the property tier.
-
-### 2.28 Thin Black Border on Timer Seconds Inside Pop-up Windows
-- Modified `PopupTurnTimer` to enforce a thin black border (`border border-black`, `border-width: 1px`) around the timer seconds element (`<span data-testid="popup-timer-seconds">...</span>`).
-- Gives the countdown seconds badge a crisp, high-definition black boundary across all modal dialogs:
-  - Civic Fund & Market Buzz rule popups.
-  - Financial transaction notices & rent receipts.
-  - Card inspection dialogs.
-  - City title deed certificates & mortgage management modals.
-  - Player asset inspection modals.
-
-### 2.29 Online Room Creation Resolution & Hybrid Cloud/Firestore/Broadcast Architecture
-- **Root Cause Analysis of Creation Failure**:
-  1. On the live deployment (`https://k-692.github.io/Monopoly-India-Game/`), `VITE_FIREBASE_*` environment variables were blank when built by GitHub Actions because repository secrets had not been populated manually, causing `isFirebaseConfigured` to return `false` and aborting `handleOpenCreateModal` before the modal could even open.
-  2. In Cloud Functions, `asia-south1` endpoints returned 404 on un-deployed projects, which previously threw an uncaught exception that aborted room creation.
-- **Architectural Resolution**:
-  - Restored the public web client identifiers for `monopoly-india-f9700` as default configuration fallbacks in `src/lib/firebase/firebase-config.ts` and `.github/workflows/deploy-pages.yml`.
-  - Updated `firestore.rules` to grant read, create, update, and member management permissions to authenticated anonymous users.
-  - Implemented a 3-tier resilient multiplayer engine in `use-room-store.ts`:
-    1. **Primary**: Firebase Cloud Functions v2 callables (`createRoom`, `joinRoom`, `setReady`, `startGame`).
-    2. **Direct Firestore Fallback**: Atomic batch writes (`writeBatch`), SHA-256 invite code hashing, and query-based matchmaking if Cloud Functions are offline or return 404.
-    3. **Local / Cross-Tab BroadcastChannel**: Resilient in-memory/localStorage session relay with instant same-device synchronization if Firestore permissions are locked, ensuring room creation never fails.
+### 2.3 Pointed Comment Box (Contextual Action Callout)
+- Positioned dynamically adjacent to the active player's space on the perimeter grid with an authentic pointer triangle pointing at the tile.
+- **Affordability Gating**:
+  - Purchase prompt is displayed only when player has sufficient funds (`cash >= price`). If balance is insufficient, the prompt is suppressed and an `"Insufficient balance to purchase this property."` toast is triggered.
+  - Construction prompt is displayed only when player has sufficient funds (`cash >= buildingCost`). If balance is insufficient, the prompt is suppressed and an `"Insufficient balance to build on this property."` toast is triggered.
+  - Reacquisition prompt is displayed when an owner visits their mortgaged property with sufficient funds (`cash >= mortgagePayout`).
 
 ---
 
-## 3. Wi-Fi LAN Authoritative Multiplayer System (Final Architecture & Paradigm Shift)
+## 3. Mathematical Models & Financial State Formulations
 
-### 3.1 Motivation & Architectural Paradigm Shift
-While cloud databases (such as Firestore) provide globally accessible matchmaking, they introduce critical vulnerabilities and constraints for real-time turn-based board games:
-1. **Network Latency & Internet Dependency**: Requires continuous active internet connectivity, rendering gameplay unviable during outages, flights, travel, or high-latency local Wi-Fi environments.
-2. **Third-Party Service Flakiness & Cold Starts**: Serverless cloud functions introduce cold-start latencies (1-3s), while rate limits and quota exhaustions disrupt active tournament matches.
-3. **Security & State Divergence**: Optimistic client mutations against cloud documents risk race conditions, stale document snapshots, and desynchronization during simultaneous user interactions.
+### 3.1 Jail Escape & Incarceration State Machine
+Jail mechanics enforce strict probability and movement constraints:
+- **Try Double Window (Turns 1, 2, and 3)**:
+  - An incarcerated player may attempt to roll doubles on their first three eligible turns ($N_{\text{jail}} \in \{0, 1, 2\}$).
+  - **Success Case**: If $d_1 = d_2$, the player is released immediately ($\text{inJail} = \text{false}$), moves forward by $d_1 + d_2$, and **does not receive an extra turn**. Flag `escapedJailThisTurn = true` prevents the standard doubles re-roll invariant.
+  - **Failure Case**: If $d_1 \ne d_2$, the player remains in jail, incrementing $N_{\text{jail}} \leftarrow N_{\text{jail}} + 1$. The player does not move and their turn ends immediately.
+- **Automatic 4th Eligible Turn Release**:
+  - If a player fails all 3 double attempts ($N_{\text{jail}} \ge 3$), the engine automatically releases them at the beginning of their 4th eligible turn ($\text{inJail} \leftarrow \text{false}, N_{\text{jail}} \leftarrow 0$) without requiring a Try Double roll. The player proceeds to roll and move normally.
 
-To resolve these constraints, the multiplayer backend was completely transitioned to a **local Wi-Fi LAN, server-authoritative multiplayer architecture** powered by **Node.js 22+, Express, and Socket.IO**. One player's machine (host laptop) runs an authoritative game daemon, exposing a combined HTTP asset server and WebSocket transport that peers on the local wireless network connect to with sub-millisecond round-trip times.
+### 3.2 Distinct Airport Visiting Rent Scaling
+Airport transit charges scale distinctly higher than railways to reflect high-value aviation infrastructure:
+$$\text{Rent}_{\text{airport}}(k) = \begin{cases} 
+₹1,000 & \text{if } k = 1 \\
+₹2,500 & \text{if } k = 2 
+\end{cases}$$
+Where $k$ is the number of airports owned by the same proprietor (Chennai Airport #25 and IGI Airport #35). In contrast, railways (CST Mumbai #5 and Howrah #15) scale at ₹250 and ₹500 respectively. Rent collection is nullified if the owner is in jail, the airport is mortgaged, or the owner is disqualified.
 
+### 3.3 Mortgage Valuation Model with Development Recovery
+To prevent exploits while fairly crediting invested capital:
+$$V_{\text{mortgage}}(S, P) = \min\left(P_{\text{base}}, \left\lfloor 0.5 \times P_{\text{base}} + 0.5 \times \sum_{i=1}^{B} C_{\text{build}}\right\rfloor\right)$$
+Where:
+- $P_{\text{base}}$ is the property's initial purchase price.
+- $B$ is the number of houses built ($B \in [0, 5]$ where 5 represents a Commercial Tower).
+- $C_{\text{build}}$ is the building cost per unit.
+- **Asset Integrity**: Physical developments are **not demolished** upon mortgaging. They remain physically attached to the deed.
+- **Exact Reacquisition Cost**:
+  $$C_{\text{reacquire}} = V_{\text{payout\_received}}$$
+  The redemption cost strictly equals the exact mortgage proceeds credited when the property was mortgaged.
+
+### 3.4 Mandatory Financial Resolution & Blocked Property Invariant
+When a financial obligation $D$ (rent, tax, or fine) exceeds available liquid cash $C$:
+1. The transaction pauses, entering state `pendingFinancialObligation`.
+2. A non-bypassable **Financial Resolution Window** opens for the debtor.
+3. The debtor must mortgage eligible properties to raise cash until $C \ge D$, then click `Pay Outstanding Debt` (`RESOLVE_OBLIGATION`).
+4. **Surrender / Give Up (`GIVE_UP`)**:
+   - If unable or unwilling to settle, debtor surrenders.
+   - All remaining cash ($C$) is transferred to the creditor.
+   - Debtor is marked $\text{isBankrupt} = \text{true}$ and $\text{isDisqualified} = \text{true}$.
+   - All debtor properties transition to ownership state `BLOCKED`:
+     $$\text{ownershipState}(p) \leftarrow \text{'BLOCKED'}$$
+     Blocked properties remain permanently on the board, produce zero rent, and cannot be acquired, traded, or mortgaged.
+
+### 3.5 Immutable Financial Ledger (`FinancialTransaction`)
+Every balance modification atomically appends an immutable transaction record:
+```typescript
+export interface FinancialTransaction {
+  transactionId: string;
+  gameSessionId: string;
+  playerUid: string;
+  type: FinancialTransactionType;
+  direction: 'CREDIT' | 'DEBIT';
+  amount: number;
+  balanceBefore: number;
+  balanceAfter: number;
+  spaceIndex?: number;
+  propertyName?: string;
+  counterpartyUid?: string | null;
+  counterpartyName?: string | null;
+  description: string;
+  timestamp: number;
+  eventId?: string;
+}
 ```
-+──────────────────────────────────────────────────────────────────────────────+
-│                          AUTHORITATIVE HOST SERVER                           │
-│                             (Node.js 22 + Express)                           │
-│                                                                              │
-│    +───────────────────────+                    +───────────────────────+    │
-│    │  Express Asset Server │                    │   Socket.IO Gateway   │    │
-│    │    (Port 4173, SPA)   │                    │     (ws://, WSS)      │    │
-│    +───────────┬───────────+                    +───────────┬───────────+    │
-│                │                                            │                │
-│                ▼                                            ▼                │
-│        dist/ Production Bundle                     Typed Socket Handlers     │
-│       (index.html, assets, chunks)              (register, join, command)    │
-│                                                             │                │
-│                                                             ▼                │
-│    +────────────────────────────────────────────────────────────────────+    │
-│    │                  AUTHORITATIVE STATE ENGINE                        │    │
-│    │                                                                    │    │
-│    │  [1] In-Memory Room Manager                                        │    │
-│    │      - Rooms: Map<RoomId, ServerRoom>                              │    │
-│    │      - Codes: Map<InviteCode, RoomId>                              │    │
-│    │      - Sessions: Map<PlayerUid, PlayerSession>                     │    │
-│    │                                                                    │    │
-│    │  [2] Per-Match Promise Queue (Strict FIFO Execution)               │    │
-│    │      Command C_k ──► Queue ──► applyGameCommand() ──► V_{k+1}      │    │
-│    │                                                                    │    │
-│    │  [3] Cryptographic Dice Roll Generator                             │    │
-│    │      dice = [crypto.randomInt(1, 7), crypto.randomInt(1, 7)]       │    │
-│    │                                                                    │    │
-│    │  [4] Authoritative 1s Turn Countdown Timer                         │    │
-│    │      t_{remain} ──► 0 ──► Deterministic Timeout Action             │    │
-│    │                                                                    │    │
-│    │  [5] Command Deduplication Cache                                   │    │
-│    │      Map<CommandId, CommandResult>                                 │    │
-│    +────────────────────────────────────────────────────────────────────+    │
-+───────────────────────────────────────▲──────────────────────────────────────+
-                                        │
-                         Wi-Fi LAN Transport (Zero Internet)
-                         http://<LAN_IP>:4173 & ws://<LAN_IP>:4173
-                                        │
-           +────────────────────────────┴───────────────────────────+
-           │                                                        │
-           ▼                                                        ▼
-+───────────────────────+                                +───────────────────────+
-│   Host Browser Client │                                │  Guest Mobile/Browser │
-│    (React 19 + Vite)  │                                │   (React 19 + Vite)   │
-│  - Presentation Store │                                │  - Presentation Store │
-│  - 3D Tumbling Dice   │                                │  - 3D Tumbling Dice   │
-│  - Web Audio Engine   │                                │  - Web Audio Engine   │
-+───────────────────────+                                +───────────────────────+
-```
-
-### 3.2 Network Topology Discovery & Single-Origin Co-Location
-- **Multi-Interface Scanning**: The server queries `os.networkInterfaces()` on startup, filtering out internal loopback interfaces (`127.0.0.1`, `::1`) and virtual networks.
-- **Private Address Verification**: Evaluates RFC 1918 private IPv4 subnets (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`) and displays human-readable local addresses in the startup terminal banner.
-- **Single-Origin Deployment**: The Express HTTP server and Socket.IO engine bind to `0.0.0.0:4173`. When guest devices navigate to `http://<HOST_IP>:4173`, the browser fetches the production React application from `dist/` and initializes `socket.io-client` against `window.location.origin`. This eliminates cross-origin restrictions, eliminates port divergence, and simplifies network routing.
-- **Diagnostic LAN Endpoints**:
-  - `GET /api/health`: System health monitor reporting process uptime, active memory rooms, and active game instances.
-  - `GET /api/lan-info`: JSON endpoint returning detected LAN IPv4 addresses, active port, primary address, and shareable hostnames.
-
-### 3.3 Cryptographic Session Identity & Reconnection Security
-- **No Reliance on Client-Supplied Identifiers**: To prevent session spoofing and identity hijacking, client identifiers are generated server-side.
-- **Cryptographic Reconnection Tokens**: When a client registers via `player:register`, the server generates:
-  $$\text{PlayerUID} = \text{uuidv4}()$$
-  $$\text{ReconnectToken} = \text{crypto.randomBytes}(32).\text{toString('hex')}$$
-- **Rehydration Protocol**: The client persists both credentials in browser `localStorage`. Upon page reload or transient Wi-Fi disconnection, the client emits `player:resume` with its `reconnectToken`. The server authenticates the token in $O(1)$ time, associates the new socket ID with the existing player profile, and re-subscribes the socket to its active room and game channels without disrupting match progression.
-
-### 3.4 Cryptographic Dice Generation & Anti-Cheat Invariants
-- **Elimination of Client-Side Dice**: In peer-to-peer or client-centric systems, clients compute dice outcomes and transmit results, enabling memory editing and packet manipulation attacks.
-- **Server-Side Cryptographic Randomness**: All dice rolls are computed inside `server/game/game-manager.ts` using Node.js hardware-backed cryptographically secure pseudo-random number generator:
-  $$D_1 = \text{crypto.randomInt}(1, 7), \quad D_2 = \text{crypto.randomInt}(1, 7)$$
-- **Presentation Separation**: The client triggers 3D tumbling physics and Web Audio rolling sounds upon initiating the roll action. When the authoritative `game:event` (`DICE_ROLLED`) arrives from the server, the visual dice settle smoothly onto the server-dictated faces $[D_1, D_2]$, guaranteeing visual immersion without sacrificing cryptographic integrity.
-
-### 3.5 Distributed Concurrency Control: Sequential Queue & Idempotency
-- **Per-Game Promise Queue**: Multiple players may interact with the board concurrently (e.g. trading, mortgaging, rolling, reacting). To ensure strict linearizability, every active match possesses an isolated promise chain:
-  ```typescript
-  class GameManager {
-    private actionQueues = new Map<GameId, Promise<void>>();
-    
-    public async dispatchCommand(gameId, command): Promise<GameCommandResponse> {
-      return new Promise((resolve) => {
-        const currentQueue = this.actionQueues.get(gameId) || Promise.resolve();
-        const nextQueue = currentQueue.then(async () => {
-          const result = await this.executeAuthoritativeCommand(gameId, command);
-          resolve(result);
-        });
-        this.actionQueues.set(gameId, nextQueue);
-      });
-    }
-  }
-  ```
-- **Command Deduplication**: Clients generate a unique UUID `commandId` per action. Retransmitted packets due to wireless jitter or double-clicks hit an in-memory command cache:
-  $$\text{Cache}(\text{gameId}, \text{commandId}) \to \text{GameCommandResponse}$$
-  Duplicate commands return the cached response immediately with zero state mutation.
-
-### 3.6 Monotonic State Synchronization & Event Streaming
-- **Monotonic Version Counter**: Every committed mutation increments the match version:
-  $$V_{k+1} = V_k + 1$$
-- **Dual-Stream Broadcast Protocol**:
-  1. `game:state`: Full snapshot of authoritative `GameState` containing the updated board version, player balances, property deeds, turn phase, and log records.
-  2. `game:event`: Granular discrete event notifications (`DICE_ROLLED`, `PAWN_MOVED`, `PROPERTY_BOUGHT`, `TURN_CHANGED`, `BANKRUPTCY`) carrying payload metadata (e.g. step path, destination space index, transaction amount).
-- **Client Presentation Reconciliation**: The frontend Zustand store (`useGameStore`) ingests `game:state` to synchronize underlying state models while triggering step-by-step 0.5s pawn stepping animations, audio synthesizer chimes, and callout comment boxes driven by the corresponding `game:event`.
-
-### 3.7 Authoritative Turn Countdown State Machine
-- **Server-Driven Interval Timer**: Each match maintains a 1,000ms server interval tracking remaining turn seconds ($t_{\text{remain}}$).
-- **Network Synchronization**: The server broadcasts `game:timer` ($t_{\text{remain}}$) to all room participants every second.
-- **Deterministic Timeout Fallbacks**: If $t_{\text{remain}} \le 0$, the server terminates the turn by executing an authoritative fallback action corresponding to the current phase:
-  - Phase `AWAIT_ROLL`: Automatically rolls dice for the active player.
-  - Phase `PROPERTY_DECISION`: Automatically declines the property acquisition.
-  - Phase `MANAGEMENT`: Automatically executes `END_TURN` and transitions play to the next active player.
-  - Phase `JAIL_DECISION`: Automatically chooses `TRY_DOUBLES`.
-This guarantees that stalled clients, abandoned browsers, or network drops never freeze tournament gameplay.
-
-### 3.8 Frictionless Universal Cross-Device Joining & QR Discovery
-- **6-Character High-Contrast Room Codes**: Generated via `crypto.randomInt` using an unambiguous alphabet (`23456789ABCDEFGHJKMNPQRSTUVWXYZ`), excluding visually ambiguous glyphs (`0`, `O`, `1`, `I`, `L`).
-- **QR Code Generation**: Using `qrcode`, the host lobby dynamically renders a high-definition 2D QR matrix encoding the exact LAN deep-link URL:
-  $$\text{URL} = \text{http://} + \text{HostLANIP} + \text{:} + \text{Port} + \text{/\#/join/} + \text{InviteCode}$$
-- **Multi-Device Compatibility**: Any modern smartphone camera (iOS Safari / Android Chrome) scans the QR code to launch the web client and join the lobby within 2 seconds, requiring zero application store downloads or manual IP configuration.
-
-### 3.9 Dual Build Targets & Asset Resolution
-- **Target 1: LAN Hosting (`.env.lan`)**:
-  - `VITE_APP_BASE_PATH=/`
-  - React application bundles root-relative assets (`/assets/...`), allowing the host server on port 4173 to serve the application directly from the filesystem root.
-- **Target 2: GitHub Pages Demo (`vite.config.ts`)**:
-  - Defaults to `/Monopoly-India-Game/` in production if `VITE_APP_BASE_PATH` is unspecified, maintaining continuous compatibility with GitHub Pages static hosting.
+Records are synchronized across all clients and viewable in reverse-chronological order within the Player Profile statement.
 
 ---
 
-## 4. Production Deployment & Verification
+## 4. UI/UX Transformation: Toast Notifications & Responsive Engineering
 
-### 4.1 Automated CI/CD & Testing Verification
-- **Unit & State Machine Tests**: Vitest suite (19/19 tests passing) verifies:
-  - 12 Game Engine invariants: discrete currency resolution, transit scaling, 3-consecutive doubles incarceration, 2-player turn cycles, `boughtOnTurn` construction delay enforcement, jailed owner rent exemption, dice-total card index resolution, transaction acknowledgement state transitions, and complete bankruptcy tournament rules.
-  - 7 Authoritative Multiplayer Integration tests: Real Socket.IO client-server interactions testing session registration, cryptographic reconnect token verification, room creation, guest joining via invite code, multi-player readiness toggling, game initialization, and command dispatch.
-- **Cross-Platform End-to-End Suite**: Playwright multi-browser test suite (`e2e/lan-multiplayer.spec.ts` and responsive suites):
-  - Validates multi-client browser sessions simultaneously simulating host laptop and guest device creating rooms, joining via deep-link URLs, readying up, launching games, and rolling server-authoritative dice.
-- **Typecheck & Lint**: Strict TypeScript validation (`tsc --noEmit`) and ESLint audits passing with 0 errors and 0 warnings.
-- **Production LAN Build**: `npm run build:lan` builds the production bundle to `dist/` in under 2 seconds.
+### 4.1 Non-Blocking Floating Toasts
+- Replaced disruptive blocking acknowledgment modals with lightweight, non-blocking toast notifications positioned at the bottom-left corner of the viewport (`fixed bottom-4 left-4 z-50`).
+- **Autonomic Dismissal**: Toasts automatically fade out after 3,000ms.
+- **Manual Control**: Each toast features a subtle `×` dismiss button.
+- **Per-Player Client Isolation**: Notifications for one player never block or hijack another player's viewport or interaction state.
 
+### 4.2 Universal Device Layout Matrix
+- Tested and verified across desktop monitors, iPads/tablets, and mobile phones.
+- Center arena perspective preservation maintains 3D dice readability while preventing overlapping perimeter cells.
+
+---
+
+## 5. Architectural Migration: Zero-Cloud Authoritative LAN Server
+
+### 5.1 Retirement of Firebase / Firestore
+All cloud dependencies (Firebase Auth, Cloud Firestore, Realtime Database, Cloud Functions) have been completely removed:
+- Deleted unused Firebase client SDKs (`src/lib/firebase/`), configuration manifests (`firebase.json`, `.firebaserc`, `firestore.rules`), and GitHub action deployments.
+- Removed `firebase` npm dependency.
+
+### 5.2 Standalone Node.js & Socket.IO Architecture
+- **In-Memory Authoritative Engine**: Matches run entirely on an authoritative Node.js process using pure functional state reducers (`engine.ts`).
+- **Cryptographic Reconnection Tokens**: Resumed sessions verify ephemeral cryptographically generated tokens, guaranteeing zero identity spoofing across network drops.
+- **QR Code Discovery**: Automatic LAN IP resolution generates instant 2D QR matrices for frictionless mobile browser onboarding.
+
+---
+
+## 6. Verification, Test Coverage & Benchmark Results
+
+### 6.1 Test Suite Summary
+- **Unit & Invariant Suite (`engine.test.ts`)**: 24 tests passing:
+  - 1st, 2nd, and 3rd jail escape double attempts with extra turn suppression.
+  - Incarcerated failed attempts maintaining zero movement.
+  - 4th turn automatic release without Try Double requirement.
+  - Insufficient cash rejection for property purchases and building.
+  - Mortgage valuation formula with house recovery and capped bounds.
+  - Exact payout reacquisition without penalty.
+  - Financial resolution debt handling, surrender, and `BLOCKED` deed retention.
+  - Transaction ledger accuracy.
+- **Integration Suite (`multiplayer-integration.test.ts`)**: 7 tests passing covering real socket connections, room creation, join, ready toggling, and command execution.
+- **Production Build**: Verified with Vite production build completing in 2.16s with zero TypeScript compilation errors.

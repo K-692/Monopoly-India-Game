@@ -15,7 +15,6 @@ export interface PlayerIdentity {
 
 interface PlayerAuthState {
   player: PlayerIdentity | null;
-  firebaseUid: string | null; // Kept for backward compatibility with existing tests
   reconnectToken: string | null;
   isAuthInitialized: boolean;
   isNamePromptOpen: boolean;
@@ -63,7 +62,6 @@ export const useAuthStore = create<PlayerAuthState>((set, get) => {
           avatarColor: initialPrefs.color,
         }
       : null,
-    firebaseUid: initialPrefs.uid || null,
     reconnectToken: initialPrefs.token || null,
     isAuthInitialized: false,
     isNamePromptOpen: false,
@@ -87,7 +85,6 @@ export const useAuthStore = create<PlayerAuthState>((set, get) => {
           }
 
           set({
-            firebaseUid: uid,
             reconnectToken: token,
             isAuthInitialized: true,
             player: name
@@ -199,7 +196,6 @@ export const useAuthStore = create<PlayerAuthState>((set, get) => {
               localStorage.setItem('monopoly_reconnect_token', res.player.token);
             }
             set({
-              firebaseUid: res.player.uid,
               reconnectToken: res.player.token,
               player: {
                 uid: res.player.uid,
@@ -213,7 +209,7 @@ export const useAuthStore = create<PlayerAuthState>((set, get) => {
 
       set({
         player: {
-          uid: get().player?.uid || get().firebaseUid || 'player_me',
+          uid: get().player?.uid || 'player_me',
           displayName: cleanName,
           avatarColor: color,
         },

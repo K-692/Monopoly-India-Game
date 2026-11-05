@@ -130,8 +130,8 @@ export class GameManager {
 
     let injectedDice: [number, number] | undefined = undefined;
 
-    // Generate cryptographic dice on the server for ROLL_DICE
-    if (command.type === 'ROLL_DICE') {
+    // Generate cryptographic dice on the server for ROLL_DICE and TRY_DOUBLES
+    if (command.type === 'ROLL_DICE' || command.type === 'TRY_DOUBLES') {
       const d1 = crypto.randomInt(1, 7);
       const d2 = crypto.randomInt(1, 7);
       injectedDice = [d1, d2];
@@ -269,6 +269,20 @@ export class GameManager {
         };
         this.processCommand(gameState.gameId, cmd, activeUid).catch((e) => {
           console.warn('Timeout TRY_DOUBLES failed:', e);
+        });
+      } else if (gameState.phase === 'ACTION_REQUIRED' && gameState.pendingFinancialObligation) {
+        const debtor = gameState.players.find((p) => p.uid === gameState.pendingFinancialObligation?.debtorUid);
+        const canResolve = debtor && debtor.cash >= gameState.pendingFinancialObligation.amountDue;
+        const cmd: GameCommand = {
+          commandId,
+          roomId: gameState.roomId,
+          gameId: gameState.gameId,
+          expectedVersion: gameState.version,
+          type: canResolve ? 'RESOLVE_OBLIGATION' : 'GIVE_UP',
+          payload: {},
+        };
+        this.processCommand(gameState.gameId, cmd, activeUid).catch((e) => {
+          console.warn('Timeout financial resolution failed:', e);
         });
       }
     } catch (err) {

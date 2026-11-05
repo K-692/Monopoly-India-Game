@@ -18,7 +18,7 @@
 ---
 
 > **About the Project:**  
-> **Indian Monopoly** is a modern, high-performance, zero-scroll property trading board game built for local network Wi-Fi multiplayer and offline play. Designed with **React 19, TypeScript, Tailwind CSS, Node.js 22, Express, and Socket.IO**, the system operates with **zero Firebase, zero external databases, and zero Internet connection required** during gameplay.
+> **Indian Monopoly** is a modern, high-performance, zero-scroll property trading board game built for local network Wi-Fi multiplayer and offline play. Designed with **React 19, TypeScript, Tailwind CSS, Node.js 22, Express, and Socket.IO**, the system operates with **zero Firebase, zero external cloud dependencies, and zero Internet connection required** during gameplay.
 >
 > A host player starts the lightweight Node.js server on their laptop, which automatically detects all private LAN IPv4 addresses, serves the production-built React frontend, and acts as the authoritative Socket.IO game server. Friends and family on the same Wi-Fi connect seamlessly from iPhones, Android devices, iPads, or laptops by scanning an on-screen QR code or entering a 6-character room code.
 
@@ -114,17 +114,48 @@ Waiting for players...
 
 ---
 
-## 🎮 Game Features & Board Design
+## 🎮 Gameplay Logic & Financial System
 
-- **Authentic Indian Urban Economy**: 24 premier Indian metropolitan cities distributed strictly 6 per side with prices from ₹600 (Jaipur/Jodhpur) to ₹4,000 (Mumbai).
-- **24-Step Green Shades Price Spectrum**: Grids are color-filled in an intuitive light mint to supreme midnight emerald spectrum with mathematically balanced luminance text for razor-sharp legibility.
-- **12 Civic Fund & 12 Market Buzz Canonical Rules**: Fully indexed #1 to #12 in symmetrical center board panels with dynamic dice-roll highlights and zero scrolling.
-- **3D Tumbling Dice Physics**: Web Audio sound synthesis with authentic rattling sounds, impact thuds, step-by-step 0.5s pawn traversal, and double-roll extra turns.
-- **Authoritative Turn Timers**: Configurable 30s, 45s, 60s, or unlimited turn timer with automatic timeout actions (auto-roll, auto-decline, auto-end turn) so games never stall.
-- **Pointed Comment Box**: Contextual in-board pointer dialogs for property acquisition, deed inspection, and mortgage management.
-- **Central Jail & Zero-Rent Invariant**: Authentic red glowing barred jail space; incarcerated players collect ₹0 rent.
-- **Universal Mortgages & Strict Tournament Bankruptcy**: Instant property liquidation to Reserve Bank upon complete insolvency; the last solvent tycoon wins!
-- **Solo Offline Practice Mode**: Isolated sandbox mode for practicing strategies with zero network connections.
+### 1. Jail Mechanics & "Try Double" Rules
+- **3 Try Double Attempts**: Incarcerated players can attempt to roll doubles on each of their first three eligible turns.
+- **Immediate Escape with Movement**: Rolling doubles immediately releases the player and advances their pawn by the dice roll.
+- **No Extra Turn on Jail Escape**: Rolling doubles while escaping jail **never grants an additional turn**.
+- **No Movement on Failed Attempt**: If non-doubles are rolled, the player remains in jail and does not move.
+- **Automatic 4th Turn Release**: If a player fails all 3 attempts, they are automatically released at the start of their 4th eligible turn without needing to roll Try Double, proceeding with normal gameplay.
+
+### 2. Insufficient Balance UX & Backend Validation
+- **City Purchase Gating**: When a player lands on an unowned city with insufficient funds, the purchase popup is suppressed and a notification is displayed: `"Insufficient balance to purchase this property."`
+- **Building Gating**: When a player attempts to build without sufficient cash, the purchase confirmation is suppressed and a notification is displayed: `"Insufficient balance to build on this property."`
+- **Authoritative Backend Validation**: The backend independently validates player cash balances before committing any purchase or construction action, preventing stale-state mutations.
+
+### 3. Clean Board Presentation
+- **Single-Line City Names**: All city names appear on a single line with length-adaptive typography, zero line-wrapping, and native tooltips for truncated names.
+- **Price-Free Board Grids**: Monetary prices are removed from all board grid tiles (cities, transits, utilities) to maximize visual clarity, with prices accessible via property deed modals and purchase callouts.
+
+### 4. Distinct Airport Visiting Rent
+- **Higher Aviation Tariff**: Landing on an airport owned by another player costs:
+  - 1 Airport Owned: **₹1,000**
+  - 2 Airports Owned: **₹2,500**
+- Railways (CST Mumbai & Howrah) maintain standard rail tariffs of ₹250 and ₹500.
+- Rent is waived if the owner is in jail, the property is mortgaged, or the owner is disqualified.
+
+### 5. Comprehensive Mortgaging & Financial Resolution
+- **Mortgage Valuation Formula**:
+  $$\text{Mortgage Payout} = \min\left(P_{\text{base}}, \left\lfloor 0.5 \times P_{\text{base}} + 0.5 \sum \text{houses} \times \text{cost}\right\rfloor\right)$$
+  Undeveloped properties yield 50% of purchase price; properties with developments yield additional equity credit without exceeding 100% of purchase price.
+- **Development Preservation**: Houses and Commercial Towers are **not demolished** during mortgage; they remain physically intact on the deed.
+- **Exact Reacquisition Cost**: Reacquiring a mortgaged property costs the **exact mortgage payout originally received** (no penalty surcharge).
+- **Mandatory Financial Resolution Window**: When a player owes rent or fines exceeding liquid cash, the transaction pauses, opening a mandatory resolution window to mortgage properties or surrender.
+- **Surrender & Blocked Properties**: Choosing "Give Up" transfers remaining liquid cash to the creditor, marks the player as disqualified, and transitions their properties to `BLOCKED` status (zero rent, cannot be purchased, traded, or mortgaged).
+
+### 6. Non-Blocking Toast Notifications
+- Replaced disruptive blocking acknowledgment modals with smooth floating toast notifications in the **bottom-left corner** of the screen.
+- Auto-dismisses after **3 seconds** with an unobtrusive `×` dismiss icon.
+- Isolated per player/browser to avoid interfering with other players' actions.
+
+### 7. Transaction History Ledger
+- Dedicated **Transaction History** section inside the Player Profile modal.
+- Reverse-chronological ledger tracking every financial credit (`+₹`, green) and debit (`-₹`, red) with timestamps, before/after balances, counterparty identities, and associated properties.
 
 ---
 
@@ -135,10 +166,10 @@ Waiting for players...
 | `npm run lan:host` | **Production Host**: Builds the production bundle (`dist/`) and starts the authoritative LAN server on `0.0.0.0:4173`. |
 | `npm run lan:dev` | **Concurrent Dev**: Runs the Node.js Socket.IO server (`tsx watch`) and Vite dev server (`5173`) with live hot-reloading. |
 | `npm run build:lan` | Builds the React frontend with `/` base path explicitly targeted for LAN hosting. |
-| `npm run build` | Builds the React frontend with `/Monopoly-India-Game/` base path for GitHub Pages demo. |
+| `npm run build` | Builds the React frontend for production distribution. |
 | `npm run server` | Starts the Node.js server directly using `tsx server/index.ts`. |
 | `npm test` | Runs the full Vitest suite (game engine invariants + real multi-client Socket.IO integration tests). |
-| `npm run test:e2e` | Runs multi-browser Playwright E2E suite (including multi-client LAN room creation & gameplay). |
+| `npm run test:e2e` | Runs multi-browser Playwright E2E suite. |
 | `npm run typecheck` | Strict TypeScript validation across client, server, and tests (`tsc --noEmit`). |
 | `npm run lint` | ESLint validation across all TypeScript and React files with zero warnings. |
 
@@ -171,73 +202,6 @@ If you need to verify your host computer's IPv4 address manually:
 
 ---
 
-## 🔧 Firewall & Wi-Fi Troubleshooting
-
-### 1. Host Firewall Configuration
-If guest devices cannot open `http://<HOST_IP>:4173`:
-- **macOS**:
-  1. Open **System Settings** ➔ **Network** ➔ **Firewall**.
-  2. If Firewall is turned ON, click **Options...**.
-  3. Ensure **node** or your terminal app is set to **"Allow incoming connections"**, or temporarily allow incoming connections for local port 4173.
-- **Windows**:
-  1. Open **Windows Defender Firewall** ➔ **Allow an app or feature through Windows Defender Firewall**.
-  2. Click **Change settings**, find **Node.js JavaScript Runtime**, and check both **Private** and **Public** networks.
-  3. Or run PowerShell as Administrator:
-     ```powershell
-     New-NetFirewallRule -DisplayName "Monopoly LAN Server" -Direction Inbound -LocalPort 4173 -Protocol TCP -Action Allow
-     ```
-
-### 2. Wi-Fi AP Isolation / Client Isolation
-Some public, office, or university Wi-Fi networks enable **Client Isolation (AP Isolation)**, preventing connected devices from communicating with each other directly.
-- **Fix / Best Alternative**: Turn on your laptop's **Mobile Hotspot** (or turn on Hotspot on your smartphone) and connect all playing devices to that hotspot.
-- This creates an isolated local network with zero firewall blocks, ultra-low latency (<2ms), and **does not consume any mobile cellular data** during gameplay!
-
-### 3. Server Lifecycle & In-Memory State
-- Rooms, sessions, and active games are managed authoritatively in the Node.js server's memory.
-- If the host laptop restarts or terminates the server process (`Ctrl+C`), active in-memory rooms are safely cleared.
-- Refreshing a browser tab does **not** kick a player: each client receives a cryptographically secure reconnection token stored in `localStorage`, enabling instant session resumption upon reload.
-
----
-
-## 🏛️ Authoritative Server Architecture Details
-
-### REST API Endpoints
-- `GET /api/health` ➔ Returns `{ status: "ok", uptime: number, activeRooms: number, activeGames: number, timestamp: string }`.
-- `GET /api/lan-info` ➔ Returns detected host IPv4 addresses, port, primary LAN URL, and shareable hostnames.
-
-### Typed Socket.IO Event Protocol
-```typescript
-// Client-to-Server Events
-'player:register'  // Register or generate unique player session
-'player:resume'    // Resume session via cryptographic reconnectToken
-'room:create'      // Host creates room with custom rules (maxPlayers, turnTimer, startingCash)
-'room:join'        // Guest joins room with 6-character invite code
-'room:leave'       // Leave current lobby
-'room:set-ready'   // Toggle player ready state
-'room:start'       // Host initiates game once all players ready
-'game:command'     // Submit turn action (ROLL_DICE, BUY_PROPERTY, END_TURN, etc.)
-'reaction:send'    // Broadcast live emoji reactions
-'ping'             // Heartbeat check
-
-// Server-to-Client Broadcasts
-'player:registered' // Session receipt with playerUid and reconnectToken
-'room:state'        // Authoritative lobby roster, members, and readiness
-'game:started'      // Match initialization notice and gameId
-'game:state'        // Monotonically versioned authoritative game state
-'game:event'        // Animation triggers (DICE_ROLLED, PAWN_MOVED, PROPERTY_BOUGHT)
-'game:timer'        // Synchronized turn countdown seconds
-'server:error'      // Structured error notification
-'pong'              // Heartbeat reply
-```
-
-### Concurrency & Anti-Cheat Guarantees
-1. **Server-Generated Cryptographic Dice**: Dice are rolled exclusively on the server using `crypto.randomInt(1, 7)`. Client tampering with dice rolls is mathematically impossible.
-2. **Sequential Action Queue**: Every active match maintains a strict FIFO promise queue. Rapid or simultaneous incoming commands are processed sequentially, eliminating race conditions.
-3. **Idempotent Command Deduplication**: Each client action includes a unique `commandId`. Retransmitted actions are cached and return the cached outcome without duplicate state mutations.
-4. **Authoritative Turn Countdown**: The server runs an authoritative 1-second interval timer. When a player's timer expires, the server automatically takes a deterministic action (auto-roll if awaiting roll, auto-decline if buying, auto-end turn if managing), keeping matches fast and uninterrupted.
-
----
-
 ## 🤝 How to Contribute
 
 We warmly welcome contributions from developers, game designers, and open-source enthusiasts!
@@ -259,10 +223,8 @@ We warmly welcome contributions from developers, game designers, and open-source
 5. **Verify the Test Suite**:
    ```bash
    npm run typecheck
-   npm run lint
    npm test
-   npm run test:e2e
-   npm run build:lan
+   npm run build
    ```
    Ensure all tests pass cleanly with zero warnings or errors.
 6. **Commit & Push**:

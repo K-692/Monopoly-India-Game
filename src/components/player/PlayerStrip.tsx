@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { PlayerState, PropertyState } from '@/domain/game-types';
+import { FinancialTransaction, PlayerState, PropertyState } from '@/domain/game-types';
 import { Card } from '@/components/ui/Card';
 import { IndianRupee, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
@@ -9,6 +9,7 @@ interface PlayerStripProps {
   players: PlayerState[];
   currentPlayerUid: string;
   properties: Record<number, PropertyState>;
+  transactions?: FinancialTransaction[];
   turnTimeRemaining?: number;
   turnTimeLimit?: number;
   onSelectPlayer?: (uid: string) => void;
@@ -19,6 +20,7 @@ export const PlayerStrip: React.FC<PlayerStripProps> = ({
   players,
   currentPlayerUid,
   properties,
+  transactions = [],
   turnTimeRemaining,
   turnTimeLimit = 30,
   onSelectPlayer,
@@ -148,6 +150,7 @@ export const PlayerStrip: React.FC<PlayerStripProps> = ({
         <PlayerDetailModal
           player={inspectedPlayer}
           properties={properties}
+          transactions={transactions}
           onClose={() => setInspectedPlayerUid(null)}
           activePlayerName={players.find((p) => p.uid === currentPlayerUid)?.displayName}
           activePlayerColor={players.find((p) => p.uid === currentPlayerUid)?.colorToken}

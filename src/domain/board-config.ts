@@ -617,6 +617,8 @@ export const PROPERTY_GROUPS: Record<PropertyColorGroup, number[]> = {
 };
 
 export const TRANSIT_SPACES = [5, 15, 25, 35];
+export const AIRPORT_SPACES = [25, 35];
+export const RAILWAY_SPACES = [5, 15];
 export const UTILITY_SPACES = [17, 28];
 
 /**

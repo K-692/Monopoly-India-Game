@@ -130,15 +130,21 @@ export interface PlayerState {
   jailTurns: number;
   jailFreeCards: number;
   isBankrupt: boolean;
+  isDisqualified?: boolean;
+  escapedJailThisTurn?: boolean;
   colorToken: string;
   turnTimeoutCount: number;
 }
+
+export type PropertyOwnershipState = 'UNOWNED' | 'OWNED' | 'MORTGAGED' | 'BLOCKED';
 
 export interface PropertyState {
   spaceIndex: number;
   propertyId: string;
   ownerUid: string | null;
+  ownershipState: PropertyOwnershipState;
   isMortgaged: boolean;
+  mortgagePayout?: number;
   buildings: number; // 0..4 = houses, 5 = tower
   boughtOnTurn?: number;
 }
@@ -210,6 +216,56 @@ export interface MoneyTransactionAcknowledgment {
   description: string;
 }
 
+export interface PendingFinancialObligation {
+  obligationId: string;
+  debtorUid: string;
+  creditorUid: string | null; // null = Bank
+  amountDue: number;
+  paymentType: 'RENT' | 'AIRPORT_RENT' | 'TAX' | 'CARD';
+  spaceIndex?: number;
+  status: 'PENDING' | 'RESOLVED' | 'CANCELLED';
+  createdAt: number;
+  idempotencyKey: string;
+}
+
+export type FinancialTransactionType =
+  | 'STARTING_BALANCE'
+  | 'START_REWARD'
+  | 'CITY_PURCHASE'
+  | 'HOUSE_PURCHASE'
+  | 'BUILDING_PURCHASE'
+  | 'RENT_RECEIVED'
+  | 'RENT_PAID'
+  | 'AIRPORT_RENT_RECEIVED'
+  | 'AIRPORT_RENT_PAID'
+  | 'MORTGAGE_PROCEEDS'
+  | 'MORTGAGE_REACQUISITION'
+  | 'TRADE_CREDIT'
+  | 'TRADE_DEBIT'
+  | 'TAX_PAYMENT'
+  | 'CARD_REWARD'
+  | 'CARD_PENALTY'
+  | 'JAIL_PAYMENT'
+  | 'DISQUALIFICATION_ADJUSTMENT';
+
+export interface FinancialTransaction {
+  transactionId: string;
+  gameSessionId: string;
+  playerUid: string;
+  type: FinancialTransactionType;
+  direction: 'CREDIT' | 'DEBIT';
+  amount: number;
+  balanceBefore: number;
+  balanceAfter: number;
+  spaceIndex?: number;
+  propertyName?: string;
+  counterpartyUid?: string | null;
+  counterpartyName?: string | null;
+  description: string;
+  timestamp: number;
+  eventId?: string;
+}
+
 export interface GameState {
   roomId: string;
   gameId: string;
@@ -223,6 +279,8 @@ export interface GameState {
   players: PlayerState[];
   properties: Record<number, PropertyState>;
   pendingAction: PendingAction | null;
+  pendingFinancialObligation?: PendingFinancialObligation | null;
+  transactions?: FinancialTransaction[];
   activeCardPopup?: {
     deck: CardDeckType;
     card: CardAction;
@@ -264,6 +322,8 @@ export type GameActionType =
   | 'SELL_BUILDING'
   | 'MORTGAGE'
   | 'UNMORTGAGE'
+  | 'RESOLVE_OBLIGATION'
+  | 'GIVE_UP'
   | 'PROPOSE_TRADE'
   | 'ACCEPT_TRADE'
   | 'REJECT_TRADE'

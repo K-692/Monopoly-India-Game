@@ -5,6 +5,7 @@ import { useAuthStore } from '@/features/auth/use-auth-store';
 import { useRoomStore } from '@/features/rooms/use-room-store';
 import { GameBoard } from '@/components/board/GameBoard';
 import { PlayerStrip } from '@/components/player/PlayerStrip';
+import { ToastContainer } from '@/components/feedback/ToastContainer';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -180,6 +181,7 @@ export const GamePage: React.FC = () => {
             players={gameState.players}
             currentPlayerUid={gameState.currentPlayerUid}
             properties={gameState.properties}
+            transactions={gameState.transactions}
             turnTimeRemaining={gameState.turnTimeRemaining}
             turnTimeLimit={gameState.turnTimeLimit}
             onSelectPlayer={() => {}}
@@ -205,6 +207,9 @@ export const GamePage: React.FC = () => {
           />
         </div>
       </div>
+
+      {/* Floating Bottom-Left Non-Blocking Toasts */}
+      <ToastContainer />
     </div>
   );
 };

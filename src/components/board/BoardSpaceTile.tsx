@@ -64,6 +64,7 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
   const isJail = space.spaceIndex === 10;
   const isStart = space.spaceIndex === 0;
   const isNonCity = !isCity && !isJail && !isStart;
+  const isBlocked = propertyState?.ownershipState === 'BLOCKED';
 
   // Find owner player
   const owner = propertyState?.ownerUid
@@ -142,58 +143,32 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
   };
 
   // Clean, high-legibility Space Name Rendering:
-  // Uses high-contrast text color (dark pine for light green, crisp white for deep green)
+  // Requirement 3: Display each city name strictly on a single line with responsive font sizing,
+  // ellipsis only when necessary, and full name available in tooltip/title.
   const renderSpaceName = () => {
     const cityTextColor = isCity ? getCityTextColor(cityPrice) : undefined;
     const isDarkGreen = isCity && cityPrice > 1400;
 
-    const parts = space.name.split(' ');
-    if (parts.length > 1 && space.name.length > 8) {
-      return (
-        <div className="flex flex-col items-center justify-center leading-[1.05] sm:leading-[1.1] pt-0.5 px-0.5 w-full shrink-0">
-          {parts.map((part, idx) => (
-            <span
-              key={idx}
-              style={{ color: cityTextColor }}
-              className={cn(
-                'font-black tracking-tight text-center block max-w-full truncate',
-                isCity
-                  ? isDarkGreen
-                    ? 'drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]'
-                    : 'drop-shadow-none'
-                  : 'text-indian-navy-950 dark:text-white drop-shadow-2xs',
-                isNonCity && 'text-indian-navy-950 font-black',
-                part.length > 9
-                  ? 'text-[8px] sm:text-[9px] md:text-[9.5px]'
-                  : 'text-[9px] sm:text-[10px] md:text-[11px]'
-              )}
-            >
-              {part}
-            </span>
-          ))}
-        </div>
-      );
-    }
-
-    // Single word city or short name
     return (
-      <div className="w-full pt-0.5 sm:pt-1 px-0.5 flex items-center justify-center shrink-0">
+      <div className="w-full pt-1 px-1 flex items-center justify-center shrink-0 overflow-hidden">
         <span
           title={space.name}
           style={{ color: cityTextColor }}
           className={cn(
-            'font-black leading-tight text-center tracking-tight block max-w-full truncate',
+            'font-black text-center tracking-tight truncate whitespace-nowrap block max-w-full leading-none',
             isCity
               ? isDarkGreen
                 ? 'drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]'
                 : 'drop-shadow-none'
               : 'text-indian-navy-950 dark:text-white drop-shadow-2xs',
             isNonCity && 'text-indian-navy-950 font-black',
-            space.name.length > 11
-              ? 'text-[8.5px] sm:text-[9.5px] md:text-[10.5px]'
-              : space.name.length > 7
-                ? 'text-[9.5px] sm:text-[10.5px] md:text-[12px]'
-                : 'text-[11px] sm:text-[12px] md:text-[13px]'
+            space.name.length > 14
+              ? 'text-[7.5px] sm:text-[8.5px] md:text-[9.5px]'
+              : space.name.length > 10
+                ? 'text-[8.5px] sm:text-[9.5px] md:text-[10.5px]'
+                : space.name.length > 7
+                  ? 'text-[9.5px] sm:text-[10.5px] md:text-[11.5px]'
+                  : 'text-[10.5px] sm:text-[11.5px] md:text-[12.5px]'
           )}
         >
           {space.name}
@@ -221,7 +196,8 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
         isStart && 'bg-indian-parchment-100 dark:bg-indian-navy-950 border-indian-parchment-400 text-indian-navy-950 dark:text-white',
         isSelected && 'ring-2 ring-indian-terracotta-500 z-20',
         isHighlighted && 'ring-4 ring-amber-400 dark:ring-amber-300 scale-105 z-30 shadow-[0_0_20px_rgba(251,191,36,0.9)] animate-pulse',
-        propertyState?.isMortgaged && 'opacity-65 bg-gray-100/90 dark:bg-gray-900/80'
+        propertyState?.isMortgaged && 'opacity-65 bg-gray-100/90 dark:bg-gray-900/80',
+        isBlocked && 'opacity-55 grayscale bg-zinc-200 dark:bg-zinc-800 border-zinc-500'
       )}
     >
       {/* Corner Spaces: START, JAIL, REST HOUSE, GO TO JAIL */}
@@ -282,22 +258,8 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
 
           {/* Core Content Layout */}
           <div className="relative z-10 flex-1 flex flex-col justify-between items-center text-center w-full min-h-0 overflow-hidden px-0.5 pb-0.5">
-            {/* City / Place Name (Multi-word wrapped or single-line fit without clipping) */}
+            {/* City / Place Name (Single line fit without clipping or overflow) */}
             {renderSpaceName()}
-
-            {/* City Deed Price Badge - Visible and High-Contrast */}
-            {isCity && (
-              <div
-                style={{
-                  backgroundColor: cityPrice <= 1400 ? 'rgba(0,0,0,0.12)' : 'rgba(0,0,0,0.35)',
-                  color: getCityTextColor(cityPrice),
-                  borderColor: cityPrice <= 1400 ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.25)',
-                }}
-                className="px-1 py-0.2 rounded text-[7.5px] sm:text-[8.5px] font-mono font-black border leading-none my-0.5 shadow-2xs shrink-0"
-              >
-                ₹{cityPrice.toLocaleString('en-IN')}
-              </div>
-            )}
 
             {/* Non-City High-Opacity Vector Illustrations (scales dynamically when player lands) */}
             {isNonCity && (
@@ -349,8 +311,15 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
               </div>
             )}
 
+            {/* Blocked indicator tag for disqualified players */}
+            {isBlocked && (
+              <span className="text-[7px] sm:text-[7.5px] font-black text-white bg-zinc-700 border border-zinc-500 px-1.5 py-0.2 rounded-full leading-none mt-0.5">
+                BLOCKED
+              </span>
+            )}
+
             {/* Mortgaged indicator tag */}
-            {propertyState?.isMortgaged && (
+            {propertyState?.isMortgaged && !isBlocked && (
               <span className="text-[7px] sm:text-[7.5px] font-black text-red-600 bg-red-100 dark:bg-red-950/60 border border-red-300 dark:border-red-800 px-1 rounded-full leading-none mt-0.5">
                 MORTGAGED
               </span>

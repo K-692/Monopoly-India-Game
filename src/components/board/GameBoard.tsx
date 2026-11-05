@@ -1,13 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { BOARD_SPACES, CIVIC_FUND_CARDS, MARKET_BUZZ_CARDS } from '@/domain/board-config';
 import { CardAction, GameActionType, GameEvent, GameState, PropertyDefinition, WalkingAnimationState } from '@/domain/game-types';
 import { BoardSpaceTile } from './BoardSpaceTile';
 import { CityDeedModal } from './CityDeedModal';
+import { FinancialResolutionModal } from './FinancialResolutionModal';
 import { getSpaceGridCoord } from './board-layout-utils';
-import { canBuildOnProperty } from '@/domain/ruleset';
+import { calculateMortgageValue, canBuildOnProperty } from '@/domain/ruleset';
 import { TurnStepAcknowledgment } from '@/components/feedback/TurnStepAcknowledgment';
 import { PopupTurnTimer } from '@/components/feedback/PopupTurnTimer';
+import { useToastStore } from '@/components/feedback/ToastContainer';
 import { sound } from '@/lib/audio/sound-engine';
 import { Dices, X, Gift, Flame, Check, ArrowRight, KeyRound } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
@@ -78,6 +80,41 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     }
   }, [isRolling, gameState.dice]);
 
+  // Section 7: Automatically bridge activeMoneyTransaction to floating toast
+  useEffect(() => {
+    if (gameState.activeMoneyTransaction) {
+      const tx = gameState.activeMoneyTransaction;
+      const isPayer = tx.payerUid === userUid;
+      const isRecipient = tx.recipientUid === userUid;
+
+      const typeLabel =
+        tx.type === 'RENT'
+          ? 'Rent Payment'
+          : tx.type === 'START_REWARD'
+          ? 'START Salary'
+          : tx.type === 'TAX'
+          ? 'Statutory Tax'
+          : tx.type === 'BUY_PROPERTY'
+          ? 'Property Purchase'
+          : tx.type === 'BUILD'
+          ? 'Construction Expense'
+          : 'Financial Notice';
+
+      useToastStore.getState().addToast({
+        type: isPayer ? 'warning' : 'success',
+        title: typeLabel,
+        message: tx.description,
+        amount: tx.amount,
+        flow: isPayer ? 'DEBIT' : isRecipient ? 'CREDIT' : undefined,
+      });
+
+      // Non-blocking auto-dismiss: clear server acknowledgment notice
+      if (onDismissMoneyAck) {
+        onDismissMoneyAck();
+      }
+    }
+  }, [gameState.activeMoneyTransaction, userUid, onDismissMoneyAck]);
+
   // Determine which space should have the glowing / zoomed in state-update effect
   const highlightedSpaceIndex =
     walkingAnimation ? walkingAnimation.currentPos : (activePlayer?.position ?? null);
@@ -88,10 +125,24 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   const playerSpace = BOARD_SPACES[playerPos];
   const playerPropState = gameState.properties[playerPos];
 
+  // City purchase affordability (Section 2.1)
+  const spacePrice = playerSpace && 'price' in playerSpace ? (playerSpace as { price: number }).price : 0;
+  const canAffordCity = (activePlayer?.cash ?? 0) >= spacePrice;
+
   const isPropertyDecision =
     isMyTurn &&
     gameState.phase === 'PROPERTY_DECISION' &&
     !walkingAnimation;
+
+  // Build checks (Section 2.2)
+  const isDevelopableCity =
+    playerSpace?.type === 'PROPERTY' &&
+    playerPropState?.ownerUid === activePlayer?.uid &&
+    !playerPropState?.isMortgaged &&
+    playerPropState.buildings < 5;
+
+  const buildingCost = playerSpace?.type === 'PROPERTY' ? (playerSpace as PropertyDefinition).buildingCost : 0;
+  const canAffordBuild = (activePlayer?.cash ?? 0) >= buildingCost;
 
   const canBuildHere =
     Boolean(
@@ -100,6 +151,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
       !walkingAnimation &&
       activePlayer &&
       playerSpace?.type === 'PROPERTY' &&
+      canAffordBuild &&
       canBuildOnProperty(
         playerPos,
         activePlayer.uid,
@@ -109,6 +161,84 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         gameState.turnNumber
       ).allowed
     );
+
+  // Mortgaged City Reacquisition (Section 6.5)
+  const isOwnMortgagedCity = Boolean(
+    isMyTurn &&
+    gameState.phase === 'MANAGEMENT' &&
+    !walkingAnimation &&
+    activePlayer &&
+    playerPropState?.ownerUid === activePlayer.uid &&
+    (playerPropState?.isMortgaged || playerPropState?.ownershipState === 'MORTGAGED')
+  );
+
+  const reacquisitionCost =
+    playerPropState?.mortgagePayout && playerPropState.mortgagePayout > 0
+      ? playerPropState.mortgagePayout
+      : calculateMortgageValue(playerPos, playerPropState);
+
+  const canAffordReacquire = (activePlayer?.cash ?? 0) >= reacquisitionCost;
+
+  // Toast triggers for insufficient balance
+  const lastInsuffNoticeRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!isMyTurn || walkingAnimation) return;
+
+    // 1. Unaffordable City Purchase (Section 2.1)
+    if (isPropertyDecision && playerSpace && 'price' in playerSpace && !canAffordCity) {
+      const noticeKey = `buy_${gameState.turnNumber}_${playerPos}`;
+      if (lastInsuffNoticeRef.current !== noticeKey) {
+        lastInsuffNoticeRef.current = noticeKey;
+        useToastStore.getState().addToast({
+          type: 'error',
+          title: 'Purchase Unavailable',
+          message: 'Insufficient balance to purchase this property.',
+        });
+        onDispatch?.('DECLINE_PROPERTY');
+      }
+    }
+
+    // 2. Unaffordable Construction (Section 2.2)
+    if (gameState.phase === 'MANAGEMENT' && isDevelopableCity && !canAffordBuild) {
+      const noticeKey = `build_${gameState.turnNumber}_${playerPos}`;
+      if (lastInsuffNoticeRef.current !== noticeKey) {
+        lastInsuffNoticeRef.current = noticeKey;
+        useToastStore.getState().addToast({
+          type: 'warning',
+          title: 'Construction Unavailable',
+          message: 'Insufficient balance to build on this property.',
+        });
+      }
+    }
+
+    // 3. Unaffordable Reacquisition (Section 6.5)
+    if (isOwnMortgagedCity && !canAffordReacquire) {
+      const noticeKey = `reacquire_${gameState.turnNumber}_${playerPos}`;
+      if (lastInsuffNoticeRef.current !== noticeKey) {
+        lastInsuffNoticeRef.current = noticeKey;
+        useToastStore.getState().addToast({
+          type: 'warning',
+          title: 'Reacquisition Unavailable',
+          message: 'Insufficient balance to reacquire this property.',
+        });
+      }
+    }
+  }, [
+    isMyTurn,
+    walkingAnimation,
+    isPropertyDecision,
+    playerSpace,
+    canAffordCity,
+    gameState.phase,
+    isDevelopableCity,
+    canAffordBuild,
+    isOwnMortgagedCity,
+    canAffordReacquire,
+    gameState.turnNumber,
+    playerPos,
+    onDispatch,
+  ]);
 
   // Dice dot positions (1 to 6) or dynamic random dots coming while rolling
   const renderDiceFace = (val: number, dieIndex: 0 | 1) => {
@@ -416,8 +546,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({
           </div>
         </div>
 
-        {/* POINTED COMMENT BOX: Pops near the player's current position to Buy or Build on the city */}
-        {(isPropertyDecision || canBuildHere) && (
+        {/* POINTED COMMENT BOX: Pops near the player's current position to Buy or Build or Reacquire the city */}
+        {((isPropertyDecision && canAffordCity) || canBuildHere || (isOwnMortgagedCity && canAffordReacquire)) && (
           <div
             style={{
               gridRow: playerCoord.row,
@@ -467,7 +597,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
               )}
 
               {/* Pointed Box Content: Buy Property Prompt */}
-              {isPropertyDecision && 'price' in playerSpace && (
+              {isPropertyDecision && canAffordCity && 'price' in playerSpace && (
                 <>
                   <div className="flex items-center justify-between border-b border-white/20 pb-1.5">
                     <span className="font-serif font-black text-xs text-amber-200">
@@ -522,6 +652,40 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                     >
                       <Check className="w-3.5 h-3.5" />
                       <span>{playerPropState?.buildings === 4 ? 'Build Tower' : 'Build House'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onDispatch?.('END_TURN')}
+                      className="px-3 py-1.5 rounded-xl font-bold text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 active:scale-95 transition-all cursor-pointer"
+                    >
+                      Done
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {/* Pointed Box Content: Reacquire Mortgaged Property Prompt (Section 6.5) */}
+              {isOwnMortgagedCity && canAffordReacquire && (
+                <>
+                  <div className="flex items-center justify-between border-b border-white/20 pb-1.5">
+                    <span className="font-serif font-black text-xs text-amber-200">
+                      🔄 Reacquire Property?
+                    </span>
+                    <span className="font-black text-emerald-400 text-xs">
+                      ₹{reacquisitionCost.toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-gray-200 leading-tight">
+                    Reacquire <strong className="text-white">{playerSpace.name}</strong> for ₹{reacquisitionCost.toLocaleString('en-IN')}? All existing developments are preserved and rent collection will resume.
+                  </p>
+                  <div className="flex items-center gap-1.5 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => onDispatch?.('UNMORTGAGE', { spaceIndex: playerPos })}
+                      className="flex-1 py-1.5 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-500 text-white shadow-md active:scale-95 transition-all flex items-center justify-center gap-1 cursor-pointer"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Reacquire City</span>
                     </button>
                     <button
                       type="button"
@@ -619,96 +783,15 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         document.body
       )}
 
-      {/* MONEY TRANSACTION ACKNOWLEDGEMENT POP-UP MODAL */}
-      {gameState.activeMoneyTransaction && createPortal(
-        <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in select-none">
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-sm sm:max-w-md rounded-2xl p-5 shadow-2xl border-2 border-amber-400 bg-gradient-to-br from-[#070A12] via-[#111A2E] to-[#1F1610] text-white space-y-4 animate-scale-in"
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between border-b border-white/20 pb-3">
-              <div className="flex items-center gap-2.5">
-                <span className="text-2xl">
-                  {gameState.activeMoneyTransaction.type === 'RENT'
-                    ? '💸'
-                    : gameState.activeMoneyTransaction.type === 'START_REWARD'
-                    ? '🎁'
-                    : gameState.activeMoneyTransaction.type === 'TAX'
-                    ? '🏛️'
-                    : '💰'}
-                </span>
-                <div>
-                  <h3 className="font-serif font-black text-sm sm:text-base tracking-wide text-amber-200 uppercase">
-                    {gameState.activeMoneyTransaction.type === 'RENT'
-                      ? 'Rent Payment'
-                      : gameState.activeMoneyTransaction.type === 'START_REWARD'
-                      ? 'START Reward'
-                      : gameState.activeMoneyTransaction.type === 'TAX'
-                      ? 'Statutory Tax'
-                      : gameState.activeMoneyTransaction.type === 'BUY_PROPERTY'
-                      ? 'Property Purchase'
-                      : gameState.activeMoneyTransaction.type === 'BUILD'
-                      ? 'Construction Expense'
-                      : 'Financial Notice'}
-                  </h3>
-                  <span className="text-[10px] text-gray-300">
-                    Transaction Notice & Receipt
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <PopupTurnTimer
-                  activePlayerName={activePlayer?.displayName}
-                  activePlayerColor={activePlayer?.colorToken}
-                  timeRemaining={gameState.turnTimeRemaining ?? 30}
-                  isMyTurn={isMyTurn}
-                />
-                {/* Amount Badge */}
-                <div className="px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/50 text-emerald-300 font-mono font-black text-xs sm:text-sm">
-                  ₹{gameState.activeMoneyTransaction.amount.toLocaleString('en-IN')}
-                </div>
-              </div>
-            </div>
-
-            {/* Transaction Parties & Breakdown */}
-            <div className="p-3 rounded-xl bg-white/5 border border-white/10 space-y-2 text-xs">
-              <div className="flex items-center justify-between">
-                <span className="text-gray-400">Payer (Spent):</span>
-                <span className="font-bold text-red-400">
-                  {gameState.activeMoneyTransaction.payerName || 'Player'}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-400">Recipient (Earned):</span>
-                <span className="font-bold text-emerald-400">
-                  {gameState.activeMoneyTransaction.recipientName || 'Bank'}
-                </span>
-              </div>
-              <div className="pt-1.5 border-t border-white/10 text-xs text-amber-100 leading-relaxed">
-                {gameState.activeMoneyTransaction.description}
-              </div>
-            </div>
-
-            {/* Acknowledgement Button with Proper Visibility */}
-            <div className="pt-2 flex justify-end w-full">
-              <button
-                type="button"
-                onClick={() => {
-                  if (onDismissMoneyAck) {
-                    onDismissMoneyAck();
-                  }
-                }}
-                className="w-full sm:w-auto min-w-[200px] px-8 py-3 rounded-xl font-black text-sm bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-indian-navy-950 shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 border-2 border-white ring-2 ring-amber-500/50 cursor-pointer"
-              >
-                <Check className="w-5 h-5 text-indian-navy-950 stroke-[3]" />
-                <span className="tracking-wide uppercase">Acknowledge</span>
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
+      {/* MANDATORY FINANCIAL RESOLUTION WINDOW (Section 6) */}
+      {gameState.pendingFinancialObligation && (
+        <FinancialResolutionModal
+          obligation={gameState.pendingFinancialObligation}
+          players={gameState.players}
+          properties={gameState.properties}
+          currentUserUid={userUid || 'player_1'}
+          onDispatch={onDispatch}
+        />
       )}
 
       {/* CITY INFORMATION MODAL POP-UP (Opens when any person clicks a city grid) */}

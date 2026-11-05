@@ -2,7 +2,14 @@
  * Indian Monopoly - Ruleset Baseline & Host Custom Rules
  */
 
-import { BOARD_SPACES, PROPERTY_GROUPS, TRANSIT_SPACES, UTILITY_SPACES } from './board-config';
+import {
+  AIRPORT_SPACES,
+  BOARD_SPACES,
+  PROPERTY_GROUPS,
+  RAILWAY_SPACES,
+  TRANSIT_SPACES,
+  UTILITY_SPACES,
+} from './board-config';
 import { PropertyDefinition, PropertyState } from './game-types';
 
 export const RULESET_VERSION = '1.0.0';
@@ -47,6 +54,27 @@ export const GAME_CONSTANTS = {
 };
 
 /**
+ * Authoritative Airport Rent Table
+ * Visiting player pays significant airport visiting rent based on number of airports owned by owner.
+ * - 1 Airport owned: ₹1,000
+ * - 2 Airports owned: ₹2,500
+ */
+export const AIRPORT_RENT_TABLE: Record<number, number> = {
+  1: 1000,
+  2: 2500,
+};
+
+/**
+ * Authoritative Railway Rent Table
+ * - 1 Railway owned: ₹250
+ * - 2 Railways owned: ₹500
+ */
+export const RAILWAY_RENT_TABLE: Record<number, number> = {
+  1: 250,
+  2: 500,
+};
+
+/**
  * Checks if a player owns all properties in a given color group.
  */
 export function hasFullColorGroup(
@@ -79,7 +107,7 @@ export function calculateRent(
   if (!space) return 0;
 
   const propState = properties[spaceIndex];
-  if (!propState || !propState.ownerUid || propState.isMortgaged) {
+  if (!propState || !propState.ownerUid || propState.isMortgaged || propState.ownershipState === 'MORTGAGED' || propState.ownershipState === 'BLOCKED') {
     return 0;
   }
 
@@ -99,18 +127,49 @@ export function calculateRent(
   }
 
   if (space.type === 'TRANSIT') {
+    // Separate distinct rent for Airports vs Railways
+    if (AIRPORT_SPACES.includes(spaceIndex)) {
+      const ownedAirports = AIRPORT_SPACES.filter(
+        (idx) =>
+          properties[idx]?.ownerUid === ownerUid &&
+          !properties[idx]?.isMortgaged &&
+          properties[idx]?.ownershipState !== 'MORTGAGED' &&
+          properties[idx]?.ownershipState !== 'BLOCKED'
+      ).length;
+      return AIRPORT_RENT_TABLE[ownedAirports] ?? 0;
+    }
+
+    if (RAILWAY_SPACES.includes(spaceIndex)) {
+      const ownedRailways = RAILWAY_SPACES.filter(
+        (idx) =>
+          properties[idx]?.ownerUid === ownerUid &&
+          !properties[idx]?.isMortgaged &&
+          properties[idx]?.ownershipState !== 'MORTGAGED' &&
+          properties[idx]?.ownershipState !== 'BLOCKED'
+      ).length;
+      return RAILWAY_RENT_TABLE[ownedRailways] ?? 0;
+    }
+
+    // Fallback for general transit
     const ownedCount = TRANSIT_SPACES.filter(
-      (idx) => properties[idx]?.ownerUid === ownerUid && !properties[idx]?.isMortgaged
+      (idx) =>
+        properties[idx]?.ownerUid === ownerUid &&
+        !properties[idx]?.isMortgaged &&
+        properties[idx]?.ownershipState !== 'MORTGAGED' &&
+        properties[idx]?.ownershipState !== 'BLOCKED'
     ).length;
 
     if (ownedCount === 0) return 0;
-    // 1 transit: 250, 2: 500, 3: 1000, 4: 2000
     return 250 * Math.pow(2, ownedCount - 1);
   }
 
   if (space.type === 'UTILITY') {
     const ownedCount = UTILITY_SPACES.filter(
-      (idx) => properties[idx]?.ownerUid === ownerUid && !properties[idx]?.isMortgaged
+      (idx) =>
+        properties[idx]?.ownerUid === ownerUid &&
+        !properties[idx]?.isMortgaged &&
+        properties[idx]?.ownershipState !== 'MORTGAGED' &&
+        properties[idx]?.ownershipState !== 'BLOCKED'
     ).length;
 
     if (ownedCount >= 2) {
@@ -123,6 +182,34 @@ export function calculateRent(
   }
 
   return 0;
+}
+
+/**
+ * Calculates authoritative mortgage value of a property.
+ * Baseline: 50% of original property purchase price.
+ * Accounts for development investment (50% of house/building expenditure),
+ * capped so the payout never exceeds original property purchase price.
+ */
+export function calculateMortgageValue(
+  spaceIndex: number,
+  propState?: PropertyState
+): number {
+  const space = BOARD_SPACES[spaceIndex];
+  if (!space || !('price' in space)) return 0;
+
+  const basePrice = space.price;
+  const baseMortgage = Math.floor(basePrice * GAME_CONSTANTS.MORTGAGE_RATE);
+
+  if (space.type === 'PROPERTY') {
+    const p = space as PropertyDefinition;
+    const buildings = propState?.buildings ?? 0;
+    const buildingInvestment = buildings * p.buildingCost;
+    const devMortgage = Math.floor(buildingInvestment * GAME_CONSTANTS.MORTGAGE_RATE);
+    // Payout must never exceed original property purchase price
+    return Math.min(basePrice, baseMortgage + devMortgage);
+  }
+
+  return baseMortgage;
 }
 
 /**
@@ -192,10 +279,10 @@ export function calculateNetWorth(
 
   for (const space of BOARD_SPACES) {
     const propState = properties[space.spaceIndex];
-    if (propState && propState.ownerUid === playerUid) {
+    if (propState && propState.ownerUid === playerUid && propState.ownershipState !== 'BLOCKED') {
       if ('price' in space) {
-        if (propState.isMortgaged) {
-          propertyVal += space.mortgageValue;
+        if (propState.isMortgaged || propState.ownershipState === 'MORTGAGED') {
+          propertyVal += propState.mortgagePayout ?? space.mortgageValue;
         } else {
           propertyVal += space.price;
         }

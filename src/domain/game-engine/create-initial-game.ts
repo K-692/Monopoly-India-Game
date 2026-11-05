@@ -3,7 +3,7 @@
  */
 
 import { BOARD_SPACES } from '../board-config';
-import { GameState, PlayerState, PropertyState, RoomMember } from '../game-types';
+import { FinancialTransaction, GameState, PlayerState, PropertyState, RoomMember } from '../game-types';
 import { DEFAULT_HOST_RULES, HostCustomRules, RULESET_VERSION } from '../ruleset';
 
 const PLAYER_COLORS = [
@@ -36,7 +36,9 @@ export function createInitialGame(
         spaceIndex: space.spaceIndex,
         propertyId: space.id,
         ownerUid: null,
+        ownershipState: 'UNOWNED',
         isMortgaged: false,
+        mortgagePayout: 0,
         buildings: 0,
       };
     }
@@ -63,6 +65,19 @@ export function createInitialGame(
 
   const now = Date.now();
 
+  const transactions: FinancialTransaction[] = players.map((p, idx) => ({
+    transactionId: `tx_init_${p.uid}_${now}`,
+    gameSessionId: gameId,
+    playerUid: p.uid,
+    type: 'STARTING_BALANCE',
+    direction: 'CREDIT',
+    amount: startingCash,
+    balanceBefore: 0,
+    balanceAfter: startingCash,
+    description: `Initial starting capital of ₹${startingCash.toLocaleString('en-IN')} allocated from Reserve Bank.`,
+    timestamp: now + idx,
+  }));
+
   return {
     roomId,
     gameId,
@@ -76,6 +91,8 @@ export function createInitialGame(
     players,
     properties,
     pendingAction: null,
+    pendingFinancialObligation: null,
+    transactions,
     dice: null,
     auction: null,
     activeTrade: null,

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { BoardSpaceDefinition, GameActionType, PlayerState, PropertyDefinition, PropertyState } from '@/domain/game-types';
 import { X, Landmark, Home, Building2, ShieldAlert } from 'lucide-react';
 import { PopupTurnTimer } from '@/components/feedback/PopupTurnTimer';
+import { calculateMortgageValue } from '@/domain/ruleset';
 import { cn } from '@/lib/utils/cn';
 
 interface CityDeedModalProps {
@@ -43,14 +44,13 @@ export const CityDeedModal: React.FC<CityDeedModalProps> = ({
   const isTransit = space.type === 'TRANSIT';
   const isUtility = space.type === 'UTILITY';
   const isTax = space.type === 'TAX';
+  const isAirport = space.spaceIndex === 25 || space.spaceIndex === 35;
 
-  const mortgageVal = 'mortgageValue' in space
-    ? space.mortgageValue
-    : ('price' in space ? Math.floor((space as { price: number }).price / 2) : 0);
-
-  const unmortgageCost = 'unmortgageCost' in space
-    ? space.unmortgageCost
-    : Math.floor(mortgageVal * 1.1);
+  const mortgageVal = calculateMortgageValue(space.spaceIndex, propertyState || undefined);
+  const reacquisitionCost =
+    propertyState?.mortgagePayout && propertyState.mortgagePayout > 0
+      ? propertyState.mortgagePayout
+      : mortgageVal;
 
   return createPortal(
     <div
@@ -144,9 +144,9 @@ export const CityDeedModal: React.FC<CityDeedModalProps> = ({
                 </span>
               </div>
               <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800">
-                <span className="text-[10px] text-blue-700 dark:text-blue-400 font-medium block">Redeem (+10%)</span>
+                <span className="text-[10px] text-blue-700 dark:text-blue-400 font-medium block">Reacquire</span>
                 <span className="font-black text-sm text-blue-800 dark:text-blue-300">
-                  ₹{unmortgageCost.toLocaleString('en-IN')}
+                  ₹{reacquisitionCost.toLocaleString('en-IN')}
                 </span>
               </div>
             </div>
@@ -196,14 +196,21 @@ export const CityDeedModal: React.FC<CityDeedModalProps> = ({
           {isTransit && (
             <div className="rounded-xl border border-indian-parchment-300 dark:border-indian-navy-800 overflow-hidden text-xs">
               <div className="bg-indian-parchment-200 dark:bg-indian-navy-800/80 px-3 py-1.5 font-bold text-[10px] text-gray-700 dark:text-gray-300 uppercase tracking-wider flex justify-between">
-                <span>Transit Lines Owned</span>
-                <span>Rent Due</span>
+                <span>{isAirport ? 'Airports Owned' : 'Railways Owned'}</span>
+                <span>Visiting Charge</span>
               </div>
               <div className="divide-y divide-indian-parchment-200 dark:divide-indian-navy-800 font-medium">
-                <div className="px-3 py-1.5 flex justify-between"><span>1 Transit Gateway</span><span>₹250</span></div>
-                <div className="px-3 py-1.5 flex justify-between"><span>2 Transit Gateways</span><span>₹500</span></div>
-                <div className="px-3 py-1.5 flex justify-between"><span>3 Transit Gateways</span><span>₹1,000</span></div>
-                <div className="px-3 py-1.5 flex justify-between"><span>4 Transit Gateways (All)</span><span>₹2,000</span></div>
+                {isAirport ? (
+                  <>
+                    <div className="px-3 py-1.5 flex justify-between"><span>1 Airport Owned</span><span>₹1,000</span></div>
+                    <div className="px-3 py-1.5 flex justify-between"><span>2 Airports Owned (Both)</span><span>₹2,500</span></div>
+                  </>
+                ) : (
+                  <>
+                    <div className="px-3 py-1.5 flex justify-between"><span>1 Railway Owned</span><span>₹250</span></div>
+                    <div className="px-3 py-1.5 flex justify-between"><span>2 Railways Owned (Both)</span><span>₹500</span></div>
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -257,7 +264,7 @@ export const CityDeedModal: React.FC<CityDeedModalProps> = ({
                   }}
                   className="w-full py-2.5 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-md active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-1.5"
                 >
-                  <span>Unmortgage Property (Pay ₹{unmortgageCost.toLocaleString('en-IN')})</span>
+                  <span>Reacquire Property (Pay ₹{reacquisitionCost.toLocaleString('en-IN')})</span>
                 </button>
               )}
             </div>

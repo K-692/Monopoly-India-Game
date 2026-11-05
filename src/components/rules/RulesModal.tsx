@@ -3,7 +3,7 @@ import {
   X,
   BookOpen,
   Building2,
-  Train,
+  Plane,
   Gift,
   Flame,
   KeyRound,
@@ -11,6 +11,8 @@ import {
   Coins,
   Trophy,
   Clock,
+  History,
+  Landmark,
 } from 'lucide-react';
 import { CIVIC_FUND_CARDS, MARKET_BUZZ_CARDS } from '@/domain/board-config';
 
@@ -20,7 +22,7 @@ interface RulesModalProps {
 }
 
 export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'civic' | 'market' | 'bankruptcy'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'civic' | 'market' | 'mortgage' | 'jail'>('overview');
 
   // Close on Escape key
   useEffect(() => {
@@ -59,7 +61,7 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
                 Official Rulebook & Strategy Guide
               </h2>
               <p className="text-xs text-amber-200/90 hidden sm:block">
-                All 40 spaces, 12 Civic Fund rules, 12 Market Buzz cards, and tournament invariants.
+                Authoritative rules for Jail doubles, Mortgages, Airport rents, and Financial Resolution.
               </p>
             </div>
           </div>
@@ -72,8 +74,8 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
           </button>
         </div>
 
-        {/* Tab Navigation Bar (Grid on Mobile, Flex on Desktop) */}
-        <div className="grid grid-cols-2 sm:flex sm:items-center gap-1.5 px-3 sm:px-4 py-2 bg-white/70 dark:bg-indian-navy-950/70 border-b border-indian-parchment-300 dark:border-indian-navy-800 shrink-0 select-none">
+        {/* Tab Navigation Bar */}
+        <div className="grid grid-cols-2 sm:flex sm:items-center gap-1.5 px-3 sm:px-4 py-2 bg-white/70 dark:bg-indian-navy-950/70 border-b border-indian-parchment-300 dark:border-indian-navy-800 shrink-0 select-none overflow-x-auto">
           <button
             onClick={() => setActiveTab('overview')}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center sm:justify-start gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
@@ -84,6 +86,30 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
           >
             <Building2 className="w-3.5 h-3.5 shrink-0" />
             <span>Core Game Flow</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('jail')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center sm:justify-start gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
+              activeTab === 'jail'
+                ? 'bg-red-600 text-white shadow-xs'
+                : 'text-indian-navy-800 dark:text-indian-parchment-200 hover:bg-indian-parchment-200 dark:hover:bg-indian-navy-800'
+            }`}
+          >
+            <KeyRound className="w-3.5 h-3.5 shrink-0" />
+            <span>Jail & Try Double</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('mortgage')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center sm:justify-start gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
+              activeTab === 'mortgage'
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'text-indian-navy-800 dark:text-indian-parchment-200 hover:bg-indian-parchment-200 dark:hover:bg-indian-navy-800'
+            }`}
+          >
+            <Landmark className="w-3.5 h-3.5 shrink-0" />
+            <span>Mortgage & Surrender</span>
           </button>
 
           <button
@@ -109,18 +135,6 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
             <Flame className="w-3.5 h-3.5 shrink-0" />
             <span>Market Buzz (12 Rules)</span>
           </button>
-
-          <button
-            onClick={() => setActiveTab('bankruptcy')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center sm:justify-start gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
-              activeTab === 'bankruptcy'
-                ? 'bg-red-600 text-white shadow-xs'
-                : 'text-indian-navy-800 dark:text-indian-parchment-200 hover:bg-indian-parchment-200 dark:hover:bg-indian-navy-800'
-            }`}
-          >
-            <ShieldAlert className="w-3.5 h-3.5" />
-            <span>Bankruptcy & Jail</span>
-          </button>
         </div>
 
         {/* Scrollable Content */}
@@ -131,13 +145,34 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
               <div className="bg-white dark:bg-indian-navy-850 p-4 rounded-xl border border-indian-parchment-300 dark:border-indian-navy-700 shadow-2xs space-y-2">
                 <div className="flex items-center gap-2 text-indian-terracotta-600 dark:text-indian-terracotta-400">
                   <Coins className="w-4 h-4" />
-                  <h3 className="font-serif font-black text-sm">Capital & Board Setup</h3>
+                  <h3 className="font-serif font-black text-sm">Capital & Balance Rules</h3>
                 </div>
                 <ul className="text-xs text-gray-700 dark:text-gray-300 space-y-1.5 list-disc list-inside">
-                  <li><strong>Starting Capital:</strong> Every player receives ₹15,000 cash from the Reserve Bank upon game start.</li>
+                  <li><strong>Starting Capital:</strong> Every player receives ₹15,000 cash from the Reserve Bank.</li>
                   <li><strong>START Salary:</strong> Passing or landing on START yields ₹2,000 in salary.</li>
-                  <li><strong>40 Spaces:</strong> 24 Indian cities (6 per side), 4 Transit hubs (CST Mumbai, Howrah, Chennai & IGI Delhi), 2 Utilities (Urja Grid, Jal Board), Taxes, Civic Fund, Market Buzz, and Rest/Jail.</li>
+                  <li><strong>Balance Validation:</strong> If a player lands on an unowned city with insufficient funds, the purchase popup is hidden and an &quot;Insufficient balance to purchase this property&quot; notification is shown.</li>
+                  <li><strong>Construction Validation:</strong> If funds are insufficient to build, the confirmation popup is hidden and &quot;Insufficient balance to build on this property&quot; is shown.</li>
                 </ul>
+              </div>
+
+              <div className="bg-white dark:bg-indian-navy-850 p-4 rounded-xl border border-indian-parchment-300 dark:border-indian-navy-700 shadow-2xs space-y-2">
+                <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
+                  <Plane className="w-4 h-4" />
+                  <h3 className="font-serif font-black text-sm">Transit & Airport Visiting Charges</h3>
+                </div>
+                <div className="text-xs text-gray-700 dark:text-gray-300 space-y-2">
+                  <p><strong>Airport Rent (Distinct & Higher):</strong> Visiting players landing on an airport owned by another player pay higher rent:</p>
+                  <div className="grid grid-cols-2 gap-2 text-center font-mono font-bold text-xs bg-indian-parchment-200 dark:bg-indian-navy-800 p-2 rounded-lg">
+                    <div>1 Airport: ₹1,000</div>
+                    <div>2 Airports: ₹2,500</div>
+                  </div>
+                  <p><strong>Railway Rent:</strong> CST Mumbai & Howrah Station:</p>
+                  <div className="grid grid-cols-2 gap-2 text-center font-mono font-bold text-xs bg-indian-parchment-200 dark:bg-indian-navy-800 p-2 rounded-lg">
+                    <div>1 Railway: ₹250</div>
+                    <div>2 Railways: ₹500</div>
+                  </div>
+                  <p className="text-[11px] text-gray-500">Rent is waived if the owner is in jail, property is mortgaged, or owner is disqualified.</p>
+                </div>
               </div>
 
               <div className="bg-white dark:bg-indian-navy-850 p-4 rounded-xl border border-indian-parchment-300 dark:border-indian-navy-700 shadow-2xs space-y-2">
@@ -146,43 +181,88 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
                   <h3 className="font-serif font-black text-sm">Acquisition & Building Rules</h3>
                 </div>
                 <ul className="text-xs text-gray-700 dark:text-gray-300 space-y-1.5 list-disc list-inside">
-                  <li><strong>Buying Deeds:</strong> Landing on an unowned city prompts a purchase decision for the listed price.</li>
-                  <li><strong>Subsequent Turn Rule:</strong> A player cannot build a house on the same turn they purchase a city. Building is allowed only on subsequent rounds when the owner visits again.</li>
-                  <li><strong>Progression:</strong> Up to 4 Residential Blocks, then upgrade to a Commercial Tower.</li>
+                  <li><strong>Single-Line City Displays:</strong> City names appear on a single line without prices cluttering board tiles.</li>
+                  <li><strong>Subsequent Turn Rule:</strong> Construction is allowed starting from the next round when visiting your property.</li>
+                  <li><strong>Development Progression:</strong> Up to 4 Houses, then upgraded to a Commercial Tower.</li>
                 </ul>
               </div>
 
               <div className="bg-white dark:bg-indian-navy-850 p-4 rounded-xl border border-indian-parchment-300 dark:border-indian-navy-700 shadow-2xs space-y-2">
-                <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
-                  <Train className="w-4 h-4" />
-                  <h3 className="font-serif font-black text-sm">Transits & Public Utilities</h3>
-                </div>
-                <div className="text-xs text-gray-700 dark:text-gray-300 space-y-2">
-                  <p><strong>Transit Rent:</strong> Rent scales dynamically based on total transit hubs owned:</p>
-                  <div className="grid grid-cols-4 gap-1 text-center font-mono font-bold text-xs bg-indian-parchment-200 dark:bg-indian-navy-800 p-2 rounded-lg">
-                    <div>1: ₹250</div>
-                    <div>2: ₹500</div>
-                    <div>3: ₹1,000</div>
-                    <div>4: ₹2,000</div>
-                  </div>
-                  <p><strong>Utilities:</strong> 4× dice roll if 1 utility owned; 10× dice roll if both Urja Grid and Jal Board are owned.</p>
-                </div>
-              </div>
-
-              <div className="bg-white dark:bg-indian-navy-850 p-4 rounded-xl border border-indian-parchment-300 dark:border-indian-navy-700 shadow-2xs space-y-2">
                 <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
-                  <Clock className="w-4 h-4" />
-                  <h3 className="font-serif font-black text-sm">Turn Timer & Tournament Victory</h3>
+                  <History className="w-4 h-4" />
+                  <h3 className="font-serif font-black text-sm">Transaction Ledger & Notifications</h3>
                 </div>
                 <ul className="text-xs text-gray-700 dark:text-gray-300 space-y-1.5 list-disc list-inside">
-                  <li><strong>Authoritative Timer:</strong> 30-second live countdown per turn with automatic turn resolution upon expiration.</li>
-                  <li><strong>Victory Condition:</strong> Last solvent tycoon with cash or unmortgaged assets wins the match.</li>
+                  <li><strong>Non-Blocking Toasts:</strong> Floating notifications appear in the bottom-left corner with auto-dismiss after 3 seconds. No manual acknowledge clicks needed.</li>
+                  <li><strong>Ledger History:</strong> Full financial history with credits, debits, counterparties, and timestamps accessible in Player Profile.</li>
                 </ul>
               </div>
             </div>
           )}
 
-          {/* Tab 2: Civic Fund (12 Rules) */}
+          {/* Tab 2: Jail & Try Double */}
+          {activeTab === 'jail' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-white dark:bg-indian-navy-850 p-4 rounded-xl border border-red-300 dark:border-red-900/60 shadow-2xs space-y-2.5">
+                <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
+                  <KeyRound className="w-4 h-4" />
+                  <h3 className="font-serif font-black text-sm">Try Double Mechanics</h3>
+                </div>
+                <ul className="text-xs text-gray-700 dark:text-gray-300 space-y-2 list-disc list-inside leading-relaxed">
+                  <li><strong>Attempts 1, 2, and 3:</strong> A jailed player can attempt to roll doubles on each of their first three eligible turns.</li>
+                  <li><strong>Successful Double:</strong> Rolling doubles releases the player immediately and advances the pawn by the dice roll.</li>
+                  <li><strong>No Extra Turn on Escape:</strong> Rolling doubles to escape jail <strong>never grants an additional turn</strong>. The escape roll is strictly the movement for that turn.</li>
+                  <li><strong>Failed Attempt:</strong> If non-doubles are rolled, the player remains in jail and <strong>does not move</strong>. Turn ends immediately.</li>
+                </ul>
+              </div>
+
+              <div className="bg-white dark:bg-indian-navy-850 p-4 rounded-xl border border-amber-300 dark:border-amber-900/60 shadow-2xs space-y-2.5">
+                <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+                  <Clock className="w-4 h-4" />
+                  <h3 className="font-serif font-black text-sm">Automatic 4th Turn Release</h3>
+                </div>
+                <ul className="text-xs text-gray-700 dark:text-gray-300 space-y-2 list-disc list-inside leading-relaxed">
+                  <li><strong>Automatic Freedom:</strong> If a player fails all 3 double attempts, they are <strong>automatically released on their 4th eligible turn</strong> without needing to roll Try Double.</li>
+                  <li><strong>Seamless Progression:</strong> The player is released at turn start and proceeds to roll normally.</li>
+                  <li><strong>Alternative Options:</strong> At any eligible jail turn, a player may pay ₹500 statutory bail or redeem a Get Out of Jail Free card.</li>
+                  <li><strong>Zero Income in Jail:</strong> Players in Jail cannot collect rent or cash rewards.</li>
+                </ul>
+              </div>
+            </div>
+          )}
+
+          {/* Tab 3: Mortgage & Surrender */}
+          {activeTab === 'mortgage' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-white dark:bg-indian-navy-850 p-4 rounded-xl border border-blue-300 dark:border-blue-900/60 shadow-2xs space-y-2.5">
+                <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
+                  <Landmark className="w-4 h-4" />
+                  <h3 className="font-serif font-black text-sm">Mortgage Valuation & Reacquisition</h3>
+                </div>
+                <ul className="text-xs text-gray-700 dark:text-gray-300 space-y-2 list-disc list-inside leading-relaxed">
+                  <li><strong>Valuation Formula:</strong> Mortgage payout = 50% of original property price + 50% of all development expenditure invested on that property (capped at 100% of purchase price).</li>
+                  <li><strong>Development Preserved:</strong> Houses and Commercial Towers are <strong>never demolished</strong> or liquidated upon mortgaging. They remain intact.</li>
+                  <li><strong>Exact Reacquisition:</strong> When an owner lands on their mortgaged property, the reacquisition cost equals the <strong>exact mortgage payout originally received</strong> (no arbitrary penalty).</li>
+                  <li><strong>No Rent While Mortgaged:</strong> Mortgaged properties generate zero rent until reacquired.</li>
+                </ul>
+              </div>
+
+              <div className="bg-white dark:bg-indian-navy-850 p-4 rounded-xl border border-red-300 dark:border-red-900/60 shadow-2xs space-y-2.5">
+                <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
+                  <ShieldAlert className="w-4 h-4" />
+                  <h3 className="font-serif font-black text-sm">Financial Resolution & Give Up</h3>
+                </div>
+                <ul className="text-xs text-gray-700 dark:text-gray-300 space-y-2 list-disc list-inside leading-relaxed">
+                  <li><strong>Debt Pause Window:</strong> When rent or obligations exceed cash, the transaction pauses and opens a mandatory financial resolution window.</li>
+                  <li><strong>Settle Debt:</strong> Mortgage properties until liquid cash is sufficient, then click &quot;Pay Outstanding Debt&quot;.</li>
+                  <li><strong>Give Up / Surrender:</strong> If unable or unwilling to settle, player can surrender. All remaining liquid cash is transferred to the creditor.</li>
+                  <li><strong>Blocked Property State:</strong> Disqualified players&apos; properties become <strong>BLOCKED</strong>. They remain on the board with a BLOCKED badge, collect zero rent, and cannot be purchased, mortgaged, or traded.</li>
+                </ul>
+              </div>
+            </div>
+          )}
+
+          {/* Tab 4: Civic Fund (12 Rules) */}
           {activeTab === 'civic' && (
             <div className="space-y-3">
               <div className="flex items-center justify-between border-b border-indian-parchment-300 dark:border-indian-navy-700 pb-2">
@@ -221,7 +301,7 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
             </div>
           )}
 
-          {/* Tab 3: Market Buzz (12 Rules) */}
+          {/* Tab 5: Market Buzz (12 Rules) */}
           {activeTab === 'market' && (
             <div className="space-y-3">
               <div className="flex items-center justify-between border-b border-indian-parchment-300 dark:border-indian-navy-700 pb-2">
@@ -256,35 +336,6 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
                     </p>
                   </div>
                 ))}
-              </div>
-            </div>
-          )}
-
-          {/* Tab 4: Bankruptcy & Jail */}
-          {activeTab === 'bankruptcy' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-white dark:bg-indian-navy-850 p-4 rounded-xl border border-red-300 dark:border-red-900/60 shadow-2xs space-y-2.5">
-                <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
-                  <ShieldAlert className="w-4 h-4" />
-                  <h3 className="font-serif font-black text-sm">Complete Bankruptcy Invariant</h3>
-                </div>
-                <div className="p-3 bg-red-50 dark:bg-red-950/40 rounded-lg border border-red-200 dark:border-red-900/80 text-xs text-red-900 dark:text-red-200 space-y-1.5">
-                  <p><strong>1. Trigger:</strong> Cash balance reaches ₹0 AND player has no unmortgaged properties remaining.</p>
-                  <p><strong>2. Liquidation:</strong> All remaining deeds are forfeited to the Reserve Bank.</p>
-                  <p><strong>3. Victory:</strong> The sole remaining solvent player is declared victor.</p>
-                </div>
-              </div>
-
-              <div className="bg-white dark:bg-indian-navy-850 p-4 rounded-xl border border-indian-parchment-300 dark:border-indian-navy-700 shadow-2xs space-y-2.5">
-                <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
-                  <KeyRound className="w-4 h-4" />
-                  <h3 className="font-serif font-black text-sm">Central Jail Regulations</h3>
-                </div>
-                <ul className="text-xs text-gray-700 dark:text-gray-300 space-y-1.5 list-disc list-inside">
-                  <li><strong>Zero Income in Jail:</strong> Players in Jail <strong>CANNOT earn rent</strong> or cash awards.</li>
-                  <li><strong>Exit Options:</strong> Pay ₹500 statutory bail, roll doubles on your turn, or redeem a Get Out of Jail Free card.</li>
-                  <li><strong>Just Visiting:</strong> Normal movement landing on Jail incurs zero penalty.</li>
-                </ul>
               </div>
             </div>
           )}

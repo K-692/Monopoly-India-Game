@@ -1,15 +1,17 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { PlayerState, PropertyState } from '@/domain/game-types';
+import { FinancialTransaction, PlayerState, PropertyState } from '@/domain/game-types';
 import { BOARD_SPACES } from '@/domain/board-config';
-import { X, Wallet, TrendingUp, MapPin, ShieldAlert, Home, Building2, Landmark, Train, Plane, Zap, Droplets } from 'lucide-react';
+import { X, Wallet, TrendingUp, MapPin, ShieldAlert, Home, Building2, Landmark, Train, Plane, Zap, Droplets, History, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { calculateRent } from '@/domain/ruleset';
 import { PopupTurnTimer } from '@/components/feedback/PopupTurnTimer';
 import { getCityPriceColor } from '@/domain/city-colors';
+import { cn } from '@/lib/utils/cn';
 
 interface PlayerDetailModalProps {
   player: PlayerState | null;
   properties: Record<number, PropertyState>;
+  transactions?: FinancialTransaction[];
   onClose: () => void;
   activePlayerName?: string;
   activePlayerColor?: string;
@@ -20,6 +22,7 @@ interface PlayerDetailModalProps {
 export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
   player,
   properties,
+  transactions = [],
   onClose,
   activePlayerName,
   activePlayerColor,
@@ -44,6 +47,11 @@ export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
         rent,
       };
     });
+
+  // Filter and sort transactions for this player (reverse chronological order - newest first)
+  const playerTransactions = transactions
+    .filter((tx) => tx.playerUid === player.uid)
+    .sort((a, b) => b.timestamp - a.timestamp);
 
   return createPortal(
     <div
@@ -239,6 +247,79 @@ export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
                         <span className="font-black text-xs text-emerald-600 dark:text-emerald-400">
                           ₹{rent.toLocaleString('en-IN')}
                         </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Transaction History Section (Section 8) */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <h4 className="font-bold text-xs uppercase tracking-wider text-gray-600 dark:text-gray-400 flex items-center gap-1.5">
+                <History className="w-3.5 h-3.5 text-indian-terracotta-500" />
+                <span>Transaction History ({playerTransactions.length})</span>
+              </h4>
+              <span className="text-[10px] text-gray-500">
+                Newest first
+              </span>
+            </div>
+
+            {playerTransactions.length === 0 ? (
+              <div className="p-3 text-center rounded-xl bg-gray-50 dark:bg-indian-navy-950/50 border border-dashed border-gray-300 dark:border-gray-800 text-gray-400 text-xs">
+                No financial transactions recorded yet.
+              </div>
+            ) : (
+              <div className="space-y-1.5 max-h-48 overflow-y-auto custom-scrollbar pr-1">
+                {playerTransactions.map((tx) => {
+                  const isCredit = tx.direction === 'CREDIT';
+
+                  return (
+                    <div
+                      key={tx.transactionId}
+                      className="p-2 rounded-xl bg-white dark:bg-indian-navy-950 border border-indian-parchment-300 dark:border-indian-navy-800 text-xs shadow-2xs"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div
+                            className={cn(
+                              'w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-white font-bold',
+                              isCredit ? 'bg-emerald-600' : 'bg-red-600'
+                            )}
+                          >
+                            {isCredit ? (
+                              <ArrowDownLeft className="w-3.5 h-3.5" />
+                            ) : (
+                              <ArrowUpRight className="w-3.5 h-3.5" />
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <span className="font-bold text-xs block truncate text-indian-navy-950 dark:text-white">
+                              {tx.description}
+                            </span>
+                            <div className="flex items-center gap-2 text-[10px] text-gray-500">
+                              <span>{new Date(tx.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                              {tx.propertyName && <span>• {tx.propertyName}</span>}
+                              {tx.counterpartyName && <span>• Counterparty: {tx.counterpartyName}</span>}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="text-right shrink-0">
+                          <span
+                            className={cn(
+                              'font-mono font-black text-xs block',
+                              isCredit ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
+                            )}
+                          >
+                            {isCredit ? '+' : '-'}₹{tx.amount.toLocaleString('en-IN')}
+                          </span>
+                          <span className="text-[9px] text-gray-400 block font-mono">
+                            ₹{tx.balanceBefore.toLocaleString('en-IN')} → ₹{tx.balanceAfter.toLocaleString('en-IN')}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   );
