@@ -182,6 +182,11 @@ Records are synchronized across all clients and viewable in reverse-chronologica
 - Tested and verified across desktop monitors, iPads/tablets, and mobile phones.
 - Center arena perspective preservation maintains 3D dice readability while preventing overlapping perimeter cells.
 
+### 4.3 Non-Blocking Floating Toasts & Resilient Clipboard Architecture
+- **Unified Bottom-Left Acknowledgment Windows**: Replaced all intrusive full-screen blocking modals (card rules, money transaction receipts) with smooth floating notifications positioned in the bottom-left corner (`fixed bottom-4 left-4 z-50`).
+- **3-Second Auto-Dismiss Invariant**: Floating toasts automatically dismiss after exactly 3,000ms with an animated countdown progress line and an optional manual acknowledge/dismiss button (`x` and `Acknowledge`).
+- **Cross-Platform Clipboard Pipeline**: Implemented dual-strategy copying (`copyToClipboard`) prioritizing modern `navigator.clipboard.writeText` and falling back to an invisible DOM element with `document.execCommand('copy')`, ensuring flawless copying of invite codes and shareable URLs across unencrypted HTTP LAN environments, mobile Safari, and Android browsers.
+
 ---
 
 ## 5. Architectural Migration: Zero-Cloud Authoritative LAN Server

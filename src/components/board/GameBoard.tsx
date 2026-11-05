@@ -80,7 +80,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     }
   }, [isRolling, gameState.dice]);
 
-  // Section 7: Automatically bridge activeMoneyTransaction to floating toast
+  // Section 7: Automatically bridge activeMoneyTransaction to floating toast in bottom-left corner
   useEffect(() => {
     if (gameState.activeMoneyTransaction) {
       const tx = gameState.activeMoneyTransaction;
@@ -105,6 +105,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         title: typeLabel,
         message: tx.description,
         amount: tx.amount,
+        actionLabel: 'Acknowledge',
+        onAction: () => {
+          if (onDismissMoneyAck) {
+            onDismissMoneyAck();
+          }
+        },
         flow: isPayer ? 'DEBIT' : isRecipient ? 'CREDIT' : undefined,
       });
 
@@ -114,6 +120,40 @@ export const GameBoard: React.FC<GameBoardProps> = ({
       }
     }
   }, [gameState.activeMoneyTransaction, userUid, onDismissMoneyAck]);
+
+  // Section 7b: Automatically bridge activeCardPopup to floating toast in bottom-left corner (3-second auto-dismiss)
+  useEffect(() => {
+    if (gameState.activeCardPopup) {
+      const popup = gameState.activeCardPopup;
+      const isCivic = popup.deck === 'CIVIC';
+      const deckName = isCivic ? 'Civic Fund' : 'Market Buzz';
+
+      useToastStore.getState().addToast({
+        type: isCivic ? 'warning' : 'success',
+        deck: popup.deck,
+        ruleIndex: popup.ruleIndex,
+        title: `${deckName} — Rule #${popup.ruleIndex}`,
+        message: `${popup.card.title}: ${popup.card.description}`,
+        amount: popup.card.amount,
+        actionLabel: 'Acknowledge',
+        onAction: () => {
+          if (onDismissCardPopup) {
+            onDismissCardPopup();
+          }
+        },
+        flow: popup.card.amount
+          ? popup.card.description.toLowerCase().includes('pay')
+            ? 'DEBIT'
+            : 'CREDIT'
+          : undefined,
+      });
+
+      // Non-blocking auto-dismiss: clear server card popup notice immediately
+      if (onDismissCardPopup) {
+        onDismissCardPopup();
+      }
+    }
+  }, [gameState.activeCardPopup, onDismissCardPopup]);
 
   // Determine which space should have the glowing / zoomed in state-update effect
   const highlightedSpaceIndex =
@@ -701,87 +741,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({
           </div>
         )}
       </div>
-
-      {/* Pop-up Window for Applied Card Rule (Fixed with High-Visibility Acknowledge Button per Screenshot) */}
-      {gameState.activeCardPopup && createPortal(
-        <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in select-none">
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className={cn(
-              'w-full max-w-sm sm:max-w-md rounded-2xl p-5 shadow-2xl border-2 space-y-4 animate-scale-in text-white',
-              gameState.activeCardPopup.deck === 'CIVIC'
-                ? 'bg-gradient-to-br from-[#3b1208] via-[#541c0a] to-[#1a0a05] border-amber-400'
-                : 'bg-gradient-to-br from-[#062c26] via-[#094137] to-[#041714] border-emerald-400'
-            )}
-          >
-            {/* Header with Rule Index, Dice Total and Live Turn Timer */}
-            <div className="flex items-center justify-between border-b border-white/20 pb-3">
-              <div className="flex items-center gap-2">
-                <span className="text-2xl">
-                  {gameState.activeCardPopup.deck === 'CIVIC' ? '🏛️' : '📈'}
-                </span>
-                <div>
-                  <h3 className="font-serif font-black text-sm sm:text-base tracking-wide uppercase">
-                    {gameState.activeCardPopup.deck === 'CIVIC' ? 'CIVIC FUND' : 'MARKET BUZZ'} — RULE #{gameState.activeCardPopup.ruleIndex}
-                  </h3>
-                  <span className="text-[10px] text-amber-200/90 font-medium">
-                    {gameState.activeCardPopup.deck === 'CIVIC' ? 'Community Treasury' : 'Fortune & Chance'}
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <PopupTurnTimer
-                  activePlayerName={activePlayer?.displayName}
-                  activePlayerColor={activePlayer?.colorToken}
-                  timeRemaining={gameState.turnTimeRemaining ?? 30}
-                  isMyTurn={isMyTurn}
-                />
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/20 text-xs font-black font-mono">
-                  <span>🎲 Total:</span>
-                  <span className="text-amber-300 font-black text-sm">{gameState.activeCardPopup.ruleIndex}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Main Rule Information */}
-            <div className="space-y-2 py-1">
-              <h4 className="font-serif font-black text-lg sm:text-xl text-amber-100 leading-snug">
-                {gameState.activeCardPopup.card.title}
-              </h4>
-              <p className="text-xs sm:text-sm text-white/90 leading-relaxed">
-                {gameState.activeCardPopup.card.description}
-              </p>
-
-              {gameState.activeCardPopup.card.amount && (
-                <div className="pt-2">
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-white text-indian-navy-950 shadow-sm">
-                    <span>Amount:</span>
-                    <span className="text-emerald-700">₹{gameState.activeCardPopup.card.amount.toLocaleString('en-IN')}</span>
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* Acknowledgment Button with Proper Visibility */}
-            <div className="pt-3 flex justify-end w-full">
-              <button
-                type="button"
-                onClick={() => {
-                  if (onDismissCardPopup) {
-                    onDismissCardPopup();
-                  }
-                }}
-                className="w-full sm:w-auto min-w-[170px] px-6 py-2.5 rounded-xl font-black text-sm bg-amber-400 hover:bg-amber-300 text-indian-navy-950 active:scale-95 transition-all shadow-xl flex items-center justify-center gap-2 border-2 border-white ring-2 ring-amber-500/40 cursor-pointer"
-              >
-                <Check className="w-5 h-5 text-indian-navy-950 stroke-[3]" />
-                <span className="tracking-wide uppercase">Acknowledge Rule</span>
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
 
       {/* MANDATORY FINANCIAL RESOLUTION WINDOW (Section 6) */}
       {gameState.pendingFinancialObligation && (

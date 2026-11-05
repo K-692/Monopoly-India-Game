@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Header } from '@/components/ui/Header';
 import { NamePromptModal } from '@/components/ui/NamePromptModal';
+import { ToastContainer } from '@/components/feedback/ToastContainer';
 import { useSettingsStore } from '@/features/settings/use-settings-store';
 import { useAuthStore } from '@/features/auth/use-auth-store';
 
@@ -28,6 +29,8 @@ export const App: React.FC = () => {
         <Outlet />
       </main>
       <NamePromptModal />
+      {/* Floating Bottom-Left Non-Blocking Toasts and Acknowledgment Windows */}
+      <ToastContainer />
     </div>
   );
 };

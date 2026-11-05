@@ -20,6 +20,8 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import QRCode from 'qrcode';
+import { copyToClipboard } from '@/lib/utils/clipboard';
+import { useToastStore } from '@/components/feedback/ToastContainer';
 
 export const LobbyPage: React.FC = () => {
   const { roomId } = useParams<{ roomId: string }>();
@@ -114,18 +116,44 @@ export const LobbyPage: React.FC = () => {
     };
   }, [shareableUrl]);
 
-  const handleCopyCode = () => {
+  const handleCopyCode = async () => {
     if (!currentRoom) return;
-    navigator.clipboard.writeText(currentRoom.inviteCode);
-    setCopiedCode(true);
-    setTimeout(() => setCopiedCode(false), 2000);
+    const ok = await copyToClipboard(currentRoom.inviteCode);
+    if (ok) {
+      setCopiedCode(true);
+      useToastStore.getState().addToast({
+        type: 'success',
+        title: 'Room Code Copied',
+        message: `Invite code ${currentRoom.inviteCode} copied to clipboard!`,
+      });
+      setTimeout(() => setCopiedCode(false), 2000);
+    } else {
+      useToastStore.getState().addToast({
+        type: 'error',
+        title: 'Copy Failed',
+        message: 'Could not copy room code automatically. Please select it manually.',
+      });
+    }
   };
 
-  const handleCopyLink = () => {
+  const handleCopyLink = async () => {
     if (!shareableUrl) return;
-    navigator.clipboard.writeText(shareableUrl);
-    setCopiedLink(true);
-    setTimeout(() => setCopiedLink(false), 2000);
+    const ok = await copyToClipboard(shareableUrl);
+    if (ok) {
+      setCopiedLink(true);
+      useToastStore.getState().addToast({
+        type: 'success',
+        title: 'Invite Link Copied',
+        message: 'Shareable LAN invite link copied to clipboard!',
+      });
+      setTimeout(() => setCopiedLink(false), 2000);
+    } else {
+      useToastStore.getState().addToast({
+        type: 'error',
+        title: 'Copy Failed',
+        message: 'Could not copy invite link automatically. Please select it manually.',
+      });
+    }
   };
 
   const handleToggleReady = async () => {
