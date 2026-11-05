@@ -117,6 +117,59 @@ describe('Pure Game Engine', () => {
     expect(nextState.players[0].position).toBe(3);
   });
 
+  it('does NOT grant another chance to roll on doubles (only one time rolling allowed)', () => {
+    let state = createInitialGame('room_1', 'game_1', mockMembers);
+
+    // Player 1 rolls doubles [2, 2] -> lands on Space 4 (Light Blue city, Agra)
+    state = applyGameCommand(
+      state,
+      {
+        commandId: 'c_roll_double',
+        roomId: 'room_1',
+        gameId: 'game_1',
+        expectedVersion: 1,
+        type: 'ROLL_DICE',
+        payload: {},
+      },
+      'user_1',
+      [2, 2]
+    ).nextState;
+
+    expect(state.dice?.isDouble).toBe(true);
+    expect(state.currentPlayerUid).toBe('user_1');
+
+    // Player declines city purchase
+    state = applyGameCommand(
+      state,
+      {
+        commandId: 'c_dec',
+        roomId: 'room_1',
+        gameId: 'game_1',
+        expectedVersion: state.version,
+        type: 'DECLINE_PROPERTY',
+        payload: {},
+      },
+      'user_1'
+    ).nextState;
+
+    // Player ends turn -> must advance to user_2 (NO extra turn or roll granted on doubles)
+    state = applyGameCommand(
+      state,
+      {
+        commandId: 'c_end',
+        roomId: 'room_1',
+        gameId: 'game_1',
+        expectedVersion: state.version,
+        type: 'END_TURN',
+        payload: {},
+      },
+      'user_1'
+    ).nextState;
+
+    expect(state.currentPlayerUid).toBe('user_2');
+    expect(state.phase).toBe('AWAIT_ROLL');
+  });
+
   it('sends player to Central Jail on 3 consecutive doubles', () => {
     let state = createInitialGame('room_1', 'game_1', mockMembers);
 

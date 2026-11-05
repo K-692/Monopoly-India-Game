@@ -20,9 +20,6 @@ export const AppRouter: React.FC = () => {
           {/* Official Game Rules */}
           <Route path="rules" element={<RulesPage />} />
 
-          {/* Practice Match Sandbox (Offline Demo) */}
-          <Route path="practice" element={<GamePage />} />
-
           {/* Multiplayer Room Routes */}
           <Route path="room/:roomId" element={<LobbyPage />} />
           <Route path="join/:inviteCode" element={<JoinPage />} />

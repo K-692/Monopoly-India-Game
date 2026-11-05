@@ -24,6 +24,15 @@
 
 ---
 
+## 🎲 Core Game Rules & Invariants
+
+- **Strict Single-Roll Invariant**: If a player rolls doubles (e.g., 2,2 or 6,6), they will **not** receive another chance to roll the dice. Only one time rolling is allowed per turn.
+- **Jail & "Try Double" Mechanics**: An incarcerated player can attempt to roll doubles on each of their first three eligible turns. Rolling doubles releases them immediately and advances them by the roll sum without granting an extra turn. On the 4th eligible turn, automatic release is granted.
+- **Authoritative Balance Validation**: City purchases and building upgrades strictly validate liquid balances on both client and server before committing any transaction.
+- **Zero-Cloud LAN Multiplayer**: Fully private, server-authoritative multiplayer synchronization over local Wi-Fi.
+
+---
+
 ```
                                   INDIAN MONOPOLY LAN ARCHITECTURE
                                  
@@ -111,51 +120,6 @@ Waiting for players...
    - Or share the unique 6-character room code (e.g. `K9W2XP`).
    - Or click **Copy Invite Link** to share `http://192.168.1.8:4173/#/join/K9W2XP`.
 3. **Guests**: Open the link or enter the 6-character code from any phone, tablet, or laptop on the Wi-Fi. Choose a display name, click **Ready**, and the host starts the match!
-
----
-
-## 🎮 Gameplay Logic & Financial System
-
-### 1. Jail Mechanics & "Try Double" Rules
-- **3 Try Double Attempts**: Incarcerated players can attempt to roll doubles on each of their first three eligible turns.
-- **Immediate Escape with Movement**: Rolling doubles immediately releases the player and advances their pawn by the dice roll.
-- **No Extra Turn on Jail Escape**: Rolling doubles while escaping jail **never grants an additional turn**.
-- **No Movement on Failed Attempt**: If non-doubles are rolled, the player remains in jail and does not move.
-- **Automatic 4th Turn Release**: If a player fails all 3 attempts, they are automatically released at the start of their 4th eligible turn without needing to roll Try Double, proceeding with normal gameplay.
-
-### 2. Insufficient Balance UX & Backend Validation
-- **City Purchase Gating**: When a player lands on an unowned city with insufficient funds, the purchase popup is suppressed and a notification is displayed: `"Insufficient balance to purchase this property."`
-- **Building Gating**: When a player attempts to build without sufficient cash, the purchase confirmation is suppressed and a notification is displayed: `"Insufficient balance to build on this property."`
-- **Authoritative Backend Validation**: The backend independently validates player cash balances before committing any purchase or construction action, preventing stale-state mutations.
-
-### 3. Clean Board Presentation
-- **Single-Line City Names**: All city names appear on a single line with length-adaptive typography, zero line-wrapping, and native tooltips for truncated names.
-- **Price-Free Board Grids**: Monetary prices are removed from all board grid tiles (cities, transits, utilities) to maximize visual clarity, with prices accessible via property deed modals and purchase callouts.
-
-### 4. Distinct Airport Visiting Rent
-- **Higher Aviation Tariff**: Landing on an airport owned by another player costs:
-  - 1 Airport Owned: **₹1,000**
-  - 2 Airports Owned: **₹2,500**
-- Railways (CST Mumbai & Howrah) maintain standard rail tariffs of ₹250 and ₹500.
-- Rent is waived if the owner is in jail, the property is mortgaged, or the owner is disqualified.
-
-### 5. Comprehensive Mortgaging & Financial Resolution
-- **Mortgage Valuation Formula**:
-  $$\text{Mortgage Payout} = \min\left(P_{\text{base}}, \left\lfloor 0.5 \times P_{\text{base}} + 0.5 \sum \text{houses} \times \text{cost}\right\rfloor\right)$$
-  Undeveloped properties yield 50% of purchase price; properties with developments yield additional equity credit without exceeding 100% of purchase price.
-- **Development Preservation**: Houses and Commercial Towers are **not demolished** during mortgage; they remain physically intact on the deed.
-- **Exact Reacquisition Cost**: Reacquiring a mortgaged property costs the **exact mortgage payout originally received** (no penalty surcharge).
-- **Mandatory Financial Resolution Window**: When a player owes rent or fines exceeding liquid cash, the transaction pauses, opening a mandatory resolution window to mortgage properties or surrender.
-- **Surrender & Blocked Properties**: Choosing "Give Up" transfers remaining liquid cash to the creditor, marks the player as disqualified, and transitions their properties to `BLOCKED` status (zero rent, cannot be purchased, traded, or mortgaged).
-
-### 6. Non-Blocking Toast Notifications
-- Replaced disruptive blocking acknowledgment modals with smooth floating toast notifications in the **bottom-left corner** of the screen.
-- Auto-dismisses after **3 seconds** with an unobtrusive `×` dismiss icon.
-- Isolated per player/browser to avoid interfering with other players' actions.
-
-### 7. Transaction History Ledger
-- Dedicated **Transaction History** section inside the Player Profile modal.
-- Reverse-chronological ledger tracking every financial credit (`+₹`, green) and debit (`-₹`, red) with timestamps, before/after balances, counterparty identities, and associated properties.
 
 ---
 

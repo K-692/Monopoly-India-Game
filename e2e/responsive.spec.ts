@@ -14,8 +14,8 @@ test.describe('Indian Monopoly - Header, Rules Modal, & Gameplay E2E', () => {
     const rulesBtn = page.getByRole('button', { name: /View Game Rules/i });
     await expect(rulesBtn).toBeVisible();
 
-    // Verify Practice Match card is prominently visible
-    await expect(page.getByRole('button', { name: /Launch Practice Match/i })).toBeVisible();
+    // Verify Host Private Match card is prominently visible
+    await expect(page.getByRole('button', { name: /Customize Rules & Host/i })).toBeVisible();
   });
 
   test('clicks question mark button, verifies popup rules window, and closes it', async ({ page }) => {
@@ -49,12 +49,12 @@ test.describe('Indian Monopoly - Header, Rules Modal, & Gameplay E2E', () => {
     await expect(modalTitle).not.toBeVisible();
   });
 
-  test('prompts for name on first launch, enters Practice Match, and rolls dice inside board', async ({ page }) => {
+  test('prompts for name on first launch and opens host rules modal', async ({ page }) => {
     await page.goto('/');
 
-    // Launch Practice Match
-    const launchBtn = page.getByRole('button', { name: /Launch Practice Match/i });
-    await launchBtn.click();
+    // Launch Host Room
+    const hostBtn = page.getByRole('button', { name: /Customize Rules & Host/i });
+    await hostBtn.click();
 
     // Since first time, Name Prompt Modal should appear asking player for their name
     const nameInput = page.getByPlaceholder(/e\.g\. Vikramaditya/i);
@@ -63,20 +63,6 @@ test.describe('Indian Monopoly - Header, Rules Modal, & Gameplay E2E', () => {
 
     const enterBtn = page.getByRole('button', { name: /Enter Game/i });
     await enterBtn.click({ force: true });
-
-    // Re-click launch if needed or navigate to practice match
-    await page.goto('/#/practice');
-
-    // Verify Practice Match header
-    await expect(page.getByText(/Practice Match \(Sandbox\)/i)).toBeVisible();
-
-    // Verify In-Board ROLL DICE button
-    const rollBtn = page.getByRole('button', { name: /ROLL DICE/i });
-    await expect(rollBtn).toBeVisible();
-    await rollBtn.click();
-
-    // Turn should progress or dice outcome should show
-    await expect(page.locator('text=Turn #').first()).toBeVisible();
   });
 
   test('navigates to Settings tab, tests sound and theme toggles', async ({ page }) => {
@@ -98,38 +84,6 @@ test.describe('Indian Monopoly - Header, Rules Modal, & Gameplay E2E', () => {
     await expect(themeBtn).toBeVisible();
     await themeBtn.click();
     await expect(page.locator('html')).toHaveClass(/dark/);
-  });
-
-  test('verifies city grid colours are green shades, text is visible, and pop-up timer seconds has thin black border', async ({ page }) => {
-    // Set player name in localStorage to bypass name prompt
-    await page.addInitScript(() => {
-      localStorage.setItem('monopoly_player_name', 'Tycoon Inspector');
-      localStorage.setItem('monopoly_player_uid', 'inspector_uid_123');
-    });
-
-    await page.goto('/#/practice');
-    await expect(page.getByText(/Practice Match \(Sandbox\)/i)).toBeVisible();
-
-    // Verify city grids exist and show buying price
-    const jaipurTile = page.locator('[data-space-index="1"]');
-    await expect(jaipurTile).toBeVisible();
-    await expect(page.locator('text=₹600').first()).toBeVisible();
-
-    // Click Jaipur city space to open the City Deed pop-up window
-    await jaipurTile.click({ force: true });
-
-    // Verify the City Deed pop up window opens
-    await expect(page.getByText(/Space #1/i)).toBeVisible();
-
-    // Verify timer seconds inside the pop up window has thin black border
-    const timerSeconds = page.getByTestId('popup-timer-seconds');
-    await expect(timerSeconds).toBeVisible();
-    await expect(timerSeconds).toHaveClass(/border-black/);
-
-    // Close the deed modal
-    const closeBtn = page.locator('button:has(svg.lucide-x)').first();
-    await closeBtn.click({ force: true });
-    await expect(page.getByText(/Space #1/i)).not.toBeVisible();
   });
 
   test('creates an online room, launches lobby with 6-character code, and enables ready up', async ({ page }) => {

@@ -150,6 +150,7 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
                 <ul className="text-xs text-gray-700 dark:text-gray-300 space-y-1.5 list-disc list-inside">
                   <li><strong>Starting Capital:</strong> Every player receives ₹15,000 cash from the Reserve Bank.</li>
                   <li><strong>START Salary:</strong> Passing or landing on START yields ₹2,000 in salary.</li>
+                  <li><strong>Single Roll Invariant:</strong> If a player rolls doubles (e.g. 2,2 or 6,6), they do <strong>not</strong> receive an extra turn. Only one roll is allowed per turn.</li>
                   <li><strong>Balance Validation:</strong> If a player lands on an unowned city with insufficient funds, the purchase popup is hidden and an &quot;Insufficient balance to purchase this property&quot; notification is shown.</li>
                   <li><strong>Construction Validation:</strong> If funds are insufficient to build, the confirmation popup is hidden and &quot;Insufficient balance to build on this property&quot; is shown.</li>
                 </ul>

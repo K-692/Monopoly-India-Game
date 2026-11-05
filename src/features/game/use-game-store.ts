@@ -1,6 +1,6 @@
 /**
  * Indian Monopoly - Game State Store (Client)
- * Authoritative Server Synchronization for Multiplayer & Offline Sandbox for Practice.
+ * Authoritative Server Synchronization for Multiplayer.
  * Dispatches multiplayer game actions to the LAN Node.js server and drives presentation
  * animations (dice roll, stepping pawn, audio triggers) based on server-broadcasted events.
  */
@@ -15,7 +15,6 @@ import {
   WalkingAnimationState,
 } from '@/domain/game-types';
 import { createInitialGame } from '@/domain/game-engine/create-initial-game';
-import { applyGameCommand } from '@/domain/game-engine/engine';
 import { sound } from '@/lib/audio/sound-engine';
 import { HostCustomRules } from '@/domain/ruleset';
 import { getSocket } from '@/lib/socket/socket-client';
@@ -31,7 +30,6 @@ interface GameStoreState {
   error: string | null;
 
   // Actions
-  initializeDemoGame: (userName?: string, userUid?: string) => void;
   initializeGameFromRoom: (
     roomId: string,
     gameId: string,
@@ -55,75 +53,11 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   selectedSpaceIndex: null,
   isRolling: false,
   walkingAnimation: null,
-  isLiveMultiplayer: false,
+  isLiveMultiplayer: true,
   error: null,
 
   // ==========================================
-  // PRACTICE / SANDBOX INITIALIZATION
-  // ==========================================
-
-  initializeDemoGame: (userName = 'You (Maharaja)', userUid = 'player_1') => {
-    const activeUid = userUid || 'player_1';
-    const demoMembers: Record<string, RoomMember> = {
-      [activeUid]: {
-        uid: activeUid,
-        displayName: userName,
-        photoURL: null,
-        isReady: true,
-        joinedAt: Date.now(),
-        colorToken: '#C85A32', // Terracotta
-      },
-      player_2: {
-        uid: 'player_2',
-        displayName: 'Priya (Mumbai)',
-        photoURL: null,
-        isReady: true,
-        joinedAt: Date.now() + 1,
-        colorToken: '#1A2B4C', // Navy
-      },
-      player_3: {
-        uid: 'player_3',
-        displayName: 'Vikram (Delhi)',
-        photoURL: null,
-        isReady: true,
-        joinedAt: Date.now() + 2,
-        colorToken: '#E5A93C', // Gold
-      },
-      player_4: {
-        uid: 'player_4',
-        displayName: 'Ananya (Bengaluru)',
-        photoURL: null,
-        isReady: true,
-        joinedAt: Date.now() + 3,
-        colorToken: '#2D6A4F', // Emerald
-      },
-    };
-
-    const initial = createInitialGame('demo_room', 'demo_game', demoMembers);
-    const welcomeEvent: GameEvent = {
-      sequence: 1,
-      commandId: 'init',
-      actorUid: 'system',
-      type: 'START_GAME',
-      summary: 'Welcome to Indian Monopoly! 4 players assembled. Let the trading begin!',
-      payload: {},
-      createdAt: Date.now(),
-      versionAfter: 1,
-    };
-
-    set({
-      gameState: initial,
-      events: [welcomeEvent],
-      activeEmotes: [],
-      selectedSpaceIndex: null,
-      isRolling: false,
-      isLiveMultiplayer: false,
-      error: null,
-    });
-  },
-
-  // ==========================================
-  // LIVE MULTIPLAYER INITIALIZATION & SOCKET SYNC
+  // AUTHORITATIVE LIVE MULTIPLAYER INITIALIZATION & SOCKET SYNC
   // ==========================================
 
   initializeGameFromRoom: (roomId, gameId, members, customRules) => {
@@ -303,11 +237,11 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   },
 
   // ==========================================
-  // DISPATCH ACTION (LAN MULTIPLAYER vs PRACTICE)
+  // DISPATCH ACTION (AUTHORITATIVE SERVER EXECUTION)
   // ==========================================
 
   dispatchAction: (commandType, payload = {}) => {
-    const { gameState, isRolling, walkingAnimation, isLiveMultiplayer } = get();
+    const { gameState, isRolling, walkingAnimation } = get();
     if (!gameState || isRolling || walkingAnimation) return;
 
     sound.play('BUTTON_CLICK');
@@ -321,182 +255,24 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       payload,
     };
 
-    // 1. LIVE MULTIPLAYER: Authoritative Server Execution
-    if (isLiveMultiplayer) {
-      const socket = getSocket();
-      socket.emit('game:command', command, (response) => {
-        if (!response.ok) {
-          const errMsg = response.error || 'Server rejected action';
-          sound.play('GO_TO_JAIL');
-          set({ error: errMsg });
-        }
-      });
-      return;
-    }
-
-    // 2. OFFLINE PRACTICE MODE: Local Sandbox Execution
-    if (commandType === 'ROLL_DICE') {
-      set({ isRolling: true });
-      sound.play('DICE_ROLL');
-
-      setTimeout(() => {
-        try {
-          const result = applyGameCommand(gameState, command, gameState.currentPlayerUid);
-          const activeUid = gameState.currentPlayerUid;
-          const activeP = gameState.players.find((p) => p.uid === activeUid);
-          const startPos = activeP?.position ?? 0;
-          const endPos =
-            result.nextState.players.find((p) => p.uid === activeUid)?.position ?? startPos;
-
-          if (
-            result.nextState.players.find((p) => p.uid === activeUid)?.inJail &&
-            !activeP?.inJail
-          ) {
-            sound.play('GO_TO_JAIL');
-            set((s) => ({
-              gameState: result.nextState,
-              events: [result.event, ...s.events].slice(0, 50),
-              isRolling: false,
-              walkingAnimation: null,
-              error: null,
-            }));
-            return;
-          }
-
-          const totalSteps = result.nextState.dice
-            ? result.nextState.dice.first + result.nextState.dice.second
-            : (endPos - startPos + 40) % 40;
-
-          set({ isRolling: false });
-
-          if (totalSteps <= 0) {
-            set((s) => ({
-              gameState: result.nextState,
-              events: [result.event, ...s.events].slice(0, 50),
-              walkingAnimation: null,
-              error: null,
-            }));
-            return;
-          }
-
-          let currentStep = 0;
-          const stepInterval = setInterval(() => {
-            currentStep++;
-            const nextPos = (startPos + currentStep) % 40;
-            const stepsRemaining = totalSteps - currentStep;
-
-            if (nextPos === 0) {
-              sound.play('PASS_START');
-            } else {
-              sound.play('PAWN_STEP');
-            }
-
-            set({
-              walkingAnimation: {
-                uid: activeUid,
-                currentPos: nextPos,
-                targetPos: endPos,
-                stepsRemaining,
-              },
-            });
-
-            if (currentStep >= totalSteps) {
-              clearInterval(stepInterval);
-              setTimeout(() => {
-                set((s) => ({
-                  gameState: result.nextState,
-                  events: [result.event, ...s.events].slice(0, 50),
-                  walkingAnimation: null,
-                  error: null,
-                }));
-              }, 400);
-            }
-          }, 450);
-        } catch (err: unknown) {
-          const message = err instanceof Error ? err.message : 'Action failed';
-          set({ error: message, isRolling: false, walkingAnimation: null });
-        }
-      }, 350);
-      return;
-    }
-
-    try {
-      const result = applyGameCommand(gameState, command, gameState.currentPlayerUid);
-
-      if (commandType === 'BUY_PROPERTY') {
-        sound.play('BUY_PROPERTY');
-      } else if (commandType === 'PAY_BAIL') {
-        sound.play('PAY_RENT');
+    const socket = getSocket();
+    socket.emit('game:command', command, (response) => {
+      if (!response.ok) {
+        const errMsg = response.error || 'Server rejected action';
+        sound.play('GO_TO_JAIL');
+        set({ error: errMsg });
       }
-
-      set((s) => ({
-        gameState: result.nextState,
-        events: [result.event, ...s.events].slice(0, 50),
-        error: null,
-      }));
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Action failed';
-      set({ error: message });
-    }
+    });
   },
 
-  sendEmote: (emote: string, senderName: string) => {
-    const { gameState, isLiveMultiplayer } = get();
+  sendEmote: (emote: string, _senderName: string) => {
     sound.play('EMOTE');
-
-    if (isLiveMultiplayer) {
-      const socket = getSocket();
-      socket.emit('reaction:send', { emote });
-      return;
-    }
-
-    // Local Practice Mode reaction
-    const newReaction: EmoteReaction = {
-      id: 'reaction_' + Date.now() + Math.random(),
-      roomId: gameState?.roomId || 'practice',
-      senderUid: gameState?.currentPlayerUid || 'me',
-      senderName,
-      emote,
-      timestamp: Date.now(),
-    };
-
-    set((state) => ({
-      activeEmotes: [...state.activeEmotes, newReaction],
-    }));
-
-    setTimeout(() => {
-      set((state) => ({
-        activeEmotes: state.activeEmotes.filter((e) => e.id !== newReaction.id),
-      }));
-    }, 5000);
+    const socket = getSocket();
+    socket.emit('reaction:send', { emote });
   },
 
   tickTurnTimer: () => {
-    const { gameState, isRolling, walkingAnimation, isLiveMultiplayer } = get();
-    // Do NOT run local timer ticker during live multiplayer (authoritative server manages it)
-    if (isLiveMultiplayer || !gameState || gameState.status === 'COMPLETED' || isRolling || walkingAnimation) {
-      return;
-    }
-
-    const remaining = (gameState.turnTimeRemaining ?? 30) - 1;
-
-    if (remaining <= 0) {
-      if (gameState.phase === 'AWAIT_ROLL') {
-        get().dispatchAction('ROLL_DICE');
-      } else if (gameState.phase === 'PROPERTY_DECISION') {
-        get().dispatchAction('DECLINE_PROPERTY');
-      } else if (gameState.phase === 'MANAGEMENT' || gameState.phase === 'TURN_END') {
-        get().dispatchAction('END_TURN');
-      } else if (gameState.phase === 'JAIL_DECISION') {
-        get().dispatchAction('TRY_DOUBLES');
-      }
-    } else {
-      set((state) => ({
-        gameState: state.gameState
-          ? { ...state.gameState, turnTimeRemaining: remaining }
-          : null,
-      }));
-    }
+    // Authoritative server manages turn countdown via synchronized 'game:timer' broadcasts
   },
 
   dismissError: () => set({ error: null }),

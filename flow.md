@@ -101,9 +101,11 @@ The card engine manages two authoritative 12-rule indexed decks:
 
 ## 3. Mathematical Models & Financial State Formulations
 
-### 3.1 Jail Escape & Incarceration State Machine
-Jail mechanics enforce strict probability and movement constraints:
-- **Try Double Window (Turns 1, 2, and 3)**:
+### 3.1 Dice Dynamics, Single-Roll Invariant & Jail Incarceration
+- **Strict Single-Roll Invariant**:
+  - If a player rolls doubles (e.g. 2,2 or 6,6) during their turn, they do **not** receive another chance to roll. Only one roll is allowed per turn.
+  - Upon resolving board landing effects and property decisions, ending the turn strictly advances play to the next player.
+- **Jail Try Double Window (Turns 1, 2, and 3)**:
   - An incarcerated player may attempt to roll doubles on their first three eligible turns ($N_{\text{jail}} \in \{0, 1, 2\}$).
   - **Success Case**: If $d_1 = d_2$, the player is released immediately ($\text{inJail} = \text{false}$), moves forward by $d_1 + d_2$, and **does not receive an extra turn**. Flag `escapedJailThisTurn = true` prevents the standard doubles re-roll invariant.
   - **Failure Case**: If $d_1 \ne d_2$, the player remains in jail, incrementing $N_{\text{jail}} \leftarrow N_{\text{jail}} + 1$. The player does not move and their turn ends immediately.

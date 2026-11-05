@@ -693,22 +693,9 @@ export function applyGameCommand(
 
       const currentActive = state.players.find((p) => p.uid === actorUid);
 
-      // Requirement 1.3: A double rolled while attempting to escape jail must never grant an additional turn!
-      const escapedFromJail = Boolean(currentActive?.escapedJailThisTurn);
-      if (escapedFromJail && currentActive) {
+      // Single roll invariant: rolling doubles never grants an additional roll or turn. Only one time rolling is allowed.
+      if (currentActive?.escapedJailThisTurn) {
         currentActive.escapedJailThisTurn = false;
-      }
-
-      // If rolled doubles (and NOT escaping jail, and not sent to jail), player rolls again
-      if (
-        state.dice?.isDouble &&
-        !escapedFromJail &&
-        !currentActive?.inJail &&
-        (state.dice?.consecutiveDoubles ?? 0) < 3
-      ) {
-        state.phase = 'AWAIT_ROLL';
-        summary = `${currentActive?.displayName} rolled doubles and gets another turn!`;
-        break;
       }
 
       // Advance to next solvent player

@@ -24,7 +24,6 @@ export const GamePage: React.FC = () => {
     isRolling,
     walkingAnimation,
     error,
-    initializeDemoGame,
     initializeGameFromRoom,
     dispatchAction,
     selectSpace,
@@ -43,15 +42,13 @@ export const GamePage: React.FC = () => {
     return () => clearInterval(interval);
   }, [gameState, tickTurnTimer]);
 
-  // Handle Game Initialization: distinguish multiplayer vs practice mode
+  // Handle Game Initialization: multiplayer match requires real room members or derived room
   useEffect(() => {
-    // 1. Practice Mode
-    if (!gameId || gameId === 'sandbox' || gameId === 'demo_game') {
-      initializeDemoGame(player?.displayName || 'Player', player?.uid);
+    if (!gameId) {
+      navigate('/');
       return;
     }
 
-    // 2. Multiplayer Match: requires real room members
     if (currentRoom && currentRoom.members && Object.keys(currentRoom.members).length >= 1) {
       return initializeGameFromRoom(
         currentRoom.roomId,
@@ -112,9 +109,7 @@ export const GamePage: React.FC = () => {
         <div className="flex items-center gap-2">
           <Badge variant="navy" className="text-xs font-bold flex items-center gap-1">
             <Users className="w-3.5 h-3.5" />
-            {gameState.gameId === 'demo_game'
-              ? 'Practice Match (Sandbox)'
-              : `Room #${gameState.roomId.replace('room_', '').slice(0, 6).toUpperCase()}`}
+            {`Room #${gameState.roomId.replace('room_', '').slice(0, 6).toUpperCase()}`}
           </Badge>
           <span className="text-xs text-gray-500 font-mono font-bold">
             Turn #{gameState.turnNumber}
