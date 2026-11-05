@@ -565,3 +565,14 @@ When debt $D$ exceeds cash $C$:
   - `macos-latest`: Compiles and packages macOS universal/arm64 `.dmg` installer with drag-and-drop Applications folder packaging.
   - `windows-latest`: Compiles and packages Windows x64 NSIS `.exe` installer with customizable installation paths and desktop/start menu shortcuts.
   - Runs full test suite verification (`npm test`) before packaging and publishes assets automatically on tagged releases.
+
+### 11.5 Automated Build Pipeline Scripts and Public Distribution Infrastructure
+- **Standardized Artifact Nomenclature**:
+  Configured canonical naming rules in `package.json` for deterministic distribution URLs:
+  - macOS: `Indian-Monopoly-${version}-${arch}.${ext}` (yielding `Indian-Monopoly-1.0.0-arm64.dmg` and `Indian-Monopoly-1.0.0-x64.dmg`).
+  - Windows: `Indian-Monopoly-Setup-${version}.${ext}` (yielding `Indian-Monopoly-Setup-1.0.0.exe`).
+- **Dedicated Build Scripts**:
+  - `scripts/build-desktop.js`: Orchestrates two-phase compilation: first executing `npm run build:lan` for React assets with root-relative paths, followed by `npx esbuild` server compilation to `dist-server/index.cjs`.
+  - `scripts/package-installers.js`: Automates pre-flight verification (checking high-resolution icon assets, ensuring directory structure), building production bundles, invoking `electron-builder` with the appropriate platform target flags, and reporting final binary file sizes.
+- **Direct Installer Access in Repository Documentation**:
+  Updated `README.md` with official release download badges and direct links to GitHub Releases, empowering non-technical players to acquire standalone macOS and Windows installers with zero configuration.

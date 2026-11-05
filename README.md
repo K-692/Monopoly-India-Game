@@ -30,11 +30,49 @@
 
 Native installable applications bundle the complete game frontend, embedded Node.js backend, and authoritative Socket.IO server into a single standalone executable. No manual Node.js, npm, or terminal commands are required for players.
 
-| Platform | Format | Description |
-|:---|:---|:---|
-| **macOS** (Apple Silicon & Intel) | `.dmg` installer | Native macOS app bundle. Drag-and-drop installation into `/Applications`. Embedded local server binds to available Wi-Fi interfaces automatically. |
-| **Windows** (64-bit) | `.exe` NSIS installer | Standard Windows installer with customizable installation paths, Start Menu shortcuts, and desktop launcher icon. |
-| **Mobile & Web Browser** | HTML5 / WebSockets | Join directly from Safari, Chrome, Edge, or Firefox by opening the host's LAN URL or scanning the on-screen QR code. |
+<div align="center" style="margin: 24px 0;">
+  <a href="https://github.com/K-692/Monopoly-India-Game/releases/latest/download/Indian-Monopoly-1.0.0-arm64.dmg">
+    <img src="https://img.shields.io/badge/Download_for-macOS_(.dmg)-007AFF?style=for-the-badge&logo=apple&logoColor=white" alt="Download for macOS" height="42" />
+  </a>
+  &nbsp;&nbsp;&nbsp;
+  <a href="https://github.com/K-692/Monopoly-India-Game/releases/latest/download/Indian-Monopoly-Setup-1.0.0.exe">
+    <img src="https://img.shields.io/badge/Download_for-Windows_(.exe)-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Download for Windows" height="42" />
+  </a>
+  &nbsp;&nbsp;&nbsp;
+  <a href="https://github.com/K-692/Monopoly-India-Game/releases/latest">
+    <img src="https://img.shields.io/badge/GitHub-All_Releases-24292e?style=for-the-badge&logo=github&logoColor=white" alt="All Releases" height="42" />
+  </a>
+</div>
+
+### 📦 Official Installer Packages
+
+| Platform | Target Architecture | Package Type | Direct Download Link | Format |
+|:---|:---|:---|:---|:---|
+| **macOS** | Apple Silicon (M1/M2/M3/M4) | Native DMG Installer | [📥 **Indian-Monopoly-1.0.0-arm64.dmg**](https://github.com/K-692/Monopoly-India-Game/releases/latest/download/Indian-Monopoly-1.0.0-arm64.dmg) | `.dmg` |
+| **macOS** | Intel x64 | Native DMG Installer | [📥 **Indian-Monopoly-1.0.0-x64.dmg**](https://github.com/K-692/Monopoly-India-Game/releases/latest/download/Indian-Monopoly-1.0.0-x64.dmg) | `.dmg` |
+| **Windows** | 64-bit (x64) | NSIS Executable Installer | [📥 **Indian-Monopoly-Setup-1.0.0.exe**](https://github.com/K-692/Monopoly-India-Game/releases/latest/download/Indian-Monopoly-Setup-1.0.0.exe) | `.exe` |
+| **All Platforms** | Universal | Releases & Changelogs | [📦 **Browse All Release Assets**](https://github.com/K-692/Monopoly-India-Game/releases) | GitHub |
+
+### 🚀 Quick Installation Guide
+
+#### macOS Installation:
+1. Download the `.dmg` file for your Mac architecture ([Apple Silicon ARM64](https://github.com/K-692/Monopoly-India-Game/releases/latest/download/Indian-Monopoly-1.0.0-arm64.dmg) or [Intel x64](https://github.com/K-692/Monopoly-India-Game/releases/latest/download/Indian-Monopoly-1.0.0-x64.dmg)).
+2. Double-click the downloaded `.dmg` file to open the installer volume.
+3. Drag **Indian Monopoly** into your `Applications` directory.
+4. Launch the application from Spotlight or Launchpad.
+   > *Note for first launch: If macOS Gatekeeper displays an unverified developer prompt, right-click `Indian Monopoly.app`, click **Open**, and confirm, or allow it under System Settings > Privacy & Security.*
+
+#### Windows Installation:
+1. Download [**Indian-Monopoly-Setup-1.0.0.exe**](https://github.com/K-692/Monopoly-India-Game/releases/latest/download/Indian-Monopoly-Setup-1.0.0.exe).
+2. Double-click the `.exe` setup file to start the installation wizard.
+3. Select your installation folder and choose whether to create desktop and Start Menu shortcuts.
+4. Click **Install**, then click **Finish** to immediately launch the game.
+
+#### Mobile & Browser (Zero Install Required):
+1. The host player opens the desktop application (or runs the local LAN server on their computer).
+2. Other players connect from their phone (iPhone/Android), tablet (iPad), or laptop on the same local Wi-Fi by scanning the host's on-screen QR Code or typing the LAN IP address (e.g. `http://192.168.1.8:4173`).
+
+---
 
 ### How Local LAN Desktop Multiplayer Works:
 1. **Host Launches Native App**: Double-click `Indian Monopoly.app` or `Indian Monopoly.exe`.
@@ -301,6 +339,7 @@ Waiting for players...
 | Command | Purpose |
 |:---|:---|
 | `npm run desktop` | **Native Desktop Launcher**: Builds production assets and runs the native Electron desktop application with embedded local server. |
+| `npm run package:installers` | **Automated Installer Packager**: Interactive Node.js script verifying icons, compiling client/server bundles, and invoking electron-builder. |
 | `npm run dist:mac` | **Package macOS DMG**: Compiles and packages the installable universal `.dmg` installer for Apple Silicon and Intel Macs. |
 | `npm run dist:win` | **Package Windows EXE**: Compiles and packages the installable NSIS `.exe` installer for 64-bit Windows. |
 | `npm run dist:all` | **Package Both Platforms**: Packages both macOS DMG and Windows EXE distribution binaries. |
