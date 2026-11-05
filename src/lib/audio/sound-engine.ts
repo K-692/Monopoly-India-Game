@@ -2,9 +2,16 @@
  * Indian Monopoly - Procedural Web Audio Synthesizer
  * Zero external audio file dependencies. Works offline, on mobile (iOS/Android), and desktop.
  * Handles AudioContext unlocking on user interaction.
+ *
+ * Strict Requirement:
+ * ONLY keep:
+ * 1. Rolling sound ('DICE_ROLL')
+ * 2. Players walking sound ('PAWN_STEP')
+ * 3. Nice alert tone ('NOTIFICATION')
+ * All other sounds are completely removed/silenced.
  */
 
-type SoundType =
+export type SoundType =
   | 'DICE_ROLL'
   | 'DICE_TICK'
   | 'DICE_LAND'
@@ -94,6 +101,7 @@ class SoundEngine {
 
   /**
    * Primary dispatcher to play sounds.
+   * Only plays rolling sound, players walking sound, and nice alert tone.
    */
   public play(type: SoundType): void {
     if (this.isMuted) return;
@@ -105,41 +113,15 @@ class SoundEngine {
         case 'DICE_ROLL':
           this.playDiceRoll(ctx);
           break;
-        case 'DICE_TICK':
-          this.playDiceTumbleTick(ctx);
-          break;
-        case 'DICE_LAND':
-          this.playDiceLand(ctx);
-          break;
         case 'PAWN_STEP':
           this.playPawnStep(ctx);
           break;
-        case 'BUY_PROPERTY':
-          this.playBuyProperty(ctx);
-          break;
-        case 'PAY_RENT':
-          this.playPayRent(ctx);
-          break;
-        case 'PASS_START':
-          this.playPassStart(ctx);
-          break;
-        case 'GO_TO_JAIL':
-          this.playGoToJail(ctx);
-          break;
-        case 'DRAW_CARD':
-          this.playDrawCard(ctx);
-          break;
-        case 'EMOTE':
-          this.playEmote(ctx);
-          break;
-        case 'BUTTON_CLICK':
-          this.playButtonClick(ctx);
-          break;
-        case 'VICTORY':
-          this.playVictory(ctx);
-          break;
         case 'NOTIFICATION':
           this.playNotification(ctx);
+          break;
+        default:
+          // All other sounds intentionally removed:
+          // Strictly keep only rolling sound, players walking sound, and nice alert tone.
           break;
       }
     } catch {
@@ -149,9 +131,11 @@ class SoundEngine {
 
   // --- Procedural Sound Synthesis Algorithms ---
 
+  /**
+   * 1. Rolling sound: rapid tumbling dice thuds
+   */
   private playDiceRoll(ctx: AudioContext): void {
     const t0 = ctx.currentTime;
-    // Series of quick tumbling thuds
     const count = 5;
     for (let i = 0; i < count; i++) {
       const delay = i * 0.08 + Math.random() * 0.03;
@@ -174,52 +158,8 @@ class SoundEngine {
   }
 
   /**
-   * Procedural clicking sound for rapid tumbling dice roll
+   * 2. Players walking sound: gentle percussive wooden step tap
    */
-  private playDiceTumbleTick(ctx: AudioContext): void {
-    const t0 = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    // High snappy wooden click
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(650 + Math.random() * 450, t0);
-    osc.frequency.exponentialRampToValueAtTime(120, t0 + 0.025);
-
-    gain.gain.setValueAtTime(this.masterVolume * 0.22, t0);
-    gain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.025);
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-
-    osc.start(t0);
-    osc.stop(t0 + 0.03);
-  }
-
-  /**
-   * Solid dual-thud landing impact when dice roll settles
-   */
-  private playDiceLand(ctx: AudioContext): void {
-    const t0 = ctx.currentTime;
-    [0, 0.04].forEach((offset) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(220, t0 + offset);
-      osc.frequency.exponentialRampToValueAtTime(40, t0 + offset + 0.06);
-
-      gain.gain.setValueAtTime(this.masterVolume * 0.45, t0 + offset);
-      gain.gain.exponentialRampToValueAtTime(0.001, t0 + offset + 0.06);
-
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      osc.start(t0 + offset);
-      osc.stop(t0 + offset + 0.07);
-    });
-  }
-
   private playPawnStep(ctx: AudioContext): void {
     const t0 = ctx.currentTime;
     const osc = ctx.createOscillator();
@@ -239,179 +179,8 @@ class SoundEngine {
     osc.stop(t0 + 0.06);
   }
 
-  private playBuyProperty(ctx: AudioContext): void {
-    const t0 = ctx.currentTime;
-    // Ascending celebratory major chord: C5 - E5 - G5 - C6
-    const notes = [523.25, 659.25, 783.99, 1046.5];
-    notes.forEach((freq, idx) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(freq, t0 + idx * 0.07);
-
-      gain.gain.setValueAtTime(0, t0 + idx * 0.07);
-      gain.gain.linearRampToValueAtTime(this.masterVolume * 0.3, t0 + idx * 0.07 + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.001, t0 + idx * 0.07 + 0.3);
-
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      osc.start(t0 + idx * 0.07);
-      osc.stop(t0 + idx * 0.07 + 0.32);
-    });
-  }
-
-  private playPayRent(ctx: AudioContext): void {
-    const t0 = ctx.currentTime;
-    // Descending metallic chime
-    const notes = [659.25, 523.25, 392.0];
-    notes.forEach((freq, idx) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(freq, t0 + idx * 0.09);
-
-      gain.gain.setValueAtTime(this.masterVolume * 0.25, t0 + idx * 0.09);
-      gain.gain.exponentialRampToValueAtTime(0.001, t0 + idx * 0.09 + 0.2);
-
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      osc.start(t0 + idx * 0.09);
-      osc.stop(t0 + idx * 0.09 + 0.22);
-    });
-  }
-
-  private playPassStart(ctx: AudioContext): void {
-    const t0 = ctx.currentTime;
-    // Cash register bell + double chime
-    const notes = [587.33, 880.0];
-    notes.forEach((freq, idx) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(freq, t0 + idx * 0.12);
-
-      gain.gain.setValueAtTime(this.masterVolume * 0.35, t0 + idx * 0.12);
-      gain.gain.exponentialRampToValueAtTime(0.001, t0 + idx * 0.12 + 0.4);
-
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      osc.start(t0 + idx * 0.12);
-      osc.stop(t0 + idx * 0.12 + 0.45);
-    });
-  }
-
-  private playGoToJail(ctx: AudioContext): void {
-    const t0 = ctx.currentTime;
-    // Heavy low metallic clang
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(110, t0);
-    osc.frequency.exponentialRampToValueAtTime(40, t0 + 0.4);
-
-    gain.gain.setValueAtTime(this.masterVolume * 0.4, t0);
-    gain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.45);
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-
-    osc.start(t0);
-    osc.stop(t0 + 0.5);
-  }
-
-  private playDrawCard(ctx: AudioContext): void {
-    const t0 = ctx.currentTime;
-    // Card swish filter
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(800, t0);
-    osc.frequency.exponentialRampToValueAtTime(250, t0 + 0.08);
-
-    gain.gain.setValueAtTime(this.masterVolume * 0.2, t0);
-    gain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.08);
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-
-    osc.start(t0);
-    osc.stop(t0 + 0.09);
-  }
-
-  private playEmote(ctx: AudioContext): void {
-    const t0 = ctx.currentTime;
-    // Bright bubble pop: sharp pitch sweep upwards
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(420, t0);
-    osc.frequency.exponentialRampToValueAtTime(980, t0 + 0.08);
-
-    gain.gain.setValueAtTime(this.masterVolume * 0.25, t0);
-    gain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.09);
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-
-    osc.start(t0);
-    osc.stop(t0 + 0.1);
-  }
-
-  private playButtonClick(ctx: AudioContext): void {
-    const t0 = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(500, t0);
-    osc.frequency.exponentialRampToValueAtTime(180, t0 + 0.03);
-
-    gain.gain.setValueAtTime(this.masterVolume * 0.15, t0);
-    gain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.03);
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-
-    osc.start(t0);
-    osc.stop(t0 + 0.04);
-  }
-
-  private playVictory(ctx: AudioContext): void {
-    const t0 = ctx.currentTime;
-    // Fanfare: D4 - G4 - B4 - D5
-    const fanfare = [293.66, 392.0, 493.88, 587.33, 783.99];
-    fanfare.forEach((freq, idx) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      osc.type = 'sine';
-      const delay = idx * 0.13;
-      osc.frequency.setValueAtTime(freq, t0 + delay);
-
-      gain.gain.setValueAtTime(0, t0 + delay);
-      gain.gain.linearRampToValueAtTime(this.masterVolume * 0.35, t0 + delay + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.001, t0 + delay + 0.5);
-
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      osc.start(t0 + delay);
-      osc.stop(t0 + delay + 0.52);
-    });
-  }
-
   /**
-   * Requirement 4: Consistent, subtle notification chime.
-   * Dual-tone soft sine chime (E5 -> G#5) replacing harsh or jail sound effects.
+   * 3. Nice alert tone: warm, elegant dual-tone chime (E5 -> G#5)
    */
   private playNotification(ctx: AudioContext): void {
     const t0 = ctx.currentTime;
@@ -441,4 +210,3 @@ class SoundEngine {
 }
 
 export const sound = new SoundEngine();
-

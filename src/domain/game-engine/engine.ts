@@ -105,6 +105,26 @@ export function applyGameCommand(
   }
 
   if (command.expectedVersion !== currentState.version) {
+    // If it's a UI dismiss action or acknowledgment, handle gracefully without rejecting with VERSION_CONFLICT
+    if (command.type === 'DISMISS_CARD_POPUP' || command.type === 'DISMISS_MONEY_ACK') {
+      const state: GameState = JSON.parse(JSON.stringify(currentState));
+      if (command.type === 'DISMISS_CARD_POPUP') state.activeCardPopup = null;
+      if (command.type === 'DISMISS_MONEY_ACK') state.activeMoneyTransaction = null;
+      return {
+        nextState: state,
+        event: {
+          sequence: state.version,
+          commandId: command.commandId,
+          actorUid,
+          type: command.type,
+          summary: 'Dismissed acknowledgment',
+          payload: {},
+          createdAt: Date.now(),
+          versionAfter: state.version,
+        },
+      };
+    }
+
     throw new GameEngineError(
       'VERSION_CONFLICT',
       `Stale version (client expected ${command.expectedVersion}, current is ${currentState.version})`,
@@ -134,6 +154,10 @@ export function applyGameCommand(
       if (player.inJail) {
         throw new GameEngineError('INVALID_ACTION', 'Must resolve jail status before normal roll');
       }
+
+      // Clear any prior turn transient alerts
+      state.activeMoneyTransaction = null;
+      state.activeCardPopup = null;
 
       // Generate fair server dice (1-6) without modulo bias
       const [f1, f2] = injectedDice || generateFairDicePair();
@@ -500,6 +524,9 @@ export function applyGameCommand(
 
       summary = `${player.displayName} mortgaged ${space.name} for ₹${mortgageAmount}`;
       eventPayload = { spaceIndex: spaceIdx, mortgageAmount };
+
+      // Restart turn timer when player mortgages a property to grant ample time for further actions/resolution
+      state.turnTimeRemaining = state.rules?.turnTimerSeconds ?? 30;
       break;
     }
 
@@ -912,6 +939,7 @@ function resolveLandingSpace(
             if (eligibleProperties) {
               // Requirement 6.1: Pause current transaction, enter mandatory financial resolution
               state.phase = 'ACTION_REQUIRED';
+              state.turnTimeRemaining = state.rules?.turnTimerSeconds ?? 30;
               state.pendingFinancialObligation = {
                 obligationId: `ob_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
                 debtorUid: player.uid,
@@ -1014,6 +1042,7 @@ function resolveLandingSpace(
 
         if (hasMortgageable) {
           state.phase = 'ACTION_REQUIRED';
+          state.turnTimeRemaining = state.rules?.turnTimerSeconds ?? 30;
           state.pendingFinancialObligation = {
             obligationId: `ob_tax_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
             debtorUid: player.uid,
@@ -1359,6 +1388,8 @@ function advanceTurn(state: GameState): void {
       state.turnNumber += 1;
       state.dice = null;
       state.pendingAction = null;
+      state.activeMoneyTransaction = null;
+      state.activeCardPopup = null;
       state.turnTimeRemaining = state.turnTimeLimit || 30;
 
       // Reset turn-scoped escape flag

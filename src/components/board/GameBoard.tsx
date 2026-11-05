@@ -10,8 +10,7 @@ import { calculateMortgageValue, canBuildOnProperty } from '@/domain/ruleset';
 import { TurnStepAcknowledgment } from '@/components/feedback/TurnStepAcknowledgment';
 import { PopupTurnTimer } from '@/components/feedback/PopupTurnTimer';
 import { useToastStore } from '@/components/feedback/toast-store';
-import { sound } from '@/lib/audio/sound-engine';
-import { Dices, X, Gift, Flame, Check, ArrowRight, KeyRound } from 'lucide-react';
+import { Dices, X, Gift, Flame, Check, ArrowRight, KeyRound, Landmark, Building2, Home, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 
 interface GameBoardProps {
@@ -35,8 +34,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   onSelectSpace,
   isRolling,
   onRollDice,
-  onDismissCardPopup,
-  onDismissMoneyAck,
+  onDismissCardPopup: _onDismissCardPopup,
+  onDismissMoneyAck: _onDismissMoneyAck,
   onDispatch,
   isMyTurn = true,
   userUid,
@@ -45,6 +44,17 @@ export const GameBoard: React.FC<GameBoardProps> = ({
 }) => {
   const activePlayer = gameState.players.find((p) => p.uid === gameState.currentPlayerUid);
   const [inspectedCard, setInspectedCard] = useState<CardAction | null>(null);
+  const [voluntaryMortgageOpen, setVoluntaryMortgageOpen] = useState(false);
+
+  // Eligible properties owned by current user that are eligible to mortgage
+  const myMortgageableProperties = Object.entries(gameState.properties)
+    .filter(([_, prop]) => prop.ownerUid === userUid && !prop.isMortgaged && prop.ownershipState === 'OWNED')
+    .map(([idx, prop]) => {
+      const spaceIndex = Number(idx);
+      const space = BOARD_SPACES[spaceIndex];
+      const mortgageVal = calculateMortgageValue(spaceIndex, prop);
+      return { spaceIndex, space, prop, mortgageVal };
+    });
 
   // Dynamic rapid tumbling dice faces & random dots during roll animation
   const [displayDice, setDisplayDice] = useState<[number, number]>([
@@ -67,7 +77,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({
           Math.floor(Math.random() * 6) + 1,
           Math.floor(Math.random() * 6) + 1,
         ]);
-        sound.play('DICE_TICK');
       }, 55);
       return () => clearInterval(interval);
     } else {
@@ -75,8 +84,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         setDisplayDice([gameState.dice.first, gameState.dice.second]);
       }
       setRollingPips([[], []]);
-      // Play solid landing impact when dice roll settles
-      sound.play('DICE_LAND');
     }
   }, [isRolling, gameState.dice]);
 
@@ -111,13 +118,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         amount: tx.amount,
         flow: isPayer ? 'DEBIT' : isRecipient ? 'CREDIT' : undefined,
       });
-
-      // Non-blocking auto-dismiss: clear server acknowledgment notice
-      if (onDismissMoneyAck) {
-        onDismissMoneyAck();
-      }
     }
-  }, [gameState.activeMoneyTransaction, userUid, onDismissMoneyAck, walkingAnimation]);
+  }, [gameState.activeMoneyTransaction, userUid, walkingAnimation]);
 
   // Section 7b: Automatically bridge activeCardPopup to floating toast in bottom-left corner (3-second auto-dismiss)
   useEffect(() => {
@@ -143,13 +145,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             : 'CREDIT'
           : undefined,
       });
-
-      // Non-blocking auto-dismiss: clear server card popup notice immediately
-      if (onDismissCardPopup) {
-        onDismissCardPopup();
-      }
     }
-  }, [gameState.activeCardPopup, gameState.turnNumber, onDismissCardPopup, walkingAnimation]);
+  }, [gameState.activeCardPopup, gameState.turnNumber, walkingAnimation]);
 
   // Determine which space should have the glowing / zoomed in state-update effect
   const highlightedSpaceIndex =
@@ -313,7 +310,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     return (
       <div
         className={cn(
-          'w-11 h-11 sm:w-13 sm:h-13 rounded-2xl border-2 border-stone-800/80 bg-gradient-to-br from-white via-zinc-50 to-zinc-100 dark:from-zinc-100 dark:to-zinc-200 shadow-[0_6px_16px_rgba(0,0,0,0.35),inset_0_2px_4px_rgba(255,255,255,0.9),inset_0_-2px_4px_rgba(0,0,0,0.2)] grid grid-cols-3 grid-rows-3 p-1 sm:p-1.5 gap-0.5 transition-all duration-100 select-none',
+          'w-12 h-12 sm:w-14 sm:h-14 rounded-2xl border-2 border-stone-800/80 bg-gradient-to-br from-white via-zinc-50 to-zinc-100 dark:from-zinc-100 dark:to-zinc-200 shadow-[0_6px_16px_rgba(0,0,0,0.35),inset_0_2px_4px_rgba(255,255,255,0.9),inset_0_-2px_4px_rgba(0,0,0,0.2)] grid grid-cols-3 grid-rows-3 p-1.5 sm:p-2 gap-1.5 sm:gap-2 transition-all duration-100 select-none',
           isRolling && 'shadow-[0_0_18px_rgba(234,88,12,0.8)] scale-105',
           !isRolling && gameState.dice && 'animate-dice-settle'
         )}
@@ -326,8 +323,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                   'rounded-full transition-colors duration-75',
                   // Iconic central pip of 1 has rich signature Indian Terracotta styling
                   !isRolling && safeVal === 1 && i === 4
-                    ? 'w-3 h-3 sm:w-3.5 sm:h-3.5 bg-indian-terracotta-600 ring-1 ring-amber-500/70 shadow-[inset_0_1.5px_2px_rgba(0,0,0,0.6)]'
-                    : 'w-2 h-2 sm:w-2.5 sm:h-2.5 bg-slate-950 shadow-[inset_0_1px_2px_rgba(0,0,0,0.7),0_1px_1px_rgba(255,255,255,0.5)]',
+                    ? 'w-2.5 h-2.5 sm:w-3 sm:h-3 bg-indian-terracotta-600 ring-1 ring-amber-500/70 shadow-[inset_0_1.5px_2px_rgba(0,0,0,0.6)]'
+                    : 'w-1.5 h-1.5 sm:w-2 sm:h-2 bg-slate-950 shadow-[inset_0_1px_2px_rgba(0,0,0,0.7),0_1px_1px_rgba(255,255,255,0.5)]',
                   isRolling && 'bg-indian-terracotta-600 animate-pulse'
                 )}
               />
@@ -500,14 +497,26 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                   <span>{isRolling ? 'Rolling...' : 'ROLL DICE'}</span>
                 </button>
               ) : isMyTurn && (gameState.phase === 'MANAGEMENT' || gameState.phase === 'TURN_END') && !walkingAnimation ? (
-                <button
-                  type="button"
-                  onClick={() => onDispatch?.('END_TURN')}
-                  className="px-4 py-1.5 rounded-full font-bold text-xs text-white bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 shadow-md active:scale-95 transition-all flex items-center gap-1.5 border border-emerald-400 cursor-pointer"
-                >
-                  <span>END TURN</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
+                <div className="flex items-center gap-1.5">
+                  {myMortgageableProperties.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setVoluntaryMortgageOpen(true)}
+                      className="px-2.5 py-1.5 rounded-full font-bold text-xs text-amber-200 bg-amber-950/80 hover:bg-amber-900 border border-amber-600/60 shadow-md active:scale-95 transition-all flex items-center gap-1 cursor-pointer"
+                    >
+                      <Landmark className="w-3.5 h-3.5" />
+                      <span>Mortgage</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => onDispatch?.('END_TURN')}
+                    className="px-4 py-1.5 rounded-full font-bold text-xs text-white bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 shadow-md active:scale-95 transition-all flex items-center gap-1.5 border border-emerald-400 cursor-pointer"
+                  >
+                    <span>END TURN</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               ) : isMyTurn && gameState.phase === 'JAIL_DECISION' && !walkingAnimation ? (
                 <div className="flex items-center gap-1">
                   <button
@@ -739,8 +748,125 @@ export const GameBoard: React.FC<GameBoardProps> = ({
           players={gameState.players}
           properties={gameState.properties}
           currentUserUid={userUid || 'player_1'}
+          turnTimeRemaining={gameState.turnTimeRemaining}
           onDispatch={onDispatch}
         />
+      )}
+
+      {/* VOLUNTARY MORTGAGE SELECTION MODAL (Center pop-up box where player mortgages a city) */}
+      {voluntaryMortgageOpen && myMortgageableProperties.length > 0 && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[120] bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 select-none animate-fade-in">
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-lg rounded-2xl bg-[#090D1A] border-2 border-amber-500/80 shadow-[0_16px_48px_rgba(0,0,0,0.95)] text-white overflow-hidden flex flex-col max-h-[90vh] animate-scale-in"
+          >
+            {/* Header */}
+            <div className="p-4 bg-gradient-to-r from-amber-950 via-[#180A0A] to-[#1F1010] border-b border-amber-500/40 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/50 flex items-center justify-center text-amber-400 shrink-0">
+                  <Landmark className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-serif font-black text-sm sm:text-base tracking-wide text-amber-300 uppercase">
+                    Mortgage Cities (Raise Capital)
+                  </h3>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-[11px] text-gray-300">
+                      Mortgaging a city provides 50% value and restarts turn timer
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setVoluntaryMortgageOpen(false)}
+                className="p-1 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* List */}
+            <div className="p-4 space-y-2 overflow-y-auto max-h-[60vh] custom-scrollbar text-xs">
+              <div className="flex items-center justify-between px-1">
+                <span className="font-bold text-[11px] uppercase tracking-wider text-gray-400">
+                  Select City to Mortgage ({myMortgageableProperties.length})
+                </span>
+                <span className="inline-flex items-center gap-1 text-[10px] text-amber-300 font-mono">
+                  <Clock className="w-3 h-3" />
+                  <span>{gameState.turnTimeRemaining ?? 30}s timer</span>
+                </span>
+              </div>
+
+              {myMortgageableProperties.map(({ spaceIndex, space, prop, mortgageVal }) => (
+                <div
+                  key={spaceIndex}
+                  className="p-3 rounded-xl bg-white/5 border border-white/10 hover:border-amber-400/40 transition-colors flex items-center justify-between gap-3"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+                      <Landmark className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="font-bold text-sm block truncate text-white">
+                        {space.name}
+                      </span>
+                      <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
+                        {prop.buildings === 5 ? (
+                          <span className="flex items-center gap-0.5 text-amber-400 font-bold">
+                            <Building2 className="w-3.5 h-3.5" /> Commercial Tower
+                          </span>
+                        ) : prop.buildings > 0 ? (
+                          <span className="flex items-center gap-0.5 text-emerald-400 font-bold">
+                            <Home className="w-3.5 h-3.5" /> {prop.buildings} House{prop.buildings > 1 ? 's' : ''}
+                          </span>
+                        ) : (
+                          <span>Undeveloped Plot</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 shrink-0">
+                    <div className="text-right">
+                      <span className="text-[10px] text-gray-400 block uppercase">Instant Payout</span>
+                      <span className="font-mono font-black text-sm text-amber-300">
+                        +₹{mortgageVal.toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onDispatch?.('MORTGAGE', { spaceIndex });
+                        if (myMortgageableProperties.length <= 1) {
+                          setVoluntaryMortgageOpen(false);
+                        }
+                      }}
+                      className="px-3.5 py-1.5 rounded-xl font-bold text-xs bg-amber-500 hover:bg-amber-400 text-indian-navy-950 active:scale-95 transition-all shadow-md cursor-pointer"
+                    >
+                      Mortgage City
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Footer */}
+            <div className="p-3 bg-black/40 border-t border-white/10 flex items-center justify-between text-xs">
+              <span className="text-[11px] text-gray-400">
+                You can reacquire mortgaged cities on subsequent turns with a 10% statutory interest charge.
+              </span>
+              <button
+                type="button"
+                onClick={() => setVoluntaryMortgageOpen(false)}
+                className="px-4 py-1.5 rounded-xl font-bold bg-white/10 hover:bg-white/20 text-white cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
 
       {/* CITY INFORMATION MODAL POP-UP (Opens when any person clicks a city grid) */}

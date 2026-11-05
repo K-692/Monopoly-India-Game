@@ -200,7 +200,7 @@ When debt $D$ exceeds cash $C$:
 ## 6. Verification, Test Coverage & Benchmark Results
 
 ### 6.1 Test Suite Summary
-- **Total Passing Tests**: 51 tests passing with 0 failures:
+- **Total Passing Tests**: 55 tests passing with 0 failures:
   - **Unit & Invariant Suite (`engine.test.ts` - 28 tests passing)**:
     - 1st, 2nd, and 3rd jail escape double attempts with extra turn suppression.
     - Incarcerated failed attempts maintaining zero movement.
@@ -215,13 +215,60 @@ When debt $D$ exceeds cash $C$:
     - Chi-Square goodness-of-fit test across 12,000 rolls ($\chi^2 < 15.086$ at $\alpha = 0.01$).
     - 2-Dice independence across 18,000 pairs (all 36 combinations verified).
     - Unique `rollId` tracking and command idempotency.
-  - **Popup & Notification Suite (`popup-and-notification.test.ts` - 7 tests passing)**:
+  - **Popup, Notification & Concurrency Suite (`popup-and-notification.test.ts` - 11 tests passing)**:
     - Single active notification enforcement.
     - Event ID cross-channel deduplication.
     - Dedup key throttling for balance warnings.
     - Comprehensive username validation rules (length, characters, empty/whitespace rejection).
+    - Stale version resilience on transient UI acknowledgment commands (`DISMISS_MONEY_ACK`, `DISMISS_CARD_POPUP`).
+    - Turn timer renewal to full duration on mortgage execution.
+    - Procedural audio engine validation ensuring strictly permitted sound dispatching.
   - **Multiplayer Integration Suite (`multiplayer-integration.test.ts` - 7 tests passing)**:
     - Two-client real-time synchronization, room lifecycle, turn authorization, and session resumption.
   - **Clipboard & Environment Suite (`clipboard.test.ts` - 3 tests passing)**:
     - Dual-strategy clipboard fallback across unencrypted HTTP LAN environments.
-- **Production Build**: Verified with Vite production build completing in ~2.22s with zero TypeScript compilation errors.
+- **Production Build**: Verified with Vite production build completing in ~2.12s with zero TypeScript compilation errors.
+
+---
+
+## 7. Concurrency Resilience, Tri-Acoustic Audio & Dual-Modal Spatial Mortgaging
+
+### 7.1 Stale Version Conflict Resolution & Concurrency Harmonization
+- **Pathological Condition Diagnosed**: During multiplayer gameplay, floating acknowledge toasts (`activeMoneyTransaction` and `activeCardPopup`) triggered synchronous network dismissals across all connected clients simultaneously. The first client's dismissal incremented the authoritative `state.version`, causing subsequent client commands to be rejected with `VERSION_CONFLICT (Stale version: client expected X, current is Y)`.
+- **Architectural Solution**:
+  1. **Transient UI Decoupling**: Floating alert toasts are strictly managed on local client instances with 3-second auto-close and `eventId` deduplication via `useToastStore`. Synchronous network emissions from clients on toast appearance are eliminated.
+  2. **Engine Idempotency Relaxation**: In `applyGameCommand`, UI dismissals (`DISMISS_CARD_POPUP`, `DISMISS_MONEY_ACK`) are exempt from strict version checks. If a stale dismissal arrives, the server acknowledges it without throwing `VERSION_CONFLICT`.
+  3. **Natural Turn Garbage Collection**: `advanceTurn` and `ROLL_DICE` automatically clear `state.activeMoneyTransaction` and `state.activeCardPopup` to `null`.
+  4. **Silent Error Suppression**: The client store captures transient stale version race conditions silently, preventing alarming red alert boxes and unprompted jail sounds.
+
+### 7.2 Tri-Acoustic Procedural Audio Synthesis
+- **Strict Tri-Acoustic Mandate**: The sound engine is restricted to exactly three procedural sounds generated via Web Audio API:
+  1. **Rolling Sound (`DICE_ROLL`)**: Tumbling dice thuds synthesized via five staggered triangle oscillators ($140\,\text{Hz} \to 45\,\text{Hz}$).
+  2. **Players Walking Sound (`PAWN_STEP`)**: Soft wooden pawn footstep synthesized via descending sine oscillator ($380\,\text{Hz} \to 160\,\text{Hz}$, 50ms decay).
+  3. **Nice Alert Tone (`NOTIFICATION`)**: Harmonic dual-tone chime ($E_5 = 659.25\,\text{Hz} \to G^\#_5 = 830.61\,\text{Hz}$) accompanying alert toasts.
+- **Complete Elimination of Secondary Sounds**: All other sound synthesizers (`BUY_PROPERTY`, `PAY_RENT`, `PASS_START`, `GO_TO_JAIL`, `DRAW_CARD`, `EMOTE`, `BUTTON_CLICK`, `VICTORY`, `DICE_TICK`, `DICE_LAND`) are silenced and removed.
+
+### 7.3 Dual-Modal Spatial Mortgage Architecture & Decision Timer Renewal
+- **Spatial Separation of Mortgaging vs Spectator Views**:
+  - **For Mortgaging Player (`isDebtor === true` or Voluntary Mortgaging)**:
+    - Renders a centered modal dialog (`fixed inset-0 z-[120] bg-black/80 flex items-center justify-center`).
+    - Full list of eligible cities with building states, payout amounts, and "Mortgage City" buttons.
+    - Settle Debt and Surrender actions.
+  - **For Other Players (Spectators)**:
+    - Renders a floating notification box strictly at the **left below** (`fixed bottom-4 left-4 z-[120]`).
+    - Eliminates center screen occlusion and background blur, preserving full board and turn visibility for other players.
+    - Real-time debtor liquid balance progress bar ($₹\text{Current Cash} / ₹\text{Amount Due}$) and active timer indicator.
+- **Decision Timer Renewal**:
+  - Incurring a financial debt obligation or executing a `MORTGAGE` command immediately resets the turn countdown to the full 30 seconds (`turnTimeRemaining = 30`).
+  - Restarts the authoritative server timer interval (`resetTurnTimer`), giving players ample time to calculate options without abrupt timeouts.
+- **Voluntary Mortgaging**:
+  - Active players can trigger the center mortgage dialog anytime during turn management phases directly from the turn controls (`Landmark` icon).
+
+### 7.4 Ergonomic Dice Geometry & Widened Dot Dispersion
+- **Grid Gap Enlargement**: Increased die grid spacing from `gap-0.5` (2px) to `gap-1.5 sm:gap-2` (6px-8px).
+- **Expanded Die Dimensions**: Increased die container size to `w-12 h-12 sm:w-14 sm:h-14` with `p-1.5 sm:p-2` inset padding.
+- **Centering & Proportion**: Resized circular pips to `w-1.5 h-1.5 sm:w-2 sm:h-2` with signature Terracotta Crimson on the center 1-pip (`w-2.5 h-2.5 sm:w-3 sm:h-3`), resulting in clear, widely spaced, authentic pips.
+
+### 7.5 Retirement of Legacy GitHub Actions Workflows
+- Per deployment directives, the `.github/workflows/` directory (`ci.yml`, `deploy-pages.yml`) was completely retired and removed.
+- Repository CI status badges and workflow references updated to reflect standalone zero-cloud LAN distribution.

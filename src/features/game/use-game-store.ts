@@ -127,7 +127,6 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         // Phase 1: 3D Dice tumble and settle on the authoritative values
         setTimeout(() => {
           set({ isRolling: false });
-          sound.play('DICE_LAND');
 
           // If failed jail double, no movement occurs
           if (isTryDoubles && !isDouble) {
@@ -158,11 +157,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
             const nextPos = (startPos + currentStep) % 40;
             const stepsRemaining = totalSteps - currentStep;
 
-            if (nextPos === 0) {
-              sound.play('PASS_START');
-            } else {
-              sound.play('PAWN_STEP');
-            }
+            sound.play('PAWN_STEP');
 
             set({
               walkingAnimation: {
@@ -189,8 +184,6 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
             }
           }, 380);
         }, 600);
-      } else if (event.type === 'BUY_PROPERTY') {
-        sound.play('BUY_PROPERTY');
       } else if (event.type === 'MORTGAGE') {
         const mortgageAmount = (event.payload as { mortgageAmount?: number })?.mortgageAmount;
         const myUid = useAuthStore.getState().player?.uid;
@@ -228,10 +221,6 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
           title: 'Player Disqualified',
           message: event.summary,
         });
-      } else if (event.type === 'PAY_BAIL') {
-        sound.play('PAY_RENT');
-      } else if (event.type === 'START_GAME') {
-        sound.play('VICTORY');
       }
     };
 
@@ -300,7 +289,6 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   },
 
   selectSpace: (index: number | null) => {
-    sound.play('BUTTON_CLICK');
     set({ selectedSpaceIndex: index });
   },
 
@@ -311,8 +299,6 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   dispatchAction: (commandType, payload = {}) => {
     const { gameState, isRolling, walkingAnimation } = get();
     if (!gameState || isRolling || walkingAnimation) return;
-
-    sound.play('BUTTON_CLICK');
 
     const command: GameCommand = {
       commandId: 'cmd_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
@@ -327,14 +313,16 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     socket.emit('game:command', command, (response) => {
       if (!response.ok) {
         const errMsg = response.error || 'Server rejected action';
-        sound.play('GO_TO_JAIL');
+        if (errMsg.includes('Stale version')) {
+          console.warn('[GameCommand] Stale version detected, server state will auto-sync on next event:', errMsg);
+          return;
+        }
         set({ error: errMsg });
       }
     });
   },
 
   sendEmote: (emote: string, _senderName: string) => {
-    sound.play('EMOTE');
     const socket = getSocket();
     socket.emit('reaction:send', { emote });
   },

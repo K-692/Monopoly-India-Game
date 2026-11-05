@@ -92,3 +92,4 @@ export function calculateChiSquareStatistic(observed: number[]): {
     isUniformAt001: chiSquare < criticalValue001,
   };
 }
+

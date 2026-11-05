@@ -191,8 +191,8 @@ export const GamePage: React.FC = () => {
             onSelectSpace={selectSpace}
             isRolling={isRolling}
             onRollDice={() => dispatchAction('ROLL_DICE')}
-            onDismissCardPopup={() => dispatchAction('DISMISS_CARD_POPUP')}
-            onDismissMoneyAck={() => dispatchAction('DISMISS_MONEY_ACK')}
+            onDismissCardPopup={() => {}}
+            onDismissMoneyAck={() => {}}
             onDispatch={dispatchAction}
             isMyTurn={isMyTurn && !walkingAnimation}
             userUid={player?.uid || 'player_1'}

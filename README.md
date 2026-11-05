@@ -3,7 +3,6 @@
   
   # 🇮🇳 Indian Monopoly — Local Wi-Fi LAN Multiplayer Board Game
 
-  [![CI](https://github.com/K-692/Monopoly-India-Game/actions/workflows/ci.yml/badge.svg)](https://github.com/K-692/Monopoly-India-Game/actions/workflows/ci.yml)
   [![License: MIT](https://img.shields.io/badge/License-MIT-amber.svg)](LICENSE)
   [![Node.js](https://img.shields.io/badge/Node.js-22+-green.svg)](https://nodejs.org/)
   [![TypeScript](https://img.shields.io/badge/TypeScript-5.7+-blue.svg)](https://www.typescriptlang.org/)
@@ -11,7 +10,7 @@
   [![Socket.IO](https://img.shields.io/badge/Socket.IO-4.8+-010101.svg)](https://socket.io/)
   [![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4+-38b2ac.svg)](https://tailwindcss.com/)
   [![Vite](https://img.shields.io/badge/Vite-6.0+-646cff.svg)](https://vite.dev/)
-  [![Tests](https://img.shields.io/badge/Vitest-51%20Passing-brightgreen.svg)](https://vitest.dev/)
+  [![Tests](https://img.shields.io/badge/Vitest-55%20Passing-brightgreen.svg)](https://vitest.dev/)
 
   **Zero-cloud, zero-Internet, 100% private Wi-Fi LAN multiplayer for phones, tablets, and laptops!**
 </div>
@@ -47,9 +46,9 @@
 
 ### 2. Fair Cryptographic Dice Engine & 3D Rolling
 - **Rejection Sampling**: Avoids modulo bias ($252/6 = 42$ uniform probability per face).
-- **Statistical Goodness-of-Fit**: Chi-square test on 6-face uniformity and 36-pair independence.
+- **Statistical Goodness-of-Fit**: Chi-square test on 6-face uniformity and 36-pair independence across 12,000 rolls ($\chi^2 < 15.086$ at $\alpha = 0.01$).
 - **Unique Roll IDs & Idempotency**: Each roll is stamped with a unique `rollId`, rejecting duplicate command requests.
-- **Modern 3D Visuals**: Tactile ivory gradient cubes, deep rounded bevels, signature Terracotta Crimson 1-pip styling, dynamic 3D tumbling, and physical landing bounce settle (`animate-dice-settle`). Full accessibility support via `@media (prefers-reduced-motion: reduce)`.
+- **Ergonomic Widened Dice Geometry**: Tactile ivory gradient cubes (`w-12 h-12 sm:w-14 sm:h-14`), deep rounded bevels, generous inset padding (`p-1.5 sm:p-2`), and widely spaced dot gaps (`gap-1.5 sm:gap-2`). The pips are centered, distinct, and spacious, featuring signature Terracotta Crimson on the 1-pip.
 - **Movement Gating**: Token stepping begins only after the roll finishes settling on the authoritative outcome.
 
 ### 3. Collision-Aware City Purchase Popup (`usePopupPosition`)
@@ -62,11 +61,15 @@
   5. Landing resolves and purchase popup appears (if eligible unowned city).
 - **Turn Duration Gating**: Stays open until the player acts or the turn timer runs out (auto-decline).
 
-### 4. Single-Active Notification System & Sound Normalization
+### 4. Tri-Acoustic Audio System & Single-Active Notifications
+- **Strictly 3 Procedural Sounds**: The Web Audio synthesizer engine strictly plays only three clean, procedural sounds:
+  1. **Rolling Sound (`DICE_ROLL`)**: Rapid tumbling thuds synthesized via multiple tuned triangle oscillators.
+  2. **Players Walking Sound (`PAWN_STEP`)**: Percussive step tap synthesized via descending sine oscillator as tokens step along board lanes.
+  3. **Nice Alert Tone (`NOTIFICATION`)**: Warm dual-tone chime ($E_5 \to G^\#_5$) accompanying alert popups.
+  - *All other legacy sounds (bells, clangs, buy sounds, rent sounds, jail audio) are completely silenced/removed.*
 - **Strict 1-Notification Invariant**: At most 1 active notification box at any time (`toasts: [newToast]`).
 - **Cross-Channel Deduplication**: Prevents duplicates between Socket.IO game events and local state triggers via `eventId` tracking.
 - **Debounced Balance Warnings**: Uses `dedupKey` to prevent spamming insufficient balance warnings within 3.5 seconds.
-- **Subtle Alert Chime**: Dedicated dual-tone sine wave chime (E5 $\to$ G#5) replacing harsh clangs and eliminating jail sound leaks.
 
 ### 5. Landing Page Tycoon Identity Setup
 - When visiting `PlayPage.tsx`, missing usernames display an inline Tycoon Identity Card.
@@ -89,13 +92,21 @@
 - **Railways Comparison**: CST Mumbai (#5) and Howrah Railway (#15) scale at ₹250 and ₹500.
 - **Immunity Conditions**: Rent is waived if the owner is in jail, the airport is mortgaged, or the owner is in the `BLOCKED` state.
 
-### 8. Complete Mortgaging & Financial Resolution System
+### 8. Complete Mortgaging, Dual-Modal Resolution & Timer Renewal
+- **Dual-Modal Spatial Pop-ups**:
+  - **For Mortgaging Player**: Displays a centered modal dialog (`fixed inset-0 z-[120] bg-black/80 flex items-center justify-center`) where they select cities to mortgage, view development statuses, and settle debts or surrender.
+  - **For Other Players (Spectators)**: Displays an informative floating pop-up card at the **left below** (`fixed bottom-4 left-4 z-[120]`). It never covers the center of the screen, allowing other players to view the board while tracking debtor progress.
+- **Turn Timer Renewal**: Every mortgage action and debt entry immediately resets the player's turn timer to the full 30 seconds (`turnTimeRemaining = 30`), ensuring ample time to resolve finances.
+- **Voluntary Mortgaging**: Active players can open the center mortgage dialog anytime during management phases directly from the turn controls.
 - **Development-Inclusive Valuation Formula**:
   $$\text{Mortgage Payout} = \min\left(P_{\text{base}}, \left\lfloor 0.5 \times P_{\text{base}} + 0.5 \sum_{i=1}^{B} C_{\text{build}}\right\rfloor\right)$$
 - **Development Asset Preservation**: Physical developments are not demolished during mortgage; they remain attached to the deed.
 - **Exact Payout Reacquisition**: The redemption cost strictly equals the exact mortgage payout originally received ($C_{\text{reacquire}} = V_{\text{payout\_received}}$).
-- **Mandatory Financial Resolution Window**: When debt exceeds liquid cash, a resolution window opens to mortgage properties or surrender.
 - **Surrender / Give Up & BLOCKED Property State**: Choosing "Give Up" transfers remaining cash to creditor, disqualifies the debtor, and transitions debtor properties to `BLOCKED` (permanent board feature, generates ₹0 rent, cannot be purchased or traded).
+
+### 9. Stale Version Concurrency Resilience
+- Eliminates `Stale version (client expected X, current is Y)` errors caused by concurrent client acknowledgment actions (`DISMISS_CARD_POPUP`, `DISMISS_MONEY_ACK`).
+- State mutations are cleanly separated from transient client toasts, and UI acknowledgments are version-resilient.
 
 ---
 
