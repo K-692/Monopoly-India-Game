@@ -552,54 +552,180 @@ export function applyGameCommand(
     }
 
     case 'MORTGAGE': {
-      const spaceIdx = Number(command.payload.spaceIndex);
+      const rawIndices: number[] = Array.isArray(command.payload.spaceIndices)
+        ? (command.payload.spaceIndices as number[]).map(Number)
+        : command.payload.spaceIndex !== undefined
+        ? [Number(command.payload.spaceIndex)]
+        : [];
+
       const player = state.players.find((p) => p.uid === actorUid);
-      const propState = state.properties[spaceIdx];
-      const space = BOARD_SPACES[spaceIdx];
+      if (!player) throw new GameEngineError('INVALID_ACTION', 'Player not found');
+      if (player.isBankrupt || player.isDisqualified) {
+        throw new GameEngineError('INVALID_ACTION', 'Disqualified or bankrupt player cannot mortgage');
+      }
 
       // Eligible during player's turn or when facing a pending financial obligation
       const isObligationDebtor = state.pendingFinancialObligation?.debtorUid === actorUid;
       if (actorUid !== state.currentPlayerUid && !isObligationDebtor) {
         throw new GameEngineError('NOT_YOUR_TURN', 'You can only mortgage properties during your turn or debt resolution');
       }
-      if (!player) throw new GameEngineError('INVALID_ACTION', 'Player not found');
-      if (!propState || propState.ownerUid !== actorUid) {
-        throw new GameEngineError('INVALID_ACTION', 'You do not own this property');
-      }
-      if (propState.isMortgaged || propState.ownershipState === 'MORTGAGED') {
-        throw new GameEngineError('INVALID_ACTION', 'Already mortgaged');
-      }
-      if (propState.ownershipState === 'BLOCKED') {
-        throw new GameEngineError('INVALID_ACTION', 'Blocked property cannot be mortgaged');
+
+      // Section 6: Race condition protection - reject stale requests if 60-second window expired
+      if (isObligationDebtor && state.pendingFinancialObligation?.expiresAt) {
+        if (Date.now() > state.pendingFinancialObligation.expiresAt + 1500) {
+          throw new GameEngineError('OBLIGATION_EXPIRED', 'Financial resolution 60-second window has expired');
+        }
       }
 
-      // Requirement 6.2 & 6.7: Calculate mortgage payout accounting for development investment
-      // Buildings/houses are preserved intact and not liquidated
-      const mortgageAmount = calculateMortgageValue(spaceIdx, propState);
+      if (rawIndices.length === 0) {
+        throw new GameEngineError('INVALID_ACTION', 'No properties selected for mortgage');
+      }
 
-      const prevCash = player.cash;
-      player.cash += mortgageAmount;
-      propState.isMortgaged = true;
-      propState.ownershipState = 'MORTGAGED';
-      propState.mortgagePayout = mortgageAmount;
+      const uniqueIndices = Array.from(new Set(rawIndices));
+      if (uniqueIndices.length !== rawIndices.length) {
+        throw new GameEngineError('INVALID_ACTION', 'Duplicate properties selected for mortgage');
+      }
 
-      recordTx(
-        state,
-        player.uid,
-        'MORTGAGE_PROCEEDS',
-        'CREDIT',
-        mortgageAmount,
-        prevCash,
-        player.cash,
-        `${player.displayName} mortgaged ${space.name} for ₹${mortgageAmount.toLocaleString('en-IN')}.`,
-        { spaceIndex: spaceIdx, propertyName: space.name }
-      );
+      // Validate all selected properties upfront before executing any
+      for (const spaceIdx of uniqueIndices) {
+        const propState = state.properties[spaceIdx];
+        if (!propState || propState.ownerUid !== actorUid) {
+          throw new GameEngineError('INVALID_ACTION', `You do not own property at space ${spaceIdx}`);
+        }
+        if (propState.isMortgaged || propState.ownershipState === 'MORTGAGED') {
+          throw new GameEngineError('INVALID_ACTION', `Property at space ${spaceIdx} is already mortgaged`);
+        }
+        if (propState.ownershipState === 'BLOCKED') {
+          throw new GameEngineError('INVALID_ACTION', `Blocked property at space ${spaceIdx} cannot be mortgaged`);
+        }
+      }
 
-      summary = `${player.displayName} mortgaged ${space.name} for ₹${mortgageAmount}`;
-      eventPayload = { spaceIndex: spaceIdx, mortgageAmount };
+      // Execute all selected mortgages atomically
+      let totalMortgageAmount = 0;
+      const mortgagedNames: string[] = [];
 
-      // Restart turn timer when player mortgages a property to grant ample time for further actions/resolution
-      state.turnTimeRemaining = state.rules?.turnTimerSeconds ?? 30;
+      for (const spaceIdx of uniqueIndices) {
+        const propState = state.properties[spaceIdx];
+        const space = BOARD_SPACES[spaceIdx];
+        const mortgageAmount = calculateMortgageValue(spaceIdx, propState);
+
+        const prevCash = player.cash;
+        player.cash += mortgageAmount;
+        totalMortgageAmount += mortgageAmount;
+        propState.isMortgaged = true;
+        propState.ownershipState = 'MORTGAGED';
+        propState.mortgagePayout = mortgageAmount;
+        mortgagedNames.push(space.name);
+
+        recordTx(
+          state,
+          player.uid,
+          'MORTGAGE_PROCEEDS',
+          'CREDIT',
+          mortgageAmount,
+          prevCash,
+          player.cash,
+          `${player.displayName} mortgaged ${space.name} for ₹${mortgageAmount.toLocaleString('en-IN')}.`,
+          { spaceIndex: spaceIdx, propertyName: space.name }
+        );
+      }
+
+      summary = `${player.displayName} mortgaged ${mortgagedNames.join(', ')} for ₹${totalMortgageAmount.toLocaleString('en-IN')}`;
+      eventPayload = { spaceIndices: uniqueIndices, spaceIndex: uniqueIndices[0], totalMortgageAmount, mortgageAmount: totalMortgageAmount };
+
+      // Section 4: Automatic Payment Resumption
+      // If raised balance plus available balance is now sufficient:
+      // Automatically resume and complete the original payment, clear obligation, and resume normal gameplay!
+      if (state.pendingFinancialObligation && state.pendingFinancialObligation.debtorUid === actorUid) {
+        const obligation = state.pendingFinancialObligation;
+        if (player.cash >= obligation.amountDue) {
+          const debtorPrev = player.cash;
+          player.cash -= obligation.amountDue;
+
+          const creditor = obligation.creditorUid
+            ? state.players.find((p) => p.uid === obligation.creditorUid)
+            : null;
+
+          const spaceName = obligation.spaceIndex !== undefined ? BOARD_SPACES[obligation.spaceIndex]?.name : (obligation.reason || 'obligation');
+          const isAirport = obligation.paymentType === 'AIRPORT_RENT';
+          const sharedTxId = `tx_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+          let debitTxType: FinancialTransactionType = 'RENT_PAID';
+          let creditTxType: FinancialTransactionType = 'RENT_RECEIVED';
+          if (isAirport) {
+            debitTxType = 'AIRPORT_RENT_PAID';
+            creditTxType = 'AIRPORT_RENT_RECEIVED';
+          } else if (obligation.paymentType === 'TAX') {
+            debitTxType = 'TAX_PAYMENT';
+          } else if (obligation.paymentType === 'CARD') {
+            debitTxType = 'CARD_PENALTY';
+            creditTxType = 'CARD_REWARD';
+          }
+
+          recordTx(
+            state,
+            player.uid,
+            debitTxType,
+            'DEBIT',
+            obligation.amountDue,
+            debtorPrev,
+            player.cash,
+            `${player.displayName} automatically settled ₹${obligation.amountDue.toLocaleString('en-IN')} payment to ${creditor?.displayName || 'Bank'} for ${spaceName}.`,
+            {
+              transactionId: sharedTxId,
+              spaceIndex: obligation.spaceIndex,
+              propertyName: spaceName,
+              counterpartyUid: creditor?.uid ?? null,
+              counterpartyName: creditor?.displayName ?? (creditor ? undefined : 'Bank'),
+            }
+          );
+
+          if (creditor) {
+            const creditorPrev = creditor.cash;
+            creditor.cash += obligation.amountDue;
+            recordTx(
+              state,
+              creditor.uid,
+              creditTxType,
+              'CREDIT',
+              obligation.amountDue,
+              creditorPrev,
+              creditor.cash,
+              `${creditor.displayName} received ₹${obligation.amountDue.toLocaleString('en-IN')} from ${player.displayName} for ${spaceName}.`,
+              {
+                transactionId: sharedTxId,
+                spaceIndex: obligation.spaceIndex,
+                propertyName: spaceName,
+                counterpartyUid: player.uid,
+                counterpartyName: player.displayName,
+              }
+            );
+          }
+
+          obligation.status = 'RESOLVED';
+          state.pendingFinancialObligation = null;
+          state.phase = 'MANAGEMENT';
+          state.turnTimeRemaining = state.rules?.turnTimerSeconds ?? 30;
+
+          state.activeMoneyTransaction = {
+            id: `res_${Date.now()}`,
+            type: obligation.paymentType === 'TAX' ? 'TAX' : (obligation.paymentType === 'CARD' ? 'CARD' : 'RENT'),
+            payerName: player.displayName,
+            payerUid: player.uid,
+            recipientName: creditor?.displayName || 'Bank',
+            recipientUid: creditor?.uid || 'BANK',
+            amount: obligation.amountDue,
+            description: `${player.displayName} resolved ₹${obligation.amountDue.toLocaleString('en-IN')} payment to ${creditor?.displayName || 'Bank'}.`,
+          };
+        } else {
+          // Funds still insufficient: update remainingAmountDue, retain exact 60-second countdown without reset
+          obligation.remainingAmountDue = obligation.amountDue - player.cash;
+          state.phase = 'ACTION_REQUIRED';
+        }
+      } else {
+        // Voluntary mortgage during normal management phase: restore turn timer
+        state.turnTimeRemaining = state.rules?.turnTimerSeconds ?? 30;
+      }
       break;
     }
 
@@ -750,6 +876,7 @@ export function applyGameCommand(
       obligation.status = 'RESOLVED';
       state.pendingFinancialObligation = null;
       state.phase = 'MANAGEMENT';
+      state.turnTimeRemaining = state.rules?.turnTimerSeconds ?? 30;
       summary = `${debtor.displayName} resolved pending payment of ₹${obligation.amountDue}.`;
       break;
     }
@@ -807,8 +934,9 @@ export function applyGameCommand(
         }
       }
 
+      const isTimeout = command.payload?.reason === 'TIMEOUT';
       if (obligation && obligation.debtorUid === actorUid) {
-        obligation.status = 'CANCELLED';
+        obligation.status = isTimeout ? 'FAILED_BY_TIMEOUT' : 'CANCELLED_BY_SURRENDER';
         state.pendingFinancialObligation = null;
       }
       if (state.pendingAction?.playerUid === debtor.uid) {
@@ -826,10 +954,14 @@ export function applyGameCommand(
         0,
         debtor.cash,
         debtor.cash,
-        `${debtor.displayName} surrendered and gave up. All owned properties permanently marked BLOCKED.`
+        isTimeout
+          ? `${debtor.displayName} timed out after 60s financial resolution and was disqualified. All owned properties permanently marked BLOCKED.`
+          : `${debtor.displayName} surrendered and gave up. All owned properties permanently marked BLOCKED.`
       );
 
-      summary = `${debtor.displayName} chose Give Up and is disqualified. Properties are blocked.`;
+      summary = isTimeout
+        ? `${debtor.displayName} was disqualified after 60-second mortgage resolution expired. Properties are blocked.`
+        : `${debtor.displayName} chose Give Up and is disqualified. Properties are blocked.`;
 
       // Requirement 7: If it is their turn, advance safely. If not, do not interrupt current player!
       if (state.currentPlayerUid === debtor.uid) {
@@ -879,9 +1011,9 @@ export function applyGameCommand(
       throw new GameEngineError('INVALID_ACTION', `Unsupported action ${command.type}`);
   }
 
-  // Check for any player whose cash <= 0 and has no places to mortgage (Complete Bankruptcy Invariant)
+  // Check for any player with negative balance deficit and no places to mortgage
   for (const p of state.players) {
-    if (!p.isBankrupt && p.cash <= 0) {
+    if (!p.isBankrupt && p.cash < 0) {
       const hasMortgageable = Object.values(state.properties).some(
         (prop) => prop && prop.ownerUid === p.uid && !prop.isMortgaged && prop.ownershipState === 'OWNED'
       );
@@ -1037,70 +1169,26 @@ function resolveLandingSpace(
               description: `${player.displayName} paid ₹${rentDue.toLocaleString('en-IN')} rent to ${owner?.displayName} for landing on ${space.name}.`,
             };
           } else {
-            // Insufficient balance! Check for mortgageable properties
-            const eligibleProperties = Object.values(state.properties).some(
-              (p) => p && p.ownerUid === player.uid && !p.isMortgaged && p.ownershipState === 'OWNED'
-            );
-
-            if (eligibleProperties) {
-              // Requirement 6.1: Pause current transaction, enter mandatory financial resolution
-              state.phase = 'ACTION_REQUIRED';
-              state.turnTimeRemaining = state.rules?.turnTimerSeconds ?? 30;
-              state.pendingFinancialObligation = {
-                obligationId: `ob_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-                debtorUid: player.uid,
-                creditorUid: owner?.uid ?? null,
-                amountDue: rentDue,
-                paymentType: isAirport ? 'AIRPORT_RENT' : 'RENT',
-                spaceIndex,
-                status: 'PENDING',
-                createdAt: Date.now(),
-                idempotencyKey: `rent_${spaceIndex}_${state.turnNumber}`,
-              };
-            } else {
-              // Completely bankrupt: zero mortgageable properties
-              const paid = player.cash;
-              const debtorPrev = player.cash;
-              player.cash = 0;
-              if (paid > 0 && owner) {
-                owner.cash += paid;
-                const sharedTxId = `tx_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-                recordTx(
-                  state,
-                  player.uid,
-                  rentTxTypeDebtor,
-                  'DEBIT',
-                  paid,
-                  debtorPrev,
-                  0,
-                  `${player.displayName} transferred remaining ₹${paid.toLocaleString('en-IN')} to ${owner.displayName} before bankruptcy.`,
-                  { transactionId: sharedTxId, spaceIndex, propertyName: space.name, counterpartyUid: owner.uid, counterpartyName: owner.displayName }
-                );
-                recordTx(
-                  state,
-                  owner.uid,
-                  rentTxTypeCreditor,
-                  'CREDIT',
-                  paid,
-                  owner.cash - paid,
-                  owner.cash,
-                  `${owner.displayName} received remaining ₹${paid.toLocaleString('en-IN')} from ${player.displayName}.`,
-                  { transactionId: sharedTxId, spaceIndex, propertyName: space.name, counterpartyUid: player.uid, counterpartyName: player.displayName }
-                );
-              }
-
-              player.isBankrupt = true;
-              player.isDisqualified = true;
-              for (const prop of Object.values(state.properties)) {
-                if (prop && prop.ownerUid === player.uid) {
-                  prop.ownershipState = 'BLOCKED';
-                }
-              }
-              state.phase = 'MANAGEMENT';
-              state.pendingAction = null;
-              state.pendingFinancialObligation = null;
-              advanceTurn(state);
-            }
+            // Low-balance mortgage resolution phase triggered!
+            // Pause original payment, preserve pending obligation, and grant dedicated 60-second window
+            const now = Date.now();
+            const expiresAt = now + 60000;
+            state.phase = 'ACTION_REQUIRED';
+            state.turnTimeRemaining = 60;
+            state.pendingFinancialObligation = {
+              obligationId: `ob_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+              debtorUid: player.uid,
+              creditorUid: owner?.uid ?? null,
+              amountDue: rentDue,
+              remainingAmountDue: rentDue - player.cash,
+              paymentType: isAirport ? 'AIRPORT_RENT' : 'RENT',
+              spaceIndex,
+              reason: `${isAirport ? 'Airport Rent' : 'Rent'} for ${space.name}`,
+              status: 'PENDING',
+              createdAt: now,
+              expiresAt,
+              idempotencyKey: `rent_${spaceIndex}_${state.turnNumber}`,
+            };
           }
         } else {
           // Zero rent
@@ -1190,38 +1278,25 @@ function resolveLandingSpace(
           description: `${player.displayName} paid ₹${taxAmount.toLocaleString('en-IN')} tax for landing on ${space.name}.`,
         };
       } else {
-        const hasMortgageable = Object.values(state.properties).some(
-          (p) => p && p.ownerUid === player.uid && !p.isMortgaged && p.ownershipState === 'OWNED'
-        );
-
-        if (hasMortgageable) {
-          state.phase = 'ACTION_REQUIRED';
-          state.turnTimeRemaining = state.rules?.turnTimerSeconds ?? 30;
-          state.pendingFinancialObligation = {
-            obligationId: `ob_tax_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-            debtorUid: player.uid,
-            creditorUid: null, // Bank
-            amountDue: taxAmount,
-            paymentType: 'TAX',
-            spaceIndex,
-            status: 'PENDING',
-            createdAt: Date.now(),
-            idempotencyKey: `tax_${spaceIndex}_${state.turnNumber}`,
-          };
-        } else {
-          player.cash = 0;
-          player.isBankrupt = true;
-          player.isDisqualified = true;
-          for (const prop of Object.values(state.properties)) {
-            if (prop && prop.ownerUid === player.uid) {
-              prop.ownershipState = 'BLOCKED';
-            }
-          }
-          state.phase = 'MANAGEMENT';
-          state.pendingAction = null;
-          state.pendingFinancialObligation = null;
-          advanceTurn(state);
-        }
+        // Low-balance mortgage resolution phase triggered for mandatory tax payment!
+        const now = Date.now();
+        const expiresAt = now + 60000;
+        state.phase = 'ACTION_REQUIRED';
+        state.turnTimeRemaining = 60;
+        state.pendingFinancialObligation = {
+          obligationId: `ob_tax_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+          debtorUid: player.uid,
+          creditorUid: null, // Bank
+          amountDue: taxAmount,
+          remainingAmountDue: taxAmount - player.cash,
+          paymentType: 'TAX',
+          spaceIndex,
+          reason: `Tax for ${space.name}`,
+          status: 'PENDING',
+          createdAt: now,
+          expiresAt,
+          idempotencyKey: `tax_${spaceIndex}_${state.turnNumber}`,
+        };
       }
       break;
     }
@@ -1296,50 +1371,24 @@ function handleCardPayment(
       `${player.displayName} paid ₹${amount.toLocaleString('en-IN')} for card: ${cardTitle}.`
     );
   } else {
-    // Insufficient cash: check for mortgageable properties
-    const hasMortgageable = Object.values(state.properties).some(
-      (p) => p && p.ownerUid === player.uid && !p.isMortgaged && p.ownershipState === 'OWNED'
-    );
-    if (hasMortgageable) {
-      state.phase = 'ACTION_REQUIRED';
-      state.turnTimeRemaining = state.rules?.turnTimerSeconds ?? 30;
-      state.pendingFinancialObligation = {
-        obligationId: `ob_card_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-        debtorUid: player.uid,
-        creditorUid: null, // Bank
-        amountDue: amount,
-        paymentType: 'CARD',
-        status: 'PENDING',
-        createdAt: Date.now(),
-        idempotencyKey: `card_${cardId}_${state.turnNumber}`,
-      };
-    } else {
-      const paid = player.cash;
-      player.cash = 0;
-      if (paid > 0) {
-        recordTx(
-          state,
-          player.uid,
-          'CARD_PENALTY',
-          'DEBIT',
-          paid,
-          paid,
-          0,
-          `${player.displayName} paid remaining ₹${paid.toLocaleString('en-IN')} for card: ${cardTitle} before bankruptcy.`
-        );
-      }
-      player.isBankrupt = true;
-      player.isDisqualified = true;
-      for (const prop of Object.values(state.properties)) {
-        if (prop && prop.ownerUid === player.uid) {
-          prop.ownershipState = 'BLOCKED';
-        }
-      }
-      state.phase = 'MANAGEMENT';
-      state.pendingAction = null;
-      state.pendingFinancialObligation = null;
-      advanceTurn(state);
-    }
+    // Insufficient cash: enter low-balance mortgage resolution phase
+    const now = Date.now();
+    const expiresAt = now + 60000;
+    state.phase = 'ACTION_REQUIRED';
+    state.turnTimeRemaining = 60;
+    state.pendingFinancialObligation = {
+      obligationId: `ob_card_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      debtorUid: player.uid,
+      creditorUid: null, // Bank
+      amountDue: amount,
+      remainingAmountDue: amount - player.cash,
+      paymentType: 'CARD',
+      reason: cardTitle,
+      status: 'PENDING',
+      createdAt: now,
+      expiresAt,
+      idempotencyKey: `card_${cardId}_${state.turnNumber}`,
+    };
   }
 }
 
@@ -1446,41 +1495,24 @@ function applyCardEffect(state: GameState, player: PlayerState, card: CardAction
           );
         }
       } else {
-        const hasMortgageable = Object.values(state.properties).some(
-          (p) => p && p.ownerUid === player.uid && !p.isMortgaged && p.ownershipState === 'OWNED'
-        );
-        if (hasMortgageable) {
-          state.phase = 'ACTION_REQUIRED';
-          state.turnTimeRemaining = state.rules?.turnTimerSeconds ?? 30;
-          state.pendingFinancialObligation = {
-            obligationId: `ob_card_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-            debtorUid: player.uid,
-            creditorUid: null,
-            amountDue: totalNeeded,
-            paymentType: 'CARD',
-            status: 'PENDING',
-            createdAt: Date.now(),
-            idempotencyKey: `card_${card.id}_${state.turnNumber}`,
-          };
-        } else {
-          // Distribute available cash equally to recipients
-          const perRecipient = Math.floor(player.cash / eligibleRecipients.length);
-          for (const other of eligibleRecipients) {
-            other.cash += perRecipient;
-          }
-          player.cash = 0;
-          player.isBankrupt = true;
-          player.isDisqualified = true;
-          for (const prop of Object.values(state.properties)) {
-            if (prop && prop.ownerUid === player.uid) {
-              prop.ownershipState = 'BLOCKED';
-            }
-          }
-          state.phase = 'MANAGEMENT';
-          state.pendingAction = null;
-          state.pendingFinancialObligation = null;
-          advanceTurn(state);
-        }
+        // Insufficient cash: enter low-balance mortgage resolution phase
+        const now = Date.now();
+        const expiresAt = now + 60000;
+        state.phase = 'ACTION_REQUIRED';
+        state.turnTimeRemaining = 60;
+        state.pendingFinancialObligation = {
+          obligationId: `ob_card_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+          debtorUid: player.uid,
+          creditorUid: null,
+          amountDue: totalNeeded,
+          remainingAmountDue: totalNeeded - player.cash,
+          paymentType: 'CARD',
+          reason: card.title,
+          status: 'PENDING',
+          createdAt: now,
+          expiresAt,
+          idempotencyKey: `card_${card.id}_${state.turnNumber}`,
+        };
       }
       break;
     }

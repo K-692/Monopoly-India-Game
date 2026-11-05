@@ -228,13 +228,17 @@ export interface MoneyTransactionAcknowledgment {
 
 export interface PendingFinancialObligation {
   obligationId: string;
+  gameSessionId?: string;
   debtorUid: string;
   creditorUid: string | null; // null = Bank
   amountDue: number;
+  remainingAmountDue?: number;
   paymentType: 'RENT' | 'AIRPORT_RENT' | 'TAX' | 'CARD';
   spaceIndex?: number;
-  status: 'PENDING' | 'RESOLVED' | 'CANCELLED';
+  reason?: string;
+  status: 'PENDING' | 'RESOLVING' | 'RESOLVED' | 'CANCELLED_BY_SURRENDER' | 'FAILED_BY_TIMEOUT' | 'CANCELLED';
   createdAt: number;
+  expiresAt: number; // Authoritative deadline: exactly 60s from creation
   idempotencyKey: string;
 }
 

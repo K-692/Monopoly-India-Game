@@ -10,7 +10,7 @@
   [![Socket.IO](https://img.shields.io/badge/Socket.IO-4.8+-010101.svg)](https://socket.io/)
   [![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4+-38b2ac.svg)](https://tailwindcss.com/)
   [![Vite](https://img.shields.io/badge/Vite-6.0+-646cff.svg)](https://vite.dev/)
-  [![Tests](https://img.shields.io/badge/Vitest-71%20Passing-brightgreen.svg)](https://vitest.dev/)
+  [![Tests](https://img.shields.io/badge/Vitest-79%20Passing-brightgreen.svg)](https://vitest.dev/)
 
   **Zero-cloud, zero-Internet, 100% private Wi-Fi LAN multiplayer for phones, tablets, and laptops!**
 </div>
@@ -164,6 +164,16 @@
 - **Square Aspect Ratio**: The board container enforces `aspect-square max-h-full max-w-full`, preventing vertical stretching on tall mobile portrait viewports.
 - **Mobile-Adaptive Layout**: On small screens ($< 768\text{px}$), the bulky 12-rule side panels collapse into compact quick-access buttons, granting the 3D dice arena and primary controls full prominence with $\ge 44\text{px}$ tap targets.
 - **iOS Safe Areas**: Native toolbar and home indicator bar support via `env(safe-area-inset-bottom)` and `env(safe-area-inset-top)`.
+
+### 19. Authoritative 60-Second Low-Balance Mortgage Resolution & Disqualification
+- **Mandatory Debt Protection**: When a player lands on rent, airport rent, municipal taxes, or draws a financial penalty with insufficient balance ($C < D$), the original transaction is paused and converted into a tracked obligation with an authoritative 60-second deadline.
+- **Independent 60-Second Countdown**: The resolution countdown ($t_{\text{expires}} = t_0 + 60\text{s}$) is independent of standard turn timers and persists across client reloads or reconnects.
+- **Dual-Action Architecture**:
+  - **Surrender**: Allows voluntary give up via a confirmation dialog. Disqualifies the player, permanently marks all owned properties as **BLOCKED** (generating ₹0 rent), cancels the pending debt, and advances the game without disruption.
+  - **Adjust Payouts**: Interactive multi-select property mortgaging interface with dynamic live calculation of funds to be raised and remaining balance needed.
+- **Automatic Payment Resumption**: Once confirmed mortgages raise sufficient funds ($C \ge D$), the engine atomically debits the debt, credits the recipient/Bank, records paired transaction ledgers, clears the obligation, and restores normal gameplay.
+- **Authoritative Disqualification at 0s**: If the 60-second window expires without sufficient resolution, the backend automatically disqualifies the debtor, permanently blocks their properties, and continues the match for remaining players.
+- **Spectator Separation**: Non-debtor participants view an unintrusive floating card at the bottom-left, displaying debtor status and countdown without obscuring the board.
 
 ---
 

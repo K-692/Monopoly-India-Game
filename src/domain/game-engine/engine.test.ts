@@ -516,12 +516,30 @@ describe('Pure Game Engine', () => {
       [5, 3]
     ).nextState;
 
-    const updatedP1 = state.players.find((p) => p.uid === 'user_1')!;
-    // user_1 had only ₹100, tax was ₹2,000, and user_1 had no properties to mortgage
-    expect(updatedP1.cash).toBe(0);
-    expect(updatedP1.isBankrupt).toBe(true);
+    // user_1 had only ₹100, tax was ₹2,000 -> enters 60-second low-balance mortgage resolution phase
+    expect(state.phase).toBe('ACTION_REQUIRED');
+    expect(state.pendingFinancialObligation).toBeDefined();
+    expect(state.pendingFinancialObligation?.amountDue).toBe(2000);
 
-    // With user_1 bankrupted, user_2 is the sole solvent player -> Game COMPLETED!
+    // Timeout or surrender causes disqualification
+    state = applyGameCommand(
+      state,
+      {
+        commandId: 'cmd_timeout_tax',
+        roomId: 'room_1',
+        gameId: 'game_1',
+        expectedVersion: state.version,
+        type: 'GIVE_UP',
+        payload: { reason: 'TIMEOUT' },
+      },
+      'user_1'
+    ).nextState;
+
+    const updatedP1 = state.players.find((p) => p.uid === 'user_1')!;
+    expect(updatedP1.isBankrupt).toBe(true);
+    expect(updatedP1.isDisqualified).toBe(true);
+
+    // With user_1 bankrupted/disqualified, user_2 is the sole solvent player -> Game COMPLETED!
     expect(state.status).toBe('COMPLETED');
     expect(state.winnerUid).toBe('user_2');
   });
@@ -995,7 +1013,9 @@ describe('Pure Game Engine', () => {
       // user_1 cash is preserved (paused, not deducted yet)
       expect(state.players[0].cash).toBe(100);
 
-      // user_1 mortgages Jaipur (space 1) -> receives ₹300
+      const u2CashBefore = state.players[1].cash;
+      // user_1 mortgages Jaipur (space 1) -> receives ₹300, total becomes ₹400 >= ₹350
+      // Requirement 4: Automatic payment resumption completes payment immediately!
       state = applyGameCommand(
         state,
         {
@@ -1009,30 +1029,15 @@ describe('Pure Game Engine', () => {
         'user_1'
       ).nextState;
 
-      // user_1 cash now: 100 + 300 = 400
-      expect(state.players[0].cash).toBe(400);
+      // Property is mortgaged
       expect(state.properties[1].isMortgaged).toBe(true);
       expect(state.properties[1].ownershipState).toBe('MORTGAGED');
       expect(state.properties[1].mortgagePayout).toBe(300);
 
-      // Now user_1 has ₹400 >= ₹350, resolves obligation
-      const u2CashBefore = state.players[1].cash;
-      state = applyGameCommand(
-        state,
-        {
-          commandId: 'cmd_resolve_debt',
-          roomId: 'room_1',
-          gameId: 'game_1',
-          expectedVersion: state.version,
-          type: 'RESOLVE_OBLIGATION',
-          payload: {},
-        },
-        'user_1'
-      ).nextState;
-
+      // Payment was automatically resumed & settled!
       expect(state.pendingFinancialObligation).toBeNull();
       expect(state.phase).toBe('MANAGEMENT');
-      expect(state.players[0].cash).toBe(400 - 350); // 50
+      expect(state.players[0].cash).toBe(50); // 100 + 300 - 350 = 50
       expect(state.players[1].cash).toBe(u2CashBefore + 350);
     });
 
@@ -1051,6 +1056,7 @@ describe('Pure Game Engine', () => {
         paymentType: 'RENT',
         status: 'PENDING',
         createdAt: Date.now(),
+        expiresAt: Date.now() + 60000,
         idempotencyKey: 'test_surrender',
       };
       state.players[0].cash = 300;

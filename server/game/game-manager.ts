@@ -189,19 +189,29 @@ export class GameManager {
         return;
       }
 
-      const currentRemaining = current.turnTimeRemaining ?? 30;
-      const nextRemaining = currentRemaining - 1;
+      // Derive remaining time: if in ACTION_REQUIRED with pending obligation deadline, use authoritative expiresAt
+      let nextRemaining: number;
+      let timerActiveUid = current.currentPlayerUid;
+
+      if (current.phase === 'ACTION_REQUIRED' && current.pendingFinancialObligation?.expiresAt) {
+        timerActiveUid = current.pendingFinancialObligation.debtorUid;
+        nextRemaining = Math.max(0, Math.ceil((current.pendingFinancialObligation.expiresAt - Date.now()) / 1000));
+      } else {
+        const currentRemaining = current.turnTimeRemaining ?? 30;
+        nextRemaining = currentRemaining - 1;
+      }
 
       if (nextRemaining <= 0) {
         // Authoritative server timeout action: stop the ticking timer first to prevent duplicate firings
         this.stopTurnTimer(gameId);
+        current.turnTimeRemaining = 0;
         this.handleTimeout(current);
       } else {
         current.turnTimeRemaining = nextRemaining;
         if (this.broadcastCallback) {
           this.broadcastCallback(current.roomId, 'game:timer', {
             remaining: nextRemaining,
-            activeUid: current.currentPlayerUid,
+            activeUid: timerActiveUid,
           });
         }
       }
@@ -292,17 +302,19 @@ export class GameManager {
           this.recoverStuckTurn(freshState.gameId);
         });
       } else if (freshState.phase === 'ACTION_REQUIRED' && freshState.pendingFinancialObligation) {
-        const debtor = freshState.players.find((p) => p.uid === freshState.pendingFinancialObligation?.debtorUid);
-        const canResolve = debtor && debtor.cash >= freshState.pendingFinancialObligation.amountDue;
+        const obligation = freshState.pendingFinancialObligation;
+        const debtorUid = obligation.debtorUid;
+        const debtor = freshState.players.find((p) => p.uid === debtorUid);
+        const canResolve = debtor && debtor.cash >= obligation.amountDue;
         const cmd: GameCommand = {
           commandId,
           roomId: freshState.roomId,
           gameId: freshState.gameId,
           expectedVersion: freshState.version,
           type: canResolve ? 'RESOLVE_OBLIGATION' : 'GIVE_UP',
-          payload: {},
+          payload: canResolve ? {} : { reason: 'TIMEOUT' },
         };
-        this.processCommand(freshState.gameId, cmd, activeUid).catch((e) => {
+        this.processCommand(freshState.gameId, cmd, debtorUid).catch((e) => {
           console.warn('Timeout financial resolution failed:', e);
           this.recoverStuckTurn(freshState.gameId);
         });

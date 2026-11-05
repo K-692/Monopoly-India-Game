@@ -419,4 +419,82 @@ When debt $D$ exceeds cash $C$:
 - **Ergonomic Touch Targets**: Primary action buttons (`ROLL DICE`, `END TURN`, `PAY BAIL`, `TRY DOUBLES`, `BUY CITY`) enforce minimum tap target heights of $\ge 44\text{px}$ adhering to mobile accessibility guidelines.
 - **Viewport Safe-Area Insets**: Enhanced layout with `pb-[env(safe-area-inset-bottom)]` and `pt-[env(safe-area-inset-top)]` ensuring full compatibility with mobile browser toolbars and home indicator bars.
 
+---
+
+## 10. Authoritative 60-Second Low-Balance Mortgage Resolution & Disqualification Architecture
+
+### 10.1 Trigger Conditions & Financial Obligation Invariant
+- **Mandatory Debt Qualification**: When an active player incurs a mandatory payment (Property Rent, Airport Rent, Municipal Tax, or Civic Fund / Market Buzz penalty/repair) where liquid available cash is strictly insufficient:
+  $$C_{\text{available}} < D_{\text{mandatory}}$$
+- **State Pause & Obligation Instantiation**: Rather than immediately declaring bankruptcy or bypassing payment, the original transaction is paused. The authoritative engine instantiates a formal financial obligation tuple:
+  $$\mathcal{O} = \left\langle \text{id}, \text{debtorUid}, \text{creditorUid}, D, R, \text{type}, \text{spaceIndex}, t_0, t_{\text{expires}}, \text{status} \right\rangle$$
+  where:
+  - $D$: Total outstanding debt.
+  - $R = D - C_{\text{available}}$: Net remaining shortfall required.
+  - $t_0 = \text{Date.now()}$: Creation timestamp.
+  - $t_{\text{expires}} = t_0 + 60000$: Authoritative 60-second resolution deadline.
+  - $\text{status} \in \{\text{'PENDING'}, \text{'RESOLVED'}, \text{'CANCELLED\_BY\_SURRENDER'}, \text{'FAILED\_BY\_TIMEOUT'}\}$.
+- **Exclusion of Optional Actions**: Voluntary purchases (`BUY_PROPERTY`) and developments (`BUILD`) are barred from triggering this state; they simply remain unavailable if balance is insufficient.
+
+### 10.2 Independent Authoritative 60-Second Countdown State Machine
+- **Timer Independence**: The 60-second resolution window operates completely independently of the standard turn timer ($T_{\text{turn}} = 30\text{s}$). The standard turn timer cannot prematurely terminate the player's resolution window.
+- **Deadline-Based Real-Time Derivation**:
+  $$\tau_{\text{remaining}}(t) = \max\left(0, \left\lceil \frac{t_{\text{expires}} - t}{1000} \right\rceil\right)$$
+- **Server Broadcasts**: On every second tick, the authoritative server computes $\tau_{\text{remaining}}$ directly from $t_{\text{expires}}$ and emits `game:timer` with `{ remaining: \tau_{\text{remaining}}, activeUid: debtorUid }`.
+- **Reconnection Persistence**: Because $t_{\text{expires}}$ is stored authoritatively in session state, refreshing the browser or reconnecting reconstructs the exact remaining duration without resetting the timer.
+
+### 10.3 Modal Interface & Dual-Action Primary Architecture
+- **Debtor Modal Representation**: Active debtors are presented with a focused, high-contrast modal featuring:
+  - Header with debt cause, amount due, and dynamic 60-second countdown badge (pulsing red with sound cue when $\tau \le 15\text{s}$).
+  - 3-Column Financial Summary Card: Amount Owed, Current Balance, and Remaining Required.
+  - Eligible Mortgageable Properties with individual mortgage valuations:
+    $$V_{\text{mortgage}}(s) = \min\left(P_{\text{base}}, \lfloor P_{\text{base}} \times 0.5 \rfloor + \lfloor N_{\text{bld}} \times C_{\text{bld}} \times 0.5 \rfloor\right)$$
+- **Exactly Two Primary Action Buttons**:
+  1. **Button 1: Surrender**
+     - Initiates voluntary concession.
+     - Displays mandatory confirmation dialog explaining immediate disqualification and permanent blocking of all owned properties.
+     - Confirmation dispatches `GIVE_UP` with `{ reason: 'SURRENDER' }`.
+     - Debt is cancelled (`CANCELLED_BY_SURRENDER`), pending payment is not processed, and remaining solvent cash is transferred to the creditor.
+  2. **Button 2: Adjust Payouts**
+     - Enables interactive property selection with multi-select checkboxes.
+     - Dynamic projection updates in real time:
+       $$\Delta C_{\text{selected}} = \sum_{s \in \mathcal{S}_{\text{selected}}} V_{\text{mortgage}}(s), \quad R_{\text{projected}} = \max\left(0, D - (C_{\text{current}} + \Delta C_{\text{selected}})\right)$$
+     - Displays "Confirm Selected Mortgages (+₹...)" button enabled once $\ge 1$ property is chosen.
+     - Never automatically mortgages properties without explicit player confirmation.
+
+### 10.4 Atomic Multi-Property Mortgaging & Automatic Payment Resumption
+- **Command Dispatch**: `MORTGAGE` accepts `{ spaceIndices: number[] }` (or legacy single `{ spaceIndex: number }`).
+- **Atomic Server Validation**:
+  1. Validates ownership: $\forall s \in \mathcal{S}, \text{ownerUid}(s) == \text{actorUid}$.
+  2. Validates eligibility: $\forall s \in \mathcal{S}, \text{ownershipState}(s) \neq \text{'MORTGAGED'} \land \text{ownershipState}(s) \neq \text{'BLOCKED'}$.
+  3. Validates timeliness: $t_{\text{current}} \le t_{\text{expires}} + 1500\text{ms}$ (rejecting stale/expired requests with `OBLIGATION_EXPIRED`).
+- **Atomic Execution**: Credits cash, flags properties as `MORTGAGED`, preserves house/tower development counts intact, and logs individual `MORTGAGE_PROCEEDS` transactions.
+- **Automatic Payment Resumption**:
+  - **Condition**: If $C_{\text{updated}} \ge D$:
+    1. Immediately resumes and settles original debt without requiring additional button clicks.
+    2. Atomically debits $D$ from debtor and credits creditor (or Bank).
+    3. Logs paired ledger transactions (`RENT_PAID` / `RENT_RECEIVED`, `TAX_PAYMENT`, `CARD_PENALTY`).
+    4. Marks obligation as `RESOLVED` and clears `state.pendingFinancialObligation = null`.
+    5. Returns game phase cleanly to `MANAGEMENT` and resets turn timer to standard $T_{\text{turn}}$.
+  - **Condition**: If $C_{\text{updated}} < D$:
+    1. Updates remaining obligation shortfall: $R \leftarrow D - C_{\text{updated}}$.
+    2. Retains `ACTION_REQUIRED` phase.
+    3. Maintains original $t_{\text{expires}}$ without extension, allowing further mortgages or surrender.
+
+### 10.5 Authoritative 60-Second Timeout Disqualification
+- **Zero-Second Trigger**: When $\tau_{\text{remaining}} \le 0$:
+  - If $C \ge D$: Server executes `RESOLVE_OBLIGATION` to complete payment.
+  - If $C < D$: Server triggers authoritative automatic disqualification via `GIVE_UP` with `{ reason: 'TIMEOUT' }`.
+- **Permanent Property Blocking**:
+  $$\forall s \text{ where } \text{ownerUid}(s) = \text{debtorUid} \implies \text{ownershipState}(s) \leftarrow \text{'BLOCKED'}$$
+  - Properties remain permanently blocked; they never revert to `UNOWNED`.
+  - Blocked properties generate ₹0 rent when visited by other players.
+  - Historical acquisition and building records remain intact for archival integrity.
+- **Turn Sequence Continuity**: Debtor is marked `isBankrupt = true, isDisqualified = true` and bypassed in subsequent turn iterations (`advanceTurn`), allowing remaining solvent players to continue the match without interruption.
+
+### 10.6 Real-Time Multiplayer Consistency & Spectator Separation
+- **Spectator Toast View**: Non-debtor players receive an unintrusive floating status card anchored to the bottom-left corner of the viewport (`fixed bottom-4 left-4 z-[120]`), displaying debtor name, total debt due, liquid balance progress bar, and synchronized 60s countdown.
+- **Actor Authorization**: Commands (`MORTGAGE`, `RESOLVE_OBLIGATION`, `GIVE_UP`) strictly verify `actorUid === debtorUid` when handling debt resolution, preventing unauthorized participants from interfering.
+
+
 

@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { GameActionType, PendingFinancialObligation, PlayerState, PropertyState } from '@/domain/game-types';
 import { BOARD_SPACES } from '@/domain/board-config';
-import { calculateMortgageValue, getPropertyNoun } from '@/domain/ruleset';
-import { Landmark, Building2, Home, CheckCircle2, ShieldAlert, ArrowRight, Clock } from 'lucide-react';
+import { calculateMortgageValue } from '@/domain/ruleset';
+import { Landmark, Building2, Home, CheckCircle2, ShieldAlert, ArrowRight, Clock, AlertTriangle, CheckSquare, Square } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 
 interface FinancialResolutionModalProps {
@@ -24,6 +24,8 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
   onDispatch,
 }) => {
   const [showConfirmSurrender, setShowConfirmSurrender] = useState(false);
+  const [isAdjustingPayouts, setIsAdjustingPayouts] = useState(false);
+  const [selectedSpaceIndices, setSelectedSpaceIndices] = useState<number[]>([]);
 
   const debtor = players.find((p) => p.uid === obligation.debtorUid);
   const creditor = players.find((p) => p.uid === obligation.creditorUid);
@@ -33,6 +35,28 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
   const amountDue = obligation.amountDue;
   const remainingNeeded = Math.max(0, amountDue - currentCash);
   const canPayDebt = currentCash >= amountDue;
+
+  // Authoritative 60-second synchronized countdown derived from obligation.expiresAt
+  const [timeLeft, setTimeLeft] = useState<number>(() => {
+    if (obligation.expiresAt) {
+      return Math.max(0, Math.ceil((obligation.expiresAt - Date.now()) / 1000));
+    }
+    return turnTimeRemaining ?? 60;
+  });
+
+  useEffect(() => {
+    if (!obligation.expiresAt) {
+      if (turnTimeRemaining !== undefined) setTimeLeft(turnTimeRemaining);
+      return;
+    }
+    const updateCountdown = () => {
+      const left = Math.max(0, Math.ceil((obligation.expiresAt - Date.now()) / 1000));
+      setTimeLeft(left);
+    };
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 500);
+    return () => clearInterval(interval);
+  }, [obligation.expiresAt, turnTimeRemaining]);
 
   // Eligible properties owned by debtor that are not already mortgaged or blocked
   const eligibleProperties = Object.entries(properties)
@@ -49,7 +73,40 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
       };
     });
 
-  // Requirement 3: For all other players (spectators), show the pop-up box at the left below (NOT in the center)
+  // Calculate dynamic totals for selected properties in Adjust Payouts mode
+  const totalSelectedPayout = selectedSpaceIndices.reduce((sum, idx) => {
+    const item = eligibleProperties.find((p) => p.spaceIndex === idx);
+    return sum + (item?.mortgageVal || 0);
+  }, 0);
+
+  const projectedCash = currentCash + totalSelectedPayout;
+  const remainingAfterMortgage = Math.max(0, amountDue - projectedCash);
+  const willCoverDebt = projectedCash >= amountDue;
+
+  const togglePropertySelection = (spaceIndex: number) => {
+    setSelectedSpaceIndices((prev) =>
+      prev.includes(spaceIndex) ? prev.filter((i) => i !== spaceIndex) : [...prev, spaceIndex]
+    );
+  };
+
+  const selectAllEligible = () => {
+    setSelectedSpaceIndices(eligibleProperties.map((p) => p.spaceIndex));
+  };
+
+  const deselectAll = () => {
+    setSelectedSpaceIndices([]);
+  };
+
+  const handleConfirmMortgages = () => {
+    if (selectedSpaceIndices.length === 0) return;
+    onDispatch?.('MORTGAGE', { spaceIndices: selectedSpaceIndices });
+    setSelectedSpaceIndices([]);
+    setIsAdjustingPayouts(false);
+  };
+
+  // =========================================================================
+  // SPECTATOR VIEW (Non-Debtor Players): Compact floating card at bottom-left
+  // =========================================================================
   if (!isDebtor) {
     if (typeof document === 'undefined') return null;
     return createPortal(
@@ -63,10 +120,10 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
               </div>
               <div>
                 <h4 className="font-serif font-black text-xs tracking-wide text-amber-300 uppercase">
-                  Mortgage in Progress
+                  Low-Balance Resolution
                 </h4>
                 <span className="text-[10px] text-gray-300 block">
-                  Debtor resolving obligation
+                  Mortgage resolution in progress
                 </span>
               </div>
             </div>
@@ -81,7 +138,7 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
           {/* Details */}
           <div className="p-3 space-y-2 text-xs">
             <p className="text-gray-300 text-[11px] leading-snug">
-              <strong className="text-amber-300">{debtor?.displayName || 'Player'}</strong> is mortgaging properties to settle debt of <strong className="text-red-400">₹{amountDue.toLocaleString('en-IN')}</strong> to {creditor?.displayName || 'Bank'}.
+              <strong className="text-amber-300">{debtor?.displayName || 'Player'}</strong> is resolving a debt of <strong className="text-red-400">₹{amountDue.toLocaleString('en-IN')}</strong> to {creditor?.displayName || 'Bank'}.
             </p>
 
             <div className="flex items-center justify-between p-2 rounded-xl bg-white/5 border border-white/10 text-[11px] font-mono">
@@ -100,11 +157,16 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
             </div>
 
             <div className="flex items-center justify-between text-[10px] text-gray-400 pt-0.5">
-              <span className="flex items-center gap-1 text-emerald-300">
+              <span className="flex items-center gap-1 text-amber-300">
                 <Clock className="w-3 h-3" />
-                <span>Timer restarted</span>
+                <span>60s Window</span>
               </span>
-              <span className="text-amber-300 font-bold">{turnTimeRemaining ?? 30}s remaining</span>
+              <span className={cn(
+                'font-mono font-bold',
+                timeLeft <= 15 ? 'text-red-400 animate-pulse' : 'text-amber-300'
+              )}>
+                {timeLeft}s remaining
+              </span>
             </div>
           </div>
         </div>
@@ -113,7 +175,9 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
     );
   }
 
-  // Requirement 3: For the player who will mortgage, show pop-up box at the CENTER where he/she mortgages a city
+  // =========================================================================
+  // ACTIVE DEBTOR VIEW: Center Interactive Low-Balance Mortgage Resolution Modal
+  // =========================================================================
   if (typeof document === 'undefined') return null;
 
   return createPortal(
@@ -123,47 +187,52 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
         className="w-full max-w-lg rounded-2xl bg-[#090D1A] border-2 border-red-500/80 shadow-[0_16px_48px_rgba(0,0,0,0.95)] text-white overflow-hidden flex flex-col max-h-[92vh] animate-scale-in"
       >
         {/* Urgent Header */}
-        <div className="p-4 bg-gradient-to-r from-red-950 via-[#180A0A] to-[#1F1010] border-b border-red-500/40 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-red-600/30 border border-red-500/60 flex items-center justify-center text-red-400 shrink-0">
-              <ShieldAlert className="w-5 h-5" />
+        <div className="p-4 bg-gradient-to-r from-red-950 via-[#180A0A] to-[#1F1010] border-b border-red-500/40 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-red-600/30 border border-red-500/60 flex items-center justify-center text-red-400 shrink-0">
+              <ShieldAlert className="w-5 h-5 animate-pulse" />
             </div>
-            <div>
-              <h3 className="font-serif font-black text-sm sm:text-base tracking-wide text-red-300 uppercase">
-                Mortgage Properties to Settle Debt
+            <div className="min-w-0">
+              <h3 className="font-serif font-black text-sm sm:text-base tracking-wide text-red-300 uppercase truncate">
+                Low-Balance Financial Resolution
               </h3>
-              <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-[11px] text-gray-300">
-                  Select a city below to mortgage
+              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                <span className="text-[11px] text-gray-300 truncate">
+                  {obligation.reason || 'Outstanding debt payment'}
                 </span>
-                <span className="inline-flex items-center gap-0.5 text-[9.5px] font-bold text-amber-300 bg-amber-950/80 px-1.5 py-0.2 rounded border border-amber-600/50">
-                  <Clock className="w-2.5 h-2.5" />
-                  <span>{turnTimeRemaining ?? 30}s (Timer restarted)</span>
+                <span className={cn(
+                  'inline-flex items-center gap-1 text-[10px] font-mono font-bold px-2 py-0.5 rounded border',
+                  timeLeft <= 15
+                    ? 'bg-red-950/90 text-red-300 border-red-500 animate-pulse'
+                    : 'bg-amber-950/80 text-amber-300 border-amber-600/50'
+                )}>
+                  <Clock className="w-3 h-3" />
+                  <span>{timeLeft}s countdown</span>
                 </span>
               </div>
             </div>
           </div>
 
           <div className="text-right shrink-0">
-            <span className="text-[10px] text-gray-400 block uppercase font-bold">Amount Due</span>
+            <span className="text-[10px] text-gray-400 block uppercase font-bold">Owed</span>
             <span className="font-mono font-black text-base sm:text-lg text-red-400">
               ₹{amountDue.toLocaleString('en-IN')}
             </span>
           </div>
         </div>
 
-        {/* Active Debtor View */}
+        {/* Modal Body */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3.5 custom-scrollbar text-xs">
-          {/* Financial Balance Summary Card */}
+          {/* Section 1 & 2: Financial Situation Summary */}
           <div className="grid grid-cols-3 gap-2 text-center">
             <div className="p-2.5 rounded-xl bg-white/5 border border-white/10">
-              <span className="text-[10px] text-gray-400 block font-medium">Debt Obligation</span>
+              <span className="text-[10px] text-gray-400 block font-medium">Amount Owed</span>
               <span className="font-mono font-black text-sm sm:text-base text-red-400">
                 ₹{amountDue.toLocaleString('en-IN')}
               </span>
             </div>
             <div className="p-2.5 rounded-xl bg-white/5 border border-white/10">
-              <span className="text-[10px] text-gray-400 block font-medium">Current Liquid Cash</span>
+              <span className="text-[10px] text-gray-400 block font-medium">Current Balance</span>
               <span className="font-mono font-black text-sm sm:text-base text-emerald-400">
                 ₹{currentCash.toLocaleString('en-IN')}
               </span>
@@ -175,117 +244,218 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
                 : 'bg-amber-950/40 border-amber-500/50 text-amber-300'
             )}>
               <span className="text-[10px] block font-medium">
-                {canPayDebt ? 'Payment Status' : 'Remaining Needed'}
+                {canPayDebt ? 'Status' : 'Remaining Required'}
               </span>
               <span className="font-mono font-black text-sm sm:text-base">
-                {canPayDebt ? 'READY TO SETTLE' : `₹${remainingNeeded.toLocaleString('en-IN')}`}
+                {canPayDebt ? 'SUFFICIENT' : `₹${remainingNeeded.toLocaleString('en-IN')}`}
               </span>
             </div>
           </div>
 
-          {/* Instruction Notice */}
-          <div className="p-2.5 rounded-xl bg-blue-950/40 border border-blue-500/40 text-blue-200 text-[11px] leading-relaxed">
+          {/* Explanation Banner */}
+          <div className="p-3 rounded-xl bg-blue-950/40 border border-blue-500/40 text-blue-200 text-[11px] leading-relaxed">
             {canPayDebt ? (
               <span className="text-emerald-300 font-bold flex items-center gap-1.5">
                 <CheckCircle2 className="w-4 h-4 shrink-0" />
-                You now have sufficient funds! Click &quot;Pay Outstanding Debt&quot; below to complete payment.
+                You now have sufficient funds! Settling debt will resume normal gameplay immediately.
               </span>
             ) : (
               <span>
-                Mortgage your eligible properties below to raise liquid cash. Once your balance reaches <strong>₹{amountDue.toLocaleString('en-IN')}</strong>, you can settle your debt. Mortgaging restarts your timer.
+                You have insufficient available balance. You have an additional <strong>60-second window</strong> to <strong>Adjust Payouts</strong> by mortgaging eligible properties or <strong>Surrender</strong>. At 0 seconds, unresolved debt triggers automatic disqualification.
               </span>
             )}
           </div>
 
-          {/* Eligible Properties List */}
-          <div className="space-y-1.5">
+          {/* Mortgageable Properties Section */}
+          <div className="space-y-2">
             <div className="flex items-center justify-between px-1">
-              <span className="font-bold text-[11px] uppercase tracking-wider text-gray-400">
+              <span className="font-bold text-[11px] uppercase tracking-wider text-gray-300 flex items-center gap-1.5">
+                <Landmark className="w-3.5 h-3.5 text-amber-400" />
                 Mortgageable Properties ({eligibleProperties.length})
               </span>
-              <span className="text-[10px] text-gray-500">
-                50% Base + Development Investment
+              <span className="text-[10px] text-gray-400">
+                50% Base + Development Value
               </span>
             </div>
 
             {eligibleProperties.length === 0 ? (
-              <div className="p-4 rounded-xl bg-white/5 border border-dashed border-white/10 text-center text-gray-400 text-xs">
-                No further properties available to mortgage. If you cannot settle the debt, you must surrender.
+              <div className="p-4 rounded-xl bg-white/5 border border-dashed border-white/10 text-center text-gray-400 text-xs space-y-1">
+                <p className="font-bold text-gray-300">No properties eligible for mortgage.</p>
+                <p className="text-[11px]">You may choose Surrender below, or wait for the 60-second countdown to expire.</p>
               </div>
             ) : (
-              <div className="space-y-2 max-h-52 overflow-y-auto custom-scrollbar pr-1">
-                {eligibleProperties.map(({ spaceIndex, space, prop, mortgageVal }) => (
-                  <div
-                    key={spaceIndex}
-                    className="p-2.5 rounded-xl bg-white/5 border border-white/10 hover:border-amber-400/40 transition-colors flex items-center justify-between gap-2"
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
-                        <Landmark className="w-3.5 h-3.5" />
-                      </div>
-                      <div className="min-w-0">
-                        <span className="font-bold text-xs block truncate text-white">
-                          {space.name}
-                        </span>
-                        <div className="flex items-center gap-1 text-[10px] text-gray-400">
-                          {prop.buildings === 5 ? (
-                            <span className="flex items-center gap-0.5 text-amber-400 font-bold">
-                              <Building2 className="w-3 h-3" /> Tower
-                            </span>
-                          ) : prop.buildings > 0 ? (
-                            <span className="flex items-center gap-0.5 text-emerald-400 font-bold">
-                              <Home className="w-3 h-3" /> {prop.buildings} House{prop.buildings > 1 ? 's' : ''}
-                            </span>
-                          ) : (
-                            <span>Undeveloped</span>
-                          )}
+              <div className="space-y-2 max-h-56 overflow-y-auto custom-scrollbar pr-1">
+                {eligibleProperties.map(({ spaceIndex, space, prop, mortgageVal }) => {
+                  const isSelected = selectedSpaceIndices.includes(spaceIndex);
+                  return (
+                    <div
+                      key={spaceIndex}
+                      onClick={() => isAdjustingPayouts && togglePropertySelection(spaceIndex)}
+                      className={cn(
+                        'p-2.5 rounded-xl border transition-all flex items-center justify-between gap-2.5',
+                        isAdjustingPayouts
+                          ? 'cursor-pointer hover:bg-white/10'
+                          : 'bg-white/5 border-white/10',
+                        isSelected
+                          ? 'bg-amber-950/40 border-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.2)]'
+                          : 'border-white/10'
+                      )}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        {isAdjustingPayouts && (
+                          <div className="text-amber-400 shrink-0">
+                            {isSelected ? (
+                              <CheckSquare className="w-4 h-4 text-amber-400" />
+                            ) : (
+                              <Square className="w-4 h-4 text-gray-500" />
+                            )}
+                          </div>
+                        )}
+                        <div className="w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+                          <Landmark className="w-3.5 h-3.5" />
+                        </div>
+                        <div className="min-w-0">
+                          <span className="font-bold text-xs block truncate text-white">
+                            {space.name}
+                          </span>
+                          <div className="flex items-center gap-1.5 text-[10px] text-gray-400">
+                            {prop.buildings === 5 ? (
+                              <span className="flex items-center gap-0.5 text-amber-400 font-bold">
+                                <Building2 className="w-3 h-3" /> Tower
+                              </span>
+                            ) : prop.buildings > 0 ? (
+                              <span className="flex items-center gap-0.5 text-emerald-400 font-bold">
+                                <Home className="w-3 h-3" /> {prop.buildings} House{prop.buildings > 1 ? 's' : ''}
+                              </span>
+                            ) : (
+                              <span>Undeveloped</span>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
-                      <div className="text-right">
-                        <span className="text-[9px] text-gray-400 block">Payout</span>
+                      <div className="text-right shrink-0">
+                        <span className="text-[9px] text-gray-400 block">Mortgage Payout</span>
                         <span className="font-mono font-bold text-xs text-amber-300">
                           +₹{mortgageVal.toLocaleString('en-IN')}
                         </span>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => onDispatch?.('MORTGAGE', { spaceIndex })}
-                        className="px-3 py-1.5 rounded-lg font-bold text-[11px] bg-amber-500 hover:bg-amber-400 text-indian-navy-950 active:scale-95 transition-all shadow-md cursor-pointer"
-                      >
-                        Mortgage {getPropertyNoun(space)}
-                      </button>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
 
-          {/* Surrender Confirmation Box */}
-          {showConfirmSurrender && (
-            <div className="p-3 rounded-xl bg-red-950/80 border-2 border-red-500 text-white space-y-2 animate-scale-in">
-              <div className="flex items-center gap-1.5 text-red-300 font-bold text-xs">
-                <ShieldAlert className="w-4 h-4 shrink-0" />
-                <span>Confirm Surrender / Give Up?</span>
+          {/* Section 2 & 3: Adjust Payouts Selection Controls & Dynamic Calculations */}
+          {isAdjustingPayouts && eligibleProperties.length > 0 && (
+            <div className="p-3.5 rounded-xl bg-amber-950/40 border border-amber-500/50 space-y-3 animate-fade-in">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-xs text-amber-300">
+                  Selected: {selectedSpaceIndices.length} / {eligibleProperties.length} Properties
+                </span>
+                <div className="flex items-center gap-2 text-[10.5px]">
+                  <button
+                    type="button"
+                    onClick={selectAllEligible}
+                    className="text-amber-400 hover:text-amber-300 underline font-bold cursor-pointer"
+                  >
+                    Select All
+                  </button>
+                  <span className="text-gray-500">|</span>
+                  <button
+                    type="button"
+                    onClick={deselectAll}
+                    className="text-gray-400 hover:text-gray-300 underline font-bold cursor-pointer"
+                  >
+                    Clear
+                  </button>
+                </div>
               </div>
-              <p className="text-[11px] text-gray-200 leading-snug">
-                All your remaining cash (<strong>₹{currentCash.toLocaleString('en-IN')}</strong>) will be transferred to <strong>{creditor?.displayName || 'the creditor'}</strong>. You will be disqualified and your properties will be marked as BLOCKED.
+
+              {/* Dynamic Projection Bar */}
+              <div className="grid grid-cols-2 gap-2 text-center p-2 rounded-lg bg-black/40 border border-white/5 text-[11px] font-mono">
+                <div>
+                  <span className="text-gray-400 text-[10px] block">Total to be Raised</span>
+                  <span className="font-bold text-amber-300 text-xs">
+                    +₹{totalSelectedPayout.toLocaleString('en-IN')}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-gray-400 text-[10px] block">Remaining After Mortgage</span>
+                  <span className={cn(
+                    'font-bold text-xs',
+                    willCoverDebt ? 'text-emerald-400' : 'text-red-400'
+                  )}>
+                    {willCoverDebt ? '₹0 (RESOLVED)' : `₹${remainingAfterMortgage.toLocaleString('en-IN')}`}
+                  </span>
+                </div>
+              </div>
+
+              {willCoverDebt ? (
+                <div className="text-[10.5px] text-emerald-300 flex items-center gap-1.5 font-bold">
+                  <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                  <span>Sufficient funds reached! Original payment will automatically complete upon confirmation.</span>
+                </div>
+              ) : (
+                <div className="text-[10.5px] text-amber-300/90 flex items-center gap-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                  <span>Remaining funds will still be required before the 60s timer expires.</span>
+                </div>
+              )}
+
+              {/* Confirm Selected Mortgages Button */}
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsAdjustingPayouts(false);
+                    setSelectedSpaceIndices([]);
+                  }}
+                  className="px-3 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-bold transition-colors cursor-pointer min-h-[44px]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={selectedSpaceIndices.length === 0}
+                  onClick={handleConfirmMortgages}
+                  className={cn(
+                    'flex-1 py-2 px-4 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 min-h-[44px] cursor-pointer shadow-md',
+                    selectedSpaceIndices.length > 0
+                      ? 'bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-indian-navy-950 active:scale-95'
+                      : 'bg-gray-800 text-gray-500 cursor-not-allowed'
+                  )}
+                >
+                  <span>Confirm Selected Mortgage{selectedSpaceIndices.length > 1 ? 's' : ''} (+₹{totalSelectedPayout.toLocaleString('en-IN')})</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Surrender Confirmation Dialog Box */}
+          {showConfirmSurrender && (
+            <div className="p-3.5 rounded-xl bg-red-950/90 border-2 border-red-500 text-white space-y-2.5 animate-scale-in">
+              <div className="flex items-center gap-2 text-red-300 font-bold text-xs sm:text-sm">
+                <ShieldAlert className="w-4 h-4 shrink-0" />
+                <span>Confirm Voluntary Surrender / Disqualification</span>
+              </div>
+              <p className="text-[11px] sm:text-xs text-gray-200 leading-snug">
+                Surrendering will disqualify you from the game. All your properties will be permanently marked as <strong>BLOCKED</strong> and can no longer generate rent or be traded. Your pending payment will not be processed.
               </p>
-              <div className="flex items-center justify-end gap-2 pt-1">
+              <div className="flex items-center justify-end gap-2.5 pt-1">
                 <button
                   type="button"
                   onClick={() => setShowConfirmSurrender(false)}
-                  className="px-3 py-1 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-200 text-xs font-bold cursor-pointer"
+                  className="px-3.5 py-2 rounded-xl bg-gray-700 hover:bg-gray-600 text-gray-200 text-xs font-bold transition-colors cursor-pointer min-h-[44px]"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
                   onClick={() => onDispatch?.('GIVE_UP')}
-                  className="px-4 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white text-xs font-black shadow-md cursor-pointer"
+                  className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-black shadow-lg transition-all active:scale-95 cursor-pointer min-h-[44px]"
                 >
                   Confirm Surrender
                 </button>
@@ -294,27 +464,48 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
           )}
         </div>
 
-        {/* Modal Action Bar (Only for Debtor) */}
-        {!showConfirmSurrender && (
-          <div className="p-3 bg-black/40 border-t border-white/10 flex items-center justify-between gap-2">
+        {/* Section 2: Exactly Two Primary Action Buttons (Surrender & Adjust Payouts) */}
+        {!showConfirmSurrender && !isAdjustingPayouts && (
+          <div className="p-3.5 bg-black/40 border-t border-white/10 flex items-center justify-between gap-3">
+            {/* Button 1: Surrender */}
             <button
               type="button"
               onClick={() => setShowConfirmSurrender(true)}
-              className="px-3 py-2 rounded-xl font-bold text-xs bg-red-950 hover:bg-red-900 text-red-300 border border-red-800 transition-colors cursor-pointer"
+              className="flex-1 py-2.5 px-3 rounded-xl font-bold text-xs bg-red-950/80 hover:bg-red-900 text-red-300 border border-red-800 transition-colors cursor-pointer min-h-[44px] flex items-center justify-center gap-1.5"
             >
-              Surrender / Give Up
+              <ShieldAlert className="w-4 h-4" />
+              <span>Surrender</span>
             </button>
 
-            {canPayDebt && (
-              <button
-                type="button"
-                onClick={() => onDispatch?.('RESOLVE_OBLIGATION')}
-                className="px-5 py-2 rounded-xl font-black text-xs bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-lg active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer animate-pulse"
-              >
-                <span>Pay Outstanding Debt (₹{amountDue.toLocaleString('en-IN')})</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            )}
+            {/* Button 2: Adjust Payouts */}
+            <button
+              type="button"
+              disabled={eligibleProperties.length === 0}
+              onClick={() => setIsAdjustingPayouts(true)}
+              className={cn(
+                'flex-1 py-2.5 px-3 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-1.5 min-h-[44px] shadow-lg',
+                eligibleProperties.length > 0
+                  ? 'bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-indian-navy-950 active:scale-95 cursor-pointer'
+                  : 'bg-gray-800 text-gray-500 cursor-not-allowed border border-white/5'
+              )}
+            >
+              <Landmark className="w-4 h-4" />
+              <span>Adjust Payouts ({eligibleProperties.length})</span>
+            </button>
+          </div>
+        )}
+
+        {/* If user somehow already has sufficient funds, provide instant settle option */}
+        {canPayDebt && !showConfirmSurrender && !isAdjustingPayouts && (
+          <div className="px-3.5 pb-3">
+            <button
+              type="button"
+              onClick={() => onDispatch?.('RESOLVE_OBLIGATION')}
+              className="w-full py-2.5 px-4 rounded-xl font-black text-xs bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-lg active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer min-h-[44px]"
+            >
+              <span>Complete Payment (₹{amountDue.toLocaleString('en-IN')})</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
           </div>
         )}
       </div>
