@@ -151,7 +151,7 @@ export const RulesPage: React.FC = () => {
             </div>
             <ul className="text-xs sm:text-sm text-gray-700 dark:text-gray-300 space-y-2 list-disc list-inside">
               <li><strong>Authoritative Timer:</strong> Turns have a 30-second live countdown displayed across player badges and popup dialogs.</li>
-              <li><strong>Transaction & Card Notices:</strong> Any rent, tax, reward receipt, or card rule event generates a smooth floating notification in the bottom-left corner with a 3-second auto-dismiss and manual acknowledge button.</li>
+              <li><strong>Transaction & Card Notices:</strong> Any rent, tax, reward receipt, or card rule event generates a smooth floating notification in the bottom-left corner with 3-second auto-dismiss and a manual cross (×) button with zero screen obstruction.</li>
               <li><strong>Non-Blocking Gameplay:</strong> Notifications appear in the bottom-left corner with zero screen-blocking dialogs, allowing uninterrupted game flow.</li>
             </ul>
           </div>

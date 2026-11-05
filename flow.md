@@ -172,19 +172,20 @@ Records are synchronized across all clients and viewable in reverse-chronologica
 
 ## 4. UI/UX Transformation: Toast Notifications & Responsive Engineering
 
-### 4.1 Non-Blocking Floating Toasts
-- Replaced disruptive blocking acknowledgment modals with lightweight, non-blocking toast notifications positioned at the bottom-left corner of the viewport (`fixed bottom-4 left-4 z-50`).
-- **Autonomic Dismissal**: Toasts automatically fade out after 3,000ms.
-- **Manual Control**: Each toast features a subtle `×` dismiss button.
-- **Per-Player Client Isolation**: Notifications for one player never block or hijack another player's viewport or interaction state.
+### 4.1 Non-Blocking Floating Toasts & Complete Removal of Acknowledgment Modals
+- **Zero Screen Obstruction**: Replaced disruptive blocking acknowledgment popups with lightweight floating notifications anchored at the bottom-left corner of the viewport (`fixed bottom-4 left-4 z-50`).
+- **Complete Removal of Acknowledgment Button**: As per Section 7 requirements, all acknowledgment buttons have been removed entirely. Notifications never hijack user interaction or obstruct dice rolling or player action buttons.
+- **Autonomic Dismissal Invariant**: Notifications automatically dismiss after exactly 3,000ms, featuring an animated SVG/CSS countdown progress bar.
+- **Manual Control**: Each notification includes a small, unobtrusive cross (`×`) icon for immediate manual dismissal.
+- **Smooth Dynamic Transitions**: Styled with dedicated hardware-accelerated CSS keyframe animations: `slideInLeft` (entry) and `slideOutLeft` (exit).
+- **Per-Player Client Isolation**: Toast state is maintained strictly in client-local memory (`useToastStore`). Dismissal on one device has zero side effects on counterparties.
 
 ### 4.2 Universal Device Layout Matrix
-- Tested and verified across desktop monitors, iPads/tablets, and mobile phones.
+- Tested and verified across desktop monitors, iPads/tablets, and mobile viewports.
 - Center arena perspective preservation maintains 3D dice readability while preventing overlapping perimeter cells.
+- Single-line city typography with responsive font scaling and truncation safeguards deed legibility.
 
-### 4.3 Non-Blocking Floating Toasts & Resilient Clipboard Architecture
-- **Unified Bottom-Left Acknowledgment Windows**: Replaced all intrusive full-screen blocking modals (card rules, money transaction receipts) with smooth floating notifications positioned in the bottom-left corner (`fixed bottom-4 left-4 z-50`).
-- **3-Second Auto-Dismiss Invariant**: Floating toasts automatically dismiss after exactly 3,000ms with an animated countdown progress line and an optional manual acknowledge/dismiss button (`x` and `Acknowledge`).
+### 4.3 Resilient Clipboard Architecture
 - **Cross-Platform Clipboard Pipeline**: Implemented dual-strategy copying (`copyToClipboard`) prioritizing modern `navigator.clipboard.writeText` and falling back to an invisible DOM element with `document.execCommand('copy')`, ensuring flawless copying of invite codes and shareable URLs across unencrypted HTTP LAN environments, mobile Safari, and Android browsers.
 
 ---
@@ -206,14 +207,17 @@ All cloud dependencies (Firebase Auth, Cloud Firestore, Realtime Database, Cloud
 ## 6. Verification, Test Coverage & Benchmark Results
 
 ### 6.1 Test Suite Summary
-- **Unit & Invariant Suite (`engine.test.ts`)**: 24 tests passing:
-  - 1st, 2nd, and 3rd jail escape double attempts with extra turn suppression.
-  - Incarcerated failed attempts maintaining zero movement.
-  - 4th turn automatic release without Try Double requirement.
-  - Insufficient cash rejection for property purchases and building.
-  - Mortgage valuation formula with house recovery and capped bounds.
-  - Exact payout reacquisition without penalty.
-  - Financial resolution debt handling, surrender, and `BLOCKED` deed retention.
-  - Transaction ledger accuracy.
-- **Integration Suite (`multiplayer-integration.test.ts`)**: 7 tests passing covering real socket connections, room creation, join, ready toggling, and command execution.
-- **Production Build**: Verified with Vite production build completing in 2.16s with zero TypeScript compilation errors.
+- **Total Passing Tests**: 38 tests passing with 0 failures:
+  - **Unit & Invariant Suite (`engine.test.ts` - 28 tests passing)**:
+    - 1st, 2nd, and 3rd jail escape double attempts with extra turn suppression.
+    - Incarcerated failed attempts maintaining zero movement.
+    - 4th turn automatic release without Try Double requirement.
+    - Insufficient cash rejection for property purchases and building.
+    - Distinct airport visiting rent scaling (₹1,000 for 1, ₹2,500 for 2) and blocked airport rent immunity.
+    - Mortgage valuation formula with house recovery and capped bounds.
+    - Exact payout reacquisition without penalty.
+    - Financial resolution debt handling, surrender, and `BLOCKED` deed retention.
+    - Linked transaction IDs for counterparty debit/credit records.
+  - **Multiplayer Integration Suite (`multiplayer-integration.test.ts` - 7 tests passing)**: Real socket connections, room creation, join, ready toggling, turn authority, and command idempotency.
+  - **Clipboard & Environment Suite (`clipboard.test.ts` - 3 tests passing)**: Fallback copy execution and LAN HTTP compatibility.
+- **Production Build**: Verified with Vite production build completing in ~2.04s with zero TypeScript compilation errors.

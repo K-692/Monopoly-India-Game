@@ -33,6 +33,51 @@
 
 ---
 
+## 🏛️ Comprehensive Gameplay Logic & Financial Systems
+
+### 1. Jail Mechanics & "Try Double" System
+- **Three Double Attempts**: An incarcerated player may attempt to roll doubles on each of their first three eligible turns.
+- **Immediate Escape with Movement**: Rolling doubles immediately releases the player and advances their token by the dice roll total.
+- **Extra Turn Suppression**: Rolling doubles while escaping jail **never grants an additional turn**. The player resolves their destination space and finishes their single turn.
+- **Incarcerated Stasis on Failure**: Non-double rolls keep the player in Central Jail with zero movement.
+- **Automatic 4th Eligible Turn Release**: A player who fails all three attempts is automatically released at the beginning of their 4th eligible turn without needing to roll Try Double, proceeding with normal rolling and movement.
+
+### 2. Insufficient Balance Gating & Backend Verification
+- **City Purchase Protection**: Landing on an unowned property with insufficient cash suppresses the purchase prompt and triggers a non-blocking notification: `"Insufficient balance to purchase this property."`
+- **Construction Protection**: Visiting an owned city with insufficient cash suppresses the building prompt and triggers: `"Insufficient balance to build on this property."`
+- **Server Validation**: The authoritative engine validates cash balances before every acquisition or construction, eliminating negative balances or race condition exploits.
+
+### 3. Distinct Airport Visiting Tariffs
+- **Aviation Tariff Scaling**: Landing on an airport owned by another player costs:
+  - **1 Airport Owned**: ₹1,000
+  - **2 Airports Owned (Both)**: ₹2,500
+- **Railways Comparison**: CST Mumbai (#5) and Howrah Railway (#15) scale at ₹250 and ₹500.
+- **Immunity Conditions**: Rent is waived if the owner is in jail, the airport is mortgaged, or the owner is in the `BLOCKED` state.
+
+### 4. Complete Mortgaging & Financial Resolution System
+- **Development-Inclusive Valuation Formula**:
+  $$\text{Mortgage Payout} = \min\left(P_{\text{base}}, \left\lfloor 0.5 \times P_{\text{base}} + 0.5 \sum_{i=1}^{B} C_{\text{build}}\right\rfloor\right)$$
+  Undeveloped properties yield 50% of purchase price. Developed properties receive credit for 50% of construction investments without exceeding 100% of the property's original purchase price.
+- **Development Asset Preservation**: Houses and Commercial Towers are **not demolished** during mortgage. Physical developments remain intact on the deed.
+- **Exact Payout Reacquisition**: The redemption cost strictly equals the exact mortgage payout originally received:
+  $$C_{\text{reacquire}} = V_{\text{payout\_received}}$$
+- **Mandatory Financial Resolution Window**: When a financial obligation (rent, airport rent, tax) exceeds available liquid cash, the match pauses, opening a non-bypassable resolution window for the debtor to mortgage eligible properties or surrender.
+- **Surrender / Give Up & BLOCKED Property State**: If unable or unwilling to settle, choosing "Give Up" transfers remaining liquid cash to the creditor, marks the debtor as disqualified, and transitions all their properties to the `BLOCKED` state (cannot be purchased, traded, mortgaged, and generates ₹0 rent).
+
+### 5. Non-Blocking Floating Toast Notifications
+- **Bottom-Left Positioning**: Floating notifications appear at `fixed bottom-4 left-4 z-50`, completely clear of board spaces, dice arena, and action controls.
+- **Zero Acknowledgment Buttons**: Acknowledgment buttons are removed entirely. Notifications feature an automatic 3-second dismissal with an animated progress bar and a small cross (`×`) icon for manual dismissal.
+- **Hardware-Accelerated Animation**: Smooth entry (`slideInLeft`) and exit (`slideOutLeft`) CSS transitions.
+- **Per-Player Client Isolation**: Toast notifications and dismissal actions are strictly local to each player's browser.
+
+### 6. Authoritative Financial Ledger & Transaction History
+- **Structured Transaction Records**: Every balance adjustment records an immutable entry in the authoritative transaction history:
+  - `STARTING_BALANCE`, `START_REWARD`, `CITY_PURCHASE`, `HOUSE_PURCHASE`, `BUILDING_PURCHASE`, `RENT_RECEIVED`, `RENT_PAID`, `AIRPORT_RENT_RECEIVED`, `AIRPORT_RENT_PAID`, `MORTGAGE_PROCEEDS`, `MORTGAGE_REACQUISITION`, `TAX_PAYMENT`, `CARD_REWARD`, `CARD_PENALTY`, `JAIL_PAYMENT`, `DISQUALIFICATION_ADJUSTMENT`.
+- **Linked Transaction IDs**: Player-to-player transfers generate paired debit and credit records linked by the exact same `transactionId`.
+- **In-Game Financial Statement**: Viewable in the Player Profile modal with reverse-chronological ordering, timestamp, counterparty, property name, and signed currency amounts (`+₹1,500` / `-₹800`).
+
+---
+
 ```
                                   INDIAN MONOPOLY LAN ARCHITECTURE
                                  
@@ -132,7 +177,7 @@ Waiting for players...
 | `npm run build:lan` | Builds the React frontend with `/` base path explicitly targeted for LAN hosting. |
 | `npm run build` | Builds the React frontend for production distribution. |
 | `npm run server` | Starts the Node.js server directly using `tsx server/index.ts`. |
-| `npm test` | Runs the full Vitest suite (game engine invariants + real multi-client Socket.IO integration tests). |
+| `npm test` | Runs the full Vitest suite (38 passing tests covering game engine invariants, jail escapes, mortgages, paired transaction IDs, and real multi-client Socket.IO integration). |
 | `npm run test:e2e` | Runs multi-browser Playwright E2E suite. |
 | `npm run typecheck` | Strict TypeScript validation across client, server, and tests (`tsc --noEmit`). |
 | `npm run lint` | ESLint validation across all TypeScript and React files with zero warnings. |

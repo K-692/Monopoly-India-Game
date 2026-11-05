@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import { copyToClipboard } from '@/lib/utils/clipboard';
-import { useToastStore } from '@/components/feedback/ToastContainer';
+import { useToastStore } from '@/components/feedback/toast-store';
 
 export const LobbyPage: React.FC = () => {
   const { roomId } = useParams<{ roomId: string }>();

@@ -9,7 +9,7 @@ import { getSpaceGridCoord } from './board-layout-utils';
 import { calculateMortgageValue, canBuildOnProperty } from '@/domain/ruleset';
 import { TurnStepAcknowledgment } from '@/components/feedback/TurnStepAcknowledgment';
 import { PopupTurnTimer } from '@/components/feedback/PopupTurnTimer';
-import { useToastStore } from '@/components/feedback/ToastContainer';
+import { useToastStore } from '@/components/feedback/toast-store';
 import { sound } from '@/lib/audio/sound-engine';
 import { Dices, X, Gift, Flame, Check, ArrowRight, KeyRound } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
@@ -105,12 +105,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         title: typeLabel,
         message: tx.description,
         amount: tx.amount,
-        actionLabel: 'Acknowledge',
-        onAction: () => {
-          if (onDismissMoneyAck) {
-            onDismissMoneyAck();
-          }
-        },
         flow: isPayer ? 'DEBIT' : isRecipient ? 'CREDIT' : undefined,
       });
 
@@ -135,12 +129,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         title: `${deckName} — Rule #${popup.ruleIndex}`,
         message: `${popup.card.title}: ${popup.card.description}`,
         amount: popup.card.amount,
-        actionLabel: 'Acknowledge',
-        onAction: () => {
-          if (onDismissCardPopup) {
-            onDismissCardPopup();
-          }
-        },
         flow: popup.card.amount
           ? popup.card.description.toLowerCase().includes('pay')
             ? 'DEBIT'
@@ -226,7 +214,14 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     if (!isMyTurn || walkingAnimation) return;
 
     // 1. Unaffordable City Purchase (Section 2.1)
-    if (isPropertyDecision && playerSpace && 'price' in playerSpace && !canAffordCity) {
+    const isUnownedPurchasable =
+      playerSpace &&
+      (playerSpace.type === 'PROPERTY' || playerSpace.type === 'TRANSIT' || playerSpace.type === 'UTILITY') &&
+      playerPropState &&
+      !playerPropState.ownerUid &&
+      playerPropState.ownershipState !== 'BLOCKED';
+
+    if (isUnownedPurchasable && !canAffordCity && (isPropertyDecision || gameState.phase === 'MANAGEMENT')) {
       const noticeKey = `buy_${gameState.turnNumber}_${playerPos}`;
       if (lastInsuffNoticeRef.current !== noticeKey) {
         lastInsuffNoticeRef.current = noticeKey;
@@ -235,7 +230,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({
           title: 'Purchase Unavailable',
           message: 'Insufficient balance to purchase this property.',
         });
-        onDispatch?.('DECLINE_PROPERTY');
+        if (gameState.phase === 'PROPERTY_DECISION') {
+          onDispatch?.('DECLINE_PROPERTY');
+        }
       }
     }
 
@@ -269,6 +266,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     walkingAnimation,
     isPropertyDecision,
     playerSpace,
+    playerPropState,
     canAffordCity,
     gameState.phase,
     isDevelopableCity,

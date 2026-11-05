@@ -650,6 +650,50 @@ describe('Pure Game Engine', () => {
       expect(endRes.nextState.currentPlayerUid).toBe('user_2');
     });
 
+    it('releases player on double on attempt 3, moves them, and does not grant extra turn', () => {
+      let state = createInitialGame('room_1', 'game_1', mockMembers);
+      state.players[0].inJail = true;
+      state.players[0].jailTurns = 2; // attempts 1 and 2 already failed
+      state.players[0].position = 10;
+      state.phase = 'JAIL_DECISION';
+
+      // Attempt 3: roll doubles [5, 5] = 10
+      const res = applyGameCommand(
+        state,
+        {
+          commandId: 'cmd_try_3',
+          roomId: 'room_1',
+          gameId: 'game_1',
+          expectedVersion: state.version,
+          type: 'TRY_DOUBLES',
+          payload: {},
+        },
+        'user_1',
+        [5, 5]
+      );
+      state = res.nextState;
+
+      expect(state.players[0].inJail).toBe(false);
+      expect(state.players[0].jailTurns).toBe(0);
+      expect(state.players[0].position).toBe(20); // 10 + 10 = 20 (Rest House)
+      expect(state.players[0].escapedJailThisTurn).toBe(true);
+
+      // End turn: advances to user_2, no extra turn granted
+      const endRes = applyGameCommand(
+        state,
+        {
+          commandId: 'cmd_end_turn_3',
+          roomId: 'room_1',
+          gameId: 'game_1',
+          expectedVersion: state.version,
+          type: 'END_TURN',
+          payload: {},
+        },
+        'user_1'
+      );
+      expect(endRes.nextState.currentPlayerUid).toBe('user_2');
+    });
+
     it('enforces 3 consecutive failed attempts: player stays in jail and does not move', () => {
       let state = createInitialGame('room_1', 'game_1', mockMembers);
       state.players[0].inJail = true;
@@ -822,7 +866,7 @@ describe('Pure Game Engine', () => {
   // ==========================================
   describe('Insufficient Balance Validation', () => {
     it('prevents property purchase popup and skips to MANAGEMENT when landing with insufficient funds', () => {
-      let state = createInitialGame('room_1', 'game_1', mockMembers);
+      const state = createInitialGame('room_1', 'game_1', mockMembers);
       // Give user_1 only ₹500 cash
       state.players[0].cash = 500;
 
@@ -848,7 +892,7 @@ describe('Pure Game Engine', () => {
     });
 
     it('rejects BUY_PROPERTY command in backend if player has insufficient cash', () => {
-      let state = createInitialGame('room_1', 'game_1', mockMembers);
+      const state = createInitialGame('room_1', 'game_1', mockMembers);
       state.players[0].cash = 400;
       state.players[0].position = 1; // Jaipur price ₹600
 
@@ -869,7 +913,7 @@ describe('Pure Game Engine', () => {
     });
 
     it('rejects BUILD command in backend if player has insufficient cash without deducting money', () => {
-      let state = createInitialGame('room_1', 'game_1', mockMembers);
+      const state = createInitialGame('room_1', 'game_1', mockMembers);
       state.properties[1].ownerUid = 'user_1';
       state.properties[1].boughtOnTurn = 1;
       state.turnNumber = 3;
@@ -900,7 +944,7 @@ describe('Pure Game Engine', () => {
   // ==========================================
   describe('Mortgage System & Financial Obligations', () => {
     it('calculates mortgage values accounting for development investment and caps at purchase price', () => {
-      let state = createInitialGame('room_1', 'game_1', mockMembers);
+      const state = createInitialGame('room_1', 'game_1', mockMembers);
       // Jaipur: price 600, buildingCost 500
       // 0 houses: 0.5 * 600 = 300
       expect(calculateMortgageValue(1, state.properties[1])).toBe(300);
@@ -1082,6 +1126,77 @@ describe('Pure Game Engine', () => {
       expect(state.transactions![0].type).toBe('STARTING_BALANCE');
       expect(state.transactions![0].amount).toBe(15000);
       expect(state.transactions![0].direction).toBe('CREDIT');
+    });
+
+    it('links paired debit and credit records for player-to-player rent with the same transactionId', () => {
+      let state = createInitialGame('room_1', 'game_1', mockMembers);
+      // user_2 owns Chennai Airport (space 25, rent ₹1,000)
+      state.properties[25].ownerUid = 'user_2';
+      state.properties[25].ownershipState = 'OWNED';
+
+      // user_1 lands on Chennai Airport
+      state.players[0].position = 20;
+      state = applyGameCommand(
+        state,
+        {
+          commandId: 'cmd_roll_airport',
+          roomId: 'room_1',
+          gameId: 'game_1',
+          expectedVersion: state.version,
+          type: 'ROLL_DICE',
+          payload: {},
+        },
+        'user_1',
+        [2, 3] // 20 + 5 = 25
+      ).nextState;
+
+      // Find the last 2 transactions (the debit for user_1 and credit for user_2)
+      const lastTxns = state.transactions!.slice(-2);
+      expect(lastTxns).toHaveLength(2);
+
+      const debitTx = lastTxns.find((t) => t.playerUid === 'user_1')!;
+      const creditTx = lastTxns.find((t) => t.playerUid === 'user_2')!;
+
+      expect(debitTx.type).toBe('AIRPORT_RENT_PAID');
+      expect(debitTx.direction).toBe('DEBIT');
+      expect(debitTx.amount).toBe(1000);
+
+      expect(creditTx.type).toBe('AIRPORT_RENT_RECEIVED');
+      expect(creditTx.direction).toBe('CREDIT');
+      expect(creditTx.amount).toBe(1000);
+
+      // Must share the exact same transactionId!
+      expect(debitTx.transactionId).toBe(creditTx.transactionId);
+    });
+
+    it('ensures blocked airport generates zero rent when visited', () => {
+      let state = createInitialGame('room_1', 'game_1', mockMembers);
+      // Mark Chennai Airport (space 25) as BLOCKED
+      state.properties[25].ownerUid = 'user_2';
+      state.properties[25].ownershipState = 'BLOCKED';
+
+      expect(calculateRent(25, state.properties)).toBe(0);
+
+      // user_1 lands on space 25
+      const initialCash = state.players[0].cash;
+      state.players[0].position = 20;
+      state = applyGameCommand(
+        state,
+        {
+          commandId: 'cmd_roll_blocked_airport',
+          roomId: 'room_1',
+          gameId: 'game_1',
+          expectedVersion: state.version,
+          type: 'ROLL_DICE',
+          payload: {},
+        },
+        'user_1',
+        [2, 3] // 20 + 5 = 25
+      ).nextState;
+
+      // Zero rent deducted
+      expect(state.players[0].cash).toBe(initialCash);
+      expect(state.phase).toBe('MANAGEMENT');
     });
   });
 });

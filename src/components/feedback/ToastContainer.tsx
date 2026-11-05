@@ -1,61 +1,17 @@
 import React from 'react';
-import { create } from 'zustand';
-import { X, CheckCircle2, AlertTriangle, AlertCircle, Info, IndianRupee, Check } from 'lucide-react';
+import { X, CheckCircle2, AlertTriangle, AlertCircle, Info, IndianRupee } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
-
-export interface ToastItem {
-  id: string;
-  type: 'info' | 'success' | 'warning' | 'error';
-  title?: string;
-  message: string;
-  amount?: number;
-  flow?: 'CREDIT' | 'DEBIT';
-  deck?: 'CIVIC' | 'MARKET';
-  ruleIndex?: number;
-  actionLabel?: string;
-  onAction?: () => void;
-  createdAt: number;
-}
-
-interface ToastStore {
-  toasts: ToastItem[];
-  addToast: (toast: Omit<ToastItem, 'id' | 'createdAt'>) => void;
-  removeToast: (id: string) => void;
-}
-
-export const useToastStore = create<ToastStore>((set) => ({
-  toasts: [],
-  addToast: (toast) => {
-    const id = 'toast_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
-    const newToast: ToastItem = {
-      ...toast,
-      id,
-      createdAt: Date.now(),
-    };
-
-    set((state) => ({
-      // Limit to 4 toasts at a time on screen to prevent viewport overflow
-      toasts: [...state.toasts.slice(-3), newToast],
-    }));
-
-    // Auto-dismiss after exactly 3000ms (3 seconds)
-    setTimeout(() => {
-      set((state) => ({
-        toasts: state.toasts.filter((t) => t.id !== id),
-      }));
-    }, 3000);
-  },
-  removeToast: (id) => {
-    set((state) => ({
-      toasts: state.toasts.filter((t) => t.id !== id),
-    }));
-  },
-}));
+import { useToastStore } from './toast-store';
 
 /**
- * Bottom-left floating toast notification and acknowledge window container.
- * Non-blocking, smooth slide-in, 3-second auto-dismiss with animated countdown progress line,
- * manual dismiss 'x' button, and optional high-visibility acknowledge action pill.
+ * Section 7: Bottom-left floating toast notification container.
+ * - Non-blocking: never obstructs board spaces, dice, player actions or controls.
+ * - Zero acknowledgment buttons: acknowledgment button is completely removed.
+ * - Small cross ('×') button to dismiss manually.
+ * - Automatically dismisses after exactly 3 seconds.
+ * - Smooth entry (slideInLeft) and smooth exit (slideOutLeft) animations.
+ * - Multiple notifications stack vertically without overlapping.
+ * - Per-player independent notification state (purely local client state).
  */
 export const ToastContainer: React.FC = () => {
   const { toasts, removeToast } = useToastStore();
@@ -63,7 +19,7 @@ export const ToastContainer: React.FC = () => {
   if (toasts.length === 0) return null;
 
   return (
-    <div className="fixed bottom-4 left-4 z-50 flex flex-col gap-2 max-w-sm sm:max-w-md pointer-events-none select-none">
+    <div className="fixed bottom-4 left-4 z-50 flex flex-col gap-2 max-w-xs sm:max-w-sm pointer-events-none select-none">
       {toasts.map((toast) => {
         const isCivic = toast.deck === 'CIVIC';
         const isMarket = toast.deck === 'MARKET';
@@ -75,7 +31,8 @@ export const ToastContainer: React.FC = () => {
           <div
             key={toast.id}
             className={cn(
-              'pointer-events-auto relative overflow-hidden flex flex-col p-3 rounded-xl border shadow-2xl backdrop-blur-md transition-all duration-300 animate-slide-in-left text-xs',
+              'pointer-events-auto relative overflow-hidden flex flex-col p-3 rounded-xl border shadow-2xl backdrop-blur-md text-xs transition-all duration-200',
+              toast.isExiting ? 'animate-slide-out-left' : 'animate-slide-in-left',
               isCivic && 'bg-gradient-to-br from-[#3b1208]/95 via-[#541c0a]/95 to-[#1a0a05]/95 border-amber-400 text-white',
               isMarket && 'bg-gradient-to-br from-[#062c26]/95 via-[#094137]/95 to-[#041714]/95 border-emerald-400 text-white',
               isSuccess && 'bg-[#0B1E17]/95 border-emerald-500/60 text-white',
@@ -113,9 +70,9 @@ export const ToastContainer: React.FC = () => {
                   {toast.message}
                 </div>
 
-                <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                  {/* Amount Badge */}
-                  {toast.amount !== undefined && (
+                {/* Amount Indicator if applicable */}
+                {toast.amount !== undefined && (
+                  <div className="mt-1.5 flex items-center">
                     <span
                       className={cn(
                         'inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full font-black text-[10px]',
@@ -129,26 +86,11 @@ export const ToastContainer: React.FC = () => {
                         {toast.flow === 'CREDIT' ? '+' : '-'}₹{toast.amount.toLocaleString('en-IN')}
                       </span>
                     </span>
-                  )}
-
-                  {/* Optional Acknowledge Action Button */}
-                  {toast.actionLabel && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        toast.onAction?.();
-                        removeToast(toast.id);
-                      }}
-                      className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md font-bold text-[10px] bg-amber-400 hover:bg-amber-300 text-indian-navy-950 shadow-xs cursor-pointer active:scale-95 transition-all"
-                    >
-                      <Check className="w-3 h-3 stroke-[3]" />
-                      <span>{toast.actionLabel}</span>
-                    </button>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
 
-              {/* Small unobtrusive dismiss button */}
+              {/* Small unobtrusive cross ('×') button to dismiss manually */}
               <button
                 type="button"
                 onClick={() => removeToast(toast.id)}

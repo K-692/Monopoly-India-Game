@@ -18,6 +18,8 @@ import { createInitialGame } from '@/domain/game-engine/create-initial-game';
 import { sound } from '@/lib/audio/sound-engine';
 import { HostCustomRules } from '@/domain/ruleset';
 import { getSocket } from '@/lib/socket/socket-client';
+import { useToastStore } from '@/components/feedback/toast-store';
+import { useAuthStore } from '@/features/auth/use-auth-store';
 
 interface GameStoreState {
   gameState: GameState | null;
@@ -160,6 +162,39 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         }, 350);
       } else if (event.type === 'BUY_PROPERTY') {
         sound.play('BUY_PROPERTY');
+      } else if (event.type === 'MORTGAGE') {
+        const mortgageAmount = (event.payload as { mortgageAmount?: number })?.mortgageAmount;
+        const myUid = useAuthStore.getState().player?.uid;
+        useToastStore.getState().addToast({
+          type: event.actorUid === myUid ? 'warning' : 'info',
+          title: 'Property Mortgaged',
+          message: event.summary,
+          amount: mortgageAmount,
+          flow: event.actorUid === myUid ? 'CREDIT' : undefined,
+        });
+      } else if (event.type === 'UNMORTGAGE') {
+        const cost = (event.payload as { cost?: number })?.cost;
+        const myUid = useAuthStore.getState().player?.uid;
+        useToastStore.getState().addToast({
+          type: event.actorUid === myUid ? 'success' : 'info',
+          title: 'Property Reacquired',
+          message: event.summary,
+          amount: cost,
+          flow: event.actorUid === myUid ? 'DEBIT' : undefined,
+        });
+      } else if (event.type === 'RESOLVE_OBLIGATION') {
+        const myUid = useAuthStore.getState().player?.uid;
+        useToastStore.getState().addToast({
+          type: event.actorUid === myUid ? 'success' : 'info',
+          title: 'Payment Completed',
+          message: event.summary,
+        });
+      } else if (event.type === 'GIVE_UP') {
+        useToastStore.getState().addToast({
+          type: 'error',
+          title: 'Player Disqualified',
+          message: event.summary,
+        });
       } else if (event.type === 'PAY_BAIL') {
         sound.play('PAY_RENT');
       } else if (event.type === 'START_GAME') {

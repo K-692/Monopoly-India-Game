@@ -59,6 +59,7 @@ function recordTx(
   balanceAfter: number,
   description: string,
   extra?: {
+    transactionId?: string;
     spaceIndex?: number;
     propertyName?: string;
     counterpartyUid?: string | null;
@@ -69,8 +70,9 @@ function recordTx(
   if (!state.transactions) {
     state.transactions = [];
   }
+  const transactionId = extra?.transactionId || `tx_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const tx: FinancialTransaction = {
-    transactionId: `tx_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    transactionId,
     gameSessionId: state.gameId,
     playerUid,
     type,
@@ -568,6 +570,7 @@ export function applyGameCommand(
 
       const spaceName = obligation.spaceIndex !== undefined ? BOARD_SPACES[obligation.spaceIndex]?.name : 'debt';
       const isAirport = obligation.paymentType === 'AIRPORT_RENT';
+      const sharedTxId = `tx_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
       recordTx(
         state,
@@ -578,7 +581,7 @@ export function applyGameCommand(
         debtorPrev,
         debtor.cash,
         `${debtor.displayName} resolved obligation and paid ₹${obligation.amountDue.toLocaleString('en-IN')} to ${creditor?.displayName || 'Bank'} for ${spaceName}.`,
-        { spaceIndex: obligation.spaceIndex, propertyName: spaceName, counterpartyUid: creditor?.uid, counterpartyName: creditor?.displayName }
+        { transactionId: sharedTxId, spaceIndex: obligation.spaceIndex, propertyName: spaceName, counterpartyUid: creditor?.uid, counterpartyName: creditor?.displayName }
       );
 
       if (creditor) {
@@ -593,7 +596,7 @@ export function applyGameCommand(
           creditorPrev,
           creditor.cash,
           `${creditor.displayName} received ₹${obligation.amountDue.toLocaleString('en-IN')} from ${debtor.displayName} for ${spaceName}.`,
-          { spaceIndex: obligation.spaceIndex, propertyName: spaceName, counterpartyUid: debtor.uid, counterpartyName: debtor.displayName }
+          { transactionId: sharedTxId, spaceIndex: obligation.spaceIndex, propertyName: spaceName, counterpartyUid: debtor.uid, counterpartyName: debtor.displayName }
         );
       }
 
@@ -616,6 +619,7 @@ export function applyGameCommand(
         if (remainingCash > 0 && creditor) {
           debtor.cash = 0;
           creditor.cash += remainingCash;
+          const sharedTxId = `tx_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
           recordTx(
             state,
             debtor.uid,
@@ -625,7 +629,7 @@ export function applyGameCommand(
             remainingCash,
             0,
             `${debtor.displayName} gave up; transferred remaining ₹${remainingCash.toLocaleString('en-IN')} to ${creditor.displayName}.`,
-            { counterpartyUid: creditor.uid, counterpartyName: creditor.displayName }
+            { transactionId: sharedTxId, counterpartyUid: creditor.uid, counterpartyName: creditor.displayName }
           );
           recordTx(
             state,
@@ -636,7 +640,7 @@ export function applyGameCommand(
             creditor.cash - remainingCash,
             creditor.cash,
             `${creditor.displayName} received ₹${remainingCash.toLocaleString('en-IN')} surrender payout from ${debtor.displayName}.`,
-            { counterpartyUid: debtor.uid, counterpartyName: debtor.displayName }
+            { transactionId: sharedTxId, counterpartyUid: debtor.uid, counterpartyName: debtor.displayName }
           );
         }
       } else {
@@ -834,6 +838,7 @@ function resolveLandingSpace(
         const rentTxTypeCreditor: FinancialTransactionType = isAirport ? 'AIRPORT_RENT_RECEIVED' : 'RENT_RECEIVED';
 
         if (rentDue > 0) {
+          const sharedTxId = `tx_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
           if (player.cash >= rentDue) {
             const debtorPrev = player.cash;
             player.cash -= rentDue;
@@ -847,7 +852,7 @@ function resolveLandingSpace(
               debtorPrev,
               player.cash,
               `${player.displayName} paid ₹${rentDue.toLocaleString('en-IN')} ${isAirport ? 'airport rent' : 'rent'} to ${owner?.displayName} for ${space.name}.`,
-              { spaceIndex, propertyName: space.name, counterpartyUid: owner?.uid, counterpartyName: owner?.displayName }
+              { transactionId: sharedTxId, spaceIndex, propertyName: space.name, counterpartyUid: owner?.uid, counterpartyName: owner?.displayName }
             );
 
             if (owner) {
@@ -862,7 +867,7 @@ function resolveLandingSpace(
                 ownerPrev,
                 owner.cash,
                 `${owner.displayName} received ₹${rentDue.toLocaleString('en-IN')} ${isAirport ? 'airport rent' : 'rent'} from ${player.displayName} for ${space.name}.`,
-                { spaceIndex, propertyName: space.name, counterpartyUid: player.uid, counterpartyName: player.displayName }
+                { transactionId: sharedTxId, spaceIndex, propertyName: space.name, counterpartyUid: player.uid, counterpartyName: player.displayName }
               );
             }
 
@@ -904,6 +909,7 @@ function resolveLandingSpace(
               player.cash = 0;
               if (paid > 0 && owner) {
                 owner.cash += paid;
+                const sharedTxId = `tx_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
                 recordTx(
                   state,
                   player.uid,
@@ -913,7 +919,7 @@ function resolveLandingSpace(
                   debtorPrev,
                   0,
                   `${player.displayName} transferred remaining ₹${paid.toLocaleString('en-IN')} to ${owner.displayName} before bankruptcy.`,
-                  { spaceIndex, propertyName: space.name, counterpartyUid: owner.uid, counterpartyName: owner.displayName }
+                  { transactionId: sharedTxId, spaceIndex, propertyName: space.name, counterpartyUid: owner.uid, counterpartyName: owner.displayName }
                 );
                 recordTx(
                   state,
@@ -924,7 +930,7 @@ function resolveLandingSpace(
                   owner.cash - paid,
                   owner.cash,
                   `${owner.displayName} received remaining ₹${paid.toLocaleString('en-IN')} from ${player.displayName}.`,
-                  { spaceIndex, propertyName: space.name, counterpartyUid: player.uid, counterpartyName: player.displayName }
+                  { transactionId: sharedTxId, spaceIndex, propertyName: space.name, counterpartyUid: player.uid, counterpartyName: player.displayName }
                 );
               }
 
@@ -1103,6 +1109,7 @@ function applyCardEffect(state: GameState, player: PlayerState, card: CardAction
           const playerPrev = player.cash;
           other.cash -= paid;
           player.cash += paid;
+          const sharedTxId = `tx_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
           recordTx(
             state,
             other.uid,
@@ -1112,7 +1119,7 @@ function applyCardEffect(state: GameState, player: PlayerState, card: CardAction
             otherPrev,
             other.cash,
             `${other.displayName} paid ₹${paid.toLocaleString('en-IN')} to ${player.displayName} for card: ${card.title}.`,
-            { counterpartyUid: player.uid, counterpartyName: player.displayName }
+            { transactionId: sharedTxId, counterpartyUid: player.uid, counterpartyName: player.displayName }
           );
           recordTx(
             state,
@@ -1123,7 +1130,7 @@ function applyCardEffect(state: GameState, player: PlayerState, card: CardAction
             playerPrev,
             player.cash,
             `${player.displayName} received ₹${paid.toLocaleString('en-IN')} from ${other.displayName} for card: ${card.title}.`,
-            { counterpartyUid: other.uid, counterpartyName: other.displayName }
+            { transactionId: sharedTxId, counterpartyUid: other.uid, counterpartyName: other.displayName }
           );
         }
       }
@@ -1139,6 +1146,7 @@ function applyCardEffect(state: GameState, player: PlayerState, card: CardAction
           const otherPrev = other.cash;
           player.cash -= paid;
           other.cash += paid;
+          const sharedTxId = `tx_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
           recordTx(
             state,
             player.uid,
@@ -1148,7 +1156,7 @@ function applyCardEffect(state: GameState, player: PlayerState, card: CardAction
             playerPrev,
             player.cash,
             `${player.displayName} paid ₹${paid.toLocaleString('en-IN')} to ${other.displayName} for card: ${card.title}.`,
-            { counterpartyUid: other.uid, counterpartyName: other.displayName }
+            { transactionId: sharedTxId, counterpartyUid: other.uid, counterpartyName: other.displayName }
           );
           recordTx(
             state,
@@ -1159,7 +1167,7 @@ function applyCardEffect(state: GameState, player: PlayerState, card: CardAction
             otherPrev,
             other.cash,
             `${other.displayName} received ₹${paid.toLocaleString('en-IN')} from ${player.displayName} for card: ${card.title}.`,
-            { counterpartyUid: player.uid, counterpartyName: player.displayName }
+            { transactionId: sharedTxId, counterpartyUid: player.uid, counterpartyName: player.displayName }
           );
         }
       }

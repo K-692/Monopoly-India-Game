@@ -44,3 +44,4 @@ describe('copyToClipboard utility', () => {
     expect(execCommandMock).toHaveBeenCalledWith('copy');
   });
 });
+
