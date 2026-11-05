@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { GameActionType, PendingFinancialObligation, PlayerState, PropertyState } from '@/domain/game-types';
 import { BOARD_SPACES } from '@/domain/board-config';
 import { calculateMortgageValue } from '@/domain/ruleset';
-import { Landmark, Building2, Home, CheckCircle2, ShieldAlert, ArrowRight, Clock, AlertTriangle, CheckSquare, Square } from 'lucide-react';
+import { Landmark, Building2, Home, CheckCircle2, ShieldAlert, ArrowRight, Clock, AlertTriangle, CheckSquare, Square, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 
 interface FinancialResolutionModalProps {
@@ -25,6 +25,7 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
 }) => {
   const [showConfirmSurrender, setShowConfirmSurrender] = useState(false);
   const [isAdjustingPayouts, setIsAdjustingPayouts] = useState(false);
+  const [isCheckingBoard, setIsCheckingBoard] = useState(false);
   const [selectedSpaceIndices, setSelectedSpaceIndices] = useState<number[]>([]);
 
   const debtor = players.find((p) => p.uid === obligation.debtorUid);
@@ -179,6 +180,65 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
   // ACTIVE DEBTOR VIEW: Center Interactive Low-Balance Mortgage Resolution Modal
   // =========================================================================
   if (typeof document === 'undefined') return null;
+
+  // Requirement 2: Read-Only Board Inspection Mode
+  if (isCheckingBoard) {
+    return createPortal(
+      <>
+        {/* Full-screen click-capture layer: intercepts any click on the board to return to modal & blocks interaction */}
+        <div
+          onClick={() => setIsCheckingBoard(false)}
+          className="fixed inset-0 z-[110] bg-black/25 backdrop-blur-[1px] cursor-pointer select-none"
+          title="Click anywhere to return to mortgage resolution"
+        />
+
+        {/* Top Floating Inspection Banner */}
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="fixed top-3 left-1/2 -translate-x-1/2 z-[115] w-[94vw] max-w-md select-none animate-slide-down pointer-events-auto"
+        >
+          <div className="rounded-2xl bg-[#090D1A]/95 border-2 border-blue-500/80 shadow-[0_12px_36px_rgba(0,0,0,0.9)] p-3 text-white backdrop-blur-md space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-blue-500/20 border border-blue-500/40 flex items-center justify-center text-blue-400">
+                  <Eye className="w-4 h-4 animate-pulse" />
+                </div>
+                <div>
+                  <h4 className="font-serif font-black text-xs tracking-wide text-blue-300 uppercase">
+                    Board Inspection Mode
+                  </h4>
+                  <span className="text-[10px] text-gray-400 block">Read-only view</span>
+                </div>
+              </div>
+              <div className={cn(
+                'flex items-center gap-1 text-[11px] font-mono font-bold px-2 py-0.5 rounded border',
+                timeLeft <= 15
+                  ? 'bg-red-950/90 text-red-300 border-red-500 animate-pulse'
+                  : 'bg-amber-950/80 text-amber-300 border-amber-600/50'
+              )}>
+                <Clock className="w-3 h-3" />
+                <span>{timeLeft}s remaining</span>
+              </div>
+            </div>
+
+            <p className="text-[11px] text-gray-300 leading-snug">
+              Inspect the board and token positions. Click anywhere on the board or click the button below to resume your decisions.
+            </p>
+
+            <button
+              type="button"
+              onClick={() => setIsCheckingBoard(false)}
+              className="w-full py-2 px-3 rounded-xl font-bold text-xs bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-indian-navy-950 shadow-md flex items-center justify-center gap-1.5 cursor-pointer min-h-[40px] active:scale-95 transition-all"
+            >
+              <span>Return to Debt Resolution</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      </>,
+      document.body
+    );
+  }
 
   return createPortal(
     <div className="fixed inset-0 z-[120] bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 select-none animate-fade-in">
@@ -418,16 +478,27 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
                 </button>
                 <button
                   type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsCheckingBoard(true);
+                  }}
+                  className="px-3 py-2 rounded-xl bg-blue-950/80 hover:bg-blue-900 text-blue-300 border border-blue-700 text-xs font-bold transition-colors cursor-pointer min-h-[44px] flex items-center gap-1"
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  <span>Check Board</span>
+                </button>
+                <button
+                  type="button"
                   disabled={selectedSpaceIndices.length === 0}
                   onClick={handleConfirmMortgages}
                   className={cn(
-                    'flex-1 py-2 px-4 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 min-h-[44px] cursor-pointer shadow-md',
+                    'flex-1 py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 min-h-[44px] cursor-pointer shadow-md',
                     selectedSpaceIndices.length > 0
                       ? 'bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-indian-navy-950 active:scale-95'
                       : 'bg-gray-800 text-gray-500 cursor-not-allowed'
                   )}
                 >
-                  <span>Confirm Selected Mortgage{selectedSpaceIndices.length > 1 ? 's' : ''} (+₹{totalSelectedPayout.toLocaleString('en-IN')})</span>
+                  <span>Confirm Selected ({selectedSpaceIndices.length}) (+₹{totalSelectedPayout.toLocaleString('en-IN')})</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -464,16 +535,16 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
           )}
         </div>
 
-        {/* Section 2: Exactly Two Primary Action Buttons (Surrender & Adjust Payouts) */}
+        {/* Section 2: Three Primary Action Buttons (Surrender, Adjust Payouts, and Check Board) */}
         {!showConfirmSurrender && !isAdjustingPayouts && (
-          <div className="p-3.5 bg-black/40 border-t border-white/10 flex items-center justify-between gap-3">
+          <div className="p-3.5 bg-black/40 border-t border-white/10 flex items-center justify-between gap-2.5">
             {/* Button 1: Surrender */}
             <button
               type="button"
               onClick={() => setShowConfirmSurrender(true)}
-              className="flex-1 py-2.5 px-3 rounded-xl font-bold text-xs bg-red-950/80 hover:bg-red-900 text-red-300 border border-red-800 transition-colors cursor-pointer min-h-[44px] flex items-center justify-center gap-1.5"
+              className="flex-1 py-2.5 px-2.5 rounded-xl font-bold text-xs bg-red-950/80 hover:bg-red-900 text-red-300 border border-red-800 transition-colors cursor-pointer min-h-[44px] flex items-center justify-center gap-1.5"
             >
-              <ShieldAlert className="w-4 h-4" />
+              <ShieldAlert className="w-3.5 h-3.5" />
               <span>Surrender</span>
             </button>
 
@@ -483,14 +554,27 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
               disabled={eligibleProperties.length === 0}
               onClick={() => setIsAdjustingPayouts(true)}
               className={cn(
-                'flex-1 py-2.5 px-3 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-1.5 min-h-[44px] shadow-lg',
+                'flex-1 py-2.5 px-2.5 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-1.5 min-h-[44px] shadow-lg',
                 eligibleProperties.length > 0
                   ? 'bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-indian-navy-950 active:scale-95 cursor-pointer'
                   : 'bg-gray-800 text-gray-500 cursor-not-allowed border border-white/5'
               )}
             >
-              <Landmark className="w-4 h-4" />
-              <span>Adjust Payouts ({eligibleProperties.length})</span>
+              <Landmark className="w-3.5 h-3.5" />
+              <span>Adjust Payouts</span>
+            </button>
+
+            {/* Button 3: Check Board */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsCheckingBoard(true);
+              }}
+              className="flex-1 py-2.5 px-2.5 rounded-xl font-bold text-xs bg-blue-950/80 hover:bg-blue-900 text-blue-300 border border-blue-700 transition-colors cursor-pointer min-h-[44px] flex items-center justify-center gap-1.5"
+            >
+              <Eye className="w-3.5 h-3.5" />
+              <span>Check Board</span>
             </button>
           </div>
         )}

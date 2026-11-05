@@ -367,7 +367,7 @@ describe('60-Second Low-Balance Mortgage Resolution & Disqualification', () => {
   // SCENARIO F: TIMEOUT RACE CONDITION REJECTS LATE MORTGAGE REQUESTS
   // =========================================================================
   it('Scenario F: rejects mortgage request arriving after the 60-second deadline has expired', () => {
-    let state = createInitialGame('room_1', 'game_1', mockMembers, undefined, 'user_1');
+    const state = createInitialGame('room_1', 'game_1', mockMembers, undefined, 'user_1');
 
     state.properties[1].ownerUid = 'user_1';
     state.properties[1].ownershipState = 'OWNED';
@@ -409,7 +409,7 @@ describe('60-Second Low-Balance Mortgage Resolution & Disqualification', () => {
   // SCENARIO G: RECONNECTION & STATE PERSISTENCE
   // =========================================================================
   it('Scenario G: preserves obligation, expiresAt deadline, and exact remaining time across state reload', () => {
-    let state = createInitialGame('room_1', 'game_1', mockMembers, undefined, 'user_1');
+    const state = createInitialGame('room_1', 'game_1', mockMembers, undefined, 'user_1');
 
     const now = Date.now();
     const expiresAt = now + 42000; // 42 seconds left
@@ -447,7 +447,7 @@ describe('60-Second Low-Balance Mortgage Resolution & Disqualification', () => {
   // SCENARIO H: MULTIPLAYER CONSISTENCY & AUTHORIZATION CHECKS
   // =========================================================================
   it('Scenario H: prevents unauthorized players from mortgaging properties or resolving debt', () => {
-    let state = createInitialGame('room_1', 'game_1', mockMembers, undefined, 'user_1');
+    const state = createInitialGame('room_1', 'game_1', mockMembers, undefined, 'user_1');
 
     state.properties[1].ownerUid = 'user_1';
     state.properties[1].ownershipState = 'OWNED';

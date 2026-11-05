@@ -1,26 +1,47 @@
 <div align="center">
   <img src="public/assets/game_logo.png" alt="Indian Monopoly Logo" width="180" style="border-radius: 20px; box-shadow: 0 8px 24px rgba(0,0,0,0.18);" />
   
-  # 🇮🇳 Indian Monopoly — Local Wi-Fi LAN Multiplayer Board Game
+  # 🇮🇳 Indian Monopoly — Standalone Desktop & Local Wi-Fi LAN Multiplayer Board Game
 
   [![License: MIT](https://img.shields.io/badge/License-MIT-amber.svg)](LICENSE)
-  [![Node.js](https://img.shields.io/badge/Node.js-22+-green.svg)](https://nodejs.org/)
+  [![Platform: macOS & Windows](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows%20%7C%20Web-blue.svg)](#-desktop-apps--download)
+  [![Node.js](https://img.shields.io/badge/Node.js-20%2B-green.svg)](https://nodejs.org/)
   [![TypeScript](https://img.shields.io/badge/TypeScript-5.7+-blue.svg)](https://www.typescriptlang.org/)
   [![React](https://img.shields.io/badge/React-19-61dafb.svg)](https://react.dev/)
+  [![Electron](https://img.shields.io/badge/Electron-45+-47848F.svg)](https://www.electronjs.org/)
   [![Socket.IO](https://img.shields.io/badge/Socket.IO-4.8+-010101.svg)](https://socket.io/)
   [![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4+-38b2ac.svg)](https://tailwindcss.com/)
   [![Vite](https://img.shields.io/badge/Vite-6.0+-646cff.svg)](https://vite.dev/)
-  [![Tests](https://img.shields.io/badge/Vitest-79%20Passing-brightgreen.svg)](https://vitest.dev/)
+  [![Tests](https://img.shields.io/badge/Vitest-86%20Passing-brightgreen.svg)](https://vitest.dev/)
 
-  **Zero-cloud, zero-Internet, 100% private Wi-Fi LAN multiplayer for phones, tablets, and laptops!**
+  **Standalone macOS (.dmg) & Windows (.exe) desktop applications and browser play over local Wi-Fi with zero configuration!**
 </div>
 
 ---
 
 > **About the Project:**  
-> **Indian Monopoly** is a modern, high-performance, zero-scroll property trading board game built for local network Wi-Fi multiplayer and offline play. Designed with **React 19, TypeScript, Tailwind CSS, Node.js 22, Express, and Socket.IO**, the system operates with **zero Firebase, zero external cloud dependencies, and zero Internet connection required** during gameplay.
+> **Indian Monopoly** is a modern, server-authoritative, zero-scroll property trading board game built for cross-platform local network Wi-Fi multiplayer and standalone desktop play on **macOS and Windows**. Engineered with **React 19, TypeScript, Tailwind CSS, Node.js, Express, Socket.IO, and Electron**, the application delivers an authoritative real-time multiplayer experience without requiring external cloud accounts or third-party game services during gameplay.
 >
-> A host player starts the lightweight Node.js server on their laptop, which automatically detects all private LAN IPv4 addresses, serves the production-built React frontend, and acts as the authoritative Socket.IO game server. Friends and family on the same Wi-Fi connect seamlessly from iPhones, Android devices, iPads, or laptops by scanning an on-screen QR code or entering a 6-character room code.
+> In addition to browser play, Indian Monopoly packages as installable native desktop binaries for **macOS (`.dmg`)** and **Windows (`.exe`)**. The desktop binary self-hosts the authoritative LAN engine inside a sandboxed Electron shell, allowing any host to launch a game server with one double-click and invite friends on phones, tablets, or other computers to connect instantly over local Wi-Fi!
+
+---
+
+## 💻 Desktop Apps & Download
+
+Native installable applications bundle the complete game frontend, embedded Node.js backend, and authoritative Socket.IO server into a single standalone executable. No manual Node.js, npm, or terminal commands are required for players.
+
+| Platform | Format | Description |
+|:---|:---|:---|
+| **macOS** (Apple Silicon & Intel) | `.dmg` installer | Native macOS app bundle. Drag-and-drop installation into `/Applications`. Embedded local server binds to available Wi-Fi interfaces automatically. |
+| **Windows** (64-bit) | `.exe` NSIS installer | Standard Windows installer with customizable installation paths, Start Menu shortcuts, and desktop launcher icon. |
+| **Mobile & Web Browser** | HTML5 / WebSockets | Join directly from Safari, Chrome, Edge, or Firefox by opening the host's LAN URL or scanning the on-screen QR code. |
+
+### How Local LAN Desktop Multiplayer Works:
+1. **Host Launches Native App**: Double-click `Indian Monopoly.app` or `Indian Monopoly.exe`.
+2. **Server Self-Initializes**: The application starts its embedded authoritative Express + Socket.IO server on an auto-discovered port (starting at `4173`).
+3. **Wi-Fi Discovery**: The host sees their LAN IP and an on-screen QR code (e.g. `http://192.168.1.50:4173`).
+4. **Friends Connect**: Friends connect from phones (iPhone / Android), tablets (iPad), or laptops on the same Wi-Fi network without installing anything extra.
+5. **Cross-Platform Play**: Real-time state synchronizes authoritatively across all connected clients.
 
 ---
 
@@ -61,12 +82,14 @@
   5. Landing resolves and purchase popup appears (if eligible unowned city).
 - **Turn Duration Gating**: Stays open until the player acts or the turn timer runs out (auto-decline).
 
-### 4. Tri-Acoustic Audio System & Single-Active Notifications
-- **Strictly 3 Procedural Sounds**: The Web Audio synthesizer engine strictly plays only three clean, procedural sounds:
-  1. **Rolling Sound (`DICE_ROLL`)**: Rapid tumbling thuds synthesized via multiple tuned triangle oscillators.
-  2. **Players Walking Sound (`PAWN_STEP`)**: Percussive step tap synthesized via descending sine oscillator as tokens step along board lanes.
-  3. **Nice Alert Tone (`NOTIFICATION`)**: Warm dual-tone chime ($E_5 \to G^\#_5$) accompanying alert popups.
-  - *All other legacy sounds (bells, clangs, buy sounds, rent sounds, jail audio) are completely silenced/removed.*
+### 4. Player-Specific Financial Audio System & Single-Active Notifications
+- **Web Audio Procedural Sound Synthesizers**: All sounds are rendered in real time through the Web Audio API without remote audio files or latency:
+  1. **Rolling Sound (`DICE_ROLL`)**: Rapid tumbling thuds synthesized via tuned triangle oscillators.
+  2. **Players Walking Sound (`PAWN_STEP`)**: Percussive step taps as tokens advance across board grids.
+  3. **Alert Tone (`NOTIFICATION`)**: Warm dual-tone chime ($E_5 \to G^\#_5$) accompanying alert popups.
+  4. **Cash Credit Chime (`CASH_CREDIT`)**: Ascending 3-tone arpeggio (C5 $\to$ E5 $\to$ G5) when receiving funds (Start salary, rent collected, mortgage payout).
+  5. **Cash Debit Chime (`CASH_DEBIT`)**: Descending triad (A4 $\to$ F4 $\to$ D4) when spending or paying funds (purchases, rent paid, fines).
+- **Player-Specific Audio Isolation**: Financial transaction sounds play **exclusively on the physical device of the affected player**. Opponents and bystanders hear no transaction noise, ensuring quiet, unpolluted multiplayer play.
 - **Strict 1-Notification Invariant**: At most 1 active notification box at any time (`toasts: [newToast]`).
 - **Cross-Channel Deduplication**: Prevents duplicates between Socket.IO game events and local state triggers via `eventId` tracking.
 - **Debounced Balance Warnings**: Uses `dedupKey` to prevent spamming insufficient balance warnings within 3.5 seconds.
@@ -92,16 +115,21 @@
 - **Railways Comparison**: CST Mumbai (#5) and Howrah Railway (#15) scale at ₹250 and ₹500.
 - **Immunity Conditions**: Rent is waived if the owner is in jail, the airport is mortgaged, or the owner is in the `BLOCKED` state.
 
-### 8. Complete Mortgaging, Dual-Modal Resolution & Physical Landing Reacquisition
+### 8. Complete Mortgaging, 60-Second Debt Resolution & "Check Board" Inspection Mode
 - **Dual-Modal Spatial Pop-ups**:
   - **For Mortgaging Player**: Displays a centered modal dialog (`fixed inset-0 z-[120] bg-black/80 flex items-center justify-center`) where they select cities to mortgage, view development statuses, and settle debts or surrender.
   - **For Other Players (Spectators)**: Displays an informative floating pop-up card at the **left below** (`fixed bottom-4 left-4 z-[120]`). It never covers the center of the screen, allowing other players to view the board while tracking debtor progress.
+- **"Check Board" Inspection Mode**:
+  - Debtors can click **Check Board** inside the low-balance resolution modal to freely inspect rival balances, property developments, and board monopolies before committing funds or surrendering.
+  - A transparent full-screen click-capture shield prevents accidental board actions while allowing immediate return to the modal upon any click or tap.
+  - A persistent top floating banner displays inspection status, unbroken 60-second countdown, and a direct "Return to Debt Resolution" button.
+  - All selected properties, pending debt obligation data, and the 60-second countdown are strictly preserved.
+- **Authoritative Independent 60-Second Window**: An independent 60-second timer begins upon low-balance rent or tax deficit, operating completely independently of standard turn expiration.
 - **Physical Landing Required for Reacquisition**:
   - A player cannot reacquire mortgaged cities from property lists or deed modals.
   - Reacquisition is strictly offered when the owner **physically lands on that specific city again** in an eligible turn.
   - Declining marks the opportunity `DECLINED`, preventing reacquisition in the same turn.
   - Reacquisition price strictly equals the exact mortgage payout originally received ($C_{\text{reacquire}} = V_{\text{payout\_received}}$), and all buildings are preserved intact.
-- **Turn Timer Renewal**: Every mortgage action and debt entry immediately resets the player's turn timer to the full 30 seconds (`turnTimeRemaining = 30`), ensuring ample time to resolve finances.
 - **Voluntary Mortgaging**: Active players can open the center mortgage dialog anytime during management phases directly from the turn controls.
 - **Development-Inclusive Valuation Formula**:
   $$\text{Mortgage Payout} = \min\left(P_{\text{base}}, \left\lfloor 0.5 \times P_{\text{base}} + 0.5 \sum_{i=1}^{B} C_{\text{build}}\right\rfloor\right)$$
@@ -272,12 +300,17 @@ Waiting for players...
 
 | Command | Purpose |
 |:---|:---|
+| `npm run desktop` | **Native Desktop Launcher**: Builds production assets and runs the native Electron desktop application with embedded local server. |
+| `npm run dist:mac` | **Package macOS DMG**: Compiles and packages the installable universal `.dmg` installer for Apple Silicon and Intel Macs. |
+| `npm run dist:win` | **Package Windows EXE**: Compiles and packages the installable NSIS `.exe` installer for 64-bit Windows. |
+| `npm run dist:all` | **Package Both Platforms**: Packages both macOS DMG and Windows EXE distribution binaries. |
+| `npm run build:desktop` | Builds both the React LAN frontend (`dist/`) and the standalone server bundle (`dist-server/index.cjs`). |
 | `npm run lan:host` | **Production Host**: Builds the production bundle (`dist/`) and starts the authoritative LAN server on `0.0.0.0:4173`. |
 | `npm run lan:dev` | **Concurrent Dev**: Runs the Node.js Socket.IO server (`tsx watch`) and Vite dev server (`5173`) with live hot-reloading. |
 | `npm run build:lan` | Builds the React frontend with `/` base path explicitly targeted for LAN hosting. |
 | `npm run build` | Builds the React frontend for production distribution. |
 | `npm run server` | Starts the Node.js server directly using `tsx server/index.ts`. |
-| `npm test` | Runs the full Vitest suite (61 passing tests covering game engine invariants, fairness, statistical tests, mortgages, canonical cards, surrender, and multi-client Socket.IO integration). |
+| `npm test` | Runs the full Vitest suite (86 passing tests covering engine invariants, dice fairness, mortgage preview, Start privacy, audio triggers, and multi-client integration). |
 | `npm run typecheck` | Strict TypeScript validation across client, server, and tests (`tsc -b --noEmit`). |
 | `npm run lint` | ESLint validation across all TypeScript and React files with zero warnings. |
 

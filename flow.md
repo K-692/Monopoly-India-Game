@@ -498,3 +498,70 @@ When debt $D$ exceeds cash $C$:
 
 
 
+
+---
+
+## 11. Start-Pass Notification Privacy, Mortgage Board Inspection Architecture, Procedural Financial Acoustics, and Standalone Desktop (macOS DMG & Windows EXE) Packaging
+
+### 11.1 Start-Pass Notification Privacy & Actor-Specific Delivery
+- **Domain Invariant**:
+  Passing or landing on the START space awards the host-configured reward (default ₹2,000) as personal financial compensation granted by the central Bank. Under authoritative rules, this transaction is strictly private to the recipient.
+- **Privacy Filtering Model**:
+  Universal room broadcasts previously delivered the generic money transaction toast to all connected clients, causing UI clutter for competitors. The updated delivery model enforces actor-specific notification routing:
+  $$\text{RenderToast}(\text{tx}) \iff (\text{tx.type} \neq \text{'START\_REWARD'}) \lor (\text{tx.type} = \text{'START\_REWARD'} \land \text{tx.recipientUid} = \text{clientUserUid})$$
+- **Frontend Bridge Implementation**:
+  In `GameBoard.tsx`, the authoritative `activeMoneyTransaction` listener evaluates `tx.recipientUid === userUid`. If the current viewer is not the recipient of `START_REWARD`, the event is dropped silently without adding a toast or popup.
+- **Concise User Notification**:
+  When rendered for the recipient, the toast displays concise, positive wording: `You received ₹X` with `flow: 'CREDIT'` and title `START Salary`.
+- **Deduplication Safeguards**:
+  State snapshots and WebSocket reconciliations are keyed by `tx.id`. Reconnection or state replay checks the in-memory cache, guaranteeing that salary credits are notified exactly once per crossing event.
+
+### 11.2 Mortgage Resolution Board Preview Architecture ("Check Board")
+- **Tactical Information Dilemma**:
+  During the authoritative 60-second low-balance mortgage resolution phase, debtors face critical financial decisions (mortgaging properties vs. surrendering). The standard modal overlaid the board, preventing debtors from examining competitor cash reserves, property distribution, color group monopolies, or board topography.
+- **Non-Destructive Read-Only Board Inspection**:
+  Introduced a dedicated "Check Board" button in `FinancialResolutionModal.tsx` accessible in both the main overview and the "Adjust Payouts" views.
+- **Read-Only Click-Capture Layer**:
+  When `isCheckingBoard = true`, the modal yields to a transparent click-blocking scrim:
+  - Enforces `fixed inset-0 z-[110] bg-black/20 backdrop-blur-[1px] cursor-pointer`.
+  - Captures any click or tap anywhere on the viewport, instantly and seamlessly returning the user to the debt resolution modal without UI friction.
+- **Persistent Floating Inspection Banner**:
+  A non-obstructive floating status badge anchored at `fixed top-4 left-1/2 -translate-x-1/2 z-[115]`:
+  - Visual status pill indicating `Board Inspection Mode (Read-Only)`.
+  - Unbroken real-time 60-second countdown badge (`timeLeft`).
+  - Direct "Return to Debt Resolution" return button.
+- **Preservation Invariant**:
+  $$\Delta t_{\text{deadline}} = 0, \quad \mathcal{S}_{\text{selected}}(t_{\text{return}}) = \mathcal{S}_{\text{selected}}(t_{\text{inspect}})$$
+  Entering or exiting inspection mode preserves the authoritatively assigned `expiresAt` deadline, unbroken turn timer countdown, outstanding debt amount, and the player's previously selected checkbox properties. Normal board actions (rolling dice, buying, building) remain disabled by the underlying state machine.
+
+### 11.3 Procedural Synthesized Financial Audio (Web Audio API)
+- **Zero-Dependency Procedural Acoustics**:
+  Implemented offline Web Audio API sound synthesizers in `sound-engine.ts`, removing dependencies on external audio files, remote CDNs, or network caching:
+  - **`CASH_CREDIT` (Incoming Funds)**: Ascending arpeggio (C5: 523.25 Hz $\to$ E5: 659.25 Hz $\to$ G5: 783.99 Hz) with a crisp 80ms exponential gain release envelope, producing a bright coin/income sensation.
+  - **`CASH_DEBIT` (Outgoing Expenses)**: Descending tri-tone cadence (A4: 440 Hz $\to$ F4: 349.23 Hz $\to$ D4: 293.66 Hz) with low-pass filtering and a 100ms decay, delivering an unambiguous expenditure acoustic cue.
+- **Client-Specific Audio Routing**:
+  Audio triggers listen to the authoritative ledger `gameState.transactions` in `GameBoard.tsx` and play **only** on the device of the affected actor:
+  $$\text{SoundTrigger} = \begin{cases} \text{'CASH\_CREDIT'} & \text{if } \text{tx.recipientUid} = \text{userUid} \lor (\text{tx.playerUid} = \text{userUid} \land \text{tx.type} \in \{\text{'START\_REWARD'}, \text{'MORTGAGE'}\}) \\ \text{'CASH\_DEBIT'} & \text{if } \text{tx.playerUid} = \text{userUid} \land \text{tx.direction} = \text{'DEBIT'} \land \text{tx.type} \notin \{\text{'START\_REWARD'}, \text{'MORTGAGE'}\} \\ \text{null} & \text{otherwise} \end{cases}$$
+  Opponents, bystanders, and spectators hear zero transaction audio, preventing audio spam during multiplayer matches.
+- **Replay Protection**:
+  On component mount, `playedTxIdsRef` is populated with all existing transactions in history. Only genuinely new transactions appending to the ledger trigger audio, preventing sound floods on reconnect or page refresh.
+
+### 11.4 Standalone Desktop Packaging (macOS DMG & Windows EXE) with Integrated LAN Server
+- **Architecture & System Topology**:
+  Engineered an integrated desktop runtime using Electron and `electron-builder`:
+  - **Embedded Authoritative Server**: Bundles the Node.js + Express + Socket.IO engine (`server/index.ts` compiled via `esbuild` into standalone `dist-server/index.cjs`).
+  - **Embedded Client**: Serves the production-built React 19 application (`dist/`).
+  - **Dynamic Port Negotiation**: Scans available local ports starting from 4173 (`findAvailablePort`) to prevent port conflicts with running system services.
+  - **Sandboxed Native Shell**: Native macOS and Windows `BrowserWindow` loading the embedded local server (`http://localhost:PORT`) with context isolation and secure external link handling via default system browsers.
+- **Zero-Setup Local Network Multiplayer**:
+  The packaged desktop application acts as both a player client and a standalone Wi-Fi LAN server:
+  - Host opens the native desktop app.
+  - Express and Socket.IO bind to `0.0.0.0:PORT`.
+  - The app dynamically discovers local network interfaces (`en0`, `wlan0`, etc.) and displays local Wi-Fi join URLs and QR codes.
+  - Other players on the same Wi-Fi network (running macOS, Windows, iPhone, iPad, or Android browsers) join simply by pointing their browsers or desktop apps to the host's IP/port or room code.
+  - No internet connection, Firebase credentials, or Node.js installations are required for LAN play.
+- **Cross-Platform Release Automation**:
+  Authored `.github/workflows/desktop-release.yml` with multi-OS matrix runners:
+  - `macos-latest`: Compiles and packages macOS universal/arm64 `.dmg` installer with drag-and-drop Applications folder packaging.
+  - `windows-latest`: Compiles and packages Windows x64 NSIS `.exe` installer with customizable installation paths and desktop/start menu shortcuts.
+  - Runs full test suite verification (`npm test`) before packaging and publishes assets automatically on tagged releases.

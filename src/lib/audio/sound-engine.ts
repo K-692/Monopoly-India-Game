@@ -24,7 +24,9 @@ export type SoundType =
   | 'EMOTE'
   | 'BUTTON_CLICK'
   | 'VICTORY'
-  | 'NOTIFICATION';
+  | 'NOTIFICATION'
+  | 'CASH_CREDIT'
+  | 'CASH_DEBIT';
 
 class SoundEngine {
   private ctx: AudioContext | null = null;
@@ -119,6 +121,12 @@ class SoundEngine {
         case 'NOTIFICATION':
           this.playNotification(ctx);
           break;
+        case 'CASH_CREDIT':
+          this.playCashCredit(ctx);
+          break;
+        case 'CASH_DEBIT':
+          this.playCashDebit(ctx);
+          break;
         default:
           // All other sounds intentionally removed:
           // Strictly keep only rolling sound, players walking sound, and nice alert tone.
@@ -198,6 +206,68 @@ class SoundEngine {
 
       gain.gain.setValueAtTime(0, t0 + time);
       gain.gain.linearRampToValueAtTime(this.masterVolume * 0.18, t0 + time + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.001, t0 + time + duration);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(t0 + time);
+      osc.stop(t0 + time + duration + 0.02);
+    });
+  }
+
+  /**
+   * 4. Cash credit sound: subtle, pleasant ascending coin chime (C5 -> E5 -> G5)
+   * Played strictly when the local player's balance increases.
+   */
+  private playCashCredit(ctx: AudioContext): void {
+    const t0 = ctx.currentTime;
+    const notes = [
+      { freq: 523.25, time: 0, duration: 0.08 },     // C5
+      { freq: 659.25, time: 0.05, duration: 0.08 },  // E5
+      { freq: 783.99, time: 0.10, duration: 0.15 },  // G5
+    ];
+
+    notes.forEach(({ freq, time, duration }) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, t0 + time);
+
+      gain.gain.setValueAtTime(0, t0 + time);
+      gain.gain.linearRampToValueAtTime(this.masterVolume * 0.22, t0 + time + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, t0 + time + duration);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(t0 + time);
+      osc.stop(t0 + time + duration + 0.02);
+    });
+  }
+
+  /**
+   * 5. Cash debit sound: distinct, subtle descending payment chime (A4 -> F4 -> D4)
+   * Played strictly when the local player's balance decreases.
+   */
+  private playCashDebit(ctx: AudioContext): void {
+    const t0 = ctx.currentTime;
+    const notes = [
+      { freq: 440.00, time: 0, duration: 0.09 },     // A4
+      { freq: 349.23, time: 0.06, duration: 0.09 },  // F4
+      { freq: 293.66, time: 0.12, duration: 0.16 },  // D4
+    ];
+
+    notes.forEach(({ freq, time, duration }) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, t0 + time);
+
+      gain.gain.setValueAtTime(0, t0 + time);
+      gain.gain.linearRampToValueAtTime(this.masterVolume * 0.20, t0 + time + 0.012);
       gain.gain.exponentialRampToValueAtTime(0.001, t0 + time + duration);
 
       osc.connect(gain);

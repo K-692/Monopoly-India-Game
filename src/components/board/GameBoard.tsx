@@ -11,6 +11,7 @@ import { calculateMortgageValue, canBuildOnProperty, getAuthoritativeBailAmount,
 import { TurnStepAcknowledgment } from '@/components/feedback/TurnStepAcknowledgment';
 import { PopupTurnTimer } from '@/components/feedback/PopupTurnTimer';
 import { useToastStore } from '@/components/feedback/toast-store';
+import { sound } from '@/lib/audio/sound-engine';
 import { Dices, X, Gift, Flame, Check, ArrowRight, KeyRound, Landmark, Building2, Home, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 
@@ -98,11 +99,25 @@ export const GameBoard: React.FC<GameBoardProps> = ({
       const isPayer = tx.payerUid === userUid;
       const isRecipient = tx.recipientUid === userUid;
 
+      // Requirement 1: Start-Pass Notification Privacy
+      // Only show the credited amount to the relevant player who crossed START!
+      // Other players do not see this personal financial notification.
+      if (tx.type === 'START_REWARD') {
+        if (!isRecipient) return;
+        useToastStore.getState().addToast({
+          eventId: tx.id,
+          type: 'success',
+          title: 'START Salary',
+          message: `You received ₹${tx.amount.toLocaleString('en-IN')}`,
+          amount: tx.amount,
+          flow: 'CREDIT',
+        });
+        return;
+      }
+
       const typeLabel =
         tx.type === 'RENT'
           ? 'Rent Payment'
-          : tx.type === 'START_REWARD'
-          ? 'START Salary'
           : tx.type === 'TAX'
           ? 'Statutory Tax'
           : tx.type === 'BUY_PROPERTY'
@@ -121,6 +136,42 @@ export const GameBoard: React.FC<GameBoardProps> = ({
       });
     }
   }, [gameState.activeMoneyTransaction, userUid, walkingAnimation]);
+
+  // Requirement 6: Authoritative Player-Specific Cash Credit & Debit Transaction Sounds
+  // - Plays cash credit sound when the local player's balance increases.
+  // - Plays cash debit sound when the local player's balance decreases.
+  // - Completely silent for other players' transactions.
+  // - Deduplicated by transactionId; initial mount/reconnect populates seen IDs to prevent replay.
+  const playedTxIdsRef = useRef<Set<string>>(new Set());
+  const initialTxHydratedRef = useRef(false);
+
+  useEffect(() => {
+    if (!gameState.transactions || !userUid) return;
+
+    // On initial mount / reconnect, hydrate all existing transaction IDs so historical transactions don't play sounds
+    if (!initialTxHydratedRef.current) {
+      initialTxHydratedRef.current = true;
+      for (const tx of gameState.transactions) {
+        playedTxIdsRef.current.add(tx.transactionId);
+      }
+      return;
+    }
+
+    // Process new transactions
+    for (const tx of gameState.transactions) {
+      if (playedTxIdsRef.current.has(tx.transactionId)) continue;
+      playedTxIdsRef.current.add(tx.transactionId);
+
+      // Only play sounds for THIS authenticated local player
+      if (tx.playerUid === userUid) {
+        if (tx.direction === 'CREDIT') {
+          sound.play('CASH_CREDIT');
+        } else if (tx.direction === 'DEBIT') {
+          sound.play('CASH_DEBIT');
+        }
+      }
+    }
+  }, [gameState.transactions, userUid]);
 
   // Section 7b: Automatically bridge activeCardPopup to floating toast in bottom-left corner (3-second auto-dismiss)
   useEffect(() => {

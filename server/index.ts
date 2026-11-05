@@ -20,10 +20,16 @@ import {
   SocketData,
 } from './types/server-types';
 
-const PORT = parseInt(process.env.PORT || '4173', 10);
+const DEFAULT_PORT = parseInt(process.env.PORT || '4173', 10);
 const HOST = '0.0.0.0';
 
-export function createLanServer() {
+export interface LanServerOptions {
+  port?: number;
+  distPath?: string;
+}
+
+export function createLanServer(options?: LanServerOptions) {
+  const PORT = options?.port ?? DEFAULT_PORT;
   const app = express();
   const httpServer = http.createServer(app);
 
@@ -78,7 +84,7 @@ export function createLanServer() {
   });
 
   // Serve production-built React frontend assets from 'dist' directory
-  const distPath = path.resolve(process.cwd(), 'dist');
+  const distPath = options?.distPath ?? path.resolve(process.cwd(), 'dist');
   if (fs.existsSync(distPath)) {
     app.use(express.static(distPath));
 
@@ -103,7 +109,8 @@ export function createLanServer() {
 // Start server directly when executed as main module
 const isMain = process.argv[1] && (process.argv[1].endsWith('index.ts') || process.argv[1].endsWith('index.js'));
 if (isMain) {
-  const { httpServer } = createLanServer();
+  const PORT = DEFAULT_PORT;
+  const { httpServer } = createLanServer({ port: PORT });
 
   httpServer.listen(PORT, HOST, () => {
     const detected = getLanAddresses();
