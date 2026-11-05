@@ -29,3 +29,4 @@ try {
   console.error('Desktop build failed:', error);
   process.exit(1);
 }
+

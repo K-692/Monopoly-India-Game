@@ -90,3 +90,4 @@ if (fs.existsSync(releaseDir)) {
 console.log('\n====================================================');
 console.log('Package complete! Installers ready in release/ directory.');
 console.log('====================================================\n');
+
