@@ -576,3 +576,17 @@ When debt $D$ exceeds cash $C$:
   - `scripts/package-installers.js`: Automates pre-flight verification (checking high-resolution icon assets, ensuring directory structure), building production bundles, invoking `electron-builder` with the appropriate platform target flags, and reporting final binary file sizes.
 - **Direct Installer Access in Repository Documentation**:
   Updated `README.md` with official release download badges and direct links to GitHub Releases, empowering non-technical players to acquire standalone macOS and Windows installers with zero configuration. Streamlined player-facing documentation by isolating domain-rule invariants within `flow.md` while highlighting architecture diagrams, quick installation guides, and automated packaging commands in `README.md`.
+
+### 11.6 Official Release v1.0.0 Publication
+- **Multi-OS CI/CD Execution**:
+  Pushed release tag `v1.0.0` triggering `.github/workflows/desktop-release.yml`. The automated pipeline executed:
+  1. Full Vitest test suite validation (86 passing tests).
+  2. Native macOS Apple Silicon (`.dmg`) compilation and packaging.
+  3. Native Windows x64 NSIS (`.exe`) compilation and packaging.
+  4. Automatic asset assembly and deployment via `softprops/action-gh-release@v2`.
+- **Release Availability**:
+  - Official Release URL: `https://github.com/K-692/Monopoly-India-Game/releases/tag/v1.0.0`
+  - macOS ARM64 Installer: `Indian-Monopoly-1.0.0-arm64.dmg`
+  - Windows NSIS Installer: `Indian-Monopoly-Setup-1.0.0.exe`
+  - All direct download endpoints in `README.md` resolve to HTTP 302 live binary streams.
+
