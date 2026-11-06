@@ -192,7 +192,12 @@ export class RoomManager {
     const roomId = 'room_' + crypto.randomUUID().replace(/-/g, '').slice(0, 12);
     const inviteCode = this.generateUniqueInviteCode();
 
-    const rules = customRules ?? DEFAULT_HOST_RULES;
+    const rules: HostCustomRules = {
+      ...(customRules ?? DEFAULT_HOST_RULES),
+      startingCash: 20000,
+      passStartReward: 3000,
+      jailBail: 500,
+    };
     const maxPlayers = rules.maxPlayers ?? 4;
     const normalizedTimer: 0 | 30 | 45 | 60 =
       rules.turnTimerSeconds === 0 ? 0 :

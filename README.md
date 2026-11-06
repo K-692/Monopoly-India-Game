@@ -5,6 +5,7 @@
 
   [![License: MIT](https://img.shields.io/badge/License-MIT-amber.svg)](LICENSE)
   [![Platform: macOS & Windows](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows%20%7C%20Web-blue.svg)](#-desktop-apps--download)
+  [![Release: v1.1.0](https://img.shields.io/badge/Release-v1.1.0-orange.svg)](https://github.com/K-692/Monopoly-India-Game/releases/tag/v1.1.0)
   [![Node.js](https://img.shields.io/badge/Node.js-20%2B-green.svg)](https://nodejs.org/)
   [![TypeScript](https://img.shields.io/badge/TypeScript-5.7+-blue.svg)](https://www.typescriptlang.org/)
   [![React](https://img.shields.io/badge/React-19-61dafb.svg)](https://react.dev/)
@@ -12,7 +13,7 @@
   [![Socket.IO](https://img.shields.io/badge/Socket.IO-4.8+-010101.svg)](https://socket.io/)
   [![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4+-38b2ac.svg)](https://tailwindcss.com/)
   [![Vite](https://img.shields.io/badge/Vite-6.0+-646cff.svg)](https://vite.dev/)
-  [![Tests](https://img.shields.io/badge/Vitest-86%20Passing-brightgreen.svg)](https://vitest.dev/)
+  [![Tests](https://img.shields.io/badge/Vitest-101%20Passing-brightgreen.svg)](https://vitest.dev/)
 
   **Standalone macOS (.dmg) & Windows (.exe) desktop applications and browser play over local Wi-Fi with zero configuration!**
 </div>
@@ -31,39 +32,39 @@
 Native installable applications bundle the complete game frontend, embedded Node.js backend, and authoritative Socket.IO server into a single standalone executable. No manual Node.js, npm, or terminal commands are required for players.
 
 <div align="center" style="margin: 24px 0;">
-  <a href="https://github.com/K-692/Monopoly-India-Game/releases/latest/download/Indian-Monopoly-1.0.0-arm64.dmg">
+  <a href="https://github.com/K-692/Monopoly-India-Game/releases/tag/v1.1.0">
     <img src="https://img.shields.io/badge/Download_for-macOS_(.dmg)-007AFF?style=for-the-badge&logo=apple&logoColor=white" alt="Download for macOS" height="42" />
   </a>
   &nbsp;&nbsp;&nbsp;
-  <a href="https://github.com/K-692/Monopoly-India-Game/releases/latest/download/Indian-Monopoly-Setup-1.0.0.exe">
+  <a href="https://github.com/K-692/Monopoly-India-Game/releases/tag/v1.1.0">
     <img src="https://img.shields.io/badge/Download_for-Windows_(.exe)-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Download for Windows" height="42" />
   </a>
   &nbsp;&nbsp;&nbsp;
-  <a href="https://github.com/K-692/Monopoly-India-Game/releases/latest">
-    <img src="https://img.shields.io/badge/GitHub-All_Releases-24292e?style=for-the-badge&logo=github&logoColor=white" alt="All Releases" height="42" />
+  <a href="https://github.com/K-692/Monopoly-India-Game/releases/tag/v1.1.0">
+    <img src="https://img.shields.io/badge/GitHub-Release_v1.1.0-24292e?style=for-the-badge&logo=github&logoColor=white" alt="Release v1.1.0" height="42" />
   </a>
 </div>
 
-### 📦 Official Installer Packages
+### 📦 Official Installer Packages (v1.1.0)
 
 | Platform | Target Architecture | Package Type | Direct Download Link | Format |
 |:---|:---|:---|:---|:---|
-| **macOS** | Apple Silicon (M1/M2/M3/M4) | Native DMG Installer | [📥 **Indian-Monopoly-1.0.0-arm64.dmg**](https://github.com/K-692/Monopoly-India-Game/releases/latest/download/Indian-Monopoly-1.0.0-arm64.dmg) | `.dmg` |
-| **macOS** | Intel x64 | Native DMG Installer | [📥 **Indian-Monopoly-1.0.0-x64.dmg**](https://github.com/K-692/Monopoly-India-Game/releases/latest/download/Indian-Monopoly-1.0.0-x64.dmg) | `.dmg` |
-| **Windows** | 64-bit (x64) | NSIS Executable Installer | [📥 **Indian-Monopoly-Setup-1.0.0.exe**](https://github.com/K-692/Monopoly-India-Game/releases/latest/download/Indian-Monopoly-Setup-1.0.0.exe) | `.exe` |
-| **All Platforms** | Universal | Releases & Changelogs | [📦 **Browse All Release Assets**](https://github.com/K-692/Monopoly-India-Game/releases) | GitHub |
+| **macOS** | Apple Silicon (M1/M2/M3/M4) | Native DMG Installer | [📥 **Indian-Monopoly-1.1.0-arm64.dmg**](https://github.com/K-692/Monopoly-India-Game/releases/download/v1.1.0/Indian-Monopoly-1.1.0-arm64.dmg) | `.dmg` |
+| **macOS** | Intel x64 | Native DMG Installer | [📥 **Indian-Monopoly-1.1.0-x64.dmg**](https://github.com/K-692/Monopoly-India-Game/releases/download/v1.1.0/Indian-Monopoly-1.1.0-x64.dmg) | `.dmg` |
+| **Windows** | 64-bit (x64) | NSIS Executable Installer | [📥 **Indian-Monopoly-Setup-1.1.0.exe**](https://github.com/K-692/Monopoly-India-Game/releases/download/v1.1.0/Indian-Monopoly-Setup-1.1.0.exe) | `.exe` |
+| **All Platforms** | Universal | Releases & Changelogs | [📦 **Browse All Release Assets**](https://github.com/K-692/Monopoly-India-Game/releases/tag/v1.1.0) | GitHub |
 
 ### 🚀 Quick Installation Guide
 
 #### macOS Installation:
-1. Download the `.dmg` file for your Mac architecture ([Apple Silicon ARM64](https://github.com/K-692/Monopoly-India-Game/releases/latest/download/Indian-Monopoly-1.0.0-arm64.dmg) or [Intel x64](https://github.com/K-692/Monopoly-India-Game/releases/latest/download/Indian-Monopoly-1.0.0-x64.dmg)).
+1. Download the `.dmg` file for your Mac architecture ([Apple Silicon ARM64](https://github.com/K-692/Monopoly-India-Game/releases/download/v1.1.0/Indian-Monopoly-1.1.0-arm64.dmg) or [Intel x64](https://github.com/K-692/Monopoly-India-Game/releases/download/v1.1.0/Indian-Monopoly-1.1.0-x64.dmg)).
 2. Double-click the downloaded `.dmg` file to open the installer volume.
 3. Drag **Indian Monopoly** into your `Applications` directory.
 4. Launch the application from Spotlight or Launchpad.
    > *Note for first launch: If macOS Gatekeeper displays an unverified developer prompt, right-click `Indian Monopoly.app`, click **Open**, and confirm, or allow it under System Settings > Privacy & Security.*
 
 #### Windows Installation:
-1. Download [**Indian-Monopoly-Setup-1.0.0.exe**](https://github.com/K-692/Monopoly-India-Game/releases/latest/download/Indian-Monopoly-Setup-1.0.0.exe).
+1. Download [**Indian-Monopoly-Setup-1.1.0.exe**](https://github.com/K-692/Monopoly-India-Game/releases/download/v1.1.0/Indian-Monopoly-Setup-1.1.0.exe).
 2. Double-click the `.exe` setup file to start the installation wizard.
 3. Select your installation folder and choose whether to create desktop and Start Menu shortcuts.
 4. Click **Install**, then click **Finish** to immediately launch the game.
@@ -116,6 +117,40 @@ Native installable applications bundle the complete game frontend, embedded Node
      │  Joined via QR Code / Link    │     │        Joined via 6-char Code    │
      +───────────────────────────────+     +──────────────────────────────────+
 ```
+
+---
+
+## 🎲 Standardized Rules & Gameplay Mechanics (v1.1.0 Updates)
+
+Indian Monopoly v1.1.0 establishes authoritative, competitive rules across all client platforms:
+
+- **Fixed Room Creation Defaults**:
+  - **Starting Cash**: Exactly **₹20,000**.
+  - **Pass Start Reward**: Exactly **₹3,000** (awarded immediately as the player token crosses Start space 0, with actor-specific private notification).
+  - **Center Jail Bail**: Exactly **₹500**.
+  - *All values are locked and authoritatively enforced by the host server, preventing client-side overrides.*
+- **120-Second Financial Resolution Timer**:
+  - Debtors receive a full **120 seconds** to resolve mandatory liabilities.
+  - Server-stamped `expiresAt` deadline prevents reset on refresh or reconnection.
+  - Non-destructive **"Check Board"** inspection mode allows full board view without pausing or resetting the debt countdown.
+- **Sell-to-Bank Mechanism (Replaces Mortgage)**:
+  - Players sell cities or infrastructure to the bank for an immediate 50% cash payout (50% base property price + 50% development value).
+  - Title ownership is instantly cleared (`UNOWNED`).
+  - **Houses are preserved**: Existing buildings remain physically on the grid and are not demolished.
+  - **Acquisition by Subsequent Players**: Any player subsequently landing on the sold property can acquire it for the **exact recorded bank sale payout**, instantly inheriting all existing developments.
+  - All player-facing terminology updated: *Sell to Bank*, *Sale Payout*, *Acquire from Bank*, *Available for Acquisition*.
+- **Central Jail Key Redemption**:
+  - Incarcerated players with a **Bail Key** can select **Use Key** to exit jail instantly and proceed directly to roll the dice.
+  - Standard options (*Pay ₹500 Bail* or *Roll for Doubles*) remain available.
+- **Standardized Checkpost Fees**:
+  - **GST Checkpost (Space #8)**: Fixed at **₹500**.
+  - **Infrastructure Wealth Levy (Space #37)**: Fixed at **₹500**.
+- **Minimalist Board Grid Aesthetic**:
+  - Monetary price strings are removed from the board tiles to eliminate visual clutter. Single-line city names and clean status tags (`IN BANK`, `BLOCKED`) enhance visibility. Prices remain fully accessible via deeds and purchase popups.
+- **Instant Match Conclusion on Surrender / Disqualification**:
+  - When any active player surrenders or exceeds the 120-second resolution timer, the match terminates immediately.
+  - The remaining player with the **highest cash balance** is declared the winner (net worth acts as tie-breaker).
+  - All clients receive the final Victory Scoreboard modal detailing player ranks, final cash, and net worth.
 
 ---
 
@@ -189,7 +224,7 @@ Waiting for players...
 | `npm run build:lan` | Builds the React frontend with `/` base path explicitly targeted for LAN hosting. |
 | `npm run build` | Builds the React frontend for production distribution. |
 | `npm run server` | Starts the Node.js server directly using `tsx server/index.ts`. |
-| `npm test` | Runs the full Vitest suite (86 passing tests covering engine invariants, dice fairness, mortgage preview, Start privacy, audio triggers, and multi-client integration). |
+| `npm test` | Runs the full Vitest suite (101 passing tests covering engine invariants, dice fairness, Sell-to-Bank mechanics, 120s timer, Start privacy, and immediate match termination). |
 | `npm run typecheck` | Strict TypeScript validation across client, server, and tests (`tsc -b --noEmit`). |
 | `npm run lint` | ESLint validation across all TypeScript and React files with zero warnings. |
 

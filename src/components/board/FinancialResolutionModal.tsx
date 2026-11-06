@@ -37,12 +37,12 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
   const remainingNeeded = Math.max(0, amountDue - currentCash);
   const canPayDebt = currentCash >= amountDue;
 
-  // Authoritative 60-second synchronized countdown derived from obligation.expiresAt
+  // Authoritative 120-second synchronized countdown derived from obligation.expiresAt
   const [timeLeft, setTimeLeft] = useState<number>(() => {
     if (obligation.expiresAt) {
       return Math.max(0, Math.ceil((obligation.expiresAt - Date.now()) / 1000));
     }
-    return turnTimeRemaining ?? 60;
+    return turnTimeRemaining ?? 120;
   });
 
   useEffect(() => {
@@ -124,7 +124,7 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
                   Low-Balance Resolution
                 </h4>
                 <span className="text-[10px] text-gray-300 block">
-                  Mortgage resolution in progress
+                  Debt resolution in progress (Sell to Bank)
                 </span>
               </div>
             </div>
@@ -321,17 +321,17 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
               </span>
             ) : (
               <span>
-                You have insufficient available balance. You have an additional <strong>60-second window</strong> to <strong>Adjust Payouts</strong> by mortgaging eligible properties or <strong>Surrender</strong>. At 0 seconds, unresolved debt triggers automatic disqualification.
+                You have insufficient available balance. You have an additional <strong>120-second window</strong> to <strong>Adjust Payouts</strong> by selling eligible properties to the bank or <strong>Surrender</strong>. At 0 seconds, unresolved debt triggers automatic disqualification and immediate game end.
               </span>
             )}
           </div>
 
-          {/* Mortgageable Properties Section */}
+          {/* Sell Properties to Bank Section */}
           <div className="space-y-2">
             <div className="flex items-center justify-between px-1">
               <span className="font-bold text-[11px] uppercase tracking-wider text-gray-300 flex items-center gap-1.5">
                 <Landmark className="w-3.5 h-3.5 text-amber-400" />
-                Mortgageable Properties ({eligibleProperties.length})
+                Sell Properties to Bank ({eligibleProperties.length})
               </span>
               <span className="text-[10px] text-gray-400">
                 50% Base + Development Value
@@ -340,8 +340,8 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
 
             {eligibleProperties.length === 0 ? (
               <div className="p-4 rounded-xl bg-white/5 border border-dashed border-white/10 text-center text-gray-400 text-xs space-y-1">
-                <p className="font-bold text-gray-300">No properties eligible for mortgage.</p>
-                <p className="text-[11px]">You may choose Surrender below, or wait for the 60-second countdown to expire.</p>
+                <p className="font-bold text-gray-300">No properties eligible to sell to bank.</p>
+                <p className="text-[11px]">You may choose Surrender below, or wait for the 120-second countdown to expire.</p>
               </div>
             ) : (
               <div className="space-y-2 max-h-56 overflow-y-auto custom-scrollbar pr-1">
@@ -395,7 +395,7 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
                       </div>
 
                       <div className="text-right shrink-0">
-                        <span className="text-[9px] text-gray-400 block">Mortgage Payout</span>
+                        <span className="text-[9px] text-gray-400 block">Sale Payout</span>
                         <span className="font-mono font-bold text-xs text-amber-300">
                           +₹{mortgageVal.toLocaleString('en-IN')}
                         </span>
@@ -442,7 +442,7 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
                   </span>
                 </div>
                 <div>
-                  <span className="text-gray-400 text-[10px] block">Remaining After Mortgage</span>
+                  <span className="text-gray-400 text-[10px] block">Remaining After Sale</span>
                   <span className={cn(
                     'font-bold text-xs',
                     willCoverDebt ? 'text-emerald-400' : 'text-red-400'
@@ -460,11 +460,11 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
               ) : (
                 <div className="text-[10.5px] text-amber-300/90 flex items-center gap-1.5">
                   <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                  <span>Remaining funds will still be required before the 60s timer expires.</span>
+                  <span>Remaining funds will still be required before the 120s timer expires.</span>
                 </div>
               )}
 
-              {/* Confirm Selected Mortgages Button */}
+              {/* Confirm Selected Sales Button */}
               <div className="flex items-center gap-2 pt-1">
                 <button
                   type="button"
@@ -498,7 +498,7 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
                       : 'bg-gray-800 text-gray-500 cursor-not-allowed'
                   )}
                 >
-                  <span>Confirm Selected ({selectedSpaceIndices.length}) (+₹{totalSelectedPayout.toLocaleString('en-IN')})</span>
+                  <span>Confirm Selected Sales ({selectedSpaceIndices.length}) (+₹{totalSelectedPayout.toLocaleString('en-IN')})</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -513,7 +513,7 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
                 <span>Confirm Voluntary Surrender / Disqualification</span>
               </div>
               <p className="text-[11px] sm:text-xs text-gray-200 leading-snug">
-                Surrendering will disqualify you from the game. All your properties will be permanently marked as <strong>BLOCKED</strong> and can no longer generate rent or be traded. Your pending payment will not be processed.
+                Surrendering will disqualify you and immediately end the match. The player with the highest balance will win. All your properties will be marked as <strong>BLOCKED</strong>.
               </p>
               <div className="flex items-center justify-end gap-2.5 pt-1">
                 <button

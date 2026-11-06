@@ -24,7 +24,7 @@ describe('Pure Game Engine', () => {
     },
   };
 
-  it('initializes game state with starting cash ₹15,000 and 40 unowned spaces', () => {
+  it('initializes game state with starting cash ₹20,000 and 40 unowned spaces', () => {
     const state = createInitialGame('room_1', 'game_1', mockMembers);
     expect(state.players).toHaveLength(2);
     expect(state.players[0].cash).toBe(GAME_CONSTANTS.STARTING_CASH);
@@ -89,12 +89,12 @@ describe('Pure Game Engine', () => {
       'user_1'
     );
 
-    expect(buyRes.nextState.players[0].cash).toBe(15000 - 600);
+    expect(buyRes.nextState.players[0].cash).toBe(20000 - 600);
     expect(buyRes.nextState.properties[1].ownerUid).toBe('user_1');
     expect(buyRes.nextState.phase).toBe('MANAGEMENT');
   });
 
-  it('awards ₹2,000 reward when passing or landing on START', () => {
+  it('awards ₹3,000 reward when passing or landing on START', () => {
     const state = createInitialGame('room_1', 'game_1', mockMembers);
     state.players[0].position = 38; // Infrastructure Levy
 
@@ -112,8 +112,8 @@ describe('Pure Game Engine', () => {
       [2, 3] // 38 + 5 = 43 % 40 = 3 (passes 0)
     );
 
-    // Initial 15,000 + 2,000 Start Reward = 17,000
-    expect(nextState.players[0].cash).toBe(17000);
+    // Initial 20,000 + 3,000 Start Reward = 23,000
+    expect(nextState.players[0].cash).toBe(23000);
     expect(nextState.players[0].position).toBe(3);
   });
 
@@ -516,10 +516,10 @@ describe('Pure Game Engine', () => {
       [5, 3]
     ).nextState;
 
-    // user_1 had only ₹100, tax was ₹2,000 -> enters 60-second low-balance mortgage resolution phase
+    // user_1 had only ₹100, tax was ₹500 -> enters 120-second low-balance financial resolution phase
     expect(state.phase).toBe('ACTION_REQUIRED');
     expect(state.pendingFinancialObligation).toBeDefined();
-    expect(state.pendingFinancialObligation?.amountDue).toBe(2000);
+    expect(state.pendingFinancialObligation?.amountDue).toBe(500);
 
     // Timeout or surrender causes disqualification
     state = applyGameCommand(
@@ -1029,10 +1029,11 @@ describe('Pure Game Engine', () => {
         'user_1'
       ).nextState;
 
-      // Property is mortgaged
-      expect(state.properties[1].isMortgaged).toBe(true);
-      expect(state.properties[1].ownershipState).toBe('MORTGAGED');
-      expect(state.properties[1].mortgagePayout).toBe(300);
+      // Property is sold to bank (ownership removed, unowned, payout recorded)
+      expect(state.properties[1].ownerUid).toBeNull();
+      expect(state.properties[1].ownershipState).toBe('UNOWNED');
+      expect(state.properties[1].isMortgaged).toBe(false);
+      expect(state.properties[1].soldToBankPayout).toBe(300);
 
       // Payment was automatically resumed & settled!
       expect(state.pendingFinancialObligation).toBeNull();
@@ -1141,7 +1142,7 @@ describe('Pure Game Engine', () => {
       expect(state.transactions).toBeDefined();
       expect(state.transactions!.length).toBe(2);
       expect(state.transactions![0].type).toBe('STARTING_BALANCE');
-      expect(state.transactions![0].amount).toBe(15000);
+      expect(state.transactions![0].amount).toBe(20000);
       expect(state.transactions![0].direction).toBe('CREDIT');
     });
 

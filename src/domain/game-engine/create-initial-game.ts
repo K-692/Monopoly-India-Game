@@ -22,6 +22,14 @@ export function createInitialGame(
   customRules: HostCustomRules = DEFAULT_HOST_RULES,
   startingPlayerUid?: string
 ): GameState {
+  // Enforce standardized authoritative defaults for core financial rules
+  const sanitizedRules: HostCustomRules = {
+    ...customRules,
+    startingCash: 20000,
+    passStartReward: 3000,
+    jailBail: 500,
+  };
+
   const memberList = Object.values(members);
   const initialPlayerOrder = memberList.map((m) => m.uid);
 
@@ -48,14 +56,15 @@ export function createInitialGame(
         ownershipState: 'UNOWNED',
         isMortgaged: false,
         mortgagePayout: 0,
+        soldToBankPayout: 0,
         buildings: 0,
       };
     }
   }
 
-  // Initialize players with host-configured starting cash
-  const startingCash = customRules.startingCash || DEFAULT_HOST_RULES.startingCash;
-  const timerLimit = customRules.turnTimerSeconds || DEFAULT_HOST_RULES.turnTimerSeconds;
+  // Initialize players with standardized starting cash (₹20,000)
+  const startingCash = sanitizedRules.startingCash;
+  const timerLimit = sanitizedRules.turnTimerSeconds || DEFAULT_HOST_RULES.turnTimerSeconds;
 
   const players: PlayerState[] = memberList.map((m, index) => ({
     uid: m.uid,
@@ -108,7 +117,7 @@ export function createInitialGame(
     winnerUid: null,
     turnTimeRemaining: timerLimit,
     turnTimeLimit: timerLimit,
-    rules: customRules,
+    rules: sanitizedRules,
     startedAt: now,
     updatedAt: now,
     completedAt: null,

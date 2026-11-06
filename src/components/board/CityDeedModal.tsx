@@ -49,7 +49,9 @@ export const CityDeedModal: React.FC<CityDeedModalProps> = ({
 
   const mortgageVal = calculateMortgageValue(space.spaceIndex, propertyState || undefined);
   const reacquisitionCost =
-    propertyState?.mortgagePayout && propertyState.mortgagePayout > 0
+    propertyState?.soldToBankPayout && propertyState.soldToBankPayout > 0
+      ? propertyState.soldToBankPayout
+      : propertyState?.mortgagePayout && propertyState.mortgagePayout > 0
       ? propertyState.mortgagePayout
       : mortgageVal;
 
@@ -108,6 +110,10 @@ export const CityDeedModal: React.FC<CityDeedModalProps> = ({
                     />
                     <span className="font-bold text-xs">{owner.displayName}</span>
                   </div>
+                ) : propertyState?.soldToBankPayout && propertyState.soldToBankPayout > 0 ? (
+                  <span className="font-bold text-xs text-amber-600 dark:text-amber-400">
+                    Available for Acquisition (₹{propertyState.soldToBankPayout.toLocaleString('en-IN')})
+                  </span>
                 ) : 'price' in space ? (
                   <span className="font-bold text-xs text-emerald-600 dark:text-emerald-400">
                     Unowned (Available from Bank)
@@ -118,9 +124,13 @@ export const CityDeedModal: React.FC<CityDeedModalProps> = ({
               </div>
             </div>
 
-            {propertyState?.isMortgaged ? (
-              <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300 font-black text-[10px] border border-red-300">
-                MORTGAGED
+            {propertyState?.soldToBankPayout && propertyState.soldToBankPayout > 0 && !owner ? (
+              <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 font-black text-[10px] border border-amber-300">
+                AVAILABLE FOR ACQUISITION
+              </span>
+            ) : propertyState?.isMortgaged ? (
+              <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 font-black text-[10px] border border-amber-300">
+                AVAILABLE FOR ACQUISITION
               </span>
             ) : propertyState && propertyState.buildings > 0 ? (
               <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 font-black text-[10px] border border-amber-300">
@@ -129,23 +139,25 @@ export const CityDeedModal: React.FC<CityDeedModalProps> = ({
             ) : null}
           </div>
 
-          {/* Pricing & Mortgage Metrics */}
+          {/* Pricing & Sale to Bank Metrics */}
           {'price' in space && (
             <div className="grid grid-cols-3 gap-2 text-center">
               <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800">
-                <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-medium block">Price</span>
+                <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-medium block">
+                  {propertyState?.soldToBankPayout && propertyState.soldToBankPayout > 0 ? 'Acquisition Price' : 'Price'}
+                </span>
                 <span className="font-black text-sm text-emerald-800 dark:text-emerald-300">
-                  ₹{space.price.toLocaleString('en-IN')}
+                  ₹{(propertyState?.soldToBankPayout && propertyState.soldToBankPayout > 0 ? propertyState.soldToBankPayout : space.price).toLocaleString('en-IN')}
                 </span>
               </div>
               <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
-                <span className="text-[10px] text-amber-700 dark:text-amber-400 font-medium block">Mortgage</span>
+                <span className="text-[10px] text-amber-700 dark:text-amber-400 font-medium block">Sale Payout</span>
                 <span className="font-black text-sm text-amber-800 dark:text-amber-300">
                   ₹{mortgageVal.toLocaleString('en-IN')}
                 </span>
               </div>
               <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800">
-                <span className="text-[10px] text-blue-700 dark:text-blue-400 font-medium block">Reacquire</span>
+                <span className="text-[10px] text-blue-700 dark:text-blue-400 font-medium block">Acquire from Bank</span>
                 <span className="font-black text-sm text-blue-800 dark:text-blue-300">
                   ₹{reacquisitionCost.toLocaleString('en-IN')}
                 </span>
@@ -242,30 +254,19 @@ export const CityDeedModal: React.FC<CityDeedModalProps> = ({
             </div>
           )}
 
-          {/* Mortgage Action Button for Owner (Reacquisition requires physically landing on the city) */}
+          {/* Sell to Bank Action Button for Owner */}
           {isOwner && onDispatch && propertyState?.ownershipState !== 'BLOCKED' && (
             <div className="pt-2">
-              {!propertyState?.isMortgaged ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    onDispatch('MORTGAGE', { spaceIndex: space.spaceIndex });
-                    onClose();
-                  }}
-                  className="w-full py-2.5 rounded-xl font-bold text-xs bg-amber-500 hover:bg-amber-600 text-white shadow-md active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-1.5"
-                >
-                  <span>Mortgage {noun} (Receive ₹{mortgageVal.toLocaleString('en-IN')})</span>
-                </button>
-              ) : (
-                <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700/60 text-center">
-                  <p className="text-xs text-amber-900 dark:text-amber-200 font-bold leading-tight">
-                    {noun} is currently mortgaged.
-                  </p>
-                  <p className="text-[10.5px] text-amber-700 dark:text-amber-300/80 mt-1 leading-normal">
-                    To reacquire for ₹{reacquisitionCost.toLocaleString('en-IN')}, you must physically land on this {noun.toLowerCase()} again during your turn.
-                  </p>
-                </div>
-              )}
+              <button
+                type="button"
+                onClick={() => {
+                  onDispatch('MORTGAGE', { spaceIndex: space.spaceIndex });
+                  onClose();
+                }}
+                className="w-full py-2.5 rounded-xl font-bold text-xs bg-amber-500 hover:bg-amber-600 text-white shadow-md active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                <span>Sell {noun} to Bank (Receive ₹{mortgageVal.toLocaleString('en-IN')})</span>
+              </button>
             </div>
           )}
         </div>

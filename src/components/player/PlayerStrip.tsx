@@ -181,7 +181,7 @@ export const PlayerStrip: React.FC<PlayerStripProps> = ({
             </div>
 
             <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed font-medium">
-              You are about to give up and leave this game. All cities owned by you will become blocked for the rest of this session. Other players will not be able to purchase, sell, trade, mortgage, or collect rent from these cities. This action cannot be undone.
+              You are about to give up and leave this game. This will immediately end the match for all players! The winner will be decided among the remaining eligible players based on highest cash balance. This action cannot be undone.
             </p>
 
             <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-200 dark:border-indian-navy-800">

@@ -285,12 +285,12 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
               </span>
             )}
 
-            {/* Mortgaged indicator tag */}
-            {propertyState?.isMortgaged && !isBlocked && (
-              <span className="text-[7px] sm:text-[7.5px] font-black text-red-600 bg-red-100 dark:bg-red-950/60 border border-red-300 dark:border-red-800 px-1 rounded-full leading-none mt-0.5 z-10">
-                MORTGAGED
+            {/* Sold to bank / Mortgaged indicator tag */}
+            {((propertyState?.soldToBankPayout && propertyState.soldToBankPayout > 0 && !propertyState?.ownerUid) || propertyState?.isMortgaged) && !isBlocked ? (
+              <span className="text-[7px] sm:text-[7.5px] font-black text-amber-700 bg-amber-100 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-800 px-1 rounded-full leading-none mt-0.5 z-10">
+                IN BANK
               </span>
-            )}
+            ) : null}
 
             {/* Player Tokens landing on this grid */}
             {renderPlayerTokens()}

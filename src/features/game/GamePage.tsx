@@ -8,9 +8,10 @@ import { PlayerStrip } from '@/components/player/PlayerStrip';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import { Trophy, ArrowLeft, AlertCircle, Users, Loader2 } from 'lucide-react';
+import { Trophy, ArrowLeft, AlertCircle, Users, Loader2, Flag } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { getSocket } from '@/lib/socket/socket-client';
+import { calculateNetWorth } from '@/domain/ruleset';
 
 export const GamePage: React.FC = () => {
   const { gameId } = useParams<{ gameId: string }>();
@@ -155,28 +156,115 @@ export const GamePage: React.FC = () => {
         </div>
       )}
 
-      {/* Victory Celebration Modal */}
+      {/* Victory / Game Over Modal with Comprehensive Scoreboard */}
       {gameState.status === 'COMPLETED' && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
-          <Card className="max-w-md w-full p-6 text-center border-2 border-indian-gold-500 shadow-2xl bg-white dark:bg-indian-navy-900">
-            <div className="w-16 h-16 rounded-full bg-amber-100 text-amber-600 mx-auto flex items-center justify-center mb-4 border border-amber-300 shadow-md">
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in select-none">
+          <Card className="max-w-xl w-full p-6 text-center border-2 border-indian-gold-500 shadow-2xl bg-white dark:bg-indian-navy-900 overflow-hidden flex flex-col gap-4">
+            <div className="w-16 h-16 rounded-full bg-amber-100 text-amber-600 mx-auto flex items-center justify-center border border-amber-300 shadow-md">
               <Trophy className="w-8 h-8" />
             </div>
 
-            <h2 className="font-serif font-black text-2xl text-indian-terracotta-600 mb-1">
-              GAME OVER!
-            </h2>
-            <p className="text-base font-bold text-indian-navy-900 dark:text-indian-parchment-100 mb-4">
-              👑 {winner?.displayName} has conquered the board!
-            </p>
+            <div>
+              <h2 className="font-serif font-black text-2xl text-indian-terracotta-600 mb-1">
+                GAME OVER
+              </h2>
+              {gameState.isTie ? (
+                <p className="text-base font-bold text-indian-navy-900 dark:text-indian-parchment-100">
+                  🤝 It&apos;s a Tie! Highest Cash Balance: ₹{winner?.cash.toLocaleString('en-IN') || '0'}
+                </p>
+              ) : (
+                <p className="text-base font-bold text-indian-navy-900 dark:text-indian-parchment-100">
+                  👑 {winner?.displayName || 'Champion'} wins with ₹{winner?.cash.toLocaleString('en-IN') || '0'}!
+                </p>
+              )}
 
-            <div className="flex gap-2">
+              {gameState.gameOverReason && (
+                <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-300 text-xs font-semibold">
+                  <Flag className="w-3.5 h-3.5 shrink-0" />
+                  <span>{gameState.gameOverReason}</span>
+                  {gameState.disqualifiedPlayerName && (
+                    <span className="font-bold">({gameState.disqualifiedPlayerName})</span>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Scoreboard Table */}
+            <div className="border border-indian-parchment-300 dark:border-indian-navy-700 rounded-xl overflow-hidden text-left">
+              <div className="bg-indian-parchment-200 dark:bg-indian-navy-800/80 px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 grid grid-cols-12 gap-2">
+                <span className="col-span-1 text-center">#</span>
+                <span className="col-span-4">Player</span>
+                <span className="col-span-3 text-right">Cash</span>
+                <span className="col-span-2 text-right">Net Worth</span>
+                <span className="col-span-2 text-center">Status</span>
+              </div>
+              <div className="divide-y divide-indian-parchment-200 dark:divide-indian-navy-800 max-h-48 overflow-y-auto">
+                {[...gameState.players]
+                  .sort((a, b) => {
+                    if (a.uid === gameState.winnerUid) return -1;
+                    if (b.uid === gameState.winnerUid) return 1;
+                    return b.cash - a.cash;
+                  })
+                  .map((p, idx) => {
+                    const isWinner = p.uid === gameState.winnerUid && !gameState.isTie;
+                    const isDisqualified = p.uid === gameState.disqualifiedPlayerUid;
+                    const netWorth = calculateNetWorth(p.uid, p.cash, gameState.properties);
+
+                    return (
+                      <div
+                        key={p.uid}
+                        className={`px-3 py-2 text-xs grid grid-cols-12 gap-2 items-center ${
+                          isWinner ? 'bg-amber-50/70 dark:bg-amber-950/30 font-bold' : ''
+                        }`}
+                      >
+                        <span className="col-span-1 text-center text-gray-500 font-bold">
+                          {idx + 1}
+                        </span>
+                        <div className="col-span-4 flex items-center gap-1.5 truncate">
+                          <span
+                            className="w-2.5 h-2.5 rounded-full shrink-0"
+                            style={{ backgroundColor: p.colorToken }}
+                          />
+                          <span className="truncate">{p.displayName}</span>
+                        </div>
+                        <span className="col-span-3 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                          ₹{p.cash.toLocaleString('en-IN')}
+                        </span>
+                        <span className="col-span-2 text-right font-mono text-gray-600 dark:text-gray-300">
+                          ₹{netWorth.toLocaleString('en-IN')}
+                        </span>
+                        <div className="col-span-2 text-center">
+                          {isWinner ? (
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300">
+                              Winner 🏆
+                            </span>
+                          ) : isDisqualified ? (
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300 border border-red-300">
+                              {gameState.gameOverReason === 'PLAYER_DISQUALIFIED' ? 'Disqualified' : 'Surrendered'}
+                            </span>
+                          ) : p.isBankrupt ? (
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+                              Bankrupt
+                            </span>
+                          ) : (
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
+                              Active
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2">
               <Button
                 variant="primary"
                 onClick={() => navigate('/')}
-                className="flex-1 font-bold"
+                className="flex-1 font-bold py-2.5"
               >
-                Back to Play
+                Back to Lobby
               </Button>
             </div>
           </Card>

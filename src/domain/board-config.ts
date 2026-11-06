@@ -138,7 +138,7 @@ export const BOARD_SPACES: BoardSpaceDefinition[] = [
     type: 'TAX',
     id: 'gst_checkpost',
     name: 'GST Tax',
-    amount: 2000,
+    amount: 500,
   },
   // Space 9: Varanasi (Light Blue - Tier 2.5 Spiritual Metro) - City 6
   {
@@ -562,7 +562,7 @@ export const BOARD_SPACES: BoardSpaceDefinition[] = [
     type: 'TAX',
     id: 'infrastructure_levy',
     name: 'Infra Levy',
-    amount: 1000,
+    amount: 500,
   },
   // Space 38: New Delhi (Dark Blue - National Capital) - City 23
   {
@@ -738,7 +738,7 @@ export const MARKET_BUZZ_CARDS: CardAction[] = [
     id: 'market_2',
     deck: 'MARKET',
     title: 'Festival travel',
-    description: 'Advance to Start and collect ₹2,000.',
+    description: 'Advance to Start and collect ₹3,000.',
     actionType: 'MOVE_TO',
     targetSpace: 0,
   },

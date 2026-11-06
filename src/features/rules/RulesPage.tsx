@@ -30,7 +30,7 @@ export const RulesPage: React.FC = () => {
             Indian Monopoly Rules & Guide
           </h1>
           <p className="text-amber-100/90 text-sm max-w-xl mt-1">
-            Complete rulebook covering property acquisition, 12 Civic Fund rules, 12 Market Buzz cards, jail regulations, mortgage mechanics, and bankruptcy victory conditions.
+            Complete rulebook covering property acquisition, 12 Civic Fund rules, 12 Market Buzz cards, jail regulations, Sell to Bank mechanics, and game termination rules.
           </p>
         </div>
 
@@ -104,8 +104,8 @@ export const RulesPage: React.FC = () => {
               <h3 className="font-serif font-black text-base">Capital & Board Setup</h3>
             </div>
             <ul className="text-xs sm:text-sm text-gray-700 dark:text-gray-300 space-y-2 list-disc list-inside">
-              <li><strong>Starting Capital:</strong> Every player receives ₹15,000 cash from the Reserve Bank upon game start.</li>
-              <li><strong>START Salary:</strong> Passing or landing on START yields ₹2,000 in salary.</li>
+              <li><strong>Starting Capital:</strong> Every player receives ₹20,000 cash from the Reserve Bank upon game start.</li>
+              <li><strong>START Reward:</strong> Passing or landing on START yields ₹3,000 in reward immediately upon crossing.</li>
               <li><strong>40 Spaces:</strong> 24 premier Indian cities, 4 Transit hubs (CST Mumbai, Howrah, Chennai & Delhi Airports), 2 Utilities (Urja Grid, Jal Board), Taxes, Civic Fund, Market Buzz, and Rest/Jail.</li>
               <li><strong>Sides:</strong> Symmetrically arranged with 6 major cities and civic/market squares per perimeter side.</li>
             </ul>
@@ -249,24 +249,24 @@ export const RulesPage: React.FC = () => {
       {/* Tab 4: Bankruptcy & Special Jail Rules */}
       {activeTab === 'bankruptcy' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Strict Bankruptcy Rules */}
+          {/* Game Termination & Victory */}
           <div className="bg-white dark:bg-indian-navy-900 p-5 rounded-2xl border border-red-300 dark:border-red-900/60 shadow-sm space-y-3">
             <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
               <ShieldAlert className="w-5 h-5" />
-              <h3 className="font-serif font-black text-base">Complete Bankruptcy Invariant</h3>
+              <h3 className="font-serif font-black text-base">Game-Ending & Victory Conditions</h3>
             </div>
             <p className="text-xs sm:text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
-              Under official tournament rules, the game ends when a player is <strong>completely bankrupt</strong>:
+              Under official tournament rules, the game ends immediately upon surrender, disqualification, or bankruptcy:
             </p>
             <div className="p-3 bg-red-50 dark:bg-red-950/40 rounded-xl border border-red-200 dark:border-red-900/80 text-xs text-red-900 dark:text-red-200 space-y-2">
               <p>
-                <strong>1. Trigger Condition:</strong> A player’s cash balance reaches <strong>₹0</strong> AND they have <strong>no unmortgaged properties</strong> remaining to raise capital.
+                <strong>1. Immediate Termination on Give Up / Disqualification:</strong> If any player surrenders or their 120-second financial resolution timer expires, the match concludes instantly for all players.
               </p>
               <p>
-                <strong>2. Liquidation:</strong> All remaining property deeds held by the bankrupt player are forfeited back to the Reserve Bank.
+                <strong>2. Winner Determination:</strong> The winner is decided among the remaining eligible players based on the <strong>highest cash balance</strong>. Ties are broken by net worth.
               </p>
               <p>
-                <strong>3. Victory:</strong> When only one solvent player remains in the game, the match concludes instantly with full victory honor!
+                <strong>3. Sell to Bank:</strong> Players can sell cities or infrastructure to the bank to receive the sale payout. Houses remain on the property, and any player landing on it can acquire it for the exact sale payout.
               </p>
             </div>
           </div>
@@ -278,12 +278,12 @@ export const RulesPage: React.FC = () => {
               <h3 className="font-serif font-black text-base">Central Jail Regulations</h3>
             </div>
             <ul className="text-xs sm:text-sm text-gray-700 dark:text-gray-300 space-y-2 list-disc list-inside">
-              <li><strong>Zero Income While Incarcerated:</strong> In strict accordance with the updated rules, a player currently in Jail <strong>CANNOT earn rent</strong> from other players landing on their cities, nor collect cash awards from player contributions.</li>
+              <li><strong>Zero Income While Incarcerated:</strong> A player currently in Jail <strong>CANNOT earn rent</strong> from other players landing on their cities, nor collect cash awards.</li>
               <li><strong>Ways to Exit Jail:</strong>
                 <ul className="list-circle list-inside ml-4 mt-1 space-y-1 text-xs text-gray-600 dark:text-gray-400">
-                  <li>Pay your room's configured statutory bail (default ₹500) to the Bank on your turn.</li>
+                  <li>Use an available Bail Key.</li>
+                  <li>Pay the standard statutory bail (₹500).</li>
                   <li>Roll doubles on any of your 3 turn attempts.</li>
-                  <li>Redeem a &quot;Special Legal Exemption&quot; Get Out of Jail Free card.</li>
                 </ul>
               </li>
               <li><strong>Visiting Status:</strong> Landing on the Jail space normally through dice roll is treated as standard &quot;Just Visiting&quot; with no penalty.</li>

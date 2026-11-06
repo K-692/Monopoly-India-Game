@@ -358,7 +358,7 @@ export const LobbyPage: React.FC = () => {
             <Sliders className="w-4 h-4 text-indian-terracotta-500" />
             <span>Host Rules for this Match:</span>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs text-gray-600 dark:text-gray-300">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs text-gray-600 dark:text-gray-300">
             <div>
               Starting Cash:{' '}
               <strong className="text-indian-navy-900 dark:text-white">
@@ -375,6 +375,12 @@ export const LobbyPage: React.FC = () => {
               Pass START:{' '}
               <strong className="text-indian-navy-900 dark:text-white">
                 ₹{room.customRules.passStartReward.toLocaleString('en-IN')}
+              </strong>
+            </div>
+            <div>
+              Jail Bail:{' '}
+              <strong className="text-indian-navy-900 dark:text-white">
+                ₹{(room.customRules.jailBail ?? 500).toLocaleString('en-IN')}
               </strong>
             </div>
             <div>

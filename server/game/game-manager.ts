@@ -6,7 +6,7 @@
  */
 
 import crypto from 'crypto';
-import { GameCommand, GameState } from '../../src/domain/game-types';
+import { GameArchive, GameCommand, GameState } from '../../src/domain/game-types';
 import { createInitialGame } from '../../src/domain/game-engine/create-initial-game';
 import { applyGameCommand, EngineResult, GameEngineError } from '../../src/domain/game-engine/engine';
 import { generateFairDicePair } from '../../src/domain/game-engine/dice-fairness';
@@ -25,6 +25,7 @@ interface ProcessedCommandRecord {
 
 export class GameManager {
   private games: Map<string, GameState> = new Map();
+  private archives: Map<string, GameArchive> = new Map();
   private gameTimers: Map<string, NodeJS.Timeout> = new Map();
   private commandQueues: Map<string, Promise<unknown>> = new Map();
   private processedCommands: Map<string, ProcessedCommandRecord> = new Map();
@@ -161,6 +162,7 @@ export class GameManager {
     // Reset or stop turn timer based on new state
     if (result.nextState.status === 'COMPLETED') {
       this.stopTurnTimer(gameId);
+      this.archiveGameSession(result.nextState);
     } else {
       this.resetTurnTimer(result.nextState);
     }
@@ -339,5 +341,47 @@ export class GameManager {
 
   public getGame(gameId: string): GameState | null {
     return this.games.get(gameId) || null;
+  }
+
+  /**
+   * Persists final completed match results and player snapshots to the session archive.
+   */
+  private archiveGameSession(gameState: GameState): void {
+    if (this.archives.has(gameState.gameId)) return; // Deduplicated: archive once
+
+    const winner = gameState.players.find((p) => p.uid === gameState.winnerUid);
+    const sorted = [...gameState.players].sort((a, b) => b.cash - a.cash);
+
+    const playerSnapshots = sorted.map((p, idx) => ({
+      uid: p.uid,
+      displayName: p.displayName,
+      photoURL: p.photoURL,
+      finalCash: p.cash,
+      netWorth: p.netWorth,
+      rank: idx + 1,
+      propertiesCount: Object.values(gameState.properties).filter((prop) => prop.ownerUid === p.uid).length,
+    }));
+
+    const archive: GameArchive = {
+      archiveId: 'arch_' + gameState.gameId,
+      gameId: gameState.gameId,
+      roomId: gameState.roomId,
+      rulesetVersion: gameState.rulesetVersion,
+      playerSnapshots,
+      winnerUid: gameState.winnerUid || '',
+      winnerName: winner?.displayName || 'No Winner',
+      startedAt: gameState.startedAt,
+      completedAt: gameState.completedAt || Date.now(),
+      durationSeconds: Math.floor(((gameState.completedAt || Date.now()) - gameState.startedAt) / 1000),
+      totalTurns: gameState.turnNumber,
+      participantUids: gameState.players.map((p) => p.uid),
+      retentionUntil: Date.now() + 30 * 24 * 60 * 60 * 1000,
+    };
+
+    this.archives.set(gameState.gameId, archive);
+  }
+
+  public getArchive(gameId: string): GameArchive | null {
+    return this.archives.get(gameId) || null;
   }
 }

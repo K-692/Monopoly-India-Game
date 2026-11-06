@@ -590,3 +590,115 @@ When debt $D$ exceeds cash $C$:
   - Windows NSIS Installer: `Indian-Monopoly-Setup-1.0.0.exe`
   - All direct download endpoints in `README.md` resolve to HTTP 302 live binary streams.
 
+---
+
+## 12. Rule Modernization, Financial Mechanics Overhaul, Sell-to-Bank Engine, and v1.1.0 Multi-Platform Distribution
+
+### 12.1 Standardized Room Creation Settings & Authoritative Host Enforcement
+- **Standardized Invariant Values**:
+  To guarantee balanced competitive pacing across all matches, room creation parameters are locked to fixed global standards:
+  - **Starting Cash**: Exactly ₹20,000 (`startingCash: 20000`).
+  - **Pass Start Reward**: Exactly ₹3,000 (`passStartReward: 3000`).
+  - **Center Jail Bail**: Exactly ₹500 (`jailBail: 500`).
+- **UI Elimination of Configurable Inputs**:
+  In `CreateRoomRulesModal.tsx`, legacy sliders, dropdowns, and text fields for starting cash, Start salary, and jail bail were removed entirely. They are replaced by fixed informative rule badges clearly stating the non-customizable values.
+- **Server-Authoritative Override Rejection**:
+  The authoritative host engine (`room-manager.ts` and `create-initial-game.ts`) ignores or explicitly overrides any client-supplied parameters for these three settings. Even if a modified WebSocket payload transmits non-standard values, the server stamps `20000`, `3000`, and `500` into the session ruleset, ensuring consistency across Web, macOS, Windows, and LAN clients.
+
+### 12.2 Authoritative 120-Second Financial Resolution Timer & Race-Free Timeout Pipeline
+- **Monotonic 120-Second Deadline**:
+  The financial debt resolution timer was extended from 60 seconds to 120 seconds (`GAME_CONSTANTS.FINANCIAL_RESOLUTION_TIMER_SECONDS = 120`).
+- **State Serialization & Reconnection Resistance**:
+  The deadline is stamped authoritatively as `debtResolution.expiresAt = Date.now() + 120000`. The remaining countdown is derived client-side via:
+  $$\Delta t_{\text{remaining}} = \max\left(0, \left\lfloor \frac{\text{expiresAt} - \text{Date.now()}}{1000} \right\rfloor\right)$$
+  Page refreshes, modal dismissals, network reconnections, or switching to the read-only "Check Board" preview mode cannot reset or alter the authoritative countdown.
+- **Race Condition Immunity**:
+  Action handlers in `engine.ts` lock state transitions. If a player submits a valid mortgage/sell-to-bank liquidation at $t$, the debt obligation is cleared before the timeout handler can execute. Conversely, if $t \ge \text{expiresAt}$, the engine strictly executes disqualification/surrender and rejects subsequent liquidation actions.
+
+### 12.3 Sell-to-Bank Mechanism Replacing Legacy Mortgage
+- **Paradigm Shift from Mortgage to Bank Liquidation**:
+  The legacy mortgage mechanic (where a player retains title while a property is rendered inactive) has been fully replaced with an authentic **Sell to Bank** economic model.
+- **Selling to Bank Formula & State Mutation**:
+  When player $p$ sells city or infrastructure $c$ to the central bank:
+  1. **Bank Payout**: The bank credits the player's balance with 50% of the base property cost plus 50% of any built house investments:
+     $$P_{\text{sell}} = \left\lfloor 0.5 \times C_{\text{base}} \right\rfloor + \left\lfloor 0.5 \times N_{\text{houses}} \times C_{\text{house}} \right\rfloor$$
+  2. **Ownership Revocation**: Property title is immediately stripped from the seller:
+     $$\text{ownerUid}(c) \gets \text{null}, \quad \text{ownershipState}(c) \gets \text{'UNOWNED'}$$
+  3. **Preservation of Existing Houses**: Built developments remain physically situated on the grid:
+     $$N_{\text{houses}}(c, t^+) = N_{\text{houses}}(c, t^-)$$
+     Houses are neither demolished nor refunded to zero; they remain physically constructed on the land.
+  4. **Acquisition Price Pegging**: The property stores the exact bank payout:
+     $$\text{soldToBankPayout}(c) \gets P_{\text{sell}}$$
+- **Acquisition by Subsequent Players**:
+  When any player $p_{\text{visitor}}$ (including or excluding the previous owner) lands on an unowned property that was previously sold to the bank ($\text{soldToBankPayout} > 0$):
+  - **Acquisition Cost**: The acquisition price is strictly pegged to $P_{\text{sell}}$ (the exact amount paid out by the bank):
+    $$C_{\text{acquire}} = \text{soldToBankPayout}(c)$$
+  - **Asset Inheritance**: Upon paying $C_{\text{acquire}}$, $p_{\text{visitor}}$ becomes the new owner, inheriting all existing houses already situated on the city.
+  - **Clearing Bank Payout Flag**: $\text{soldToBankPayout}(c) \gets \text{null}$.
+- **Immutable Transaction Records**:
+  Both the bank sale and subsequent acquisition generate distinct, immutable transaction ledger entries containing `transactionId`, `sessionId`, `playerUid`, `propertyId`, `type: 'MORTGAGE'` (labeled "Sell to Bank"), `direction: 'CREDIT'`/`'DEBIT'`, `amount`, pre/post balances, and server timestamps.
+
+### 12.4 Immediate Pass Start Personal Credit Popup & Actor Privacy
+- **Real-Time Crossing Detection**:
+  In `GameBoard.tsx` and the movement coordinator, when a player token's step index advances through space index 0 during clockwise traversal, the ₹3,000 credit transaction triggers immediately. The UI does not delay notification until the multi-second token walking animation terminates at the destination space.
+- **Actor-Specific Toast & Deduplication**:
+  The personal salary toast is filtered so that only the recipient sees the celebration popup. Transaction deduplication keyed by `tx.id` guarantees that re-renders and WebSocket reconnects never replay duplicate popups or audio chimes.
+
+### 12.5 Jail Release Hierarchy & Bail Key Protocol
+- **State Invariants in Central Jail**:
+  When an incarcerated player begins their turn (`phase: 'IN_JAIL'`):
+  - **Bail Key Check**: If the player possesses one or more Bail Keys (`jailFreeCards > 0`), the UI prominently displays the **Use Key (N)** button.
+  - **Key Consumption**: Selecting **Use Key** dispatches `USE_JAIL_CARD`, authoritatively decrementing `jailFreeCards` by 1, setting `inJail: false`, `jailTurns: 0`, and transitioning the phase to `AWAIT_ROLL`.
+  - **Standard Options**: If no Bail Key is owned, the interface presents strictly two standard avenues:
+    1. **Pay Bail**: Pay the fixed ₹500 fee and exit immediately.
+    2. **Roll for Doubles**: Attempt to roll matching dice faces within the 3-turn limit.
+
+### 12.6 Standardized Checkpost Fees
+- **Economic Calibration**:
+  Both government taxation checkposts have been standardized to exactly ₹500:
+  - **GST Checkpost (Space #8)**: ₹500 fee (`board-config.ts` and `ruleset.ts`).
+  - **Infrastructure Wealth Levy (Space #37)**: ₹500 fee (`board-config.ts` and `ruleset.ts`).
+
+### 12.7 Clean Grid Typography & In-Grid Price Removal
+- **Minimalist Aesthetic**:
+  Monetary price strings were removed from the physical board tile faces in `BoardSpaceTile.tsx`. Grid spaces now cleanly present:
+  - Color banner and single-line city name.
+  - Development indicator bars (green blocks and gold commercial towers).
+  - Clean status pills (`IN BANK` when unowned with recorded bank payout; `BLOCKED` if owned by disqualified player).
+  - Purchase and acquisition prices remain fully transparent and accessible via the property deed modal and landing popups.
+
+### 12.8 Immediate Game Termination on Surrender or Disqualification
+- **Instant Match Completion**:
+  When an active player surrenders (`GIVE_UP`) or exceeds the 120-second debt resolution timer, the game engine terminates the match immediately:
+  $$\text{gameState.status} \gets \text{'COMPLETED'}, \quad \text{gameState.phase} \gets \text{'GAME_OVER'}$$
+- **Balance-First Winner Determination Formula**:
+  The winner is determined from the remaining active players strictly by highest cash balance. In the event of equal cash, net worth acts as the deterministic tie-breaker:
+  $$W = \arg\max_{p \in \mathcal{P}_{\text{active}}} \left( \text{cash}(p) \times 10^{12} + \text{netWorth}(p) \right)$$
+- **Scoreboard Modal & Reason Annotation**:
+  All clients receive the final game-over broadcast and display the Victory Scoreboard modal, annotating the conclusion reason (`"Match ended immediately after a player surrendered / was disqualified."`), the winning player's final cash, total net worth, and rankings.
+- **Session Archiving**:
+  Upon transition to `COMPLETED`, `GameManager.archiveGameSession` purges active room listeners and persists the terminal match snapshot to the persistent records store.
+
+### 12.9 Universal Player-Facing Terminology Migration
+- Deprecated all player-facing occurrences of "Mortgage" across the entire application:
+  - **Buttons & Prompts**: "Sell to Bank", "Sell City to Bank", "Acquire from Bank", "Available for Acquisition".
+  - **Deed Modals**: "Sale Payout", "Acquisition Price", "In Bank".
+  - **Resolution Modals**: "Sell Properties to Bank", "Adjust Payouts".
+  - **Rule Books & Help Panels**: Updated `RulesModal.tsx` and `RulesPage.tsx` with complete explanations of the Sell-to-Bank and Bank Acquisition mechanics.
+
+### 12.10 Comprehensive Verification Suite & Test Coverage
+- **101 Passing Vitest Unit and Integration Tests**:
+  - `src/tests/rule-updates-acceptance.test.ts`: 15 comprehensive end-to-end acceptance scenarios validating fixed room creation defaults, client override rejection, 120s monotonic timer, Sell-to-Bank ownership revocation, house preservation on sold cities, bank reacquisition pricing, Bail Key consumption, ₹500 GST and Infra levy, and instant game conclusion on surrender with cash-based winner selection.
+  - `src/domain/game-engine/engine.test.ts`: Complete core engine state machine tests.
+  - `src/tests/low-balance-mortgage-resolution.test.ts`: Debt resolution workflows under 120s timer.
+  - `src/tests/multiplayer-turns-and-cards.test.ts`: Multi-player turn progression and card resolution.
+  - `src/tests/popup-and-notification.test.ts`: Start pass salary privacy and popup deduplication.
+  - `src/tests/bail-dice-mortgage-responsive.test.ts`: Responsive layouts, jail release options, and liquidation.
+- **Zero Lint & Zero TypeScript Errors**: `tsc -b --noEmit` and `eslint .` pass cleanly with 0 errors and 0 warnings.
+
+### 12.11 Multi-Platform Desktop Packaging & GitHub Release v1.1.0
+- **Version Increment**: Bumped `package.json` and `ruleset.ts` to `1.1.0`.
+- **macOS Apple Silicon Packaging**: Built native `Indian-Monopoly-1.1.0-arm64.dmg` (130 MB) via `npm run dist:mac`.
+- **Windows Packaging Automation**: Configured `.github/workflows/desktop-release.yml` with `windows-latest` runner for native NSIS compilation (`Indian-Monopoly-Setup-1.1.0.exe`).
+- **Release Assets**: Tagged `v1.1.0` with full changelog, direct installer binaries, and updated documentation.
+

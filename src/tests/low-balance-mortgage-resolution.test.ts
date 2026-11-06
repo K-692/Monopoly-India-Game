@@ -53,10 +53,10 @@ describe('60-Second Low-Balance Mortgage Resolution & Disqualification', () => {
     expect(state.pendingFinancialObligation?.remainingAmountDue).toBe(300); // 400 - 100
     expect(state.pendingFinancialObligation?.status).toBe('PENDING');
 
-    // 2. Authoritative 60-second deadline established
-    expect(state.turnTimeRemaining).toBe(60);
-    expect(state.pendingFinancialObligation?.expiresAt).toBeGreaterThan(Date.now() + 50000);
-    expect(state.pendingFinancialObligation?.expiresAt).toBeLessThanOrEqual(Date.now() + 61000);
+    // 2. Authoritative 120-second deadline established
+    expect(state.turnTimeRemaining).toBe(120);
+    expect(state.pendingFinancialObligation?.expiresAt).toBeGreaterThan(Date.now() + 110000);
+    expect(state.pendingFinancialObligation?.expiresAt).toBeLessThanOrEqual(Date.now() + 121000);
 
     // user_1 cash is preserved (paused, not yet deducted)
     expect(state.players[0].cash).toBe(100);
@@ -76,10 +76,10 @@ describe('60-Second Low-Balance Mortgage Resolution & Disqualification', () => {
       'user_1'
     ).nextState;
 
-    // Property state updated to MORTGAGED
-    expect(state.properties[1].isMortgaged).toBe(true);
-    expect(state.properties[1].ownershipState).toBe('MORTGAGED');
-    expect(state.properties[1].mortgagePayout).toBe(300);
+    // Property state updated to UNOWNED / sold to bank
+    expect(state.properties[1].ownershipState).toBe('UNOWNED');
+    expect(state.properties[1].ownerUid).toBeNull();
+    expect(state.properties[1].soldToBankPayout).toBe(300);
 
     // Original payment completed automatically: 400 - 400 = 0
     expect(state.players[0].cash).toBe(0);
@@ -156,9 +156,13 @@ describe('60-Second Low-Balance Mortgage Resolution & Disqualification', () => {
       'user_1'
     ).nextState;
 
-    // Both properties mortgaged
-    expect(state.properties[1].isMortgaged).toBe(true);
-    expect(state.properties[3].isMortgaged).toBe(true);
+    // Both properties sold to bank
+    expect(state.properties[1].ownershipState).toBe('UNOWNED');
+    expect(state.properties[1].ownerUid).toBeNull();
+    expect(state.properties[1].soldToBankPayout).toBe(300);
+    expect(state.properties[3].ownershipState).toBe('UNOWNED');
+    expect(state.properties[3].ownerUid).toBeNull();
+    expect(state.properties[3].soldToBankPayout).toBe(300);
 
     // Total raised = 300 + 300 = 600 >= 400. Remaining cash = 600 - 400 = 200
     expect(state.players[0].cash).toBe(200);
@@ -245,9 +249,9 @@ describe('60-Second Low-Balance Mortgage Resolution & Disqualification', () => {
     expect(state.players[0].isBankrupt).toBe(true);
     expect(state.players[0].isDisqualified).toBe(true);
 
-    // All properties of debtor are permanently BLOCKED
-    expect(state.properties[1].ownershipState).toBe('BLOCKED');
-    expect(state.properties[1].ownerUid).toBe('user_1'); // Never unowned!
+    // Property 1 was sold to bank (unowned in bank)
+    expect(state.properties[1].ownershipState).toBe('UNOWNED');
+    expect(state.properties[1].ownerUid).toBeNull();
 
     // Obligation cleared
     expect(state.pendingFinancialObligation).toBeNull();
@@ -256,8 +260,9 @@ describe('60-Second Low-Balance Mortgage Resolution & Disqualification', () => {
     expect(state.players[0].cash).toBe(0);
     expect(state.players[1].cash).toBe(u2CashBefore + 400);
 
-    // Turn advanced to user_2
-    expect(state.currentPlayerUid).toBe('user_2');
+    // Section 9: Immediate game termination on disqualification
+    expect(state.status).toBe('COMPLETED');
+    expect(state.winnerUid).toBe('user_2');
   });
 
   // =========================================================================
@@ -313,8 +318,9 @@ describe('60-Second Low-Balance Mortgage Resolution & Disqualification', () => {
     // Pending payment not processed, obligation cancelled
     expect(state.pendingFinancialObligation).toBeNull();
 
-    // Turn advanced to next player
-    expect(state.currentPlayerUid).toBe('user_2');
+    // Section 9: Immediate game termination on surrender
+    expect(state.status).toBe('COMPLETED');
+    expect(state.winnerUid).toBe('user_2');
   });
 
   // =========================================================================

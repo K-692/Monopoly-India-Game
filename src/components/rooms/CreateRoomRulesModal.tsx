@@ -23,7 +23,12 @@ export const CreateRoomRulesModal: React.FC<CreateRoomRulesModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onCreate(rules);
+    onCreate({
+      ...rules,
+      startingCash: 20000,
+      passStartReward: 3000,
+      jailBail: 500,
+    });
   };
 
   return (
@@ -53,26 +58,24 @@ export const CreateRoomRulesModal: React.FC<CreateRoomRulesModalProps> = ({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 text-xs">
-          {/* Starting Cash */}
-          <div>
-            <label className="block font-bold text-indian-navy-900 dark:text-indian-parchment-100 mb-1.5 uppercase tracking-wider">
-              Starting Cash (₹)
-            </label>
-            <div className="grid grid-cols-4 gap-2">
-              {[10000, 15000, 20000, 25000].map((amt) => (
-                <button
-                  type="button"
-                  key={amt}
-                  onClick={() => setRules({ ...rules, startingCash: amt })}
-                  className={`py-2 rounded-lg font-bold border transition-all ${
-                    rules.startingCash === amt
-                      ? 'bg-indian-terracotta-500 text-white border-indian-terracotta-600 shadow-xs'
-                      : 'bg-indian-parchment-100 dark:bg-indian-navy-800 text-indian-navy-900 dark:text-gray-300 border-indian-parchment-300'
-                  }`}
-                >
-                  ₹{amt.toLocaleString('en-IN')}
-                </button>
-              ))}
+          {/* Standardized Fixed Rules Section */}
+          <div className="p-3 bg-indian-parchment-100/70 dark:bg-indian-navy-800/80 rounded-xl border border-indian-parchment-300 dark:border-indian-navy-700 space-y-2">
+            <span className="text-[10px] font-black uppercase tracking-wider text-indian-terracotta-600 block">
+              Standard Game Rules (Fixed)
+            </span>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="p-2 rounded-lg bg-white dark:bg-indian-navy-900 border border-indian-parchment-200 dark:border-indian-navy-800 text-center">
+                <span className="text-[10px] text-gray-500 block">Starting Cash</span>
+                <span className="font-bold text-indian-navy-950 dark:text-white text-xs">₹20,000</span>
+              </div>
+              <div className="p-2 rounded-lg bg-white dark:bg-indian-navy-900 border border-indian-parchment-200 dark:border-indian-navy-800 text-center">
+                <span className="text-[10px] text-gray-500 block">Pass START</span>
+                <span className="font-bold text-emerald-600 dark:text-emerald-400 text-xs">₹3,000</span>
+              </div>
+              <div className="p-2 rounded-lg bg-white dark:bg-indian-navy-900 border border-indian-parchment-200 dark:border-indian-navy-800 text-center">
+                <span className="text-[10px] text-gray-500 block">Jail Bail</span>
+                <span className="font-bold text-amber-600 dark:text-amber-400 text-xs">₹500</span>
+              </div>
             </div>
           </div>
 
@@ -117,52 +120,6 @@ export const CreateRoomRulesModal: React.FC<CreateRoomRulesModalProps> = ({
                   }`}
                 >
                   {num} Players
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Pass START Reward */}
-          <div>
-            <label className="block font-bold text-indian-navy-900 dark:text-indian-parchment-100 mb-1.5 uppercase tracking-wider">
-              Pass START Reward (₹)
-            </label>
-            <div className="grid grid-cols-3 gap-2">
-              {[1000, 2000, 3000].map((amt) => (
-                <button
-                  type="button"
-                  key={amt}
-                  onClick={() => setRules({ ...rules, passStartReward: amt })}
-                  className={`py-2 rounded-lg font-bold border transition-all ${
-                    rules.passStartReward === amt
-                      ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs'
-                      : 'bg-indian-parchment-100 dark:bg-indian-navy-800 text-indian-navy-900 dark:text-gray-300 border-indian-parchment-300'
-                  }`}
-                >
-                  ₹{amt.toLocaleString('en-IN')}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Jail Bail */}
-          <div>
-            <label className="block font-bold text-indian-navy-900 dark:text-indian-parchment-100 mb-1.5 uppercase tracking-wider">
-              Central Jail Bail (₹)
-            </label>
-            <div className="grid grid-cols-2 gap-2">
-              {[500, 1000].map((amt) => (
-                <button
-                  type="button"
-                  key={amt}
-                  onClick={() => setRules({ ...rules, jailBail: amt })}
-                  className={`py-2 rounded-lg font-bold border transition-all ${
-                    rules.jailBail === amt
-                      ? 'bg-amber-600 text-white border-amber-700 shadow-xs'
-                      : 'bg-indian-parchment-100 dark:bg-indian-navy-800 text-indian-navy-900 dark:text-gray-300 border-indian-parchment-300'
-                  }`}
-                >
-                  ₹{amt.toLocaleString('en-IN')}
                 </button>
               ))}
             </div>

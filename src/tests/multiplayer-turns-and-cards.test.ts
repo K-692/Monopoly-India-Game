@@ -474,9 +474,9 @@ describe('Indian Monopoly Comprehensive Hardening Suite', () => {
           // Startup Grant: ₹800 credit
           expect(res.nextState.players[0].cash).toBe(startCash + 800);
         } else if (ruleIndex === 2) {
-          // Festival Travel to Start: space 0 + ₹2,000 salary
+          // Festival Travel to Start: space 0 + ₹3,000 salary
           expect(res.nextState.players[0].position).toBe(0);
-          expect(res.nextState.players[0].cash).toBe(startCash + 2000);
+          expect(res.nextState.players[0].cash).toBe(startCash + 3000);
         } else if (ruleIndex === 3) {
           // Business Conference: Connaught Place (space 38)
           expect(res.nextState.players[0].position).toBe(38);
@@ -564,36 +564,34 @@ describe('Indian Monopoly Comprehensive Hardening Suite', () => {
       const prop3 = nextState.properties[3];
       expect(prop3.ownershipState).toBe('BLOCKED');
 
-      // Verify that another player landing on a BLOCKED property pays ₹0 rent
-      const cashU2Before = nextState.players[1].cash;
-      nextState.currentPlayerUid = 'user_2';
-      nextState.phase = 'AWAIT_ROLL';
-      nextState.players[1].position = 0;
+      // Section 9: Immediate game termination on surrender
+      expect(nextState.status).toBe('COMPLETED');
+      expect(nextState.winnerUid).toBe('user_2');
+      expect(nextState.disqualifiedPlayerUid).toBe('user_1');
 
-      const u2LandOnBlocked = applyGameCommand(nextState, {
-        commandId: 'cmd_u2_land_blocked',
-        roomId: nextState.roomId,
-        gameId: nextState.gameId,
-        expectedVersion: nextState.version,
-        type: 'ROLL_DICE',
-        payload: {},
-      }, 'user_2', [0, 1]); // lands on space 1
-
-      expect(u2LandOnBlocked.nextState.players[1].cash).toBe(cashU2Before);
-      // Not in PROPERTY_DECISION or ACTION_REQUIRED, since blocked cannot be bought or rented
-      expect(u2LandOnBlocked.nextState.phase).not.toBe('PROPERTY_DECISION');
+      // Verify that further gameplay actions are rejected because match has concluded immediately
+      expect(() => {
+        applyGameCommand(nextState, {
+          commandId: 'cmd_u2_land_blocked',
+          roomId: nextState.roomId,
+          gameId: nextState.gameId,
+          expectedVersion: nextState.version,
+          type: 'ROLL_DICE',
+          payload: {},
+        }, 'user_2', [0, 1]);
+      }).toThrow('Game has already concluded');
 
       // Verify blocked property cannot be mortgaged or unmortgaged
       expect(() => {
-        applyGameCommand(u2LandOnBlocked.nextState, {
+        applyGameCommand(nextState, {
           commandId: 'cmd_mortgage_blocked',
-          roomId: u2LandOnBlocked.nextState.roomId,
-          gameId: u2LandOnBlocked.nextState.gameId,
-          expectedVersion: u2LandOnBlocked.nextState.version,
+          roomId: nextState.roomId,
+          gameId: nextState.gameId,
+          expectedVersion: nextState.version,
           type: 'MORTGAGE',
           payload: { spaceIndex: 1 },
         }, 'user_1');
-      }).toThrow();
+      }).toThrow('Game has already concluded');
     });
   });
 

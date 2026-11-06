@@ -236,7 +236,7 @@ export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
                               <span>Undeveloped</span>
                             )}
                             {state.isMortgaged && (
-                              <span className="font-bold text-red-600"> • Mortgaged</span>
+                              <span className="font-bold text-amber-600"> • Sold to Bank</span>
                             )}
                           </div>
                         </div>

@@ -91,17 +91,13 @@ export const GameBoard: React.FC<GameBoardProps> = ({
 
   // Section 7: Automatically bridge activeMoneyTransaction to floating toast in bottom-left corner
   useEffect(() => {
-    // Requirement 4: Wait until pawn finishes walking and lands on destination before displaying notification
-    if (walkingAnimation) return;
-
     if (gameState.activeMoneyTransaction) {
       const tx = gameState.activeMoneyTransaction;
-      const isPayer = tx.payerUid === userUid;
       const isRecipient = tx.recipientUid === userUid;
 
-      // Requirement 1: Start-Pass Notification Privacy
+      // Section 5: Start-Pass Notification Privacy & Immediate Trigger
       // Only show the credited amount to the relevant player who crossed START!
-      // Other players do not see this personal financial notification.
+      // Triggers immediately as player crosses START without waiting for entire walking sequence to finish.
       if (tx.type === 'START_REWARD') {
         if (!isRecipient) return;
         useToastStore.getState().addToast({
@@ -114,6 +110,15 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         });
         return;
       }
+    }
+
+    // For destination-dependent landing notices (Rent, Tax, City Purchase), wait until pawn finishes walking
+    if (walkingAnimation) return;
+
+    if (gameState.activeMoneyTransaction) {
+      const tx = gameState.activeMoneyTransaction;
+      const isPayer = tx.payerUid === userUid;
+      const isRecipient = tx.recipientUid === userUid;
 
       const typeLabel =
         tx.type === 'RENT'
@@ -663,7 +668,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                       className="px-3 py-2 rounded-full font-bold text-xs text-amber-200 bg-amber-950/80 hover:bg-amber-900 border border-amber-600/60 shadow-md active:scale-95 transition-all flex items-center gap-1 cursor-pointer min-h-[44px]"
                     >
                       <Landmark className="w-3.5 h-3.5" />
-                      <span>Mortgage</span>
+                      <span>Sell to Bank</span>
                     </button>
                   )}
                   <button
@@ -677,6 +682,17 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                 </div>
               ) : isMyTurn && gameState.phase === 'JAIL_DECISION' && !walkingAnimation ? (
                 <div className="flex items-center gap-1.5 flex-wrap justify-center">
+                  {Boolean(activePlayer?.jailFreeCards && activePlayer.jailFreeCards > 0) && (
+                    <button
+                      type="button"
+                      onClick={() => onDispatch?.('USE_JAIL_CARD')}
+                      className="px-3 py-2 rounded-full font-bold text-xs text-white bg-emerald-600 hover:bg-emerald-500 active:scale-95 shadow-xs cursor-pointer flex items-center gap-1.5 min-h-[44px]"
+                      title="Use Bail Key to leave Central Jail immediately"
+                    >
+                      <KeyRound className="w-3.5 h-3.5" />
+                      <span>Use Key ({activePlayer?.jailFreeCards})</span>
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => onDispatch?.('PAY_BAIL')}
@@ -697,7 +713,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                     className="px-3 py-2 rounded-full font-bold text-xs text-white bg-amber-600 hover:bg-amber-500 active:scale-95 shadow-xs cursor-pointer flex items-center gap-1.5 min-h-[44px]"
                   >
                     <Dices className="w-3.5 h-3.5" />
-                    <span>Try Doubles</span>
+                    <span>Roll for Doubles</span>
                   </button>
                 </div>
               ) : walkingAnimation ? (
@@ -801,19 +817,27 @@ export const GameBoard: React.FC<GameBoardProps> = ({
               )}
             />
 
-            {/* Pointed Box Content: Buy Property Prompt */}
+            {/* Pointed Box Content: Buy / Acquire Property Prompt */}
               {isPropertyDecision && isUnownedPurchasable && canAffordCity && 'price' in playerSpace && (
                 <>
                   <div className="flex items-center justify-between border-b border-white/20 pb-1.5">
                     <span className="font-serif font-black text-xs text-amber-200">
-                      🏙️ Buy {propertyNoun}?
+                      {playerPropState?.soldToBankPayout ? `🏛️ Acquire ${propertyNoun}?` : `🏙️ Buy ${propertyNoun}?`}
                     </span>
                     <span className="font-black text-emerald-400 text-xs">
-                      ₹{playerSpace.price.toLocaleString('en-IN')}
+                      ₹{(playerPropState?.soldToBankPayout || playerSpace.price).toLocaleString('en-IN')}
                     </span>
                   </div>
                   <p className="text-[11px] text-gray-200 leading-tight">
-                    Acquire <strong className="text-white">{playerSpace.name}</strong> for ₹{playerSpace.price.toLocaleString('en-IN')}? (Mortgage: ₹{('mortgageValue' in playerSpace ? playerSpace.mortgageValue : Math.floor((playerSpace as { price: number }).price / 2)).toLocaleString('en-IN')})
+                    {playerPropState?.soldToBankPayout ? (
+                      <>
+                        Acquire <strong className="text-white">{playerSpace.name}</strong> from bank for ₹{playerPropState.soldToBankPayout.toLocaleString('en-IN')}? All existing developments are preserved!
+                      </>
+                    ) : (
+                      <>
+                        Acquire <strong className="text-white">{playerSpace.name}</strong> for ₹{playerSpace.price.toLocaleString('en-IN')}? (Bank Sale Payout: ₹{('mortgageValue' in playerSpace ? playerSpace.mortgageValue : Math.floor((playerSpace as { price: number }).price / 2)).toLocaleString('en-IN')})
+                      </>
+                    )}
                   </p>
                   <div className="flex items-center gap-1.5 pt-1">
                     <button
@@ -822,7 +846,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                       className="flex-1 py-2 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-500 text-white shadow-md active:scale-95 transition-all flex items-center justify-center gap-1 cursor-pointer min-h-[44px]"
                     >
                       <Check className="w-3.5 h-3.5" />
-                      <span>Buy {propertyNoun}</span>
+                      <span>{playerPropState?.soldToBankPayout ? `Acquire ${propertyNoun}` : `Buy ${propertyNoun}`}</span>
                     </button>
                     <button
                       type="button"
@@ -869,19 +893,19 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                 </>
               )}
 
-              {/* Pointed Box Content: Reacquire Mortgaged Property Prompt (Requirement 3 & 4) */}
+              {/* Pointed Box Content: Reacquire Property from Bank Prompt */}
               {isOwnMortgagedCity && canAffordReacquire && (
                 <>
                   <div className="flex items-center justify-between border-b border-white/20 pb-1.5">
                     <span className="font-serif font-black text-xs text-amber-200">
-                      🔄 Reacquire {propertyNoun}?
+                      🔄 Acquire {propertyNoun} from Bank?
                     </span>
                     <span className="font-black text-emerald-400 text-xs">
                       ₹{reacquisitionCost.toLocaleString('en-IN')}
                     </span>
                   </div>
                   <p className="text-[11px] text-gray-200 leading-tight">
-                    Reacquire <strong className="text-white">{playerSpace.name}</strong> for ₹{reacquisitionCost.toLocaleString('en-IN')}? All existing developments are preserved and rent collection will resume.
+                    Acquire <strong className="text-white">{playerSpace.name}</strong> from the bank for ₹{reacquisitionCost.toLocaleString('en-IN')}? All existing developments are preserved and rent collection will resume.
                   </p>
                   <div className="flex items-center gap-1.5 pt-1">
                     <button
@@ -895,7 +919,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                       className="flex-1 py-2 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-500 text-white shadow-md active:scale-95 transition-all flex items-center justify-center gap-1 cursor-pointer min-h-[44px]"
                     >
                       <Check className="w-3.5 h-3.5" />
-                      <span>Reacquire {propertyNoun}</span>
+                      <span>Acquire {propertyNoun}</span>
                     </button>
                     <button
                       type="button"
@@ -938,11 +962,11 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                 </div>
                 <div>
                   <h3 className="font-serif font-black text-sm sm:text-base tracking-wide text-amber-300 uppercase">
-                    Mortgage Cities (Raise Capital)
+                    Sell Properties to Bank (Raise Capital)
                   </h3>
                   <div className="flex items-center gap-2 mt-0.5">
                     <span className="text-[11px] text-gray-300">
-                      Mortgaging a city provides 50% value and restarts turn timer
+                      Selling a property to the bank pays its payout value and makes it available for acquisition
                     </span>
                   </div>
                 </div>
@@ -960,7 +984,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             <div className="p-4 space-y-2 overflow-y-auto max-h-[60vh] custom-scrollbar text-xs">
               <div className="flex items-center justify-between px-1">
                 <span className="font-bold text-[11px] uppercase tracking-wider text-gray-400">
-                  Select City to Mortgage ({myMortgageableProperties.length})
+                  Select Property to Sell to Bank ({myMortgageableProperties.length})
                 </span>
                 <span className="inline-flex items-center gap-1 text-[10px] text-amber-300 font-mono">
                   <Clock className="w-3 h-3" />
@@ -1014,7 +1038,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                       }}
                       className="px-3.5 py-1.5 rounded-xl font-bold text-xs bg-amber-500 hover:bg-amber-400 text-indian-navy-950 active:scale-95 transition-all shadow-md cursor-pointer"
                     >
-                      Mortgage City
+                      Sell to Bank
                     </button>
                   </div>
                 </div>
@@ -1024,7 +1048,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             {/* Footer */}
             <div className="p-3 bg-black/40 border-t border-white/10 flex items-center justify-between text-xs">
               <span className="text-[11px] text-gray-400">
-                You can reacquire mortgaged cities on subsequent turns with a 10% statutory interest charge.
+                Properties sold to bank retain existing houses and can be acquired by any player landing on that space.
               </span>
               <button
                 type="button"

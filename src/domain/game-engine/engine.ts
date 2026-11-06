@@ -295,10 +295,18 @@ export function applyGameCommand(
         throw new GameEngineError('INVALID_ACTION', 'Property is already owned, mortgaged, or blocked');
       }
 
-      const price = (space as PropertyDefinition | TransitDefinition | UtilityDefinition).price;
-      // Requirement 2.3: Backend validation before processing purchase
+      // Check whether property was previously sold to bank
+      const isBankAcquisition = Boolean(propState.soldToBankPayout && propState.soldToBankPayout > 0);
+      const price = isBankAcquisition
+        ? propState.soldToBankPayout!
+        : (space as PropertyDefinition | TransitDefinition | UtilityDefinition).price;
+
+      // Authoritative validation before processing acquisition
       if (player.cash < price) {
-        throw new GameEngineError('INSUFFICIENT_FUNDS', 'Insufficient balance to purchase this property.');
+        throw new GameEngineError(
+          'INSUFFICIENT_FUNDS',
+          `Insufficient balance to ${isBankAcquisition ? 'acquire' : 'purchase'} this property (needs ₹${price.toLocaleString('en-IN')}).`
+        );
       }
 
       const prevCash = player.cash;
@@ -306,8 +314,16 @@ export function applyGameCommand(
       propState.ownerUid = player.uid;
       propState.ownershipState = 'OWNED';
       propState.boughtOnTurn = state.turnNumber;
+      propState.soldToBankPayout = undefined;
+      propState.mortgagePayout = undefined;
+      // All existing developments (houses/tower) remain intact and are inherited!
       state.pendingAction = null;
+      state.reacquisitionOpportunity = null;
       state.phase = 'MANAGEMENT';
+
+      const actionDesc = isBankAcquisition
+        ? `${player.displayName} acquired ${space.name} from bank for ₹${price.toLocaleString('en-IN')}.`
+        : `${player.displayName} purchased ${space.name} for ₹${price.toLocaleString('en-IN')}.`;
 
       recordTx(
         state,
@@ -317,7 +333,7 @@ export function applyGameCommand(
         price,
         prevCash,
         player.cash,
-        `${player.displayName} purchased ${space.name} for ₹${price.toLocaleString('en-IN')}.`,
+        actionDesc,
         { spaceIndex: space.spaceIndex, propertyName: space.name }
       );
 
@@ -329,11 +345,13 @@ export function applyGameCommand(
         recipientName: 'Bank',
         recipientUid: 'BANK',
         amount: price,
-        description: `${player.displayName} purchased ${space.name} for ₹${price.toLocaleString('en-IN')}.`,
+        description: actionDesc,
       };
 
-      summary = `${player.displayName} bought ${space.name} for ₹${price}`;
-      eventPayload = { spaceIndex: space.spaceIndex, price };
+      summary = isBankAcquisition
+        ? `${player.displayName} acquired ${space.name} from bank for ₹${price}`
+        : `${player.displayName} bought ${space.name} for ₹${price}`;
+      eventPayload = { spaceIndex: space.spaceIndex, price, isBankAcquisition };
       break;
     }
 
@@ -395,12 +413,15 @@ export function applyGameCommand(
     }
 
     case 'USE_JAIL_CARD': {
+      if (actorUid !== state.currentPlayerUid) {
+        throw new GameEngineError('NOT_YOUR_TURN', 'Only active player can use a Bail Key');
+      }
       const player = state.players.find((p) => p.uid === actorUid);
       if (!player || !player.inJail) {
         throw new GameEngineError('INVALID_ACTION', 'Player is not in jail');
       }
       if (player.jailFreeCards <= 0) {
-        throw new GameEngineError('INVALID_ACTION', 'No Get Out of Jail Free card available');
+        throw new GameEngineError('INVALID_ACTION', 'No Bail Key available');
       }
 
       player.jailFreeCards -= 1;
@@ -408,7 +429,8 @@ export function applyGameCommand(
       player.jailTurns = 0;
       player.escapedJailThisTurn = false;
       state.phase = 'AWAIT_ROLL';
-      summary = `${player.displayName} used a Get Out of Jail Free card!`;
+      summary = `${player.displayName} used a Bail Key to leave Central Jail and can now roll!`;
+      eventPayload = { keyUsed: true, remainingKeys: player.jailFreeCards };
       break;
     }
 
@@ -570,10 +592,10 @@ export function applyGameCommand(
         throw new GameEngineError('NOT_YOUR_TURN', 'You can only mortgage properties during your turn or debt resolution');
       }
 
-      // Section 6: Race condition protection - reject stale requests if 60-second window expired
+      // Section 6: Race condition protection - reject stale requests if 120-second window expired
       if (isObligationDebtor && state.pendingFinancialObligation?.expiresAt) {
         if (Date.now() > state.pendingFinancialObligation.expiresAt + 1500) {
-          throw new GameEngineError('OBLIGATION_EXPIRED', 'Financial resolution 60-second window has expired');
+          throw new GameEngineError('OBLIGATION_EXPIRED', 'Financial resolution 120-second window has expired');
         }
       }
 
@@ -596,11 +618,11 @@ export function applyGameCommand(
           throw new GameEngineError('INVALID_ACTION', `Property at space ${spaceIdx} is already mortgaged`);
         }
         if (propState.ownershipState === 'BLOCKED') {
-          throw new GameEngineError('INVALID_ACTION', `Blocked property at space ${spaceIdx} cannot be mortgaged`);
+          throw new GameEngineError('INVALID_ACTION', `Blocked property at space ${spaceIdx} cannot be sold to bank`);
         }
       }
 
-      // Execute all selected mortgages atomically
+      // Execute all selected bank sales atomically
       let totalMortgageAmount = 0;
       const mortgagedNames: string[] = [];
 
@@ -612,9 +634,16 @@ export function applyGameCommand(
         const prevCash = player.cash;
         player.cash += mortgageAmount;
         totalMortgageAmount += mortgageAmount;
-        propState.isMortgaged = true;
-        propState.ownershipState = 'MORTGAGED';
+
+        // Immediate removal of ownership from selling player
+        propState.ownerUid = null;
+        propState.ownershipState = 'UNOWNED';
+        propState.isMortgaged = false;
+        propState.soldToBankPayout = mortgageAmount;
         propState.mortgagePayout = mortgageAmount;
+        propState.boughtOnTurn = undefined;
+        // Existing houses/tower remain preserved! (propState.buildings is intact)
+
         mortgagedNames.push(space.name);
 
         recordTx(
@@ -625,12 +654,12 @@ export function applyGameCommand(
           mortgageAmount,
           prevCash,
           player.cash,
-          `${player.displayName} mortgaged ${space.name} for ₹${mortgageAmount.toLocaleString('en-IN')}.`,
+          `${player.displayName} sold ${space.name} to bank for ₹${mortgageAmount.toLocaleString('en-IN')}.`,
           { spaceIndex: spaceIdx, propertyName: space.name }
         );
       }
 
-      summary = `${player.displayName} mortgaged ${mortgagedNames.join(', ')} for ₹${totalMortgageAmount.toLocaleString('en-IN')}`;
+      summary = `${player.displayName} sold ${mortgagedNames.join(', ')} to bank for ₹${totalMortgageAmount.toLocaleString('en-IN')}`;
       eventPayload = { spaceIndices: uniqueIndices, spaceIndex: uniqueIndices[0], totalMortgageAmount, mortgageAmount: totalMortgageAmount };
 
       // Section 4: Automatic Payment Resumption
@@ -718,12 +747,12 @@ export function applyGameCommand(
             description: `${player.displayName} resolved ₹${obligation.amountDue.toLocaleString('en-IN')} payment to ${creditor?.displayName || 'Bank'}.`,
           };
         } else {
-          // Funds still insufficient: update remainingAmountDue, retain exact 60-second countdown without reset
+          // Funds still insufficient: update remainingAmountDue, retain exact 120-second countdown without reset
           obligation.remainingAmountDue = obligation.amountDue - player.cash;
           state.phase = 'ACTION_REQUIRED';
         }
       } else {
-        // Voluntary mortgage during normal management phase: restore turn timer
+        // Voluntary bank sale during normal management phase: restore turn timer
         state.turnTimeRemaining = state.rules?.turnTimerSeconds ?? 30;
       }
       break;
@@ -739,34 +768,33 @@ export function applyGameCommand(
         throw new GameEngineError('NOT_YOUR_TURN', 'Only active player can reacquire properties');
       }
       if (!player) throw new GameEngineError('INVALID_ACTION', 'Player not found');
-      if (!propState || propState.ownerUid !== actorUid) {
-        throw new GameEngineError('INVALID_ACTION', 'You do not own this property');
-      }
-      if (!propState.isMortgaged && propState.ownershipState !== 'MORTGAGED') {
-        throw new GameEngineError('INVALID_ACTION', 'Property is not mortgaged');
-      }
+      if (!propState) throw new GameEngineError('INVALID_ACTION', 'Property state not found');
+
       if (propState.ownershipState === 'BLOCKED') {
         throw new GameEngineError('INVALID_ACTION', 'Property is blocked and cannot be reacquired');
       }
 
-      // Requirement 3: Mortgage reacquisition must require landing on that specific city again in an eligible turn
-      const opportunity = state.reacquisitionOpportunity;
-      const isValidLanding =
-        opportunity &&
-        opportunity.status === 'PENDING' &&
-        opportunity.playerUid === actorUid &&
-        opportunity.turnNumber === state.turnNumber &&
-        opportunity.spaceIndex === spaceIdx &&
-        player.position === spaceIdx;
+      // Check if property is sold to bank (unowned) or legacy mortgaged
+      const isBankSold = !propState.ownerUid && Boolean(propState.soldToBankPayout && propState.soldToBankPayout > 0);
+      const isLegacyMortgaged = propState.ownerUid === actorUid && (propState.isMortgaged || propState.ownershipState === 'MORTGAGED');
 
-      if (!isValidLanding) {
+      if (!isBankSold && !isLegacyMortgaged) {
+        throw new GameEngineError('INVALID_ACTION', 'Property is not available for reacquisition');
+      }
+
+      if (
+        !state.reacquisitionOpportunity ||
+        state.reacquisitionOpportunity.status !== 'PENDING' ||
+        state.reacquisitionOpportunity.spaceIndex !== spaceIdx ||
+        state.reacquisitionOpportunity.playerUid !== player.uid
+      ) {
         throw new GameEngineError(
           'INVALID_ACTION',
           'Mortgaged property can only be reacquired by landing on it during an eligible turn.'
         );
       }
 
-      // Requirement 6.6: Reacquisition cost must equal the exact mortgage amount originally received!
+      // Reacquisition cost equals the exact sale/mortgage amount originally recorded
       let fallbackMortgage = 0;
       if ('mortgageValue' in space) {
         fallbackMortgage = (space as unknown as { mortgageValue: number }).mortgageValue;
@@ -774,9 +802,11 @@ export function applyGameCommand(
         fallbackMortgage = Math.floor((space as unknown as { price: number }).price / 2);
       }
       const reacquisitionCost =
-        propState.mortgagePayout && propState.mortgagePayout > 0
-          ? propState.mortgagePayout
-          : fallbackMortgage;
+        propState.soldToBankPayout && propState.soldToBankPayout > 0
+          ? propState.soldToBankPayout
+          : (propState.mortgagePayout && propState.mortgagePayout > 0
+              ? propState.mortgagePayout
+              : fallbackMortgage);
 
       if (player.cash < reacquisitionCost) {
         throw new GameEngineError(
@@ -787,14 +817,18 @@ export function applyGameCommand(
 
       const prevCash = player.cash;
       player.cash -= reacquisitionCost;
+      propState.ownerUid = player.uid;
       propState.isMortgaged = false;
       propState.ownershipState = 'OWNED';
-      propState.mortgagePayout = 0;
+      propState.mortgagePayout = undefined;
+      propState.soldToBankPayout = undefined;
+      propState.boughtOnTurn = state.turnNumber;
       // All existing development (houses/tower) remains intact!
 
-      // Fulfill reacquisition opportunity
-      opportunity.status = 'REACQUIRED';
-      state.reacquisitionOpportunity = null;
+      if (state.reacquisitionOpportunity) {
+        state.reacquisitionOpportunity.status = 'REACQUIRED';
+        state.reacquisitionOpportunity = null;
+      }
       state.pendingAction = null;
       state.phase = 'MANAGEMENT';
 
@@ -806,7 +840,7 @@ export function applyGameCommand(
         reacquisitionCost,
         prevCash,
         player.cash,
-        `${player.displayName} reacquired mortgaged property ${space.name} for ₹${reacquisitionCost.toLocaleString('en-IN')}.`,
+        `${player.displayName} reacquired property ${space.name} from bank for ₹${reacquisitionCost.toLocaleString('en-IN')}.`,
         { spaceIndex: spaceIdx, propertyName: space.name }
       );
 
@@ -955,17 +989,57 @@ export function applyGameCommand(
         debtor.cash,
         debtor.cash,
         isTimeout
-          ? `${debtor.displayName} timed out after 60s financial resolution and was disqualified. All owned properties permanently marked BLOCKED.`
-          : `${debtor.displayName} surrendered and gave up. All owned properties permanently marked BLOCKED.`
+          ? `${debtor.displayName} timed out after 120s financial resolution and was disqualified. Game ended immediately.`
+          : `${debtor.displayName} chose Give Up. Game ended immediately.`
       );
 
-      summary = isTimeout
-        ? `${debtor.displayName} was disqualified after 60-second mortgage resolution expired. Properties are blocked.`
-        : `${debtor.displayName} chose Give Up and is disqualified. Properties are blocked.`;
+      // Section 9: Immediate game termination
+      state.status = 'COMPLETED';
+      state.completedAt = Date.now();
+      state.phase = 'TURN_END';
+      state.turnTimeRemaining = 0;
+      state.gameOverReason = isTimeout ? 'PLAYER_DISQUALIFIED' : 'PLAYER_SURRENDER';
+      state.disqualifiedPlayerUid = debtor.uid;
+      state.disqualifiedPlayerName = debtor.displayName;
 
-      // Requirement 7: If it is their turn, advance safely. If not, do not interrupt current player!
-      if (state.currentPlayerUid === debtor.uid) {
-        advanceTurn(state);
+      // Recalculate net worth for all players
+      for (const p of state.players) {
+        p.netWorth = calculateNetWorth(p.uid, p.cash, state.properties);
+      }
+
+      // Calculate winner using authoritative cash balances of remaining eligible players
+      const eligiblePlayers = state.players.filter(
+        (p) => p.uid !== debtor.uid && !p.isDisqualified && !p.isBankrupt
+      );
+
+      if (eligiblePlayers.length === 0) {
+        state.winnerUid = null;
+        state.isTie = false;
+        summary = `Game Over! All players surrendered or were disqualified. No winner.`;
+      } else {
+        const maxCash = Math.max(...eligiblePlayers.map((p) => p.cash));
+        const topCashPlayers = eligiblePlayers.filter((p) => p.cash === maxCash);
+
+        if (topCashPlayers.length === 1) {
+          state.winnerUid = topCashPlayers[0].uid;
+          state.isTie = false;
+          summary = `🏆 Game Over! ${debtor.displayName} ${isTimeout ? 'was disqualified' : 'gave up'}. ${topCashPlayers[0].displayName} wins with highest balance ₹${maxCash.toLocaleString('en-IN')}!`;
+        } else {
+          // Tie-break by net worth
+          const maxNetWorth = Math.max(...topCashPlayers.map((p) => p.netWorth));
+          const topNetWorthPlayers = topCashPlayers.filter((p) => p.netWorth === maxNetWorth);
+
+          if (topNetWorthPlayers.length === 1) {
+            state.winnerUid = topNetWorthPlayers[0].uid;
+            state.isTie = false;
+            summary = `🏆 Game Over! ${debtor.displayName} ${isTimeout ? 'was disqualified' : 'gave up'}. ${topNetWorthPlayers[0].displayName} wins tie-breaker with ₹${maxCash.toLocaleString('en-IN')} balance and highest net worth ₹${maxNetWorth.toLocaleString('en-IN')}!`;
+          } else {
+            // Absolute tie
+            state.winnerUid = topNetWorthPlayers[0].uid;
+            state.isTie = true;
+            summary = `🏆 Game Over! ${debtor.displayName} ${isTimeout ? 'was disqualified' : 'gave up'}. Tie between ${topNetWorthPlayers.map((p) => p.displayName).join(' and ')} with balance ₹${maxCash.toLocaleString('en-IN')}!`;
+          }
+        }
       }
       break;
     }
@@ -1090,8 +1164,12 @@ function resolveLandingSpace(
     case 'UTILITY': {
       const propState = state.properties[spaceIndex];
       if (!propState.ownerUid && !propState.isMortgaged && propState.ownershipState === 'UNOWNED') {
-        const price = (space as PropertyDefinition | TransitDefinition | UtilityDefinition).price;
-        // Requirement 2.1: City purchase insufficient balance check
+        const isBankAcquisition = Boolean(propState.soldToBankPayout && propState.soldToBankPayout > 0);
+        const price = isBankAcquisition
+          ? propState.soldToBankPayout!
+          : (space as PropertyDefinition | TransitDefinition | UtilityDefinition).price;
+
+        // Acquisition price check
         if (player.cash >= price) {
           state.phase = 'PROPERTY_DECISION';
           state.pendingAction = {
@@ -1099,6 +1177,16 @@ function resolveLandingSpace(
             playerUid: player.uid,
             spaceIndex,
           };
+          if (isBankAcquisition) {
+            state.reacquisitionOpportunity = {
+              spaceIndex,
+              playerUid: player.uid,
+              turnNumber: state.turnNumber,
+              cost: price,
+              status: 'PENDING',
+              landingId: `land_${state.turnNumber}_${spaceIndex}`,
+            };
+          }
         } else {
           // Insufficient balance to purchase -> do not show purchase popup
           state.phase = 'MANAGEMENT';
@@ -1170,11 +1258,11 @@ function resolveLandingSpace(
             };
           } else {
             // Low-balance mortgage resolution phase triggered!
-            // Pause original payment, preserve pending obligation, and grant dedicated 60-second window
+            // Pause original payment, preserve pending obligation, and grant dedicated 120-second window
             const now = Date.now();
-            const expiresAt = now + 60000;
+            const expiresAt = now + 120000;
             state.phase = 'ACTION_REQUIRED';
-            state.turnTimeRemaining = 60;
+            state.turnTimeRemaining = 120;
             state.pendingFinancialObligation = {
               obligationId: `ob_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
               debtorUid: player.uid,
@@ -1213,7 +1301,7 @@ function resolveLandingSpace(
         (propState.isMortgaged || propState.ownershipState === 'MORTGAGED') &&
         propState.ownershipState !== 'BLOCKED'
       ) {
-        // Requirement 3: Mortgage Reacquisition Must Require Landing Again!
+        // Legacy mortgaged reacquisition fallback
         const reacquisitionCost =
           propState.mortgagePayout && propState.mortgagePayout > 0
             ? propState.mortgagePayout
@@ -1278,11 +1366,11 @@ function resolveLandingSpace(
           description: `${player.displayName} paid ₹${taxAmount.toLocaleString('en-IN')} tax for landing on ${space.name}.`,
         };
       } else {
-        // Low-balance mortgage resolution phase triggered for mandatory tax payment!
+        // Low-balance financial resolution phase triggered for mandatory tax payment (120 seconds)
         const now = Date.now();
-        const expiresAt = now + 60000;
+        const expiresAt = now + 120000;
         state.phase = 'ACTION_REQUIRED';
-        state.turnTimeRemaining = 60;
+        state.turnTimeRemaining = 120;
         state.pendingFinancialObligation = {
           obligationId: `ob_tax_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
           debtorUid: player.uid,
@@ -1371,11 +1459,11 @@ function handleCardPayment(
       `${player.displayName} paid ₹${amount.toLocaleString('en-IN')} for card: ${cardTitle}.`
     );
   } else {
-    // Insufficient cash: enter low-balance mortgage resolution phase
+    // Insufficient cash: enter low-balance financial resolution phase (120 seconds)
     const now = Date.now();
-    const expiresAt = now + 60000;
+    const expiresAt = now + 120000;
     state.phase = 'ACTION_REQUIRED';
-    state.turnTimeRemaining = 60;
+    state.turnTimeRemaining = 120;
     state.pendingFinancialObligation = {
       obligationId: `ob_card_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
       debtorUid: player.uid,
@@ -1495,11 +1583,11 @@ function applyCardEffect(state: GameState, player: PlayerState, card: CardAction
           );
         }
       } else {
-        // Insufficient cash: enter low-balance mortgage resolution phase
+        // Insufficient cash: enter low-balance financial resolution phase (120 seconds)
         const now = Date.now();
-        const expiresAt = now + 60000;
+        const expiresAt = now + 120000;
         state.phase = 'ACTION_REQUIRED';
-        state.turnTimeRemaining = 60;
+        state.turnTimeRemaining = 120;
         state.pendingFinancialObligation = {
           obligationId: `ob_card_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
           debtorUid: player.uid,

@@ -145,6 +145,7 @@ export interface PropertyState {
   ownershipState: PropertyOwnershipState;
   isMortgaged: boolean;
   mortgagePayout?: number;
+  soldToBankPayout?: number;
   buildings: number; // 0..4 = houses, 5 = tower
   boughtOnTurn?: number;
 }
@@ -238,7 +239,7 @@ export interface PendingFinancialObligation {
   reason?: string;
   status: 'PENDING' | 'RESOLVING' | 'RESOLVED' | 'CANCELLED_BY_SURRENDER' | 'FAILED_BY_TIMEOUT' | 'CANCELLED';
   createdAt: number;
-  expiresAt: number; // Authoritative deadline: exactly 60s from creation
+  expiresAt: number; // Authoritative deadline: exactly 120s from creation
   idempotencyKey: string;
 }
 
@@ -316,6 +317,10 @@ export interface GameState {
   auction: AuctionState | null;
   activeTrade: TradeOffer | null;
   winnerUid: string | null;
+  gameOverReason?: string;
+  disqualifiedPlayerUid?: string;
+  disqualifiedPlayerName?: string;
+  isTie?: boolean;
   turnTimeRemaining: number;
   turnTimeLimit: number;
   rules?: {

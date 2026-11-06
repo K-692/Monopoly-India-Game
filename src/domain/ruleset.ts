@@ -12,7 +12,7 @@ import {
 } from './board-config';
 import { PropertyDefinition, PropertyState } from './game-types';
 
-export const RULESET_VERSION = '1.0.0';
+export const RULESET_VERSION = '1.1.0';
 
 export interface HostCustomRules {
   startingCash: number;
@@ -26,8 +26,8 @@ export interface HostCustomRules {
 }
 
 export const DEFAULT_HOST_RULES: HostCustomRules = {
-  startingCash: 15000,
-  passStartReward: 2000,
+  startingCash: 20000,
+  passStartReward: 3000,
   turnTimerSeconds: 30,
   maxPlayers: 4,
   jailBail: 500,
@@ -38,12 +38,13 @@ export const DEFAULT_HOST_RULES: HostCustomRules = {
 export const GAME_CONSTANTS = {
   MIN_PLAYERS: 2,
   MAX_PLAYERS: 6,
-  STARTING_CASH: 15000,
-  START_REWARD: 2000,
+  STARTING_CASH: 20000,
+  START_REWARD: 3000,
   JAIL_BAIL: 500,
   MAX_JAIL_DOUBLES_ATTEMPTS: 3,
-  GST_CHECKPOST_AMOUNT: 2000,
-  INFRASTRUCTURE_LEVY_AMOUNT: 1000,
+  GST_CHECKPOST_AMOUNT: 500,
+  INFRASTRUCTURE_LEVY_AMOUNT: 500,
+  FINANCIAL_RESOLUTION_TIMER_SECONDS: 120,
   MAX_HOUSES: 4,
   TOWER_BUILDING_LEVEL: 5,
   MORTGAGE_RATE: 0.5,

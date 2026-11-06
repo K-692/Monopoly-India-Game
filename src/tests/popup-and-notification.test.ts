@@ -205,7 +205,9 @@ describe('Requirement: Stale Version Conflict Tolerance & Mortgage Timer Renewal
       currentUid
     );
 
-    expect(res.nextState.properties[1].ownershipState).toBe('MORTGAGED');
+    expect(res.nextState.properties[1].ownershipState).toBe('UNOWNED');
+    expect(res.nextState.properties[1].ownerUid).toBeNull();
+    expect(res.nextState.properties[1].soldToBankPayout).toBeGreaterThan(0);
     expect(res.nextState.turnTimeRemaining).toBe(30); // Restarted!
   });
 });

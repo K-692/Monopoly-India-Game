@@ -61,7 +61,7 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
                 Official Rulebook & Strategy Guide
               </h2>
               <p className="text-xs text-amber-200/90 hidden sm:block">
-                Authoritative rules for Jail doubles, Mortgages, Airport rents, and Financial Resolution.
+                Authoritative rules for Jail bail, Sell to Bank, Airport rents, and Financial Resolution.
               </p>
             </div>
           </div>
@@ -109,7 +109,7 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
             }`}
           >
             <Landmark className="w-3.5 h-3.5 shrink-0" />
-            <span>Mortgage & Surrender</span>
+            <span>Sell to Bank & Surrender</span>
           </button>
 
           <button
@@ -148,8 +148,8 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
                   <h3 className="font-serif font-black text-sm">Capital & Balance Rules</h3>
                 </div>
                 <ul className="text-xs text-gray-700 dark:text-gray-300 space-y-1.5 list-disc list-inside">
-                  <li><strong>Starting Capital:</strong> Every player receives ₹15,000 cash from the Reserve Bank.</li>
-                  <li><strong>START Salary:</strong> Passing or landing on START yields ₹2,000 in salary.</li>
+                  <li><strong>Starting Capital:</strong> Every player receives ₹20,000 cash from the Reserve Bank.</li>
+                  <li><strong>START Reward:</strong> Passing or landing on START yields ₹3,000 immediately upon crossing.</li>
                   <li><strong>Single Roll Invariant:</strong> If a player rolls doubles (e.g. 2,2 or 6,6), they do <strong>not</strong> receive an extra turn. Only one roll is allowed per turn.</li>
                   <li><strong>Balance Validation:</strong> If a player lands on an unowned city with insufficient funds, the purchase popup is hidden and an &quot;Insufficient balance to purchase this property&quot; notification is shown.</li>
                   <li><strong>Construction Validation:</strong> If funds are insufficient to build, the confirmation popup is hidden and &quot;Insufficient balance to build on this property&quot; is shown.</li>
@@ -225,39 +225,40 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
                 <ul className="text-xs text-gray-700 dark:text-gray-300 space-y-2 list-disc list-inside leading-relaxed">
                   <li><strong>Automatic Freedom:</strong> If a player fails all 3 double attempts, they are <strong>automatically released on their 4th eligible turn</strong> without needing to roll Try Double.</li>
                   <li><strong>Seamless Progression:</strong> The player is released at turn start and proceeds to roll normally.</li>
-                  <li><strong>Alternative Options:</strong> At any eligible jail turn, a player may pay their room's configured statutory bail (default ₹500) or redeem a Get Out of Jail Free card.</li>
+                  <li><strong>Alternative Options:</strong> At any eligible jail turn, a player may use an available Bail Key, pay standard statutory bail (₹500), or attempt to roll doubles.</li>
                   <li><strong>Zero Income in Jail:</strong> Players in Jail cannot collect rent or cash rewards.</li>
                 </ul>
               </div>
             </div>
           )}
 
-          {/* Tab 3: Mortgage & Surrender */}
+          {/* Tab 3: Sell to Bank & Surrender */}
           {activeTab === 'mortgage' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="bg-white dark:bg-indian-navy-850 p-4 rounded-xl border border-blue-300 dark:border-blue-900/60 shadow-2xs space-y-2.5">
                 <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
                   <Landmark className="w-4 h-4" />
-                  <h3 className="font-serif font-black text-sm">Mortgage Valuation & Reacquisition</h3>
+                  <h3 className="font-serif font-black text-sm">Sell to Bank Mechanics</h3>
                 </div>
                 <ul className="text-xs text-gray-700 dark:text-gray-300 space-y-2 list-disc list-inside leading-relaxed">
-                  <li><strong>Valuation Formula:</strong> Mortgage payout = 50% of original property price + 50% of all development expenditure invested on that property (capped at 100% of purchase price).</li>
-                  <li><strong>Development Preserved:</strong> Houses and Commercial Towers are <strong>never demolished</strong> or liquidated upon mortgaging. They remain intact.</li>
-                  <li><strong>Exact Reacquisition:</strong> When an owner lands on their mortgaged property, the reacquisition cost equals the <strong>exact mortgage payout originally received</strong> (no arbitrary penalty).</li>
-                  <li><strong>No Rent While Mortgaged:</strong> Mortgaged properties generate zero rent until reacquired.</li>
+                  <li><strong>Payout Formula:</strong> The bank pays 50% of the property purchase price plus 50% of any building expenditures.</li>
+                  <li><strong>Ownership Removed Immediately:</strong> The selling player loses ownership instantly; the property becomes unowned and available in the bank.</li>
+                  <li><strong>Buildings Preserved:</strong> Houses and Commercial Towers remain intact on the city and are not demolished or refunded.</li>
+                  <li><strong>Acquisition by Any Player:</strong> Any player who subsequently lands on the property can acquire it for the <strong>exact payout amount</strong> the bank previously paid. Built houses are inherited!</li>
+                  <li><strong>No Rent in Bank:</strong> Until reacquired by a player, the property generates zero rent.</li>
                 </ul>
               </div>
 
               <div className="bg-white dark:bg-indian-navy-850 p-4 rounded-xl border border-red-300 dark:border-red-900/60 shadow-2xs space-y-2.5">
                 <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
                   <ShieldAlert className="w-4 h-4" />
-                  <h3 className="font-serif font-black text-sm">Financial Resolution & Give Up</h3>
+                  <h3 className="font-serif font-black text-sm">Financial Resolution & Immediate Game Over</h3>
                 </div>
                 <ul className="text-xs text-gray-700 dark:text-gray-300 space-y-2 list-disc list-inside leading-relaxed">
-                  <li><strong>Debt Pause Window:</strong> When rent or obligations exceed cash, the transaction pauses and opens a mandatory financial resolution window.</li>
-                  <li><strong>Settle Debt:</strong> Mortgage properties until liquid cash is sufficient, then click &quot;Pay Outstanding Debt&quot;.</li>
-                  <li><strong>Give Up / Surrender:</strong> If unable or unwilling to settle, player can surrender. All remaining liquid cash is transferred to the creditor.</li>
-                  <li><strong>Blocked Property State:</strong> Disqualified players&apos; properties become <strong>BLOCKED</strong>. They remain on the board with a BLOCKED badge, collect zero rent, and cannot be purchased, mortgaged, or traded.</li>
+                  <li><strong>120-Second Resolution Timer:</strong> When debt exceeds cash, a 120-second pause window begins. The timer is managed by the server and persists across views and reconnections.</li>
+                  <li><strong>Sell to Bank to Settle:</strong> Players can sell eligible properties to the bank to raise cash and pay obligations.</li>
+                  <li><strong>Immediate Match Termination:</strong> If a player surrenders or the 120-second timer expires (disqualification), the game ends immediately!</li>
+                  <li><strong>Winner Determination:</strong> The match winner is decided among the remaining eligible players by highest cash balance (tie-broken by net worth).</li>
                 </ul>
               </div>
             </div>
