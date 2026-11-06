@@ -1,0 +1,35 @@
+directories:
+  output: release
+  buildResources: build
+appId: com.indianmonopoly.game
+productName: Indian Monopoly
+files:
+  - filter:
+      - dist/**/*
+      - dist-server/**/*
+      - electron/**/*
+      - public/**/*
+      - package.json
+extraResources:
+  - from: dist
+    to: dist
+mac:
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+  icon: build/icon.png
+  category: public.app-category.board-games
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: build/icon.png
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+electronVersion: 45.2.3

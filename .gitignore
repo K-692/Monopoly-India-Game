@@ -11,8 +11,11 @@ lerna-debug.log*
 node_modules
 dist
 dist-server
-release
 dist-ssr
+release/mac*
+release/win*
+release/linux*
+release/.icon*
 *.local
 .env
 .env.*
