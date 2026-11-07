@@ -12,10 +12,8 @@ node_modules
 dist
 dist-server
 dist-ssr
-release/mac*
-release/win*
-release/linux*
-release/.icon*
+release/*
+!release/.gitkeep
 *.local
 .env
 .env.*

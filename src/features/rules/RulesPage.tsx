@@ -104,8 +104,8 @@ export const RulesPage: React.FC = () => {
               <h3 className="font-serif font-black text-base">Capital & Board Setup</h3>
             </div>
             <ul className="text-xs sm:text-sm text-gray-700 dark:text-gray-300 space-y-2 list-disc list-inside">
-              <li><strong>Starting Capital:</strong> Every player receives ₹20,000 cash from the Reserve Bank upon game start.</li>
-              <li><strong>START Reward:</strong> Passing or landing on START yields ₹3,000 in reward immediately upon crossing.</li>
+              <li><strong>Starting Capital:</strong> Configurable by the room host with options of <strong>₹5,000</strong>, <strong>₹10,000</strong>, or <strong>₹20,000</strong> (default ₹20,000) allocated to all players at match start.</li>
+              <li><strong>START Reward:</strong> Passing or landing on START yields salary immediately upon crossing, configurable by host with options of <strong>₹1,000</strong>, <strong>₹2,000</strong>, or <strong>₹3,000</strong> (default ₹3,000). Delivered with a private toast to the crossing player.</li>
               <li><strong>40 Spaces:</strong> 24 premier Indian cities, 4 Transit hubs (CST Mumbai, Howrah, Chennai & Delhi Airports), 2 Utilities (Urja Grid, Jal Board), Taxes, Civic Fund, Market Buzz, and Rest/Jail.</li>
               <li><strong>Sides:</strong> Symmetrically arranged with 6 major cities and civic/market squares per perimeter side.</li>
             </ul>
@@ -132,14 +132,18 @@ export const RulesPage: React.FC = () => {
               <h3 className="font-serif font-black text-base">Transits & Public Utilities</h3>
             </div>
             <div className="text-xs sm:text-sm text-gray-700 dark:text-gray-300 space-y-2">
-              <p><strong>Transit Rent:</strong> Rent scales dynamically based on how many transits the owner holds:</p>
-              <div className="grid grid-cols-4 gap-1 text-center font-mono font-bold text-xs bg-indian-parchment-100 dark:bg-indian-navy-800 p-2 rounded-lg">
-                <div>1: ₹250</div>
-                <div>2: ₹500</div>
-                <div>3: ₹1,000</div>
-                <div>4: ₹2,000</div>
+              <p><strong>Airport Rent (Spaces #15 & #35):</strong> Distinct higher rent scaling:</p>
+              <div className="grid grid-cols-2 gap-2 text-center font-mono font-bold text-xs bg-indian-parchment-100 dark:bg-indian-navy-800 p-2 rounded-lg">
+                <div>1 Airport: ₹1,000</div>
+                <div>2 Airports: ₹2,500</div>
+              </div>
+              <p><strong>Railway Rent (Spaces #5 & #25):</strong> CST Mumbai & Howrah Station:</p>
+              <div className="grid grid-cols-2 gap-2 text-center font-mono font-bold text-xs bg-indian-parchment-100 dark:bg-indian-navy-800 p-2 rounded-lg">
+                <div>1 Railway: ₹250</div>
+                <div>2 Railways: ₹500</div>
               </div>
               <p><strong>Utilities:</strong> Rent is determined by rolling dice: 4× dice roll if 1 utility owned, or 10× dice roll if both Urja Grid and Jal Board are owned.</p>
+              <p><strong>Checkposts (Spaces #8 & #37):</strong> GST Checkpost and Infrastructure Wealth Levy charge ₹500 statutory fees.</p>
             </div>
           </div>
 
@@ -268,6 +272,9 @@ export const RulesPage: React.FC = () => {
               <p>
                 <strong>3. Sell to Bank:</strong> Players can sell cities or infrastructure to the bank to receive the sale payout. Houses remain on the property, and any player landing on it can acquire it for the exact sale payout.
               </p>
+              <p>
+                <strong>4. Check Board Mode:</strong> Debtors can safely inspect board spaces and city deed cards during the 120-second debt countdown without pausing or resetting the timer.
+              </p>
             </div>
           </div>
 
@@ -281,11 +288,12 @@ export const RulesPage: React.FC = () => {
               <li><strong>Zero Income While Incarcerated:</strong> A player currently in Jail <strong>CANNOT earn rent</strong> from other players landing on their cities, nor collect cash awards.</li>
               <li><strong>Ways to Exit Jail:</strong>
                 <ul className="list-circle list-inside ml-4 mt-1 space-y-1 text-xs text-gray-600 dark:text-gray-400">
-                  <li>Use an available Bail Key.</li>
+                  <li>Use an available Bail Key card.</li>
                   <li>Pay the standard statutory bail (₹500).</li>
-                  <li>Roll doubles on any of your 3 turn attempts.</li>
+                  <li>Roll doubles on any of your 3 eligible turn attempts (Try Double).</li>
                 </ul>
               </li>
+              <li><strong>Automatic 4th Turn Release:</strong> If all 3 Try Double attempts fail, the player is automatically released from Jail on their 4th turn and rolls normally.</li>
               <li><strong>Visiting Status:</strong> Landing on the Jail space normally through dice roll is treated as standard &quot;Just Visiting&quot; with no penalty.</li>
             </ul>
           </div>

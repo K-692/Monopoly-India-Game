@@ -1607,17 +1607,18 @@ function applyCardEffect(state: GameState, player: PlayerState, card: CardAction
     case 'MOVE_TO':
       if (card.targetSpace !== undefined) {
         if (card.targetSpace < player.position || card.targetSpace === 0) {
+          const passReward = state.rules?.passStartReward ?? GAME_CONSTANTS.START_REWARD;
           const prev = player.cash;
-          player.cash += GAME_CONSTANTS.START_REWARD;
+          player.cash += passReward;
           recordTx(
             state,
             player.uid,
             'START_REWARD',
             'CREDIT',
-            GAME_CONSTANTS.START_REWARD,
+            passReward,
             prev,
             player.cash,
-            `${player.displayName} collected ₹${GAME_CONSTANTS.START_REWARD.toLocaleString('en-IN')} START salary via card navigation.`
+            `${player.displayName} collected ₹${passReward.toLocaleString('en-IN')} START salary via card navigation.`
           );
         }
         player.position = card.targetSpace;
@@ -1631,17 +1632,18 @@ function applyCardEffect(state: GameState, player: PlayerState, card: CardAction
     case 'ADVANCE_NEXT_TRANSIT': {
       const nextTransit = TRANSIT_SPACES.find((idx) => idx > player.position) ?? TRANSIT_SPACES[0];
       if (nextTransit < player.position) {
+        const passReward = state.rules?.passStartReward ?? GAME_CONSTANTS.START_REWARD;
         const prev = player.cash;
-        player.cash += GAME_CONSTANTS.START_REWARD;
+        player.cash += passReward;
         recordTx(
           state,
           player.uid,
           'START_REWARD',
           'CREDIT',
-          GAME_CONSTANTS.START_REWARD,
+          passReward,
           prev,
           player.cash,
-          `${player.displayName} collected ₹${GAME_CONSTANTS.START_REWARD.toLocaleString('en-IN')} START salary via transit travel card.`
+          `${player.displayName} collected ₹${passReward.toLocaleString('en-IN')} START salary via transit travel card.`
         );
       }
       player.position = nextTransit;

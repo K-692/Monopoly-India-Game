@@ -1,5 +1,10 @@
 import React, { useState } from 'react';
-import { HostCustomRules, DEFAULT_HOST_RULES } from '@/domain/ruleset';
+import {
+  HostCustomRules,
+  DEFAULT_HOST_RULES,
+  STARTING_CASH_OPTIONS,
+  PASS_START_REWARD_OPTIONS,
+} from '@/domain/ruleset';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { X, Sliders } from 'lucide-react';
@@ -25,8 +30,8 @@ export const CreateRoomRulesModal: React.FC<CreateRoomRulesModalProps> = ({
     e.preventDefault();
     onCreate({
       ...rules,
-      startingCash: 20000,
-      passStartReward: 3000,
+      startingCash: rules.startingCash,
+      passStartReward: rules.passStartReward,
       jailBail: 500,
     });
   };
@@ -58,25 +63,56 @@ export const CreateRoomRulesModal: React.FC<CreateRoomRulesModalProps> = ({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 text-xs">
-          {/* Standardized Fixed Rules Section */}
-          <div className="p-3 bg-indian-parchment-100/70 dark:bg-indian-navy-800/80 rounded-xl border border-indian-parchment-300 dark:border-indian-navy-700 space-y-2">
-            <span className="text-[10px] font-black uppercase tracking-wider text-indian-terracotta-600 block">
-              Standard Game Rules (Fixed)
-            </span>
+          {/* Starting Balance Options */}
+          <div>
+            <label className="block font-bold text-indian-navy-900 dark:text-indian-parchment-100 mb-1.5 uppercase tracking-wider">
+              Starting Balance
+            </label>
             <div className="grid grid-cols-3 gap-2">
-              <div className="p-2 rounded-lg bg-white dark:bg-indian-navy-900 border border-indian-parchment-200 dark:border-indian-navy-800 text-center">
-                <span className="text-[10px] text-gray-500 block">Starting Cash</span>
-                <span className="font-bold text-indian-navy-950 dark:text-white text-xs">₹20,000</span>
-              </div>
-              <div className="p-2 rounded-lg bg-white dark:bg-indian-navy-900 border border-indian-parchment-200 dark:border-indian-navy-800 text-center">
-                <span className="text-[10px] text-gray-500 block">Pass START</span>
-                <span className="font-bold text-emerald-600 dark:text-emerald-400 text-xs">₹3,000</span>
-              </div>
-              <div className="p-2 rounded-lg bg-white dark:bg-indian-navy-900 border border-indian-parchment-200 dark:border-indian-navy-800 text-center">
-                <span className="text-[10px] text-gray-500 block">Jail Bail</span>
-                <span className="font-bold text-amber-600 dark:text-amber-400 text-xs">₹500</span>
-              </div>
+              {STARTING_CASH_OPTIONS.map((amount) => (
+                <button
+                  type="button"
+                  key={amount}
+                  onClick={() => setRules({ ...rules, startingCash: amount })}
+                  className={`py-2 rounded-lg font-bold border transition-all ${
+                    rules.startingCash === amount
+                      ? 'bg-indian-terracotta-500 text-white border-indian-terracotta-600 shadow-xs'
+                      : 'bg-indian-parchment-100 dark:bg-indian-navy-800 text-indian-navy-900 dark:text-gray-300 border-indian-parchment-300 hover:bg-indian-parchment-200 dark:hover:bg-indian-navy-700'
+                  }`}
+                >
+                  ₹{amount.toLocaleString('en-IN')}
+                </button>
+              ))}
             </div>
+          </div>
+
+          {/* Start Pass Money Options */}
+          <div>
+            <label className="block font-bold text-indian-navy-900 dark:text-indian-parchment-100 mb-1.5 uppercase tracking-wider">
+              Start Pass Money
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {PASS_START_REWARD_OPTIONS.map((amount) => (
+                <button
+                  type="button"
+                  key={amount}
+                  onClick={() => setRules({ ...rules, passStartReward: amount })}
+                  className={`py-2 rounded-lg font-bold border transition-all ${
+                    rules.passStartReward === amount
+                      ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs'
+                      : 'bg-indian-parchment-100 dark:bg-indian-navy-800 text-indian-navy-900 dark:text-gray-300 border-indian-parchment-300 hover:bg-indian-parchment-200 dark:hover:bg-indian-navy-700'
+                  }`}
+                >
+                  ₹{amount.toLocaleString('en-IN')}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Standard Fixed Statutory Bail Note */}
+          <div className="p-2.5 bg-indian-parchment-100/70 dark:bg-indian-navy-800/80 rounded-xl border border-indian-parchment-300 dark:border-indian-navy-700 flex items-center justify-between text-xs">
+            <span className="text-gray-600 dark:text-gray-300 font-medium">Jail Bail (Standard Statutory)</span>
+            <span className="font-bold text-amber-600 dark:text-amber-400">₹500</span>
           </div>
 
           {/* Turn Timer */}

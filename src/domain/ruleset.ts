@@ -14,9 +14,15 @@ import { PropertyDefinition, PropertyState } from './game-types';
 
 export const RULESET_VERSION = '1.1.0';
 
+export const STARTING_CASH_OPTIONS = [5000, 10000, 20000] as const;
+export type StartingCashOption = (typeof STARTING_CASH_OPTIONS)[number];
+
+export const PASS_START_REWARD_OPTIONS = [1000, 2000, 3000] as const;
+export type PassStartRewardOption = (typeof PASS_START_REWARD_OPTIONS)[number];
+
 export interface HostCustomRules {
-  startingCash: number;
-  passStartReward: number;
+  startingCash: number; // Dynamic options: 5000, 10000, 20000
+  passStartReward: number; // Dynamic options: 1000, 2000, 3000
   turnTimerSeconds: number; // 15, 30, 45, 60, 90
   maxPlayers: number; // 2..6
   jailBail: number;

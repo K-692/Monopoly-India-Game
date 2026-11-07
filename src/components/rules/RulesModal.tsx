@@ -148,9 +148,10 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
                   <h3 className="font-serif font-black text-sm">Capital & Balance Rules</h3>
                 </div>
                 <ul className="text-xs text-gray-700 dark:text-gray-300 space-y-1.5 list-disc list-inside">
-                  <li><strong>Starting Capital:</strong> Every player receives ₹20,000 cash from the Reserve Bank.</li>
-                  <li><strong>START Reward:</strong> Passing or landing on START yields ₹3,000 immediately upon crossing.</li>
-                  <li><strong>Single Roll Invariant:</strong> If a player rolls doubles (e.g. 2,2 or 6,6), they do <strong>not</strong> receive an extra turn. Only one roll is allowed per turn.</li>
+                  <li><strong>Starting Capital:</strong> Configurable by room host with options of <strong>₹5,000</strong>, <strong>₹10,000</strong>, or <strong>₹20,000</strong> (default ₹20,000) allocated to every player at match start.</li>
+                  <li><strong>START Reward:</strong> Passing or landing on START yields salary immediately upon crossing, configurable by host with options of <strong>₹1,000</strong>, <strong>₹2,000</strong>, or <strong>₹3,000</strong> (default ₹3,000). A private toast is delivered exclusively to the passing player.</li>
+                  <li><strong>Turn Timer:</strong> Host-configurable turn timer limit (15s, 30s, 45s, or 60s per turn; default 30s) enforced authoritatively by the game server.</li>
+                  <li><strong>Single Roll Invariant:</strong> If a player rolls doubles (e.g. 2,2 or 6,6), they do <strong>not</strong> receive an extra turn. Exactly one roll is allowed per turn.</li>
                   <li><strong>Balance Validation:</strong> If a player lands on an unowned city with insufficient funds, the purchase popup is hidden and an &quot;Insufficient balance to purchase this property&quot; notification is shown.</li>
                   <li><strong>Construction Validation:</strong> If funds are insufficient to build, the confirmation popup is hidden and &quot;Insufficient balance to build on this property&quot; is shown.</li>
                 </ul>
@@ -159,20 +160,22 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
               <div className="bg-white dark:bg-indian-navy-850 p-4 rounded-xl border border-indian-parchment-300 dark:border-indian-navy-700 shadow-2xs space-y-2">
                 <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
                   <Plane className="w-4 h-4" />
-                  <h3 className="font-serif font-black text-sm">Transit & Airport Visiting Charges</h3>
+                  <h3 className="font-serif font-black text-sm">Transit, Utilities & Checkpost Charges</h3>
                 </div>
                 <div className="text-xs text-gray-700 dark:text-gray-300 space-y-2">
-                  <p><strong>Airport Rent (Distinct & Higher):</strong> Visiting players landing on an airport owned by another player pay higher rent:</p>
+                  <p><strong>Airport Rent (Spaces #15 & #35):</strong> Higher visiting charges scale with airport ownership:</p>
                   <div className="grid grid-cols-2 gap-2 text-center font-mono font-bold text-xs bg-indian-parchment-200 dark:bg-indian-navy-800 p-2 rounded-lg">
                     <div>1 Airport: ₹1,000</div>
                     <div>2 Airports: ₹2,500</div>
                   </div>
-                  <p><strong>Railway Rent:</strong> CST Mumbai & Howrah Station:</p>
+                  <p><strong>Railway Rent (Spaces #5 & #25):</strong> CST Mumbai & Howrah Station:</p>
                   <div className="grid grid-cols-2 gap-2 text-center font-mono font-bold text-xs bg-indian-parchment-200 dark:bg-indian-navy-800 p-2 rounded-lg">
                     <div>1 Railway: ₹250</div>
                     <div>2 Railways: ₹500</div>
                   </div>
-                  <p className="text-[11px] text-gray-500">Rent is waived if the owner is in jail, property is mortgaged, or owner is disqualified.</p>
+                  <p><strong>Public Utilities (Spaces #12 & #28):</strong> 4× dice roll for Urja Grid or Jal Board; 10× dice roll if both utilities are owned.</p>
+                  <p><strong>Checkposts (Spaces #8 & #37):</strong> GST Checkpost and Infrastructure Wealth Levy are statutory ₹500 fees paid to the Reserve Bank.</p>
+                  <p className="text-[11px] text-gray-500">Rent is waived if the owner is in jail, property is mortgaged/in bank, or owner is disqualified.</p>
                 </div>
               </div>
 
@@ -257,6 +260,7 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
                 <ul className="text-xs text-gray-700 dark:text-gray-300 space-y-2 list-disc list-inside leading-relaxed">
                   <li><strong>120-Second Resolution Timer:</strong> When debt exceeds cash, a 120-second pause window begins. The timer is managed by the server and persists across views and reconnections.</li>
                   <li><strong>Sell to Bank to Settle:</strong> Players can sell eligible properties to the bank to raise cash and pay obligations.</li>
+                  <li><strong>Check Board Inspection:</strong> Non-destructive &quot;Check Board&quot; mode allows full board view and deed inspection without pausing or losing countdown progress.</li>
                   <li><strong>Immediate Match Termination:</strong> If a player surrenders or the 120-second timer expires (disqualification), the game ends immediately!</li>
                   <li><strong>Winner Determination:</strong> The match winner is decided among the remaining eligible players by highest cash balance (tie-broken by net worth).</li>
                 </ul>

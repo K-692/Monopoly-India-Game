@@ -13,7 +13,7 @@ import { describe, it, expect } from 'vitest';
 import { createInitialGame } from '../domain/game-engine/create-initial-game';
 import { applyGameCommand } from '../domain/game-engine/engine';
 import { RoomMember } from '../domain/game-types';
-import { calculateMortgageValue } from '../domain/ruleset';
+import { calculateMortgageValue, DEFAULT_HOST_RULES } from '../domain/ruleset';
 
 const mockMembers: Record<string, RoomMember> = {
   user_1: {
@@ -63,6 +63,47 @@ describe('Acceptance Criteria: Standardized Room Creation Settings', () => {
     expect(state.rules?.jailBail).toBe(500);
 
     for (const player of state.players) {
+      expect(player.cash).toBe(20000);
+      expect(player.netWorth).toBe(20000);
+    }
+  });
+
+  it('accepts valid dynamic starting balance options (5000, 10000, 20000) and start pass rewards (1000, 2000, 3000)', () => {
+    // Test 5000 starting cash and 1000 pass reward
+    const state5k = createInitialGame('room_1', 'game_1', mockMembers, {
+      ...DEFAULT_HOST_RULES,
+      startingCash: 5000,
+      passStartReward: 1000,
+    });
+    expect(state5k.rules?.startingCash).toBe(5000);
+    expect(state5k.rules?.passStartReward).toBe(1000);
+    for (const player of state5k.players) {
+      expect(player.cash).toBe(5000);
+      expect(player.netWorth).toBe(5000);
+    }
+
+    // Test 10000 starting cash and 2000 pass reward
+    const state10k = createInitialGame('room_1', 'game_1', mockMembers, {
+      ...DEFAULT_HOST_RULES,
+      startingCash: 10000,
+      passStartReward: 2000,
+    });
+    expect(state10k.rules?.startingCash).toBe(10000);
+    expect(state10k.rules?.passStartReward).toBe(2000);
+    for (const player of state10k.players) {
+      expect(player.cash).toBe(10000);
+      expect(player.netWorth).toBe(10000);
+    }
+
+    // Test 20000 starting cash and 3000 pass reward
+    const state20k = createInitialGame('room_1', 'game_1', mockMembers, {
+      ...DEFAULT_HOST_RULES,
+      startingCash: 20000,
+      passStartReward: 3000,
+    });
+    expect(state20k.rules?.startingCash).toBe(20000);
+    expect(state20k.rules?.passStartReward).toBe(3000);
+    for (const player of state20k.players) {
       expect(player.cash).toBe(20000);
       expect(player.netWorth).toBe(20000);
     }

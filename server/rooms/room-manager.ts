@@ -6,7 +6,7 @@
 
 import crypto from 'crypto';
 import { RoomMember } from '../../src/domain/game-types';
-import { DEFAULT_HOST_RULES, HostCustomRules } from '../../src/domain/ruleset';
+import { DEFAULT_HOST_RULES, HostCustomRules, STARTING_CASH_OPTIONS, PASS_START_REWARD_OPTIONS } from '../../src/domain/ruleset';
 import { PlayerSession, PlayerSessionPublic, ServerRoom } from '../types/server-types';
 
 export const PLAYER_PALETTE = [
@@ -192,10 +192,20 @@ export class RoomManager {
     const roomId = 'room_' + crypto.randomUUID().replace(/-/g, '').slice(0, 12);
     const inviteCode = this.generateUniqueInviteCode();
 
+    // Dynamic Starting Cash: 5000, 10000, 20000 (default 20000)
+    const startingCash = (STARTING_CASH_OPTIONS as readonly number[]).includes(customRules?.startingCash ?? 0)
+      ? customRules!.startingCash
+      : DEFAULT_HOST_RULES.startingCash;
+
+    // Dynamic Start Pass Money: 1000, 2000, 3000 (default 3000)
+    const passStartReward = (PASS_START_REWARD_OPTIONS as readonly number[]).includes(customRules?.passStartReward ?? 0)
+      ? customRules!.passStartReward
+      : DEFAULT_HOST_RULES.passStartReward;
+
     const rules: HostCustomRules = {
       ...(customRules ?? DEFAULT_HOST_RULES),
-      startingCash: 20000,
-      passStartReward: 3000,
+      startingCash,
+      passStartReward,
       jailBail: 500,
     };
     const maxPlayers = rules.maxPlayers ?? 4;

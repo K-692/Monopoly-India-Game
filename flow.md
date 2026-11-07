@@ -698,7 +698,69 @@ When debt $D$ exceeds cash $C$:
 
 ### 12.11 Multi-Platform Desktop Packaging & GitHub Release v1.1.0
 - **Version Increment**: Bumped `package.json` and `ruleset.ts` to `1.1.0`.
-- **macOS Apple Silicon Packaging**: Built native `Indian-Monopoly-1.1.0-arm64.dmg` (130 MB) via `npm run dist:mac`.
+- **macOS Apple Silicon Packaging**: Built native `Indian-Monopoly-1.1.0-arm64.dmg` via `npm run dist:mac`.
 - **Windows Packaging Automation**: Configured `.github/workflows/desktop-release.yml` with `windows-latest` runner for native NSIS compilation (`Indian-Monopoly-Setup-1.1.0.exe`).
-- **Release Assets**: Tagged `v1.1.0` with full changelog, direct installer binaries, and updated documentation.
+- **Release Assets**: Tagged `v1.1.0` with full changelog and updated documentation.
+
+---
+
+## 13. Dynamic Host Financial Economy & Repository Architecture Streamlining
+
+### 13.1 Dynamic Host Financial Calibration (Starting Balance & Start Pass Money)
+- **Host Room Customization Interface (`CreateRoomRulesModal.tsx`)**:
+  - Replaced the previously static fixed room creation banner with interactive, responsive selection matrices:
+    - **Starting Balance Options**: $\mathcal{C}_{\text{start}} \in \{5000, 10000, 20000\}$ with active terracotta visual feedback.
+    - **Start Pass Money Options**: $\mathcal{R}_{\text{pass}} \in \{1000, 2000, 3000\}$ with active emerald visual feedback.
+    - **Statutory Fixed Bail**: Maintained standard statutory ₹500 jail bail note.
+    - **Turn Timer**: 15s, 30s, 45s, 60s options.
+    - **Player Capacity**: 2 to 6 players.
+- **Dynamic Lobby Display (`LobbyPage.tsx`)**:
+  - Dynamically formats and renders the chosen starting cash (`room.customRules.startingCash`) and pass start reward (`room.customRules.passStartReward`) for all connected players waiting in the lobby.
+
+### 13.2 Server-Authoritative Input Sanitization & Invariant Preservation
+- **Room Manager Validation (`server/rooms/room-manager.ts`)**:
+  - When `room:create` is received, incoming `customRules` are sanitized against strictly whitelisted arrays:
+    $$\text{startingCash} = \begin{cases} \text{customRules.startingCash} & \text{if } \text{customRules.startingCash} \in \{5000, 10000, 20000\} \\ 20000 & \text{otherwise} \end{cases}$$
+    $$\text{passStartReward} = \begin{cases} \text{customRules.passStartReward} & \text{if } \text{customRules.passStartReward} \in \{1000, 2000, 3000\} \\ 3000 & \text{otherwise} \end{cases}$$
+  - Forged values (e.g. ₹50,000 cash or ₹10,000 pass reward) are deterministically rejected and sanitized to the default canonical values.
+- **Initial Game State Generator (`create-initial-game.ts`)**:
+  - Dual-enforces the allowed whitelist on both client and server side, initializing player cash and net worth matching the validated starting capital:
+    $$\forall p \in \text{players}, \quad \text{cash}(p) = \text{netWorth}(p) = \text{startingCash}$$
+
+### 13.3 Dynamic Card Event Start Traversal Alignment (`engine.ts`)
+- **Card-Driven Movement Consistency**:
+  - Updated `MOVE_TO` and `ADVANCE_NEXT_TRANSIT` card resolution handlers to award `state.rules?.passStartReward ?? GAME_CONSTANTS.START_REWARD` rather than hardcoded static amounts whenever the player's target position wraps past START (#0).
+  - Maintains strict accounting ledger records (`START_REWARD`, `CREDIT`, dynamic amount) reflecting the exact match rule configuration.
+
+### 13.4 Comprehensive Rulebook Synchronization ("?" Modal & Guide Page)
+- **Modal ("?" Button) & Rules Page Synchronization**:
+  - Verified and aligned `RulesModal.tsx` and `RulesPage.tsx` with all authoritative game rules:
+    - **Capital & Balance Rules**: Clarified starting balance options (₹5,000, ₹10,000, ₹20,000) and pass salary options (₹1,000, ₹2,000, ₹3,000).
+    - **Transit Rent Differentiation**: Detailed Airport visiting rents (1 Airport: ₹1,000; 2 Airports: ₹2,500) vs Railway rents (1 Railway: ₹250; 2 Railways: ₹500).
+    - **Utility & Checkpost Calibration**: Urja Grid and Jal Board multipliers ($4\times$ single, $10\times$ dual) and statutory ₹500 GST and Infra Levy fees.
+    - **Central Jail Try Double & Automatic Release**: 3-turn double attempt limit, zero income while incarcerated, alternative Bail Key/₹500 bail, and automatic freedom on the 4th eligible turn.
+    - **Sell to Bank & Financial Resolution**: 50% payout formula, physical house preservation, acquisition price parity, 120s timer with non-destructive "Check Board" inspection mode, and immediate match conclusion with cash-first winner selection.
+    - **Indexed Card Rules**: 12 Civic Fund rules and 12 Market Buzz cards dynamically activated by dice sum.
+
+### 13.5 Installer Decoupling & Repository Footprint Optimization
+- **Binary Extraction**:
+  - Removed large precompiled desktop installer binaries (`.dmg`, `.dmg.blockmap`, `.exe`) and electron-builder build logs from git tracking and the repository tree.
+  - Enhanced `.gitignore` to prevent compiled binaries (`release/*`) from polluting future git commits while preserving directory structure via `release/.gitkeep`.
+- **Streamlined Documentation (`README.md`)**:
+  - Purged all binary download hyperlinks and release badges.
+  - Formatted strictly to the four requested structural pillars:
+    1. ⚡ Quick Start: Host & Play on Wi-Fi
+    2. 💻 Tech Stacks used
+    3. 🛠️ CLI Commands & Development Scripts
+    4. 🤝 How to Contribute
+
+### 13.6 Acceptance Testing & Quality Assurance
+- **102 Passing Vitest Tests**:
+  - Validated dynamic options acceptance (5000, 10000, 20000 and 1000, 2000, 3000) alongside rejection of out-of-bounds forged overrides.
+  - Validated debt resolution timers, Sell to Bank mechanisms, transit rent tables, and game termination invariants.
+- **Zero TypeScript and ESLint Warnings**:
+  - `npm run typecheck` passes with zero errors (`tsc -b --noEmit`).
+  - `npm run lint` passes with zero warnings (`eslint .`).
+- **Complete LAN and Server Bundle Build**:
+  - `npm run build`, `npm run build:lan`, and `npm run build:server` build cleanly.
 

@@ -4,7 +4,7 @@
 
 import { BOARD_SPACES } from '../board-config';
 import { FinancialTransaction, GameState, PlayerState, PropertyState, RoomMember } from '../game-types';
-import { DEFAULT_HOST_RULES, HostCustomRules, RULESET_VERSION } from '../ruleset';
+import { DEFAULT_HOST_RULES, HostCustomRules, RULESET_VERSION, STARTING_CASH_OPTIONS, PASS_START_REWARD_OPTIONS } from '../ruleset';
 
 const PLAYER_COLORS = [
   '#C85A32', // Terracotta Rust
@@ -22,11 +22,21 @@ export function createInitialGame(
   customRules: HostCustomRules = DEFAULT_HOST_RULES,
   startingPlayerUid?: string
 ): GameState {
-  // Enforce standardized authoritative defaults for core financial rules
+  // Authoritative dynamic financial rules validation:
+  // Starting balance allowed options: 5000, 10000, 20000 (default: 20000)
+  // Start pass money allowed options: 1000, 2000, 3000 (default: 3000)
+  const startingCash = (STARTING_CASH_OPTIONS as readonly number[]).includes(customRules?.startingCash ?? 0)
+    ? customRules.startingCash
+    : DEFAULT_HOST_RULES.startingCash;
+
+  const passStartReward = (PASS_START_REWARD_OPTIONS as readonly number[]).includes(customRules?.passStartReward ?? 0)
+    ? customRules.passStartReward
+    : DEFAULT_HOST_RULES.passStartReward;
+
   const sanitizedRules: HostCustomRules = {
     ...customRules,
-    startingCash: 20000,
-    passStartReward: 3000,
+    startingCash,
+    passStartReward,
     jailBail: 500,
   };
 
@@ -62,16 +72,16 @@ export function createInitialGame(
     }
   }
 
-  // Initialize players with standardized starting cash (₹20,000)
-  const startingCash = sanitizedRules.startingCash;
+  // Initialize players with configured starting cash
+  const initialCash = sanitizedRules.startingCash;
   const timerLimit = sanitizedRules.turnTimerSeconds || DEFAULT_HOST_RULES.turnTimerSeconds;
 
   const players: PlayerState[] = memberList.map((m, index) => ({
     uid: m.uid,
     displayName: m.displayName || `Player ${index + 1}`,
     photoURL: m.photoURL || null,
-    cash: startingCash,
-    netWorth: startingCash,
+    cash: initialCash,
+    netWorth: initialCash,
     position: 0, // START
     inJail: false,
     jailTurns: 0,
