@@ -694,7 +694,7 @@ export const CIVIC_FUND_CARDS: CardAction[] = [
     id: 'civic_9',
     deck: 'CIVIC',
     title: 'Special legal exemption',
-    description: 'Keep this Get Out of Jail card until used or traded.',
+    description: 'Keep this Get Out of Jail card until used. This card is non-tradable.',
     actionType: 'JAIL_FREE',
   },
   {

@@ -414,14 +414,14 @@ export function applyGameCommand(
 
     case 'USE_JAIL_CARD': {
       if (actorUid !== state.currentPlayerUid) {
-        throw new GameEngineError('NOT_YOUR_TURN', 'Only active player can use a Bail Key');
+        throw new GameEngineError('NOT_YOUR_TURN', 'Only active player can use a Get Out of Jail card');
       }
       const player = state.players.find((p) => p.uid === actorUid);
       if (!player || !player.inJail) {
         throw new GameEngineError('INVALID_ACTION', 'Player is not in jail');
       }
       if (player.jailFreeCards <= 0) {
-        throw new GameEngineError('INVALID_ACTION', 'No Bail Key available');
+        throw new GameEngineError('INVALID_ACTION', 'No Get Out of Jail card available (No Bail Key available)');
       }
 
       player.jailFreeCards -= 1;
@@ -429,9 +429,18 @@ export function applyGameCommand(
       player.jailTurns = 0;
       player.escapedJailThisTurn = false;
       state.phase = 'AWAIT_ROLL';
-      summary = `${player.displayName} used a Bail Key to leave Central Jail and can now roll!`;
+      summary = `${player.displayName} used a Get Out of Jail card to leave Central Jail and can now roll!`;
       eventPayload = { keyUsed: true, remainingKeys: player.jailFreeCards };
       break;
+    }
+
+    case 'PROPOSE_TRADE':
+    case 'ACCEPT_TRADE':
+    case 'REJECT_TRADE': {
+      throw new GameEngineError(
+        'INVALID_ACTION',
+        'Direct trading between players is disabled. Get Out of Jail cards and property deeds are strictly non-tradable.'
+      );
     }
 
     case 'TRY_DOUBLES': {

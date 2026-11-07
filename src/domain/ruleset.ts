@@ -58,6 +58,7 @@ export const GAME_CONSTANTS = {
   EMOTE_RATE_LIMIT_COUNT: 3,
   EMOTE_RATE_LIMIT_WINDOW_MS: 5000,
   EMOTE_DISPLAY_DURATION_MS: 5000,
+  GET_OUT_OF_JAIL_TRADABLE: false, // Invariant: Get Out of Jail cards are personal and non-tradable
 };
 
 /**

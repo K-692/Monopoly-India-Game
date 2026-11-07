@@ -393,7 +393,28 @@ describe('Acceptance Criteria: Jail Key Usage & Statutory ₹500 Bail', () => {
         },
         'user_1'
       );
-    }).toThrowError(/No Bail Key available/);
+    }).toThrowError(/No Bail Key available|No Get Out of Jail card available/);
+  });
+
+  it('enforces that Get Out of Jail cards are strictly non-tradable between players', () => {
+    const state = createInitialGame('room_1', 'game_1', mockMembers, undefined, 'user_1');
+    state.players[0].jailFreeCards = 1;
+
+    // Attempting to propose trade throws INVALID_ACTION
+    expect(() => {
+      applyGameCommand(
+        state,
+        {
+          commandId: 'cmd_trade',
+          roomId: state.roomId,
+          gameId: state.gameId,
+          expectedVersion: state.version,
+          type: 'PROPOSE_TRADE',
+          payload: { targetUid: 'user_2' },
+        },
+        'user_1'
+      );
+    }).toThrowError(/strictly non-tradable/);
   });
 
   it('PAY_BAIL deducts exactly ₹500 statutory bail', () => {

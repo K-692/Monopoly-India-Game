@@ -299,7 +299,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     }
     if (isMyTurn) {
       if (gameState.phase === 'AWAIT_ROLL') return 'Your Turn — Roll the Dice';
-      if (gameState.phase === 'JAIL_DECISION') return `Your Turn — In Jail (Pay ₹${authoritativeBail.toLocaleString('en-IN')} Bail or Try Doubles)`;
+      if (gameState.phase === 'JAIL_DECISION') {
+        if (activePlayer?.jailFreeCards && activePlayer.jailFreeCards > 0) {
+          return `Your Turn — In Jail (Use Get Out of Jail Card, Pay ₹${authoritativeBail.toLocaleString('en-IN')} Bail, or Try Doubles)`;
+        }
+        return `Your Turn — In Jail (Pay ₹${authoritativeBail.toLocaleString('en-IN')} Bail or Try Doubles)`;
+      }
       if (gameState.phase === 'PROPERTY_DECISION') return `Your Turn — ${propertyNoun} Decision`;
       if (gameState.phase === 'ACTION_REQUIRED') return 'Action Required — Financial Resolution';
       return 'Your Turn — Manage or End Turn';
@@ -686,11 +691,11 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                     <button
                       type="button"
                       onClick={() => onDispatch?.('USE_JAIL_CARD')}
-                      className="px-3 py-2 rounded-full font-bold text-xs text-white bg-emerald-600 hover:bg-emerald-500 active:scale-95 shadow-xs cursor-pointer flex items-center gap-1.5 min-h-[44px]"
-                      title="Use Bail Key to leave Central Jail immediately"
+                      className="px-3.5 py-2 rounded-full font-bold text-xs text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 active:scale-95 shadow-md cursor-pointer flex items-center gap-1.5 min-h-[44px] border border-emerald-400"
+                      title="Use your Get Out of Jail card to leave Central Jail immediately (strictly non-tradable)"
                     >
-                      <KeyRound className="w-3.5 h-3.5" />
-                      <span>Use Key ({activePlayer?.jailFreeCards})</span>
+                      <KeyRound className="w-3.5 h-3.5 text-emerald-200" />
+                      <span>Use Get Out of Jail Card ({activePlayer?.jailFreeCards})</span>
                     </button>
                   )}
                   <button

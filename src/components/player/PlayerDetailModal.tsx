@@ -161,7 +161,7 @@ export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
               <div className="flex items-center justify-between">
                 <span className="text-gray-500 font-medium">Get Out of Jail Cards</span>
                 <span className="font-bold text-amber-600">
-                  {player.jailFreeCards} card{player.jailFreeCards > 1 ? 's' : ''}
+                  {player.jailFreeCards} card{player.jailFreeCards > 1 ? 's' : ''} (Non-tradable)
                 </span>
               </div>
             )}

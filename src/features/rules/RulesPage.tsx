@@ -288,7 +288,7 @@ export const RulesPage: React.FC = () => {
               <li><strong>Zero Income While Incarcerated:</strong> A player currently in Jail <strong>CANNOT earn rent</strong> from other players landing on their cities, nor collect cash awards.</li>
               <li><strong>Ways to Exit Jail:</strong>
                 <ul className="list-circle list-inside ml-4 mt-1 space-y-1 text-xs text-gray-600 dark:text-gray-400">
-                  <li>Use an available Bail Key card.</li>
+                  <li>Click &quot;Use Get Out of Jail Card&quot; if held (personal and strictly non-tradable).</li>
                   <li>Pay the standard statutory bail (₹500).</li>
                   <li>Roll doubles on any of your 3 eligible turn attempts (Try Double).</li>
                 </ul>
