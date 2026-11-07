@@ -1,28 +1,18 @@
 <div align="center">
   <img src="public/assets/game_logo.png" alt="Indian Monopoly Logo" width="180" style="border-radius: 20px; box-shadow: 0 8px 24px rgba(0,0,0,0.18);" />
 
-  # 🇮🇳 Indian Monopoly — Local Wi-Fi LAN Multiplayer Board Game
-
-  **Server-authoritative, real-time multiplayer board game with dynamic room rules, LAN Wi-Fi hosting, and zero cloud dependency.**
-</div>
-
----
-
-> **About the Project:**  
-> **Indian Monopoly** is a modern, server-authoritative property trading board game engineered for cross-platform local network Wi-Fi multiplayer. Built with **React 19, TypeScript, Tailwind CSS, Node.js, Express, and Socket.IO**, the application delivers a seamless, zero-scroll multiplayer experience without requiring external cloud accounts or third-party game services.
->
-> The host machine launches an authoritative LAN server on local Wi-Fi, allowing friends on mobile devices (iOS/Android), tablets, and laptops to join instantly by scanning an on-screen QR Code or typing a shareable 6-character room code.
-
 ---
 
 ## ⚡ Quick Start: Host & Play on Wi-Fi
 
 ### 1. Prerequisites
+
 - **Node.js**: v20.0.0 or higher (v22+ recommended)
 - **npm**: v10.0.0 or higher
 - Devices connected to the **same local Wi-Fi network or mobile hotspot**
 
 ### 2. Installation
+
 ```bash
 # Clone the repository
 git clone https://github.com/K-692/Monopoly-India-Game.git
@@ -33,6 +23,7 @@ npm install
 ```
 
 ### 3. Run the Production LAN Host Server
+
 ```bash
 npm run lan:host
 ```
@@ -61,6 +52,7 @@ Waiting for players...
 ```
 
 ### 4. Join & Play!
+
 1. **Host**: Open `http://localhost:4173` (or your printed LAN IP) in your browser. Enter your player name, click **Customize Rules & Host**, configure your preferred rules, and click **Create Room**.
    - **Dynamic Starting Balance**: Choose between **₹5,000**, **₹10,000**, or **₹20,000** starting capital.
    - **Dynamic Start Pass Money**: Choose between **₹1,000**, **₹2,000**, or **₹3,000** salary upon crossing START.
@@ -76,7 +68,7 @@ Waiting for players...
 
 ```
                                   INDIAN MONOPOLY LAN ARCHITECTURE
-                                 
+                               
       +──────────────────────────────────────────────────────────────────────────+
       │                         HOST LAPTOP (Node.js 20+)                        │
       │                                                                          │
@@ -112,39 +104,39 @@ Waiting for players...
 
 ## 💻 Tech Stacks used
 
-| Layer | Technologies & Libraries | Purpose & Architectural Role |
-|:---|:---|:---|
-| **Frontend Framework** | **React 19**, **TypeScript 5.7** | Declarative component hierarchy, strict type safety, zero-scroll responsive UI. |
-| **Styling & Design** | **Tailwind CSS 3.4**, **Lucide React** | Indian-heritage aesthetic palette (Terracotta, Parchment, Royal Navy, Gold), icon system. |
-| **State Management** | **Zustand 5**, **TanStack Query 5** | Lightweight reactive client state, decoupled toast store, room and game state synchronizers. |
-| **Client UI Primitives** | **Radix UI Primitives**, **Canvas Confetti** | Accessible dialogs, tooltips, tabs, and celebratory victory animations. |
-| **Backend & Server** | **Node.js 20+**, **Express 5**, **tsx** | High-performance HTTP server serving static client assets and LAN discovery APIs. |
-| **Real-Time Networking** | **Socket.IO 4.8** | Authoritative bidirectional WebSocket transport with room multiplexing and reconnect handling. |
-| **Domain Logic & Math** | Pure TypeScript Game Engine | Cryptographic fair dice via rejection sampling, serialized action queue, authoritative state transitions. |
-| **Desktop Runtime** | **Electron 45** | Native desktop integration with embedded background LAN server runner. |
-| **Testing & Quality** | **Vitest 3**, **Playwright**, **ESLint 9** | Unit, acceptance, integration, responsive layout, and headless browser end-to-end verification. |
+| Layer                          | Technologies & Libraries                                     | Purpose & Architectural Role                                                                              |
+| :----------------------------- | :----------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------- |
+| **Frontend Framework**   | **React 19**, **TypeScript 5.7**                 | Declarative component hierarchy, strict type safety, zero-scroll responsive UI.                           |
+| **Styling & Design**     | **Tailwind CSS 3.4**, **Lucide React**           | Indian-heritage aesthetic palette (Terracotta, Parchment, Royal Navy, Gold), icon system.                 |
+| **State Management**     | **Zustand 5**, **TanStack Query 5**              | Lightweight reactive client state, decoupled toast store, room and game state synchronizers.              |
+| **Client UI Primitives** | **Radix UI Primitives**, **Canvas Confetti**     | Accessible dialogs, tooltips, tabs, and celebratory victory animations.                                   |
+| **Backend & Server**     | **Node.js 20+**, **Express 5**, **tsx**    | High-performance HTTP server serving static client assets and LAN discovery APIs.                         |
+| **Real-Time Networking** | **Socket.IO 4.8**                                      | Authoritative bidirectional WebSocket transport with room multiplexing and reconnect handling.            |
+| **Domain Logic & Math**  | Pure TypeScript Game Engine                                  | Cryptographic fair dice via rejection sampling, serialized action queue, authoritative state transitions. |
+| **Desktop Runtime**      | **Electron 45**                                        | Native desktop integration with embedded background LAN server runner.                                    |
+| **Testing & Quality**    | **Vitest 3**, **Playwright**, **ESLint 9** | Unit, acceptance, integration, responsive layout, and headless browser end-to-end verification.           |
 
 ---
 
 ## 🛠️ CLI Commands & Development Scripts
 
-| Command | Purpose |
-|:---|:---|
-| `npm run lan:host` | **Production Host**: Builds the production bundle (`dist/`) and starts the authoritative LAN server on `0.0.0.0:4173`. |
-| `npm run lan:dev` | **Concurrent Dev**: Runs the Node.js Socket.IO server (`tsx watch`) and Vite dev server (`5173`) with live hot-reloading. |
-| `npm run dev` | Starts the Vite development server locally on port 5173. |
-| `npm run server` | Starts the Node.js backend server directly using `tsx server/index.ts`. |
-| `npm run build` | Compiles TypeScript and builds the production React application. |
-| `npm run build:lan` | Builds the React frontend with `/` base path explicitly optimized for LAN hosting. |
-| `npm run build:server` | Bundles the standalone server into `dist-server/index.cjs` using `esbuild`. |
-| `npm run build:desktop` | Builds both the React LAN frontend (`dist/`) and the server bundle (`dist-server/index.cjs`). |
-| `npm run desktop` | Builds desktop assets and launches the application inside native Electron. |
-| `npm test` | Runs the Vitest test suite covering engine invariants, rulesets, and multiplayer mechanics. |
-| `npm run test:watch` | Runs Vitest in interactive watch mode for test-driven development. |
-| `npm run test:coverage` | Generates detailed unit test code coverage reports. |
-| `npm run typecheck` | Strict TypeScript compiler validation across client, server, and tests (`tsc -b --noEmit`). |
-| `npm run lint` | ESLint static analysis across all TypeScript and React files with zero warnings. |
-| `npm run preview` | Previews the production build locally via Vite. |
+| Command                   | Purpose                                                                                                                             |
+| :------------------------ | :---------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run lan:host`      | **Production Host**: Builds the production bundle (`dist/`) and starts the authoritative LAN server on `0.0.0.0:4173`.    |
+| `npm run lan:dev`       | **Concurrent Dev**: Runs the Node.js Socket.IO server (`tsx watch`) and Vite dev server (`5173`) with live hot-reloading. |
+| `npm run dev`           | Starts the Vite development server locally on port 5173.                                                                            |
+| `npm run server`        | Starts the Node.js backend server directly using `tsx server/index.ts`.                                                           |
+| `npm run build`         | Compiles TypeScript and builds the production React application.                                                                    |
+| `npm run build:lan`     | Builds the React frontend with `/` base path explicitly optimized for LAN hosting.                                                |
+| `npm run build:server`  | Bundles the standalone server into `dist-server/index.cjs` using `esbuild`.                                                     |
+| `npm run build:desktop` | Builds both the React LAN frontend (`dist/`) and the server bundle (`dist-server/index.cjs`).                                   |
+| `npm run desktop`       | Builds desktop assets and launches the application inside native Electron.                                                          |
+| `npm test`              | Runs the Vitest test suite covering engine invariants, rulesets, and multiplayer mechanics.                                         |
+| `npm run test:watch`    | Runs Vitest in interactive watch mode for test-driven development.                                                                  |
+| `npm run test:coverage` | Generates detailed unit test code coverage reports.                                                                                 |
+| `npm run typecheck`     | Strict TypeScript compiler validation across client, server, and tests (`tsc -b --noEmit`).                                       |
+| `npm run lint`          | ESLint static analysis across all TypeScript and React files with zero warnings.                                                    |
+| `npm run preview`       | Previews the production build locally via Vite.                                                                                     |
 
 ---
 
@@ -154,42 +146,43 @@ We warmly welcome contributions from developers, game designers, and open-source
 
 1. **Fork the Repository**:
    Click the **Fork** button on the GitHub repository page to create a copy in your account.
-
 2. **Clone your fork**:
+
    ```bash
    git clone https://github.com/<your-username>/Monopoly-India-Game.git
    cd Monopoly-India-Game
    ```
-
 3. **Create a Feature Branch**:
+
    ```bash
    git checkout -b feature/your-feature-name
    ```
-
 4. **Follow Development Guidelines**:
+
    - Write clean, modular, and type-safe TypeScript code.
    - Maintain zero-scroll responsive design and strict server-authoritative invariants.
    - Add comments so functions and complex state transitions are easy to understand and reference.
    - Ensure game rules and UI remain consistent across both mobile and desktop viewports.
-
 5. **Verify Quality & Tests**:
    Before submitting changes, make sure all validations and test suites pass cleanly:
+
    ```bash
    npm run typecheck
    npm run lint
    npm test
    npm run build
    ```
-
 6. **Commit Your Changes**:
+
    ```bash
    git commit -m "feat: add dynamic room settings and rule validations"
    ```
-
 7. **Push to Your Fork & Open a Pull Request**:
+
    ```bash
    git push origin feature/your-feature-name
    ```
+
    Open a Pull Request describing your changes, architectural rationale, and verification steps.
 
 ---
