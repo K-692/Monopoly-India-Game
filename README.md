@@ -158,7 +158,7 @@ For complete mathematical definitions, state machine proofs, and research citati
 | `npm run build:server` | Bundles the standalone server into `dist-server/index.cjs` using `esbuild`. |
 | `npm run build:desktop` | Builds both the React LAN frontend (`dist/`) and the server bundle (`dist-server/index.cjs`). |
 | `npm run desktop` | Builds desktop assets and launches the application inside native Electron. |
-| `npm test` | Runs the full Vitest test suite (153 tests across 13 files). |
+| `npm test` | Runs the full Vitest test suite (173 tests across 15 test files). |
 | `npm run test:watch` | Runs Vitest in interactive watch mode for test-driven development. |
 | `npm run test:coverage`| Generates detailed test code coverage reports. |
 | `npm run typecheck` | Strict TypeScript compiler validation across client, server, and tests (`tsc -b --noEmit`). |
@@ -172,11 +172,13 @@ For complete mathematical definitions, state machine proofs, and research citati
 | Feature | Mechanics & Rule Specification |
 | :--- | :--- |
 | **Starting Balance** | **Configurable via Slider**: ₹5,000 to ₹50,000 (step ₹5,000, default ₹20,000). Applied uniformly to all human & CPU players. |
-| **Crossing START** | **Fixed Statutory Reward**: ₹3,000 credited automatically each time a player completes a circuit. |
-| **Central Jail & Bail** | Players enter jail via "Go to Jail" square or card events. Release methods: **Bail Key Card**, **₹500 Statutory Bail**, or rolling doubles within 3 attempts. |
+| **Crossing START** | **Host-Configurable Salary**: Selectable options of ₹1,000, ₹2,000, or ₹3,000 (default ₹2,000) credited each circuit or via Festival Travel card. |
+| **Winner & Net Worth** | Match champion is determined strictly by **highest Net Worth** (Cash + Total Owned Assets - Outstanding Liabilities), tie-broken by remaining Cash Balance, then Player UID. |
+| **Player Cards & Timer** | Left information panel displays prominent liquid Cash Balance and separate gold NET WORTH. The running turn timer is integrated directly inside the active player's card, moving dynamically on handoff. |
+| **Central Jail & Bail** | Players enter jail via "Go to Jail" square or card events. Release methods: **Bail Key Card**, **₹500 Statutory Bail**, or rolling doubles within 3 attempts. Automatic release on 4th turn. |
 | **House Construction** | Monopoly holders can build houses on a city **only when actively visiting that city** on a subsequent turn. Uniform building distribution enforced across the color group. |
-| **Sell to Bank** | Players can liquidate properties to the bank for 50% value to satisfy obligations. Reacquired bank properties preserve previously built houses. |
-| **120s Debt Timer** | If cash balance drops into deficit after fees/rent, a 120-second countdown begins. The player must liquidate assets or declare bankruptcy. |
+| **Sell to Bank** | Players can liquidate properties to the bank for 50% purchase + 50% development value to satisfy obligations. Reacquired bank properties preserve previously built houses. |
+| **120s Debt Timer** | If cash balance drops into deficit after fees/rent, a 120-second countdown begins. The player can Adjust Payouts to sell to bank or inspect the board in unblurred preview mode with persistent "Return to Sell to Bank". |
 | **Turn Sync & Timers** | Timers pause during token movement animations across all connected clients. Resets to full duration upon entering new actionable phases (e.g. `PROPERTY_DECISION`). Mandatory 2-second pacing handoff delay before CPU turns. |
 
 ---

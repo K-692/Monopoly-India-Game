@@ -1,0 +1,419 @@
+/**
+ * Indian Monopoly - Comprehensive Authoritative In-Game Rules Guide
+ *
+ * Sourced directly from authoritative game engine implementation, constants,
+ * and multiplayer rulesets. Used by the in-game Rules Modal (?) to present
+ * complete, structured, and accurate guidance to players.
+ */
+
+import {
+  STARTING_CASH_MIN,
+  STARTING_CASH_MAX,
+  STARTING_CASH_STEP,
+  STARTING_CASH_DEFAULT,
+  PASS_START_REWARD_OPTIONS,
+  DEFAULT_HOST_RULES,
+} from './ruleset';
+
+export interface RuleSectionItem {
+  subtitle: string;
+  points: string[];
+}
+
+export interface RuleSection {
+  id: string;
+  number: number;
+  title: string;
+  badge?: string;
+  icon: string;
+  summary: string;
+  items: RuleSectionItem[];
+}
+
+export const GAME_RULES_SECTIONS: RuleSection[] = [
+  {
+    id: 'objective',
+    number: 1,
+    title: 'Objective of the Game',
+    badge: 'Victory & Net Worth',
+    icon: 'Trophy',
+    summary:
+      'Build a dominant commercial empire across India, manage liquidity, and finish with the highest authoritative Net Worth.',
+    items: [
+      {
+        subtitle: 'Core Objective',
+        points: [
+          'Acquire iconic Indian cities, transit hubs, and public utilities across the 40-tile perimeter board.',
+          'Develop monopolized city groups with Houses and Commercial Towers to collect escalating tariffs from visiting opponents.',
+          'Prudently manage available cash balance to survive economic downturns, tax checkposts, and market volatility.',
+        ],
+      },
+      {
+        subtitle: 'Cash Balance vs. Net Worth Distinction',
+        points: [
+          'Balance (Liquid Cash): The immediately available liquid currency in hand. Used for purchasing deeds, building upgrades, paying rent, and settling debts.',
+          'NET WORTH (Enterprise Value): The authoritative measure of total player wealth: NET WORTH = Cash Balance + Total Owned Asset Value - Outstanding Liabilities.',
+          'Total Owned Asset Value includes the full face-value purchase price of all owned cities, railways, and airports, plus 100% of all invested building and tower expenditures. For properties in mortgage, their mortgage value is counted. Bank-owned or unowned properties count as ₹0.',
+          'Outstanding Liabilities includes any unfulfilled remaining debt from pending financial obligations.',
+        ],
+      },
+      {
+        subtitle: 'Deciding the Champion',
+        points: [
+          'When the match terminates (upon opponent surrender, disqualification through debt timeout, or game completion), the player with the highest total Net Worth is crowned champion.',
+          'Tie-Breaker 1: If Net Worth is identical, the player with the higher Cash Balance wins.',
+          'Tie-Breaker 2: If both Net Worth and Cash Balance tie, the winner is determined by player UID order.',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'setup',
+    number: 2,
+    title: 'Game Setup',
+    badge: 'Room Configuration',
+    icon: 'Sliders',
+    summary:
+      'Host-configurable match parameters including Starting Capital, Salary, and Computer Players (CPUs).',
+    items: [
+      {
+        subtitle: 'Room Creation & Seating',
+        points: [
+          'The host creates a room via Online Multiplayer or local LAN Multiplayer and distributes the unique Room ID.',
+          'Rooms support 2 to 4 players total, combining human players and autonomous computer opponents.',
+        ],
+      },
+      {
+        subtitle: 'Configurable Starting Capital',
+        points: [
+          `Host adjusts starting cash using an interactive slider from ₹${STARTING_CASH_MIN.toLocaleString('en-IN')} to ₹${STARTING_CASH_MAX.toLocaleString('en-IN')} in steps of ₹${STARTING_CASH_STEP.toLocaleString('en-IN')} (default ₹${STARTING_CASH_DEFAULT.toLocaleString('en-IN')}).`,
+          'All participants begin with identical cash allocations credited before the first turn.',
+        ],
+      },
+      {
+        subtitle: 'Start Crossing Money Options',
+        points: [
+          `Host configures the salary received when crossing START with selectable options: ${PASS_START_REWARD_OPTIONS.map((amt) => `₹${amt.toLocaleString('en-IN')}`).join(', ')} (default ₹${DEFAULT_HOST_RULES.passStartReward.toLocaleString('en-IN')}).`,
+        ],
+      },
+      {
+        subtitle: 'Autonomous Computer Players (CPUs)',
+        points: [
+          'The host can add between 0 and 3 computer-controlled players (CPUs) when creating the room.',
+          'CPU names are fully customizable (e.g., CPU1, CPU2, or personalized names).',
+          'Computer players participate in the exact same game session, obeying identical authoritative engine rules, financial formulas, and turn sequencing as human players.',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'turn-sequence',
+    number: 3,
+    title: 'Turn Sequence',
+    badge: 'Turn Flow & Timing',
+    icon: 'PlayCircle',
+    summary:
+      'A structured, synchronized sequence ensuring every player completes all actions before control transfers.',
+    items: [
+      {
+        subtitle: 'Rolling the Dice',
+        points: [
+          'The active player rolls two virtual 6-sided dice generating a random total between 2 and 12.',
+          'Single Roll Rule: Rolling doubles does NOT grant an extra roll or turn. Exactly one roll is taken per turn.',
+        ],
+      },
+      {
+        subtitle: 'Movement & Board Animation',
+        points: [
+          'The player token animates smoothly step-by-step around the 40 perimeter tiles.',
+          'The turn countdown timer is automatically PAUSED during movement animation so walking time is never penalized.',
+        ],
+      },
+      {
+        subtitle: 'Tile Resolution & Action Phases',
+        points: [
+          'Upon arriving at the destination space, the engine executes tile-specific mechanics (purchases, tariffs, draws, or fines).',
+          'When reaching an actionable phase (e.g. Property Decision), the timer resets to the full 30-second duration.',
+        ],
+      },
+      {
+        subtitle: 'Turn Completion & Handoff',
+        points: [
+          'A turn is officially complete only after movement, rent exchanges, card popups, and financial settlements conclude.',
+          'Between consecutive CPU turns, the game engine enforces a mandatory 2-second visual handoff delay for clear pacing.',
+          'As soon as a CPU has executed its required decisions, it immediately concludes its turn without waiting for the timer to elapse.',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'start-salary',
+    number: 4,
+    title: 'START and Salary',
+    badge: 'Space #0 Economy',
+    icon: 'Coins',
+    summary:
+      'Collect starting salary by passing or landing on Space #0 or drawing Festival Travel Market Buzz.',
+    items: [
+      {
+        subtitle: 'Crossing or Landing on START',
+        points: [
+          'Every time a player passes or lands on Space #0 (START) in clockwise direction, they receive their statutory salary.',
+          'The amount credited matches the host-configured salary (₹1,000, ₹2,000, or ₹3,000; default ₹2,000).',
+          'Salary is credited immediately upon crossing and logged in the player transaction ledger.',
+        ],
+      },
+      {
+        subtitle: 'Festival Travel Market Buzz',
+        points: [
+          'Drawing the Festival Travel Market Buzz card displays: "Go to START and collect the starting money."',
+          'The player token moves directly to Space #0 and is credited with exactly one salary payout.',
+          'No duplicate or compounding salary is credited for this directive.',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'properties-ownership',
+    number: 5,
+    title: 'Properties and Ownership',
+    badge: 'Deeds & Development',
+    icon: 'Building2',
+    summary:
+      '22 Indian Cities, 4 Transit Hubs, and 2 Public Utilities with tiered rental tariffs and upgrade ladders.',
+    items: [
+      {
+        subtitle: 'Acquisition & Purchase',
+        points: [
+          'Landing on an unowned property permits the player to purchase the deed at face value.',
+          'If the player cannot afford the deed price, the purchase prompt is suppressed and an "Insufficient balance" notice is displayed.',
+        ],
+      },
+      {
+        subtitle: 'Rent and Tariffs',
+        points: [
+          'Visiting opponents must pay rent directly to the property deed owner.',
+          'Full Monopoly Bonus: Owning all cities in a color group doubles the base unimproved rent on all cities in that group.',
+          'Rent is waived if the owner is currently in Central Jail or if the property has been sold to the Reserve Bank.',
+        ],
+      },
+      {
+        subtitle: 'Transit Hubs & Utilities',
+        points: [
+          'Airports (Spaces #15 & #35 - Chhatrapati Shivaji & Indira Gandhi): ₹1,000 rent for 1 airport; ₹2,500 rent for both airports.',
+          'Railways (Spaces #5 & #25 - CST Mumbai & Howrah Station): ₹250 rent for 1 railway; ₹500 rent for both railways.',
+          'Public Utilities (Spaces #12 & #28 - Urja Power Grid & Jal Board): Rent equals 4× dice roll for 1 utility; 10× dice roll if both are owned.',
+        ],
+      },
+      {
+        subtitle: 'Houses and Commercial Towers',
+        points: [
+          'Once a player holds a complete color group monopoly, they may construct houses on those cities.',
+          'Construction is permitted starting from subsequent rounds when revisiting your owned property.',
+          'Up to 4 Houses may be built per city; the 5th tier upgrade crowns the property with a Commercial Sky Tower.',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'cards-events',
+    number: 6,
+    title: 'Market Buzz and Special Cards',
+    badge: '24 Dynamic Cards',
+    icon: 'Flame',
+    summary:
+      '12 Civic Fund and 12 Market Buzz event cards triggered by dice rolls, affecting capital, movement, and jail keys.',
+    items: [
+      {
+        subtitle: 'Civic Fund (Community Treasury - 12 Cards)',
+        points: [
+          'Landing on Civic Fund spaces draws one of 12 community cards determined by the dice sum.',
+          'Features municipal dividends, bank interest, IT refunds, inheritances, and municipal maintenance charges.',
+          'Includes the coveted non-tradable "Get Out of Jail Free" Bail Key card.',
+        ],
+      },
+      {
+        subtitle: 'Market Buzz (Fortune & Chance - 12 Cards)',
+        points: [
+          'Landing on Market Buzz spaces triggers dynamic economic events matching the dice sum.',
+          'Features festival bonuses, export incentives, startup windfalls, and traffic challans.',
+          'Contains "Festival Travel: Go to START and collect the starting money."',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'taxes-special-tiles',
+    number: 7,
+    title: 'Taxes, Fees and Special Tiles',
+    badge: 'Checkposts & Rest',
+    icon: 'ShieldAlert',
+    summary:
+      'GST Checkpost, Infrastructure Wealth Levy, Rest House, and Police Checkpoint rules.',
+    items: [
+      {
+        subtitle: 'Statutory Taxes',
+        points: [
+          'GST Checkpost (Space #8): Statutory fee of ₹500 paid to the Reserve Bank.',
+          'Infrastructure Wealth Levy (Space #37): Statutory capital levy of ₹500 paid to the Reserve Bank.',
+        ],
+      },
+      {
+        subtitle: 'Rest House (Space #20)',
+        points: [
+          'A neutral safe haven space equivalent to "Free Parking" / "Just Visiting".',
+          'Players resting here incur no fees, debts, or penalties.',
+        ],
+      },
+      {
+        subtitle: 'Central Jail & Police Checkpoint (Spaces #10 & #30)',
+        points: [
+          'Landing on Police Checkpoint (Space #30) sends the token directly to Central Jail (Space #10).',
+          'While in jail, players cannot collect rent from opponents or claim cash rewards.',
+          'Escape Option 1: Pay statutory bail of ₹500 on any eligible jail turn.',
+          'Escape Option 2: Use an active "Get Out of Jail Free" card if held.',
+          'Escape Option 3: Attempt "Try Double" (roll identical dice faces) on turns 1, 2, or 3. If doubles are rolled, the player escapes immediately and moves by that roll (no extra turn).',
+          'Automatic 4th Turn Release: If all 3 double attempts fail, the player is automatically released on their 4th jail turn without paying bail or rolling doubles.',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'sell-to-bank',
+    number: 8,
+    title: 'Selling Properties to the Bank',
+    badge: 'Liquidation Mechanics',
+    icon: 'Landmark',
+    summary:
+      'Liquidate properties to the Reserve Bank for 50% purchase + 50% development cost, preserving built structures.',
+    items: [
+      {
+        subtitle: 'Payout Formula',
+        points: [
+          'Bank Payout = 50% of the property deed purchase price + 50% of all constructed house/tower expenditures.',
+          'Payout cash is credited instantly to the player and can be used to satisfy debts or boost liquidity.',
+        ],
+      },
+      {
+        subtitle: 'Building Preservation & Bank Inventory',
+        points: [
+          'Ownership is transferred immediately to the Reserve Bank; the property becomes unowned and generates zero rent.',
+          'Built structures (Houses and Commercial Towers) are NOT demolished—they remain preserved on the deed.',
+          'Any player who subsequently lands on the space may reacquire the property from the bank for the exact payout amount the bank paid, inheriting all existing buildings intact!',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'debt-bankruptcy',
+    number: 9,
+    title: 'Debt and Bankruptcy',
+    badge: '120s Emergency Window',
+    icon: 'AlertTriangle',
+    summary:
+      'Authoritative 120-second emergency resolution window with Adjust Payouts and read-only Board Inspection.',
+    items: [
+      {
+        subtitle: 'Entering Financial Debt',
+        points: [
+          'When an obligation (rent, statutory tax, or card penalty) exceeds available cash, the player enters debt resolution.',
+          'The server starts an authoritative 120-second countdown timer that synchronizes across all players and survives network reconnections.',
+        ],
+      },
+      {
+        subtitle: 'Adjust Payouts (Sell to Bank)',
+        points: [
+          'Debtors can open the Sell-to-Bank interface to liquidate properties and raise the required settlement funds.',
+          'Properties are sorted in ascending order of maximum potential tariff, protecting high-earning assets from hasty sale.',
+        ],
+      },
+      {
+        subtitle: 'Board Inspection Mode',
+        points: [
+          'Players can click "Check Board" to inspect the full board, opponent assets, and deed values in full quality without blur.',
+          'A prominent "Return to Sell to Bank" button allows returning directly to debt resolution without losing countdown progress.',
+        ],
+      },
+      {
+        subtitle: 'Bankruptcy & Elimination',
+        points: [
+          'If the 120-second timer reaches 0 or the debtor clicks "Give Up", the player is eliminated immediately.',
+          'The match terminates instantly, and the winner is decided by Net Worth among remaining players.',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'winning',
+    number: 10,
+    title: 'Winning the Game',
+    badge: 'Highest Net Worth',
+    icon: 'Crown',
+    summary:
+      'Authoritative Net Worth formula, endgame triggers, and strict tie-breaking sequence.',
+    items: [
+      {
+        subtitle: 'Endgame Triggers',
+        points: [
+          'A match concludes upon opponent surrender, debt timer expiration, or scheduled turn limit completion.',
+          'The game engine immediately tallies authoritative Net Worth for all remaining non-bankrupt players.',
+        ],
+      },
+      {
+        subtitle: 'Authoritative Net Worth Formula',
+        points: [
+          'NET WORTH = Cash Balance + Total Owned Asset Value - Outstanding Liabilities.',
+          'Total Owned Asset Value = sum of unmortgaged deed prices + mortgaged deed payout values + 100% of all constructed building/tower costs.',
+          'Outstanding Liabilities = unpaid debt from active financial obligations.',
+        ],
+      },
+      {
+        subtitle: 'Tie-Breaking Protocol',
+        points: [
+          'The highest Net Worth player is declared champion.',
+          'Tie-Breaker 1: Highest remaining Cash Balance.',
+          'Tie-Breaker 2: Lowest Player UID order.',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'multiplayer-cpu',
+    number: 11,
+    title: 'Multiplayer and CPU Rules',
+    badge: 'Multi-Agent Parity',
+    icon: 'Users',
+    summary:
+      'Autonomous CPUs running on the authoritative engine with 2-second pacing and automatic turn handoff.',
+    items: [
+      {
+        subtitle: 'Multi-Agent Parity',
+        points: [
+          'Computer-controlled players (CPUs) run on the identical server-authoritative engine as human players.',
+          'No separate CPU logic, cheat shortcuts, or artificial balance adjustments exist.',
+        ],
+      },
+      {
+        subtitle: '2-Second CPU Turn Pacing',
+        points: [
+          'To ensure realistic visual observation for human players, a consistent 2-second handoff pause occurs between consecutive CPU turns.',
+          'Human player turns alert the active player with an audible notification sound.',
+        ],
+      },
+      {
+        subtitle: 'Automatic Turn Completion',
+        points: [
+          'As soon as a CPU finishes its movement, card resolution, and property purchase/decline actions, it automatically concludes its turn.',
+          'CPUs never stall or wait for the 30-second turn timer to expire.',
+        ],
+      },
+      {
+        subtitle: 'LAN & Online Multiplayer',
+        points: [
+          'Rooms operate seamlessly across local Wi-Fi/LAN networks and online WebSockets.',
+          'Game state, player balances, net worth, and timers remain 100% synchronized in real time.',
+        ],
+      },
+    ],
+  },
+];

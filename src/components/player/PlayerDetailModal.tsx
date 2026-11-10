@@ -1,9 +1,9 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { FinancialTransaction, PlayerState, PropertyState } from '@/domain/game-types';
+import { FinancialTransaction, PlayerState, PropertyState, PendingFinancialObligation } from '@/domain/game-types';
 import { BOARD_SPACES } from '@/domain/board-config';
 import { X, Wallet, TrendingUp, MapPin, ShieldAlert, Home, Building2, Landmark, Train, Plane, Zap, Droplets, History, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
-import { calculateRent } from '@/domain/ruleset';
+import { calculateRent, calculateNetWorth } from '@/domain/ruleset';
 import { PopupTurnTimer } from '@/components/feedback/PopupTurnTimer';
 import { getCityPriceColor } from '@/domain/city-colors';
 import { cn } from '@/lib/utils/cn';
@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils/cn';
 interface PlayerDetailModalProps {
   player: PlayerState | null;
   properties: Record<number, PropertyState>;
+  pendingFinancialObligation?: PendingFinancialObligation | null;
   transactions?: FinancialTransaction[];
   onClose: () => void;
   activePlayerName?: string;
@@ -22,6 +23,7 @@ interface PlayerDetailModalProps {
 export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
   player,
   properties,
+  pendingFinancialObligation,
   transactions = [],
   onClose,
   activePlayerName,
@@ -30,6 +32,13 @@ export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
   isMyTurn = false,
 }) => {
   if (!player) return null;
+
+  const computedNetWorth = calculateNetWorth(
+    player.uid,
+    player.cash,
+    properties,
+    pendingFinancialObligation
+  );
 
   const currentSpace = BOARD_SPACES[player.position];
 
@@ -133,7 +142,7 @@ export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
                 <span>Total Net Worth</span>
               </div>
               <span className="font-black text-base sm:text-lg text-amber-800 dark:text-amber-300">
-                ₹{player.netWorth.toLocaleString('en-IN')}
+                ₹{computedNetWorth.toLocaleString('en-IN')}
               </span>
             </div>
           </div>

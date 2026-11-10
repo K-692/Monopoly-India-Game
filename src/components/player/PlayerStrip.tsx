@@ -1,15 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FinancialTransaction, PlayerState, PropertyState } from '@/domain/game-types';
+import { FinancialTransaction, PlayerState, PropertyState, PendingFinancialObligation } from '@/domain/game-types';
 import { Card } from '@/components/ui/Card';
 import { IndianRupee, Clock, Flag } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { PlayerDetailModal } from './PlayerDetailModal';
 import { useAuthStore } from '@/features/auth/use-auth-store';
+import { calculateNetWorth } from '@/domain/ruleset';
 
 interface PlayerStripProps {
   players: PlayerState[];
   currentPlayerUid: string;
   properties: Record<number, PropertyState>;
+  pendingFinancialObligation?: PendingFinancialObligation | null;
   transactions?: FinancialTransaction[];
   turnTimeRemaining?: number;
   turnTimeLimit?: number;
@@ -24,6 +26,7 @@ export const PlayerStrip: React.FC<PlayerStripProps> = ({
   players,
   currentPlayerUid,
   properties,
+  pendingFinancialObligation,
   transactions = [],
   turnTimeRemaining,
   turnTimeLimit = 30,
@@ -87,10 +90,17 @@ export const PlayerStrip: React.FC<PlayerStripProps> = ({
           const flash = cashFlash[player.uid];
           const timerVal = turnTimeRemaining ?? turnTimeLimit;
           const isTimerLow = timerVal <= 10;
+          const computedNetWorth = calculateNetWorth(
+            player.uid,
+            player.cash,
+            properties,
+            pendingFinancialObligation
+          );
 
           return (
             <Card
               key={player.uid}
+              data-testid={`player-card-${player.uid}`}
               onClick={() => {
                 setInspectedPlayerUid(player.uid);
                 onSelectPlayer?.(player.uid);
@@ -111,11 +121,11 @@ export const PlayerStrip: React.FC<PlayerStripProps> = ({
                   {player.displayName.charAt(0).toUpperCase()}
                 </div>
 
-                {/* Name */}
+                {/* Name, Status & Turn Timer Header */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-0.5">
+                  <div className="flex items-center justify-between gap-1">
                     <div className="flex items-center gap-1 min-w-0 truncate">
-                      <span className="text-[9.5px] font-bold text-indian-navy-900 dark:text-white truncate block">
+                      <span className="text-[9px] sm:text-[9.5px] font-bold text-indian-navy-900 dark:text-white truncate block">
                         {player.displayName}
                       </span>
                       {(player.isCpu || player.playerType === 'COMPUTER') && (
@@ -124,40 +134,54 @@ export const PlayerStrip: React.FC<PlayerStripProps> = ({
                         </span>
                       )}
                     </div>
-                    {isTurn && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-indian-terracotta-500 animate-ping shrink-0" />
-                    )}
-                  </div>
 
-                  {/* Cash Balance */}
-                  <div className="flex items-center justify-between gap-1 mt-0.5">
-                    <div
-                      className={cn(
-                        'flex items-center text-[9px] font-black transition-all rounded leading-none',
-                        flash === 'up' && 'text-emerald-700 bg-emerald-100 font-black scale-105',
-                        flash === 'down' && 'text-red-700 bg-red-100 font-black scale-105',
-                        !flash && 'text-emerald-700 dark:text-emerald-400'
-                      )}
-                    >
-                      <IndianRupee className="w-2.5 h-2.5 -mr-0.5" />
-                      <span>{player.cash.toLocaleString('en-IN')}</span>
-                    </div>
-
+                    {/* Requirement 2: Active Player's Turn Timer Countdown inside card header */}
                     {isTurn && (
                       <div
+                        data-testid={`active-timer-${player.uid}`}
                         className={cn(
-                          'flex items-center gap-0.5 px-1 py-0.2 rounded-full text-[7.5px] font-bold shrink-0',
+                          'flex items-center gap-0.5 px-1 py-0.2 rounded-full text-[7.5px] font-bold shrink-0 shadow-2xs',
                           isTimerPaused
-                            ? 'bg-amber-100 text-amber-800'
+                            ? 'bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700'
                             : isTimerLow
                             ? 'bg-red-500 text-white animate-pulse'
-                            : 'bg-indian-terracotta-100 text-indian-terracotta-800'
+                            : 'bg-indian-terracotta-100 dark:bg-indian-terracotta-950 text-indian-terracotta-800 dark:text-indian-terracotta-200 border border-indian-terracotta-300 dark:border-indian-terracotta-800'
                         )}
+                        title={isTimerPaused ? 'Timer Paused During Movement' : `${timerVal}s remaining in turn`}
                       >
-                        <Clock className="w-2 h-2" />
+                        <Clock className="w-2 h-2 shrink-0" />
                         <span>{isTimerPaused ? 'PAUSED' : `${timerVal}s`}</span>
                       </div>
                     )}
+                  </div>
+
+                  {/* Requirement 1.A: Prominent Bold Liquid Cash Balance */}
+                  <div className="flex items-center justify-between gap-1 mt-0.5">
+                    <div
+                      data-testid={`player-balance-${player.uid}`}
+                      className={cn(
+                        'flex items-center text-[10px] sm:text-[11px] font-black transition-all rounded leading-tight',
+                        flash === 'up' && 'text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/50 scale-105',
+                        flash === 'down' && 'text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-950/50 scale-105',
+                        !flash && 'text-emerald-700 dark:text-emerald-400'
+                      )}
+                    >
+                      <IndianRupee className="w-2.5 h-2.5 -mr-0.5 shrink-0" />
+                      <span>{player.cash.toLocaleString('en-IN')}</span>
+                    </div>
+                  </div>
+
+                  {/* Requirement 1.A & 1.B: Separate Distinct Gold NET WORTH Display */}
+                  <div
+                    data-testid={`player-networth-${player.uid}`}
+                    className="flex items-center justify-between text-[7px] sm:text-[7.5px] font-bold text-amber-600 dark:text-amber-400 tracking-tight leading-none mt-0.5 pt-0.5 border-t border-amber-200/50 dark:border-amber-900/40"
+                  >
+                    <span className="uppercase text-amber-700/80 dark:text-amber-400/80 tracking-wider">
+                      NET WORTH
+                    </span>
+                    <span className="font-mono font-bold">
+                      ₹{computedNetWorth.toLocaleString('en-IN')}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -192,7 +216,7 @@ export const PlayerStrip: React.FC<PlayerStripProps> = ({
             </div>
 
             <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed font-medium">
-              You are about to give up and leave this game. This will immediately end the match for all players! The winner will be decided among the remaining eligible players based on highest cash balance. This action cannot be undone.
+              You are about to give up and leave this game. This will immediately end the match for all players! The winner will be decided among the remaining eligible players based on highest Net Worth. This action cannot be undone.
             </p>
 
             <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-200 dark:border-indian-navy-800">
@@ -224,6 +248,7 @@ export const PlayerStrip: React.FC<PlayerStripProps> = ({
         <PlayerDetailModal
           player={inspectedPlayer}
           properties={properties}
+          pendingFinancialObligation={pendingFinancialObligation}
           transactions={transactions}
           onClose={() => setInspectedPlayerUid(null)}
           activePlayerName={players.find((p) => p.uid === currentPlayerUid)?.displayName}

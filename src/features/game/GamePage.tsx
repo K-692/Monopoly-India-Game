@@ -294,6 +294,7 @@ export const GamePage: React.FC = () => {
             players={gameState.players}
             currentPlayerUid={gameState.currentPlayerUid}
             properties={gameState.properties}
+            pendingFinancialObligation={gameState.pendingFinancialObligation}
             transactions={gameState.transactions}
             turnTimeRemaining={gameState.turnTimeRemaining}
             turnTimeLimit={gameState.turnTimeLimit}
