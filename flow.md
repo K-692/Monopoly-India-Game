@@ -223,13 +223,15 @@ flowchart TD
     M3["3. Authoritative GameManager Overhaul<br>• scheduleMovementCompletion & onMovementCompleted<br>• 2-second scheduleHandoffCompletion<br>• Idempotent command deduplication before guards"]
     M4["4. CpuController Session Locking<br>• Multi-level execution lock (gameId, turnId, cpuUid)<br>• Handoff & movement gates<br>• Elimination of double-trigger loops"]
     M5["5. Client UI & Pacing Synchronization<br>• GameBoard handoff & walking indicators<br>• PlayerStrip PAUSED timer indicator<br>• Action buttons disabled during movement/handoff"]
-    M6["6. Verification & Test Suite Expansion<br>• 13 Test Suites / 137 Tests Passing (100%)<br>• Dedicated turn-sync-and-pacing.test.ts<br>• Zero-error typecheck, lint, and production builds"]
+    M6["6. CPU Continuation & Auto-Completion Fix<br>• Post-dispatch authoritative state re-evaluation<br>• canSafelyEndTurn explicit null-decision handling<br>• Symmetrical 2s handoff: CPU->CPU, CPU->Human, Human->CPU"]
+    M7["7. Verification & 12-Regression Suite<br>• 13 Test Suites / 149 Tests Passing (100%)<br>• 12 Dedicated Regression Tests in turn-sync-and-pacing.test.ts<br>• Zero-error typecheck, lint, and production builds"]
 
     M1 --> M2
     M2 --> M3
     M3 --> M4
     M4 --> M5
     M5 --> M6
+    M6 --> M7
 ```
 
 ---
@@ -242,7 +244,8 @@ flowchart TD
 | **Movement Immobility** | $\text{movement.isComplete} = \text{false} \implies \forall \text{cmd}, \text{processCommand}(\text{cmd}) = \bot$ | `GameManager.executeCommandInternal` | ✅ Verified (`turn-sync-and-pacing.test.ts`) |
 | **Movement Timer Pause** | $\text{movement.isComplete} = \text{false} \implies \frac{d(\text{turnTimeRemaining})}{dt} = 0$ | `GameManager.startTurnTimer` | ✅ Verified (`turn-sync-and-pacing.test.ts`) |
 | **Actionable Timer Reset** | $\text{PhaseTransition}(\to \text{PROPERTY\_DECISION}) \implies \text{turnTimeRemaining} = T_{\text{limit}}$ | `GameManager.onMovementCompleted` | ✅ Verified (`turn-sync-and-pacing.test.ts`) |
-| **CPU Handoff Gap** | $\text{NextPlayer} \in \text{CPU} \implies \Delta t_{\text{handoff}} \ge 2000\text{ ms}$ | `GameManager.scheduleHandoffCompletion` | ✅ Verified (`turn-sync-and-pacing.test.ts`) |
+| **CPU Handoff Gap** | $\text{NextPlayer} \in \text{CPU} \lor \text{PrevPlayer} \in \text{CPU} \implies \Delta t_{\text{handoff}} \ge 2000\text{ ms}$ | `GameManager.scheduleHandoffCompletion` | ✅ Verified (`turn-sync-and-pacing.test.ts`) |
+| **Automatic CPU Termination**| $\text{CPUFinished}(p) \implies \text{exec}(\text{END\_TURN}) \text{ without waiting for } T_{\text{timer}} = 0$ | `CpuController.executeCpuAction` & `canSafelyEndTurn` | ✅ Verified (`turn-sync-and-pacing.test.ts`) |
 | **Financial Independence** | $\text{Phase} = \text{ACTION\_REQUIRED} \implies \text{TimerDeadline} = \text{expiresAt}_{120\text{s}}$ | `GameManager.startTurnTimer` | ✅ Verified (`turn-sync-and-pacing.test.ts`) |
 | **Command Idempotency** | $\forall \text{cmd}, \text{exec}(\text{cmd}) \equiv \text{exec}(\text{cmd})$ without duplicate state changes | `GameManager.processedCommands` | ✅ Verified (`turn-sync-and-pacing.test.ts`) |
 

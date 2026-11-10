@@ -23,7 +23,8 @@
   - Add between **0 and 3 intelligent computer opponents** directly from room creation.
   - Custom, editable names with automatic duplicate and collision validation.
   - **Strict Multi-Agent Parity**: CPUs run through the exact same authoritative game engine, rules, dice mechanisms, landing popups, and financial pipelines as human players—no cheating, no hidden rules, and no separate game modes.
-  - **Sequential Turn Integrity & 2-Second CPU Gap**: Guaranteed 2-second pacing handoff between consecutive CPU turns and after human turns. No overlapping CPU execution; actions are fully resolved before handoff.
+  - **Sequential Turn Integrity & 2-Second CPU Gap**: Guaranteed 2-second pacing handoff between consecutive CPU turns and when transitioning between human and CPU players. No overlapping CPU execution; actions are fully resolved before handoff.
+  - **Automatic Turn Completion Without Timer Dependency**: As soon as a CPU completes its actions and has no further decisions to make, it automatically finishes its turn via authoritative `END_TURN` without waiting for the normal turn timer to expire.
   - **Phase-Aware Timer Synchronization**: Player timers automatically pause during token walking animations across all connected devices and reset fresh upon entering genuinely new actionable steps (e.g. `PROPERTY_DECISION`).
   - Deterministic strategic decision-making: smart property acquisition, visiting-city house construction, bank-sold property reacquisition (inheriting existing houses), jail bail key management, and tiered Sell-to-Bank debt resolution.
 - 💰 **Configurable Starting Cash Slider**:
@@ -182,7 +183,7 @@ For complete mathematical definitions, state machine proofs, and research citati
 | `npm run build:server` | Bundles the standalone server into `dist-server/index.cjs` using `esbuild`. |
 | `npm run build:desktop` | Builds both the React LAN frontend (`dist/`) and the server bundle (`dist-server/index.cjs`). |
 | `npm run desktop` | Builds desktop assets and launches the application inside native Electron. |
-| `npm test` | Runs the full Vitest test suite (137 tests across 13 files). |
+| `npm test` | Runs the full Vitest test suite (149 tests across 13 files). |
 | `npm run test:watch` | Runs Vitest in interactive watch mode for test-driven development. |
 | `npm run test:coverage`| Generates detailed test code coverage reports. |
 | `npm run typecheck` | Strict TypeScript compiler validation across client, server, and tests (`tsc -b --noEmit`). |

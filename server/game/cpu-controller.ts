@@ -99,6 +99,7 @@ export class CpuController {
    * Enforces session locks, movement pauses, and handoff delays.
    */
   public onGameStateChanged(gameState: GameState): void {
+    if (!gameState || !gameState.gameId) return;
     const gameId = gameState.gameId;
 
     if (gameState.status === 'COMPLETED') {
@@ -122,6 +123,11 @@ export class CpuController {
       return;
     }
 
+    // Session execution lock: If an action is already in flight, do not start overlapping executions
+    if (session.isProcessing || session.status === 'ACTION_PENDING') {
+      return;
+    }
+
     // Determine if any computer player has an active turn or financial debt responsibility
     const activeCpu = this.getActiveCpuPlayer(gameState);
     if (!activeCpu) {
@@ -129,11 +135,6 @@ export class CpuController {
       session.status = 'WAITING_FOR_TURN';
       session.lockedTurnId = null;
       session.lockedPlayerUid = null;
-      return;
-    }
-
-    // Session execution lock: If an action is already in flight, do not start overlapping executions
-    if (session.isProcessing || session.status === 'ACTION_PENDING') {
       return;
     }
 
@@ -214,6 +215,51 @@ export class CpuController {
   }
 
   /**
+   * Evaluates whether all conditions are satisfied for a CPU player to safely end its turn.
+   */
+  public canSafelyEndTurn(state: GameState, cpuUid: string): boolean {
+    // 1. Must be the active player
+    if (state.currentPlayerUid !== cpuUid) return false;
+
+    // 2. Game must not be completed
+    if (state.status === 'COMPLETED') return false;
+
+    // 3. No active token movement
+    if (state.movement && !state.movement.isComplete) return false;
+
+    // 4. No active turn handoff
+    if (state.handoff?.isActive) return false;
+
+    // 5. No pending property or generic pending action
+    if (state.pendingAction) return false;
+
+    // 6. No pending reacquisition opportunity
+    if (state.reacquisitionOpportunity && state.reacquisitionOpportunity.status === 'PENDING') return false;
+
+    // 7. No pending financial debt obligation
+    if (state.pendingFinancialObligation) return false;
+
+    // 8. Phase must not be an unresolved mandatory phase
+    if (
+      state.phase === 'AWAIT_ROLL' ||
+      state.phase === 'JAIL_DECISION' ||
+      state.phase === 'PROPERTY_DECISION' ||
+      state.phase === 'ACTION_REQUIRED' ||
+      state.phase === 'AUCTION' ||
+      state.phase === 'TRADE_RESPONSE'
+    ) {
+      return false;
+    }
+
+    // 9. Current engine phase must permit turn completion
+    if (state.phase === 'MANAGEMENT' || state.phase === 'TURN_END') {
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
    * Evaluates decision and dispatches command to GameManager under session lock.
    */
   private async executeCpuAction(
@@ -227,6 +273,10 @@ export class CpuController {
     // Verify session lock matches scheduled turn and player
     if (session.lockedTurnId !== scheduledTurnNumber || session.lockedPlayerUid !== cpuUid) {
       session.status = 'IDLE';
+      return;
+    }
+
+    if (session.isProcessing) {
       return;
     }
 
@@ -271,11 +321,45 @@ export class CpuController {
         return;
       }
 
-      const decision = decideNextAction(freshState, freshCpu);
+      let decision = decideNextAction(freshState, freshCpu);
+
+      // Section 4.2: Explicit null-decision handling
       if (!decision) {
-        session.isProcessing = false;
-        session.status = 'IDLE';
-        return;
+        // Category C: The CPU is no longer the active player
+        if (freshState.currentPlayerUid !== cpuUid) {
+          session.isProcessing = false;
+          session.status = 'WAITING_FOR_TURN';
+          session.lockedTurnId = null;
+          session.lockedPlayerUid = null;
+          return;
+        }
+
+        // Category A: CPU has genuinely finished its turn and all conditions allow safe ending
+        if (this.canSafelyEndTurn(freshState, cpuUid)) {
+          decision = {
+            type: 'END_TURN',
+            reason: `${freshCpu.displayName} automatically completed turn with no further actions.`,
+          };
+        } else {
+          // Category B: CPU still has an unresolved action or cannot end turn in current phase
+          console.warn(
+            `[CpuController] CPU ${cpuUid} received null decision during phase ${freshState.phase}. Pending action: ${freshState.pendingAction?.type}, obligation: ${freshState.pendingFinancialObligation?.obligationId}`
+          );
+          session.isProcessing = false;
+          session.currentActionId = null;
+          session.retryCount++;
+
+          if (session.retryCount <= 2) {
+            session.status = 'DECIDING';
+            setTimeout(() => {
+              this.executeCpuAction(gameId, cpuUid, scheduledTurnNumber);
+            }, 1000);
+          } else {
+            session.status = 'IDLE';
+            session.retryCount = 0;
+          }
+          return;
+        }
       }
 
       const commandId = `cmd_cpu_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
@@ -292,9 +376,23 @@ export class CpuController {
 
       session.status = 'WAITING_FOR_RESULT';
       await this.dispatcher(gameId, command, cpuUid);
+
+      // 1-5. Release action lock, clear current action ID, reset retry counter
       session.isProcessing = false;
       session.currentActionId = null;
       session.retryCount = 0;
+
+      // 6. Retrieve latest authoritative game state through stateGetter
+      const latestState = this.stateGetter(gameId);
+
+      // 7. Check whether game is still active
+      if (!latestState || latestState.status === 'COMPLETED') {
+        this.stopGame(gameId);
+        return;
+      }
+
+      // 8-9. Re-evaluate authoritative game state to continue turn sequence
+      this.onGameStateChanged(latestState);
     } catch (err) {
       console.warn(`[CpuController] Error executing CPU action for ${cpuUid} in ${gameId}:`, err);
       session.isProcessing = false;

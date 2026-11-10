@@ -269,12 +269,19 @@ export class GameManager {
       actorUid !== result.nextState.currentPlayerUid;
 
     if (isTurnAdvanced) {
+      const prevPlayer = currentState.players.find((p) => p.uid === actorUid);
+      const isPrevCpu = Boolean(prevPlayer && (prevPlayer.isCpu || prevPlayer.playerType === 'COMPUTER'));
+
       const nextUid = result.nextState.currentPlayerUid;
       const nextPlayer = result.nextState.players.find((p) => p.uid === nextUid);
       const isNextCpu = Boolean(nextPlayer && (nextPlayer.isCpu || nextPlayer.playerType === 'COMPUTER'));
 
-      if (isNextCpu) {
-        // Enforce the 2-second minimum handoff delay before the next CPU can begin
+      // Section 5: 2-second handoff applies whenever CPU is involved (CPU->CPU, CPU->Human, Human->CPU)
+      // Ordinary Human-to-Human turns start immediately without extra handoff delay.
+      const needsHandoff = isPrevCpu || isNextCpu;
+
+      if (needsHandoff) {
+        // Enforce the 2-second minimum handoff delay before the next turn can begin
         const handoffDelay = this.getHandoffDelay();
         result.nextState.handoff = {
           fromPlayerUid: actorUid,
