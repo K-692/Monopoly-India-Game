@@ -17,32 +17,6 @@
 
 ---
 
-## 🌟 Highlights & Key Features
-
-- 🤖 **Autonomous Computer Players (CPUs)**:
-  - Add between **0 and 3 intelligent computer opponents** directly from room creation.
-  - Custom, editable names with automatic duplicate and collision validation.
-  - **Strict Multi-Agent Parity**: CPUs run through the exact same authoritative game engine, rules, dice mechanisms, landing popups, and financial pipelines as human players—no cheating, no hidden rules, and no separate game modes.
-  - **Sequential Turn Integrity & 2-Second CPU Gap**: Guaranteed 2-second pacing handoff between consecutive CPU turns and when transitioning between human and CPU players. No overlapping CPU execution; actions are fully resolved before handoff.
-  - **Automatic Turn Completion Without Timer Dependency**: As soon as a CPU completes its actions and has no further decisions to make, it automatically finishes its turn via authoritative `END_TURN` without waiting for the normal turn timer to expire.
-  - **Phase-Aware Timer Synchronization**: Player timers automatically pause during token walking animations across all connected devices and reset fresh upon entering genuinely new actionable steps (e.g. `PROPERTY_DECISION`).
-  - Deterministic strategic decision-making: smart property acquisition, visiting-city house construction, bank-sold property reacquisition (inheriting existing houses), jail bail key management, and tiered Sell-to-Bank debt resolution.
-- 💰 **Configurable Starting Cash & Start Crossing Money**:
-  - Room hosts can dynamically tune economic velocity using an intuitive range slider from **₹5,000 to ₹50,000** in steps of **₹5,000** (default: **₹20,000**).
-  - Configurable **Start Crossing Money (Pass START Salary)** directly in the room creation modal with selectable options of **₹1,000**, **₹2,000**, or **₹3,000** (default: **₹3,000**).
-  - Statutory fiscal policies remain fixed: **₹500** Central Jail bail, **₹500** GST / Wealth Levy, and 120-second emergency debt countdown.
-- 🇮🇳 **Authentic Indian Economic Flavor**:
-  - Prominent Indian cities: Mumbai, Delhi, Bengaluru, Kolkata, Chennai, Hyderabad, Ahmedabad, Jaipur, Pune, and more.
-  - Reserve Bank of India (RBI) conventions, GST Checkposts, Civic Funds, Market Buzz events, and Infrastructure Wealth Levies.
-- 🌐 **Authoritative Zero-Trust Multiplayer Architecture**:
-  - Cryptographically fair dice rolling via rejection sampling (zero modulo bias).
-  - Serialized action execution queue preventing race conditions and double-spending.
-  - Works online, over zero-internet local Wi-Fi / mobile hotspots (LAN), or packaged as an Electron desktop app on macOS and Windows.
-- 📱 **Zero-Scroll Responsive Design**:
-  - Fluidly scales across mobile smartphones (scan QR code to join), tablets, and high-DPI desktop displays.
-
----
-
 ## ⚡ Quick Start: Host & Play on Local Wi-Fi (LAN)
 
 ### 1. Prerequisites

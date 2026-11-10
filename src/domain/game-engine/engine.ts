@@ -1011,12 +1011,12 @@ export function applyGameCommand(
       state.disqualifiedPlayerUid = debtor.uid;
       state.disqualifiedPlayerName = debtor.displayName;
 
-      // Recalculate net worth for all players
+      // Recalculate net worth for all players (accounting for outstanding liabilities)
       for (const p of state.players) {
-        p.netWorth = calculateNetWorth(p.uid, p.cash, state.properties);
+        p.netWorth = calculateNetWorth(p.uid, p.cash, state.properties, state.pendingFinancialObligation);
       }
 
-      // Calculate winner using authoritative cash balances of remaining eligible players
+      // Calculate winner using authoritative NET WORTH of remaining eligible players
       const eligiblePlayers = state.players.filter(
         (p) => p.uid !== debtor.uid && !p.isDisqualified && !p.isBankrupt
       );
@@ -1026,27 +1026,29 @@ export function applyGameCommand(
         state.isTie = false;
         summary = `Game Over! All players surrendered or were disqualified. No winner.`;
       } else {
-        const maxCash = Math.max(...eligiblePlayers.map((p) => p.cash));
-        const topCashPlayers = eligiblePlayers.filter((p) => p.cash === maxCash);
+        // Highest Net Worth wins
+        const maxNetWorth = Math.max(...eligiblePlayers.map((p) => p.netWorth));
+        const topNetWorthPlayers = eligiblePlayers.filter((p) => p.netWorth === maxNetWorth);
 
-        if (topCashPlayers.length === 1) {
-          state.winnerUid = topCashPlayers[0].uid;
+        if (topNetWorthPlayers.length === 1) {
+          state.winnerUid = topNetWorthPlayers[0].uid;
           state.isTie = false;
-          summary = `🏆 Game Over! ${debtor.displayName} ${isTimeout ? 'was disqualified' : 'gave up'}. ${topCashPlayers[0].displayName} wins with highest balance ₹${maxCash.toLocaleString('en-IN')}!`;
+          summary = `🏆 Game Over! ${debtor.displayName} ${isTimeout ? 'was disqualified' : 'gave up'}. ${topNetWorthPlayers[0].displayName} wins with highest net worth ₹${maxNetWorth.toLocaleString('en-IN')}!`;
         } else {
-          // Tie-break by net worth
-          const maxNetWorth = Math.max(...topCashPlayers.map((p) => p.netWorth));
-          const topNetWorthPlayers = topCashPlayers.filter((p) => p.netWorth === maxNetWorth);
+          // Deterministic secondary tie-breaker: Cash balance
+          const maxCash = Math.max(...topNetWorthPlayers.map((p) => p.cash));
+          const topCashPlayers = topNetWorthPlayers.filter((p) => p.cash === maxCash);
 
-          if (topNetWorthPlayers.length === 1) {
-            state.winnerUid = topNetWorthPlayers[0].uid;
+          if (topCashPlayers.length === 1) {
+            state.winnerUid = topCashPlayers[0].uid;
             state.isTie = false;
-            summary = `🏆 Game Over! ${debtor.displayName} ${isTimeout ? 'was disqualified' : 'gave up'}. ${topNetWorthPlayers[0].displayName} wins tie-breaker with ₹${maxCash.toLocaleString('en-IN')} balance and highest net worth ₹${maxNetWorth.toLocaleString('en-IN')}!`;
+            summary = `🏆 Game Over! ${debtor.displayName} ${isTimeout ? 'was disqualified' : 'gave up'}. ${topCashPlayers[0].displayName} wins tie-breaker with net worth ₹${maxNetWorth.toLocaleString('en-IN')} and higher cash balance ₹${maxCash.toLocaleString('en-IN')}!`;
           } else {
-            // Absolute tie
-            state.winnerUid = topNetWorthPlayers[0].uid;
+            // Deterministic tertiary tie-breaker: Player UID alphabetical order
+            const deterministicWinner = [...topCashPlayers].sort((a, b) => a.uid.localeCompare(b.uid))[0];
+            state.winnerUid = deterministicWinner.uid;
             state.isTie = true;
-            summary = `🏆 Game Over! ${debtor.displayName} ${isTimeout ? 'was disqualified' : 'gave up'}. Tie between ${topNetWorthPlayers.map((p) => p.displayName).join(' and ')} with balance ₹${maxCash.toLocaleString('en-IN')}!`;
+            summary = `🏆 Game Over! ${debtor.displayName} ${isTimeout ? 'was disqualified' : 'gave up'}. Tie between ${topCashPlayers.map((p) => p.displayName).join(' and ')} with equal net worth ₹${maxNetWorth.toLocaleString('en-IN')}!`;
           }
         }
       }
@@ -1123,18 +1125,20 @@ export function applyGameCommand(
     }
   }
 
-  // Recalculate net worth for all players
+  // Recalculate net worth for all players (accounting for outstanding liabilities)
   for (const p of state.players) {
-    p.netWorth = calculateNetWorth(p.uid, p.cash, state.properties);
+    p.netWorth = calculateNetWorth(p.uid, p.cash, state.properties, state.pendingFinancialObligation);
   }
 
   // Check victory condition: only 1 solvent player remaining
-  const solventPlayers = state.players.filter((p) => !p.isBankrupt);
+  const solventPlayers = state.players.filter((p) => !p.isBankrupt && !p.isDisqualified);
   if (solventPlayers.length <= 1 && state.players.length > 1) {
     state.status = 'COMPLETED';
     state.completedAt = Date.now();
     state.winnerUid = solventPlayers[0]?.uid ?? null;
-    summary = `🏆 Game Over! ${solventPlayers[0]?.displayName} is victorious!`;
+    const winnerPlayer = solventPlayers[0];
+    const nw = winnerPlayer ? winnerPlayer.netWorth : 0;
+    summary = `🏆 Game Over! ${solventPlayers[0]?.displayName} is victorious with net worth ₹${nw.toLocaleString('en-IN')}!`;
   }
 
   state.version += 1;

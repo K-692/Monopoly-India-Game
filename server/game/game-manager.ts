@@ -648,7 +648,11 @@ export class GameManager {
     if (this.archives.has(gameState.gameId)) return; // Deduplicated: archive once
 
     const winner = gameState.players.find((p) => p.uid === gameState.winnerUid);
-    const sorted = [...gameState.players].sort((a, b) => b.cash - a.cash);
+    const sorted = [...gameState.players].sort((a, b) => {
+      if (b.netWorth !== a.netWorth) return b.netWorth - a.netWorth;
+      if (b.cash !== a.cash) return b.cash - a.cash;
+      return a.uid.localeCompare(b.uid);
+    });
 
     const playerSnapshots = sorted.map((p, idx) => ({
       uid: p.uid,

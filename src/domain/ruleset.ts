@@ -10,7 +10,7 @@ import {
   TRANSIT_SPACES,
   UTILITY_SPACES,
 } from './board-config';
-import { PropertyDefinition, PropertyState } from './game-types';
+import { PendingFinancialObligation, PropertyDefinition, PropertyState } from './game-types';
 
 export const RULESET_VERSION = '1.1.0';
 
@@ -324,30 +324,53 @@ export function canBuildOnProperty(
 }
 
 /**
- * Calculates net worth of a player.
+ * Calculates authoritative net worth of a player:
+ * NET WORTH = Cash Balance + Total Owned Asset Value - Outstanding Liabilities
+ *
+ * Components:
+ * - Cash Balance: Actual remaining cash (can be negative during debt crisis).
+ * - Total Owned Asset Value:
+ *   - Unmortgaged properties / transit / utilities: base deed price.
+ *   - Mortgaged properties / transit / utilities: mortgage payout value.
+ *   - Houses / commercial towers: count * buildingCost.
+ *   - Bank-owned / unowned properties: ₹0 (not owned).
+ * - Outstanding Liabilities:
+ *   - Unfulfilled remaining amount due from pending financial obligation.
  */
 export function calculateNetWorth(
   playerUid: string,
   cash: number,
-  properties: Record<number, PropertyState>
+  properties: Record<number, PropertyState>,
+  liabilities?: number | PendingFinancialObligation | null
 ): number {
-  let propertyVal = 0;
+  let assetVal = 0;
 
   for (const space of BOARD_SPACES) {
     const propState = properties[space.spaceIndex];
     if (propState && propState.ownerUid === playerUid && propState.ownershipState !== 'BLOCKED') {
       if ('price' in space) {
         if (propState.isMortgaged || propState.ownershipState === 'MORTGAGED') {
-          propertyVal += propState.mortgagePayout ?? space.mortgageValue;
+          assetVal += propState.mortgagePayout ?? space.mortgageValue;
         } else {
-          propertyVal += space.price;
+          assetVal += space.price;
         }
       }
-      if (space.type === 'PROPERTY') {
-        propertyVal += propState.buildings * (space as PropertyDefinition).buildingCost;
+      if (space.type === 'PROPERTY' && propState.buildings > 0) {
+        assetVal += propState.buildings * (space as PropertyDefinition).buildingCost;
       }
     }
   }
 
-  return cash + propertyVal;
+  let debt = 0;
+  if (typeof liabilities === 'number') {
+    debt = Math.max(0, liabilities);
+  } else if (
+    liabilities &&
+    liabilities.debtorUid === playerUid &&
+    (liabilities.status === 'PENDING' || liabilities.status === 'RESOLVING')
+  ) {
+    debt = Math.max(0, liabilities.remainingAmountDue ?? liabilities.amountDue);
+  }
+
+  return cash + assetVal - debt;
 }

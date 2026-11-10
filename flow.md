@@ -226,6 +226,7 @@ flowchart TD
     M6["6. CPU Continuation & Auto-Completion Fix<br>• Post-dispatch authoritative state re-evaluation<br>• canSafelyEndTurn explicit null-decision handling<br>• Symmetrical 2s handoff: CPU->CPU, CPU->Human, Human->CPU"]
     M7["7. Verification & 12-Regression Suite<br>• 13 Test Suites / 149 Tests Passing (100%)<br>• 12 Dedicated Regression Tests in turn-sync-and-pacing.test.ts"]
     M8["8. Configurable Start Crossing Money<br>• Room creation modal options: ₹1,000, ₹2,000, ₹3,000<br>• Server room manager and engine integration<br>• 153 Tests Passing (100%) across 13 test suites<br>• Zero-error typecheck, lint, and production builds"]
+    M9["9. Game Economy, Turn Alerts & Inspection<br>• Festival Travel instruction & singular salary<br>• Human-only client-local procedural audio chime<br>• Highest Net Worth winner determination<br>• Sell-to-Bank tariff-based sorting & interactive board preview<br>• 164 Tests Passing (100%) across 14 test suites"]
 
     M1 --> M2
     M2 --> M3
@@ -234,6 +235,7 @@ flowchart TD
     M5 --> M6
     M6 --> M7
     M7 --> M8
+    M8 --> M9
 ```
 
 ---
@@ -249,6 +251,12 @@ flowchart TD
 | **CPU Handoff Gap** | $\text{NextPlayer} \in \text{CPU} \lor \text{PrevPlayer} \in \text{CPU} \implies \Delta t_{\text{handoff}} \ge 2000\text{ ms}$ | `GameManager.scheduleHandoffCompletion` | ✅ Verified (`turn-sync-and-pacing.test.ts`) |
 | **Automatic CPU Termination**| $\text{CPUFinished}(p) \implies \text{exec}(\text{END\_TURN}) \text{ without waiting for } T_{\text{timer}} = 0$ | `CpuController.executeCpuAction` & `canSafelyEndTurn` | ✅ Verified (`turn-sync-and-pacing.test.ts`) |
 | **Configurable Pass START** | $\text{Reward}(\text{START}) \in \{₹1000, ₹2000, ₹3000\} = \text{rules.passStartReward}$ | `engine.ts` & `room-manager.ts` | ✅ Verified (`cpu-multiplayer-integration.test.ts`) |
+| **Festival Travel Salary** | $\text{Card}(\text{market\_2}) \implies \text{Target} = 0 \land \text{Credit} = \text{rules.passStartReward}$ (Single) | `engine.ts` | ✅ Verified (`game-economy-inspection-alerts.test.ts`) |
+| **Localized Turn Alert** | $\text{AudioChime}(p) \iff p = \text{localUser} \land p \notin \text{CPU} \land \text{TurnStarted}(p)$ | `GameBoard.tsx` & `sound-engine.ts` | ✅ Verified (`game-economy-inspection-alerts.test.ts`) |
+| **Authoritative Net Worth** | $\text{NetWorth} = \text{Cash} + \text{Val}(\text{Assets}) - \text{Liabilities}$ | `ruleset.ts` & `engine.ts` | ✅ Verified (`game-economy-inspection-alerts.test.ts`) |
+| **Net Worth Victory** | $\text{Winner} = \arg\max_{p} \text{NetWorth}(p)$ | `engine.ts` | ✅ Verified (`game-economy-inspection-alerts.test.ts`) |
+| **Sell-to-Bank Sorting** | $i < j \implies \text{maxTariff}(p_i) \le \text{maxTariff}(p_j)$ (stable spaceIndex tie-break) | `FinancialResolutionModal.tsx` & `GameBoard.tsx` | ✅ Verified (`game-economy-inspection-alerts.test.ts`) |
+| **Board Preview Invariance** | $\text{PreviewOpen} \implies \frac{d(\text{expiresAt})}{dt} = 0 \land \text{readOnly} = \text{true}$ | `FinancialResolutionModal.tsx` & `CityDeedModal.tsx` | ✅ Verified (`game-economy-inspection-alerts.test.ts`) |
 | **Financial Independence** | $\text{Phase} = \text{ACTION\_REQUIRED} \implies \text{TimerDeadline} = \text{expiresAt}_{120\text{s}}$ | `GameManager.startTurnTimer` | ✅ Verified (`turn-sync-and-pacing.test.ts`) |
 | **Command Idempotency** | $\forall \text{cmd}, \text{exec}(\text{cmd}) \equiv \text{exec}(\text{cmd})$ without duplicate state changes | `GameManager.processedCommands` | ✅ Verified (`turn-sync-and-pacing.test.ts`) |
 

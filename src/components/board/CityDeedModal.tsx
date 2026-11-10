@@ -18,6 +18,7 @@ interface CityDeedModalProps {
   activePlayerName?: string;
   activePlayerColor?: string;
   turnTimeRemaining?: number;
+  readOnly?: boolean;
 }
 
 export const CityDeedModal: React.FC<CityDeedModalProps> = ({
@@ -32,6 +33,7 @@ export const CityDeedModal: React.FC<CityDeedModalProps> = ({
   activePlayerName,
   activePlayerColor,
   turnTimeRemaining = 30,
+  readOnly = false,
 }) => {
   if (!space) return null;
 
@@ -254,8 +256,66 @@ export const CityDeedModal: React.FC<CityDeedModalProps> = ({
             </div>
           )}
 
+          {/* Non-Property Space Informational Cards */}
+          {space.type === 'START' && (
+            <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-xs space-y-1">
+              <span className="font-bold text-emerald-900 dark:text-emerald-300 block">Starting Square</span>
+              <p className="text-gray-600 dark:text-gray-300">
+                Collect your configured salary whenever your token lands on or navigates past START.
+              </p>
+            </div>
+          )}
+
+          {space.type === 'JAIL' && (
+            <div className="p-3 rounded-xl bg-gray-100 dark:bg-indian-navy-950 border border-gray-300 dark:border-indian-navy-800 text-xs space-y-1">
+              <span className="font-bold text-gray-900 dark:text-gray-100 block">Central Jail / Just Visiting</span>
+              <p className="text-gray-600 dark:text-gray-300">
+                Visiting players pass through freely. Detained players must pay ₹500 bail, surrender a Bail Key, or roll doubles within 3 turns.
+              </p>
+            </div>
+          )}
+
+          {space.type === 'REST_HOUSE' && (
+            <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 text-xs space-y-1">
+              <span className="font-bold text-blue-900 dark:text-blue-300 block">Rest House (Neutral Zone)</span>
+              <p className="text-gray-600 dark:text-gray-300">
+                A safe resting space with no fees, obligations, or actions required.
+              </p>
+            </div>
+          )}
+
+          {space.type === 'GO_TO_JAIL' && (
+            <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 text-xs space-y-1">
+              <div className="flex items-center gap-1.5 text-red-700 dark:text-red-400 font-bold">
+                <ShieldAlert className="w-4 h-4" />
+                <span>Police Checkpoint</span>
+              </div>
+              <p className="text-gray-600 dark:text-gray-300">
+                Landing here sends you directly to Central Jail without passing START or collecting salary.
+              </p>
+            </div>
+          )}
+
+          {space.type === 'CARD' && (space as { deck?: string }).deck === 'CIVIC' && (
+            <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-xs space-y-1">
+              <span className="font-bold text-amber-900 dark:text-amber-300 block">Civic Fund</span>
+              <p className="text-gray-600 dark:text-gray-300">
+                Draw a Civic Fund card with civic grants, tax rebates, or community contributions.
+              </p>
+            </div>
+          )}
+
+          {space.type === 'CARD' && (space as { deck?: string }).deck === 'MARKET' && (
+            <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-xs space-y-1">
+              <span className="font-bold text-emerald-900 dark:text-emerald-300 block">Market Buzz</span>
+              <p className="text-gray-600 dark:text-gray-300">
+                Draw a dynamic Market Buzz card with commercial shifts, startup grants, or travel opportunities.
+              </p>
+            </div>
+          )}
+
           {/* Sell to Bank Action Button for Owner */}
-          {isOwner && onDispatch && propertyState?.ownershipState !== 'BLOCKED' && (
+          {!readOnly && isOwner && onDispatch && propertyState?.ownershipState !== 'BLOCKED' && (
             <div className="pt-2">
               <button
                 type="button"

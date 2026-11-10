@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { GameActionType, PendingFinancialObligation, PlayerState, PropertyState } from '@/domain/game-types';
 import { BOARD_SPACES } from '@/domain/board-config';
-import { calculateMortgageValue } from '@/domain/ruleset';
+import { calculateMortgageValue, calculateRent } from '@/domain/ruleset';
 import { Landmark, Building2, Home, CheckCircle2, ShieldAlert, ArrowRight, Clock, AlertTriangle, CheckSquare, Square, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 
@@ -13,6 +13,7 @@ interface FinancialResolutionModalProps {
   currentUserUid: string;
   turnTimeRemaining?: number;
   onDispatch?: (type: GameActionType, payload?: Record<string, unknown>) => void;
+  onInspectionModeChange?: (isInspecting: boolean) => void;
 }
 
 export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> = ({
@@ -22,6 +23,7 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
   currentUserUid,
   turnTimeRemaining,
   onDispatch,
+  onInspectionModeChange,
 }) => {
   const [showConfirmSurrender, setShowConfirmSurrender] = useState(false);
   const [isAdjustingPayouts, setIsAdjustingPayouts] = useState(false);
@@ -60,18 +62,29 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
   }, [obligation.expiresAt, turnTimeRemaining]);
 
   // Eligible properties owned by debtor that are not already mortgaged or blocked
+  // Requirement 4: Sorted in increasing order of maximum possible tariff (rent) value (lowest first, highest last)
+  // Stable secondary tie-breaker: property board spaceIndex
   const eligibleProperties = Object.entries(properties)
     .filter(([_, prop]) => prop.ownerUid === obligation.debtorUid && !prop.isMortgaged && prop.ownershipState !== 'BLOCKED')
     .map(([idx, prop]) => {
       const spaceIndex = Number(idx);
       const space = BOARD_SPACES[spaceIndex];
       const mortgageVal = calculateMortgageValue(spaceIndex, prop);
+      // Authoritative maximum potential tariff at current development level (dice = 12 for utilities)
+      const maxTariff = calculateRent(spaceIndex, properties, 12, undefined, false);
       return {
         spaceIndex,
         space,
         prop,
         mortgageVal,
+        maxTariff,
       };
+    })
+    .sort((a, b) => {
+      if (a.maxTariff !== b.maxTariff) {
+        return a.maxTariff - b.maxTariff;
+      }
+      return a.spaceIndex - b.spaceIndex;
     });
 
   // Calculate dynamic totals for selected properties in Adjust Payouts mode
@@ -181,61 +194,57 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
   // =========================================================================
   if (typeof document === 'undefined') return null;
 
-  // Requirement 2: Read-Only Board Inspection Mode
+  // Requirement 5: Full-Quality Interactive Board Preview (Read-Only)
   if (isCheckingBoard) {
     return createPortal(
-      <>
-        {/* Full-screen click-capture layer: intercepts any click on the board to return to modal & blocks interaction */}
-        <div
-          onClick={() => setIsCheckingBoard(false)}
-          className="fixed inset-0 z-[110] bg-black/25 backdrop-blur-[1px] cursor-pointer select-none"
-          title="Click anywhere to return to mortgage resolution"
-        />
-
-        {/* Top Floating Inspection Banner */}
-        <div
-          onClick={(e) => e.stopPropagation()}
-          className="fixed top-3 left-1/2 -translate-x-1/2 z-[115] w-[94vw] max-w-md select-none animate-slide-down pointer-events-auto"
-        >
-          <div className="rounded-2xl bg-[#090D1A]/95 border-2 border-blue-500/80 shadow-[0_12px_36px_rgba(0,0,0,0.9)] p-3 text-white backdrop-blur-md space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-blue-500/20 border border-blue-500/40 flex items-center justify-center text-blue-400">
-                  <Eye className="w-4 h-4 animate-pulse" />
-                </div>
-                <div>
-                  <h4 className="font-serif font-black text-xs tracking-wide text-blue-300 uppercase">
-                    Board Inspection Mode
-                  </h4>
-                  <span className="text-[10px] text-gray-400 block">Read-only view</span>
-                </div>
+      /* Top Floating Inspection Banner - Sharp, Unblurred Board underneath allows direct tile clicks */
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="fixed top-3 left-1/2 -translate-x-1/2 z-[130] w-[94vw] max-w-lg select-none animate-slide-down pointer-events-auto"
+      >
+        <div className="rounded-2xl bg-[#090D1A]/95 border-2 border-amber-500/80 shadow-[0_16px_48px_rgba(0,0,0,0.95)] p-3.5 text-white backdrop-blur-md space-y-2.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
+                <Eye className="w-4 h-4 animate-pulse" />
               </div>
-              <div className={cn(
-                'flex items-center gap-1 text-[11px] font-mono font-bold px-2 py-0.5 rounded border',
+              <div>
+                <h4 className="font-serif font-black text-xs sm:text-sm tracking-wide text-amber-300 uppercase">
+                  Board Inspection Mode
+                </h4>
+                <span className="text-[10px] text-gray-300 block">Read-only view • Click any space to inspect</span>
+              </div>
+            </div>
+            <div
+              className={cn(
+                'flex items-center gap-1 text-[11px] font-mono font-bold px-2.5 py-1 rounded-lg border',
                 timeLeft <= 15
                   ? 'bg-red-950/90 text-red-300 border-red-500 animate-pulse'
                   : 'bg-amber-950/80 text-amber-300 border-amber-600/50'
-              )}>
-                <Clock className="w-3 h-3" />
-                <span>{timeLeft}s remaining</span>
-              </div>
-            </div>
-
-            <p className="text-[11px] text-gray-300 leading-snug">
-              Inspect the board and token positions. Click anywhere on the board or click the button below to resume your decisions.
-            </p>
-
-            <button
-              type="button"
-              onClick={() => setIsCheckingBoard(false)}
-              className="w-full py-2 px-3 rounded-xl font-bold text-xs bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-indian-navy-950 shadow-md flex items-center justify-center gap-1.5 cursor-pointer min-h-[40px] active:scale-95 transition-all"
+              )}
             >
-              <span>Return to Debt Resolution</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
+              <Clock className="w-3.5 h-3.5" />
+              <span>{timeLeft}s remaining</span>
+            </div>
           </div>
+
+          <p className="text-[11px] text-gray-300 leading-snug">
+            Inspect individual cities, ownership, tariffs, and houses on the board. When ready, return to complete your Sell to Bank settlement.
+          </p>
+
+          <button
+            type="button"
+            onClick={() => {
+              setIsCheckingBoard(false);
+              onInspectionModeChange?.(false);
+            }}
+            className="w-full py-2.5 px-4 rounded-xl font-black text-xs bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-indian-navy-950 shadow-lg flex items-center justify-center gap-2 cursor-pointer min-h-[44px] active:scale-95 transition-all"
+          >
+            <ArrowRight className="w-4 h-4 rotate-180" />
+            <span>Return to Sell to Bank</span>
+          </button>
         </div>
-      </>,
+      </div>,
       document.body
     );
   }
@@ -345,7 +354,7 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
               </div>
             ) : (
               <div className="space-y-2 max-h-56 overflow-y-auto custom-scrollbar pr-1">
-                {eligibleProperties.map(({ spaceIndex, space, prop, mortgageVal }) => {
+                {eligibleProperties.map(({ spaceIndex, space, prop, mortgageVal, maxTariff }) => {
                   const isSelected = selectedSpaceIndices.includes(spaceIndex);
                   return (
                     <div
@@ -395,9 +404,11 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
                       </div>
 
                       <div className="text-right shrink-0">
-                        <span className="text-[9px] text-gray-400 block">Sale Payout</span>
-                        <span className="font-mono font-bold text-xs text-amber-300">
-                          +₹{mortgageVal.toLocaleString('en-IN')}
+                        <span className="text-[9px] text-gray-400 block font-mono">
+                          Max Tariff: ₹{maxTariff.toLocaleString('en-IN')}
+                        </span>
+                        <span className="font-mono font-bold text-xs text-amber-300 block">
+                          Payout: +₹{mortgageVal.toLocaleString('en-IN')}
                         </span>
                       </div>
                     </div>
@@ -481,11 +492,12 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
                   onClick={(e) => {
                     e.stopPropagation();
                     setIsCheckingBoard(true);
+                    onInspectionModeChange?.(true);
                   }}
                   className="px-3 py-2 rounded-xl bg-blue-950/80 hover:bg-blue-900 text-blue-300 border border-blue-700 text-xs font-bold transition-colors cursor-pointer min-h-[44px] flex items-center gap-1"
                 >
                   <Eye className="w-3.5 h-3.5" />
-                  <span>Check Board</span>
+                  <span>View Board</span>
                 </button>
                 <button
                   type="button"
@@ -564,17 +576,18 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
               <span>Adjust Payouts</span>
             </button>
 
-            {/* Button 3: Check Board */}
+            {/* Button 3: View Board */}
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 setIsCheckingBoard(true);
+                onInspectionModeChange?.(true);
               }}
               className="flex-1 py-2.5 px-2.5 rounded-xl font-bold text-xs bg-blue-950/80 hover:bg-blue-900 text-blue-300 border border-blue-700 transition-colors cursor-pointer min-h-[44px] flex items-center justify-center gap-1.5"
             >
               <Eye className="w-3.5 h-3.5" />
-              <span>Check Board</span>
+              <span>View Board</span>
             </button>
           </div>
         )}

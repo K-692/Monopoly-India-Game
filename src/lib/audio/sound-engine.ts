@@ -25,6 +25,7 @@ export type SoundType =
   | 'BUTTON_CLICK'
   | 'VICTORY'
   | 'NOTIFICATION'
+  | 'TURN_ALERT'
   | 'CASH_CREDIT'
   | 'CASH_DEBIT';
 
@@ -121,6 +122,9 @@ class SoundEngine {
         case 'NOTIFICATION':
           this.playNotification(ctx);
           break;
+        case 'TURN_ALERT':
+          this.playTurnAlert(ctx);
+          break;
         case 'CASH_CREDIT':
           this.playCashCredit(ctx);
           break;
@@ -206,6 +210,36 @@ class SoundEngine {
 
       gain.gain.setValueAtTime(0, t0 + time);
       gain.gain.linearRampToValueAtTime(this.masterVolume * 0.18, t0 + time + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.001, t0 + time + duration);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(t0 + time);
+      osc.stop(t0 + time + duration + 0.02);
+    });
+  }
+
+  /**
+   * 3b. Turn alert tone: subtle, pleasant, warm dual-tone chime (F5 -> A5)
+   * Played strictly on the active human player's local device when their turn begins.
+   */
+  private playTurnAlert(ctx: AudioContext): void {
+    const t0 = ctx.currentTime;
+    const notes = [
+      { freq: 698.46, time: 0, duration: 0.12 },     // F5 (pleasant opening tone)
+      { freq: 880.00, time: 0.08, duration: 0.20 },  // A5 (gentle resolving chime)
+    ];
+
+    notes.forEach(({ freq, time, duration }) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, t0 + time);
+
+      gain.gain.setValueAtTime(0, t0 + time);
+      gain.gain.linearRampToValueAtTime(this.masterVolume * 0.20, t0 + time + 0.012);
       gain.gain.exponentialRampToValueAtTime(0.001, t0 + time + duration);
 
       osc.connect(gain);

@@ -7,7 +7,7 @@ import { CityDeedModal } from './CityDeedModal';
 import { FinancialResolutionModal } from './FinancialResolutionModal';
 import { usePopupPosition } from './use-popup-position';
 import { getSpaceGridCoord } from './board-layout-utils';
-import { calculateMortgageValue, canBuildOnProperty, getAuthoritativeBailAmount, getPropertyNoun } from '@/domain/ruleset';
+import { calculateMortgageValue, calculateRent, canBuildOnProperty, getAuthoritativeBailAmount, getPropertyNoun } from '@/domain/ruleset';
 import { TurnStepAcknowledgment } from '@/components/feedback/TurnStepAcknowledgment';
 import { PopupTurnTimer } from '@/components/feedback/PopupTurnTimer';
 import { useToastStore } from '@/components/feedback/toast-store';
@@ -47,15 +47,26 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   const activePlayer = gameState.players.find((p) => p.uid === gameState.currentPlayerUid);
   const [inspectedCard, setInspectedCard] = useState<CardAction | null>(null);
   const [voluntaryMortgageOpen, setVoluntaryMortgageOpen] = useState(false);
+  const [isBoardInspecting, setIsBoardInspecting] = useState(false);
 
   // Eligible properties owned by current user that are eligible to mortgage
+  // Requirement 4: Sorted in increasing order of maximum possible tariff (rent) value (lowest first, highest last)
+  // Stable secondary tie-breaker: property board spaceIndex
   const myMortgageableProperties = Object.entries(gameState.properties)
     .filter(([_, prop]) => prop.ownerUid === userUid && !prop.isMortgaged && prop.ownershipState === 'OWNED')
     .map(([idx, prop]) => {
       const spaceIndex = Number(idx);
       const space = BOARD_SPACES[spaceIndex];
       const mortgageVal = calculateMortgageValue(spaceIndex, prop);
-      return { spaceIndex, space, prop, mortgageVal };
+      // Authoritative maximum potential tariff at current development level (dice = 12 for utilities)
+      const maxTariff = calculateRent(spaceIndex, gameState.properties, 12, undefined, false);
+      return { spaceIndex, space, prop, mortgageVal, maxTariff };
+    })
+    .sort((a, b) => {
+      if (a.maxTariff !== b.maxTariff) {
+        return a.maxTariff - b.maxTariff;
+      }
+      return a.spaceIndex - b.spaceIndex;
     });
 
   // Dynamic rapid tumbling dice faces & random dots during roll animation
@@ -177,6 +188,41 @@ export const GameBoard: React.FC<GameBoardProps> = ({
       }
     }
   }, [gameState.transactions, userUid]);
+
+  // Requirement: Human Player Turn Alert (Localized Audio Notification)
+  // - Plays a short, pleasant notification tone strictly on the active human player's local device.
+  // - Never broadcast room-wide, never triggered for CPU turns.
+  // - Deduplicated: plays exactly once per genuine turn transition across re-renders and timer countdown ticks.
+  // - Initial mount and reconnections hydrate the turn reference without playing an alert.
+  const lastAlertedTurnKeyRef = useRef<string | null>(null);
+  const initialTurnHydratedRef = useRef(false);
+
+  const { turnNumber, currentPlayerUid, status, players } = gameState;
+
+  useEffect(() => {
+    if (!userUid) return;
+
+    const currentTurnKey = `${turnNumber}_${currentPlayerUid}`;
+
+    // On initial mount / reconnect, hydrate the current turn key to prevent playing an old alert
+    if (!initialTurnHydratedRef.current) {
+      initialTurnHydratedRef.current = true;
+      lastAlertedTurnKeyRef.current = currentTurnKey;
+      return;
+    }
+
+    if (lastAlertedTurnKeyRef.current !== currentTurnKey) {
+      lastAlertedTurnKeyRef.current = currentTurnKey;
+
+      if (status !== 'COMPLETED' && currentPlayerUid === userUid) {
+        const activePlayer = players.find((p) => p.uid === userUid);
+        const isCpu = Boolean(activePlayer?.isCpu || activePlayer?.playerType === 'COMPUTER');
+        if (activePlayer && !isCpu && !activePlayer.isBankrupt && !activePlayer.isDisqualified) {
+          sound.play('TURN_ALERT');
+        }
+      }
+    }
+  }, [turnNumber, currentPlayerUid, status, players, userUid]);
 
   // Section 7b: Automatically bridge activeCardPopup to floating toast in bottom-left corner (3-second auto-dismiss)
   useEffect(() => {
@@ -990,6 +1036,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
           currentUserUid={userUid || 'player_1'}
           turnTimeRemaining={gameState.turnTimeRemaining}
           onDispatch={onDispatch}
+          onInspectionModeChange={setIsBoardInspecting}
         />
       )}
 
@@ -1038,7 +1085,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                 </span>
               </div>
 
-              {myMortgageableProperties.map(({ spaceIndex, space, prop, mortgageVal }) => (
+              {myMortgageableProperties.map(({ spaceIndex, space, prop, mortgageVal, maxTariff }) => (
                 <div
                   key={spaceIndex}
                   className="p-3 rounded-xl bg-white/5 border border-white/10 hover:border-amber-400/40 transition-colors flex items-center justify-between gap-3"
@@ -1069,7 +1116,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({
 
                   <div className="flex items-center gap-3 shrink-0">
                     <div className="text-right">
-                      <span className="text-[10px] text-gray-400 block uppercase">Instant Payout</span>
+                      <span className="text-[10px] text-gray-400 block uppercase font-mono">
+                        Max Tariff: ₹{maxTariff.toLocaleString('en-IN')}
+                      </span>
                       <span className="font-mono font-black text-sm text-amber-300">
                         +₹{mortgageVal.toLocaleString('en-IN')}
                       </span>
@@ -1122,7 +1171,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({
           activePlayerColor={activePlayer?.colorToken}
           turnTimeRemaining={gameState.turnTimeRemaining ?? 30}
           onClose={() => onSelectSpace(null)}
-          onDispatch={onDispatch}
+          onDispatch={isBoardInspecting ? undefined : onDispatch}
+          readOnly={isBoardInspecting}
         />
       )}
 

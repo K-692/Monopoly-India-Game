@@ -170,11 +170,11 @@ export const GamePage: React.FC = () => {
               </h2>
               {gameState.isTie ? (
                 <p className="text-base font-bold text-indian-navy-900 dark:text-indian-parchment-100">
-                  🤝 It&apos;s a Tie! Highest Cash Balance: ₹{winner?.cash.toLocaleString('en-IN') || '0'}
+                  🤝 It&apos;s a Tie! Highest Net Worth: ₹{(winner?.netWorth ?? calculateNetWorth(winner?.uid || '', winner?.cash || 0, gameState.properties, gameState.pendingFinancialObligation)).toLocaleString('en-IN')}
                 </p>
               ) : (
                 <p className="text-base font-bold text-indian-navy-900 dark:text-indian-parchment-100">
-                  👑 {winner?.displayName || 'Champion'} wins with ₹{winner?.cash.toLocaleString('en-IN') || '0'}!
+                  👑 {winner?.displayName || 'Champion'} wins with Net Worth ₹{(winner?.netWorth ?? calculateNetWorth(winner?.uid || '', winner?.cash || 0, gameState.properties, gameState.pendingFinancialObligation)).toLocaleString('en-IN')}!
                 </p>
               )}
 
@@ -189,26 +189,32 @@ export const GamePage: React.FC = () => {
               )}
             </div>
 
-            {/* Scoreboard Table */}
+            {/* Scoreboard Table (Ranked by Authoritative Net Worth) */}
             <div className="border border-indian-parchment-300 dark:border-indian-navy-700 rounded-xl overflow-hidden text-left">
               <div className="bg-indian-parchment-200 dark:bg-indian-navy-800/80 px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 grid grid-cols-12 gap-2">
                 <span className="col-span-1 text-center">#</span>
                 <span className="col-span-4">Player</span>
-                <span className="col-span-3 text-right">Cash</span>
-                <span className="col-span-2 text-right">Net Worth</span>
+                <span className="col-span-3 text-right">Net Worth</span>
+                <span className="col-span-2 text-right">Cash</span>
                 <span className="col-span-2 text-center">Status</span>
               </div>
               <div className="divide-y divide-indian-parchment-200 dark:divide-indian-navy-800 max-h-48 overflow-y-auto">
                 {[...gameState.players]
+                  .map((p) => ({
+                    ...p,
+                    computedNetWorth: calculateNetWorth(p.uid, p.cash, gameState.properties, gameState.pendingFinancialObligation),
+                  }))
                   .sort((a, b) => {
-                    if (a.uid === gameState.winnerUid) return -1;
-                    if (b.uid === gameState.winnerUid) return 1;
-                    return b.cash - a.cash;
+                    if (a.uid === gameState.winnerUid && !gameState.isTie) return -1;
+                    if (b.uid === gameState.winnerUid && !gameState.isTie) return 1;
+                    if (b.computedNetWorth !== a.computedNetWorth) return b.computedNetWorth - a.computedNetWorth;
+                    if (b.cash !== a.cash) return b.cash - a.cash;
+                    return a.uid.localeCompare(b.uid);
                   })
                   .map((p, idx) => {
                     const isWinner = p.uid === gameState.winnerUid && !gameState.isTie;
                     const isDisqualified = p.uid === gameState.disqualifiedPlayerUid;
-                    const netWorth = calculateNetWorth(p.uid, p.cash, gameState.properties);
+                    const netWorth = p.computedNetWorth;
 
                     return (
                       <div
@@ -233,10 +239,10 @@ export const GamePage: React.FC = () => {
                           )}
                         </div>
                         <span className="col-span-3 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                          ₹{p.cash.toLocaleString('en-IN')}
+                          ₹{netWorth.toLocaleString('en-IN')}
                         </span>
                         <span className="col-span-2 text-right font-mono text-gray-600 dark:text-gray-300">
-                          ₹{netWorth.toLocaleString('en-IN')}
+                          ₹{p.cash.toLocaleString('en-IN')}
                         </span>
                         <div className="col-span-2 text-center">
                           {isWinner ? (

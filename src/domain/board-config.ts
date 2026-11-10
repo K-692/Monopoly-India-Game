@@ -738,7 +738,7 @@ export const MARKET_BUZZ_CARDS: CardAction[] = [
     id: 'market_2',
     deck: 'MARKET',
     title: 'Festival travel',
-    description: 'Advance to Start and collect ₹3,000.',
+    description: 'Go to START and collect the starting money.',
     actionType: 'MOVE_TO',
     targetSpace: 0,
   },
