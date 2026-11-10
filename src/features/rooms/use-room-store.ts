@@ -23,7 +23,8 @@ interface RoomStoreState {
 
   createRoom: (
     hostUser: { uid: string; displayName: string; photoURL: string | null },
-    customRules?: HostCustomRules
+    customRules?: HostCustomRules,
+    cpuPlayers?: Array<{ name: string }>
   ) => Promise<string>;
   joinRoom: (
     code: string,
@@ -71,7 +72,7 @@ export const useRoomStore = create<RoomStoreState>((set, get) => ({
     set({ selectedLanAddress: address });
   },
 
-  createRoom: async (_hostUser, customRules) => {
+  createRoom: async (_hostUser, customRules, cpuPlayers) => {
     set({ isLoading: true, error: null });
     const socket = getSocket();
     const authStore = useAuthStore.getState();
@@ -82,7 +83,7 @@ export const useRoomStore = create<RoomStoreState>((set, get) => ({
 
     return new Promise<string>((resolve, reject) => {
       const doCreate = () => {
-        socket.emit('room:create', { customRules }, (response) => {
+        socket.emit('room:create', { customRules, cpuPlayers }, (response) => {
           set({ isLoading: false });
           if (response && response.ok && response.roomId && response.room) {
             sound.play('BUTTON_CLICK');

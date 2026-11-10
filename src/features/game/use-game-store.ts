@@ -275,6 +275,14 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
           title: 'Payment Completed',
           message: event.summary,
         });
+      } else if (event.type === 'USE_JAIL_CARD') {
+        const myUid = useAuthStore.getState().player?.uid;
+        useToastStore.getState().addToast({
+          eventId: event.commandId || `jailcard_${event.sequence}`,
+          type: event.actorUid === myUid ? 'success' : 'info',
+          title: 'Bail Key Used',
+          message: event.summary,
+        });
       } else if (event.type === 'GIVE_UP') {
         useToastStore.getState().addToast({
           eventId: event.commandId || `giveup_${event.sequence}`,

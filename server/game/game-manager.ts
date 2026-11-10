@@ -11,6 +11,7 @@ import { createInitialGame } from '../../src/domain/game-engine/create-initial-g
 import { applyGameCommand, EngineResult, GameEngineError } from '../../src/domain/game-engine/engine';
 import { generateFairDicePair } from '../../src/domain/game-engine/dice-fairness';
 import { ServerRoom } from '../types/server-types';
+import { CpuController, CpuControllerTimingConfig } from './cpu-controller';
 
 export type GameBroadcastCallback = (
   roomId: string,
@@ -30,6 +31,19 @@ export class GameManager {
   private commandQueues: Map<string, Promise<unknown>> = new Map();
   private processedCommands: Map<string, ProcessedCommandRecord> = new Map();
   private broadcastCallback: GameBroadcastCallback | null = null;
+  private cpuController: CpuController;
+
+  constructor(cpuTiming?: Partial<CpuControllerTimingConfig>) {
+    this.cpuController = new CpuController(
+      (gameId) => this.getGame(gameId),
+      (gameId, command, actorUid) => this.processCommand(gameId, command, actorUid),
+      cpuTiming
+    );
+  }
+
+  public getCpuController(): CpuController {
+    return this.cpuController;
+  }
 
   public setBroadcastCallback(cb: GameBroadcastCallback) {
     this.broadcastCallback = cb;
@@ -80,6 +94,9 @@ export class GameManager {
 
     // Start turn timer ticker for this game
     this.startTurnTimer(initialGame);
+
+    // Trigger autonomous computer players if first player is CPU
+    this.cpuController.onGameStateChanged(initialGame);
 
     return { ok: true, gameId, gameState: initialGame };
   }
@@ -162,9 +179,11 @@ export class GameManager {
     // Reset or stop turn timer based on new state
     if (result.nextState.status === 'COMPLETED') {
       this.stopTurnTimer(gameId);
+      this.cpuController.stopGame(gameId);
       this.archiveGameSession(result.nextState);
     } else {
       this.resetTurnTimer(result.nextState);
+      this.cpuController.onGameStateChanged(result.nextState);
     }
 
     // Broadcast to room members
@@ -235,6 +254,7 @@ export class GameManager {
       clearInterval(existing);
       this.gameTimers.delete(gameId);
     }
+    this.cpuController.stopGame(gameId);
   }
 
   /**

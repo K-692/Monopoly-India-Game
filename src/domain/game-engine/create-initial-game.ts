@@ -4,7 +4,7 @@
 
 import { BOARD_SPACES } from '../board-config';
 import { FinancialTransaction, GameState, PlayerState, PropertyState, RoomMember } from '../game-types';
-import { DEFAULT_HOST_RULES, HostCustomRules, RULESET_VERSION, STARTING_CASH_OPTIONS, PASS_START_REWARD_OPTIONS } from '../ruleset';
+import { DEFAULT_HOST_RULES, HostCustomRules, RULESET_VERSION, isValidStartingCash, PASS_START_REWARD_OPTIONS } from '../ruleset';
 
 const PLAYER_COLORS = [
   '#C85A32', // Terracotta Rust
@@ -22,13 +22,12 @@ export function createInitialGame(
   customRules: HostCustomRules = DEFAULT_HOST_RULES,
   startingPlayerUid?: string
 ): GameState {
-  // Authoritative dynamic financial rules validation:
-  // Starting balance allowed options: 5000, 10000, 20000 (default: 20000)
-  // Start pass money allowed options: 1000, 2000, 3000 (default: 3000)
-  const startingCash = (STARTING_CASH_OPTIONS as readonly number[]).includes(customRules?.startingCash ?? 0)
+  // Authoritative starting balance validation (Slider: ₹5,000 to ₹50,000 in increments of ₹5,000, default: ₹20,000)
+  const startingCash = isValidStartingCash(customRules?.startingCash)
     ? customRules.startingCash
     : DEFAULT_HOST_RULES.startingCash;
 
+  // Pass START reward: accepts valid options (1000, 2000, 3000), default: ₹3,000
   const passStartReward = (PASS_START_REWARD_OPTIONS as readonly number[]).includes(customRules?.passStartReward ?? 0)
     ? customRules.passStartReward
     : DEFAULT_HOST_RULES.passStartReward;
@@ -89,6 +88,8 @@ export function createInitialGame(
     isBankrupt: false,
     colorToken: m.colorToken || PLAYER_COLORS[index % PLAYER_COLORS.length],
     turnTimeoutCount: 0,
+    isCpu: Boolean(m.isCpu),
+    playerType: m.playerType || (m.isCpu ? 'COMPUTER' : 'HUMAN'),
   }));
 
   const now = Date.now();

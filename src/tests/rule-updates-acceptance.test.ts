@@ -46,7 +46,7 @@ describe('Acceptance Criteria: Standardized Room Creation Settings', () => {
   it('enforces starting cash ₹20,000, pass Start reward ₹3,000, and bail ₹500, rejecting client overrides', () => {
     // Attempt to pass manipulated custom rules from client
     const forgedRules = {
-      startingCash: 50000,
+      startingCash: 99999,
       passStartReward: 10000,
       jailBail: 2500,
       turnTimerSeconds: 45,

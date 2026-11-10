@@ -119,6 +119,12 @@ export interface CardAction {
   perTower?: number;
 }
 
+export type PlayerType = 'HUMAN' | 'COMPUTER';
+
+export interface CpuPlayerConfig {
+  name: string;
+}
+
 export interface PlayerState {
   uid: string;
   displayName: string;
@@ -134,6 +140,8 @@ export interface PlayerState {
   escapedJailThisTurn?: boolean;
   colorToken: string;
   turnTimeoutCount: number;
+  isCpu?: boolean;
+  playerType?: PlayerType;
 }
 
 export type PropertyOwnershipState = 'UNOWNED' | 'OWNED' | 'MORTGAGED' | 'BLOCKED';
@@ -412,6 +420,8 @@ export interface RoomMember {
   isReady: boolean;
   joinedAt: number;
   colorToken: string;
+  isCpu?: boolean;
+  playerType?: PlayerType;
 }
 
 export interface RoomState {
@@ -426,6 +436,7 @@ export interface RoomState {
   customRules?: HostCustomRules;
   members: Record<string, RoomMember>;
   memberUids: string[];
+  cpuPlayers?: CpuPlayerConfig[];
   gameId?: string;
   createdAt: number;
   updatedAt: number;

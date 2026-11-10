@@ -115,14 +115,14 @@ export function setupSocketHandlers(
     // 2. ROOM CREATION, JOINING, & LOBBY
     // ==========================================
 
-    socket.on('room:create', ({ customRules }, callback) => {
+    socket.on('room:create', ({ customRules, cpuPlayers }, callback) => {
       if (!requireSession(socket, roomManager)) {
         if (typeof callback === 'function') callback({ ok: false, error: 'Unauthenticated' });
         return;
       }
 
       const session = socket.data.session!;
-      const result = roomManager.createRoom(session.uid, customRules);
+      const result = roomManager.createRoom(session.uid, customRules, cpuPlayers);
 
       if (!result.ok || !result.room) {
         if (typeof callback === 'function') {

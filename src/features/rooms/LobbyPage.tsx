@@ -18,6 +18,7 @@ import {
   QrCode,
   Wifi,
   ChevronDown,
+  Bot,
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import { copyToClipboard } from '@/lib/utils/clipboard';
@@ -423,9 +424,21 @@ export const LobbyPage: React.FC = () => {
                     {m.uid === room.hostUid && (
                       <Crown className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
                     )}
+                    {(m.isCpu || m.playerType === 'COMPUTER') && (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-black bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-800">
+                        <Bot className="w-3 h-3" />
+                        <span>CPU</span>
+                      </span>
+                    )}
                   </div>
                   <span className="text-[10px] text-gray-500">
-                    {m.uid === player?.uid ? 'You' : m.uid === room.hostUid ? 'Host' : 'Member'}
+                    {(m.isCpu || m.playerType === 'COMPUTER')
+                      ? 'Computer Opponent'
+                      : m.uid === player?.uid
+                      ? 'You'
+                      : m.uid === room.hostUid
+                      ? 'Host'
+                      : 'Member'}
                   </span>
                 </div>
               </div>

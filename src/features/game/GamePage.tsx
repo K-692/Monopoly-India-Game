@@ -226,6 +226,11 @@ export const GamePage: React.FC = () => {
                             style={{ backgroundColor: p.colorToken }}
                           />
                           <span className="truncate">{p.displayName}</span>
+                          {(p.isCpu || p.playerType === 'COMPUTER') && (
+                            <span className="px-1 py-0.2 rounded text-[7px] font-black bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-300 shrink-0">
+                              CPU
+                            </span>
+                          )}
                         </div>
                         <span className="col-span-3 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">
                           ₹{p.cash.toLocaleString('en-IN')}

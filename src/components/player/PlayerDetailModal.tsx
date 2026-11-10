@@ -78,11 +78,20 @@ export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
               {player.displayName.charAt(0).toUpperCase()}
             </div>
             <div>
-              <h3 className="font-serif font-black text-base sm:text-lg text-indian-navy-950 dark:text-white leading-tight">
-                {player.displayName}
-              </h3>
+              <div className="flex items-center gap-1.5">
+                <h3 className="font-serif font-black text-base sm:text-lg text-indian-navy-950 dark:text-white leading-tight">
+                  {player.displayName}
+                </h3>
+                {(player.isCpu || player.playerType === 'COMPUTER') && (
+                  <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-800">
+                    CPU
+                  </span>
+                )}
+              </div>
               <span className="text-[10px] text-gray-500 font-medium">
-                Player Profile & Financial Statement
+                {(player.isCpu || player.playerType === 'COMPUTER')
+                  ? 'Autonomous Computer Player'
+                  : 'Player Profile & Financial Statement'}
               </span>
             </div>
           </div>

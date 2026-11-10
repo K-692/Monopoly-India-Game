@@ -92,7 +92,7 @@ export interface ClientToServerEvents {
   ) => void;
 
   'room:create': (
-    data: { customRules?: HostCustomRules },
+    data: { customRules?: HostCustomRules; cpuPlayers?: Array<{ name: string }> },
     callback: (res: RoomCreateResponse) => void
   ) => void;
 

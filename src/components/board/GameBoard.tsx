@@ -12,7 +12,7 @@ import { TurnStepAcknowledgment } from '@/components/feedback/TurnStepAcknowledg
 import { PopupTurnTimer } from '@/components/feedback/PopupTurnTimer';
 import { useToastStore } from '@/components/feedback/toast-store';
 import { sound } from '@/lib/audio/sound-engine';
-import { Dices, X, Gift, Flame, Check, ArrowRight, KeyRound, Landmark, Building2, Home, Clock } from 'lucide-react';
+import { Dices, X, Gift, Flame, Check, ArrowRight, KeyRound, Landmark, Building2, Home, Clock, Bot } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 
 interface GameBoardProps {
@@ -292,6 +292,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({
 
   const canAffordReacquire = (activePlayer?.cash ?? 0) >= reacquisitionCost;
 
+  const isCpuTurn = Boolean(activePlayer && (activePlayer.isCpu || activePlayer.playerType === 'COMPUTER'));
+
   // Requirement 2: Derived polished player-facing turn indicator without technical debug info
   const playerFacingTurnMessage = (() => {
     if (walkingAnimation) {
@@ -308,6 +310,13 @@ export const GameBoard: React.FC<GameBoardProps> = ({
       if (gameState.phase === 'PROPERTY_DECISION') return `Your Turn — ${propertyNoun} Decision`;
       if (gameState.phase === 'ACTION_REQUIRED') return 'Action Required — Financial Resolution';
       return 'Your Turn — Manage or End Turn';
+    }
+    if (isCpuTurn && activePlayer) {
+      if (gameState.phase === 'AWAIT_ROLL') return `${activePlayer.displayName} (CPU) is rolling...`;
+      if (gameState.phase === 'JAIL_DECISION') return `${activePlayer.displayName} (CPU) in Central Jail — deciding...`;
+      if (gameState.phase === 'PROPERTY_DECISION') return `${activePlayer.displayName} (CPU) is considering ${playerSpace?.name || 'property'}...`;
+      if (gameState.phase === 'ACTION_REQUIRED') return `${activePlayer.displayName} (CPU) resolving debt...`;
+      return `${activePlayer.displayName} (CPU) is taking turn...`;
     }
     return `Waiting for ${activePlayer?.displayName || 'Player'}`;
   })();
@@ -804,7 +813,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         </div>
 
         {/* Requirement 3: POINTED COMMENT BOX with Viewport Clamping & Collision Awareness */}
-        {((isPropertyDecision && isUnownedPurchasable && canAffordCity) || canBuildHere || (isOwnMortgagedCity && canAffordReacquire)) && (
+        {((isPropertyDecision && isUnownedPurchasable && canAffordCity) ||
+          (isCpuTurn && gameState.phase === 'PROPERTY_DECISION' && !walkingAnimation && isUnownedPurchasable) ||
+          canBuildHere ||
+          (isOwnMortgagedCity && canAffordReacquire)) && (
           <div
             ref={popupRef}
             style={popupPos.style}
@@ -821,6 +833,27 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                   'border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-b-[8px] border-b-amber-400'
               )}
             />
+
+            {/* Pointed Box Content: CPU Property Decision View */}
+            {isCpuTurn && gameState.phase === 'PROPERTY_DECISION' && isUnownedPurchasable && playerSpace && 'price' in playerSpace && (
+              <>
+                <div className="flex items-center justify-between border-b border-white/20 pb-1.5">
+                  <span className="font-serif font-black text-xs text-amber-200">
+                    {playerPropState?.soldToBankPayout ? `🏛️ Acquire ${propertyNoun}?` : `🏙️ Buy ${propertyNoun}?`}
+                  </span>
+                  <span className="font-black text-emerald-400 text-xs">
+                    ₹{(playerPropState?.soldToBankPayout || playerSpace.price).toLocaleString('en-IN')}
+                  </span>
+                </div>
+                <p className="text-[11px] text-gray-200 leading-tight">
+                  <strong className="text-white">{activePlayer?.displayName} (CPU)</strong> is evaluating {playerPropState?.soldToBankPayout ? 'acquisition of' : 'purchasing'} <strong className="text-white">{playerSpace.name}</strong> for ₹{(playerPropState?.soldToBankPayout || playerSpace.price).toLocaleString('en-IN')}.
+                </p>
+                <div className="p-2 rounded-xl bg-blue-500/20 border border-blue-500/40 flex items-center justify-center gap-1.5 text-blue-300 font-bold text-[11px]">
+                  <Bot className="w-3.5 h-3.5 animate-pulse" />
+                  <span>{activePlayer?.displayName} is deciding...</span>
+                </div>
+              </>
+            )}
 
             {/* Pointed Box Content: Buy / Acquire Property Prompt */}
               {isPropertyDecision && isUnownedPurchasable && canAffordCity && 'price' in playerSpace && (

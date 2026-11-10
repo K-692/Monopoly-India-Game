@@ -112,9 +112,16 @@ export const PlayerStrip: React.FC<PlayerStripProps> = ({
                 {/* Name */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-0.5">
-                    <span className="text-[9.5px] font-bold text-indian-navy-900 dark:text-white truncate block">
-                      {player.displayName}
-                    </span>
+                    <div className="flex items-center gap-1 min-w-0 truncate">
+                      <span className="text-[9.5px] font-bold text-indian-navy-900 dark:text-white truncate block">
+                        {player.displayName}
+                      </span>
+                      {(player.isCpu || player.playerType === 'COMPUTER') && (
+                        <span className="px-1 py-0.2 rounded text-[7px] font-black bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-800 shrink-0">
+                          CPU
+                        </span>
+                      )}
+                    </div>
                     {isTurn && (
                       <span className="w-1.5 h-1.5 rounded-full bg-indian-terracotta-500 animate-ping shrink-0" />
                     )}

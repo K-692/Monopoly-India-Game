@@ -6,7 +6,11 @@
 
 import crypto from 'crypto';
 import { RoomMember } from '../../src/domain/game-types';
-import { DEFAULT_HOST_RULES, HostCustomRules, STARTING_CASH_OPTIONS, PASS_START_REWARD_OPTIONS } from '../../src/domain/ruleset';
+import {
+  DEFAULT_HOST_RULES,
+  HostCustomRules,
+  isValidStartingCash,
+} from '../../src/domain/ruleset';
 import { PlayerSession, PlayerSessionPublic, ServerRoom } from '../types/server-types';
 
 export const PLAYER_PALETTE = [
@@ -178,11 +182,12 @@ export class RoomManager {
   // ==========================================
 
   /**
-   * Creates a private multiplayer room hosted by the caller.
+   * Creates a private multiplayer room hosted by the caller, optionally with computer players.
    */
   public createRoom(
     hostUid: string,
-    customRules?: HostCustomRules
+    customRules?: HostCustomRules,
+    cpuPlayers?: Array<{ name: string }>
   ): { ok: boolean; room?: ServerRoom; error?: string } {
     const hostSession = this.sessionsByUid.get(hostUid);
     if (!hostSession) {
@@ -192,21 +197,20 @@ export class RoomManager {
     const roomId = 'room_' + crypto.randomUUID().replace(/-/g, '').slice(0, 12);
     const inviteCode = this.generateUniqueInviteCode();
 
-    // Dynamic Starting Cash: 5000, 10000, 20000 (default 20000)
-    const startingCash = (STARTING_CASH_OPTIONS as readonly number[]).includes(customRules?.startingCash ?? 0)
-      ? customRules!.startingCash
+    // Configurable Starting Cash Slider: ₹5,000 to ₹50,000 in increments of ₹5,000 (default ₹20,000)
+    const startingCash = isValidStartingCash(customRules?.startingCash)
+      ? customRules.startingCash
       : DEFAULT_HOST_RULES.startingCash;
 
-    // Dynamic Start Pass Money: 1000, 2000, 3000 (default 3000)
-    const passStartReward = (PASS_START_REWARD_OPTIONS as readonly number[]).includes(customRules?.passStartReward ?? 0)
-      ? customRules!.passStartReward
-      : DEFAULT_HOST_RULES.passStartReward;
+    // Standard fixed statutory values
+    const passStartReward = 3000;
+    const jailBail = 500;
 
     const rules: HostCustomRules = {
       ...(customRules ?? DEFAULT_HOST_RULES),
       startingCash,
       passStartReward,
-      jailBail: 500,
+      jailBail,
     };
     const maxPlayers = rules.maxPlayers ?? 4;
     const normalizedTimer: 0 | 30 | 45 | 60 =
@@ -224,7 +228,88 @@ export class RoomManager {
       isReady: true, // Host is automatically marked ready
       joinedAt: Date.now(),
       colorToken: hostSession.avatarColor || PLAYER_PALETTE[0],
+      isCpu: false,
+      playerType: 'HUMAN',
     };
+
+    // Validate computer players configuration if provided
+    const configuredCpuMembers: RoomMember[] = [];
+    const cpuConfigs: { name: string }[] = [];
+
+    if (cpuPlayers && Array.isArray(cpuPlayers) && cpuPlayers.length > 0) {
+      if (cpuPlayers.length > 3) {
+        return { ok: false, error: 'Maximum 3 computer players allowed per room.' };
+      }
+
+      if (cpuPlayers.length + 1 > maxPlayers) {
+        return {
+          ok: false,
+          error: `Room capacity exceeded. Room max is ${maxPlayers} players, but host + ${cpuPlayers.length} computer players would equal ${cpuPlayers.length + 1}.`,
+        };
+      }
+
+      const hostNameLower = hostSession.displayName.trim().toLowerCase();
+      const seenNames = new Set<string>([hostNameLower]);
+      const takenColors = new Set<string>([hostMember.colorToken]);
+
+      for (let i = 0; i < cpuPlayers.length; i++) {
+        const rawName = (cpuPlayers[i]?.name ?? `CPU${i + 1}`).trim();
+        if (!rawName) {
+          return { ok: false, error: 'Computer player name cannot be empty.' };
+        }
+        if (rawName.length < 2 || rawName.length > 20) {
+          return {
+            ok: false,
+            error: `Computer player name "${rawName}" must be between 2 and 20 characters.`,
+          };
+        }
+        if (!/^[a-zA-Z0-9 _-]+$/.test(rawName)) {
+          return {
+            ok: false,
+            error: `Computer player name "${rawName}" contains invalid characters. Use letters, numbers, spaces, underscores, or hyphens.`,
+          };
+        }
+
+        const nameLower = rawName.toLowerCase();
+        if (seenNames.has(nameLower)) {
+          return {
+            ok: false,
+            error: `Duplicate player name "${rawName}". Player names within the same room must be unique.`,
+          };
+        }
+        seenNames.add(nameLower);
+
+        // Pick distinct color
+        const freeColor = PLAYER_PALETTE.find((c) => !takenColors.has(c));
+        const assignedColor = freeColor || PLAYER_PALETTE[(i + 1) % PLAYER_PALETTE.length];
+        takenColors.add(assignedColor);
+
+        const cpuUid = 'cpu_' + crypto.randomUUID().replace(/-/g, '').slice(0, 10);
+        const cpuMember: RoomMember = {
+          uid: cpuUid,
+          displayName: rawName,
+          photoURL: null,
+          isReady: true, // Computer players are always ready in lobby
+          joinedAt: Date.now() + i + 1,
+          colorToken: assignedColor,
+          isCpu: true,
+          playerType: 'COMPUTER',
+        };
+
+        configuredCpuMembers.push(cpuMember);
+        cpuConfigs.push({ name: rawName });
+      }
+    }
+
+    const membersRecord: Record<string, RoomMember> = {
+      [hostUid]: hostMember,
+    };
+    const memberUids = [hostUid];
+
+    for (const cpu of configuredCpuMembers) {
+      membersRecord[cpu.uid] = cpu;
+      memberUids.push(cpu.uid);
+    }
 
     const room: ServerRoom = {
       roomId,
@@ -236,10 +321,9 @@ export class RoomManager {
       turnTimerSeconds: normalizedTimer,
       gameMode: normalizedMode,
       customRules: rules,
-      members: {
-        [hostUid]: hostMember,
-      },
-      memberUids: [hostUid],
+      members: membersRecord,
+      memberUids,
+      cpuPlayers: cpuConfigs.length > 0 ? cpuConfigs : undefined,
       createdAt: Date.now(),
       updatedAt: Date.now(),
       expiresAt: Date.now() + 24 * 60 * 60 * 1000, // 24-hour lifetime
@@ -293,6 +377,18 @@ export class RoomManager {
       return { ok: true, room };
     }
 
+    // Duplicate name validation across human and computer players
+    const joiningNameLower = playerSession.displayName.trim().toLowerCase();
+    const hasNameCollision = Object.values(room.members).some(
+      (m) => m.displayName.trim().toLowerCase() === joiningNameLower
+    );
+    if (hasNameCollision) {
+      return {
+        ok: false,
+        error: `A player named "${playerSession.displayName}" is already in this room. Please choose a unique name.`,
+      };
+    }
+
     // Capacity check
     const currentMemberCount = Object.keys(room.members).length;
     if (currentMemberCount >= room.maxPlayers) {
@@ -314,6 +410,8 @@ export class RoomManager {
       isReady: false,
       joinedAt: Date.now(),
       colorToken: assignedColor,
+      isCpu: false,
+      playerType: 'HUMAN',
     };
 
     room.members[playerUid] = newMember;

@@ -122,7 +122,7 @@ export const PlayPage: React.FC = () => {
     setIsRulesModalOpen(true);
   };
 
-  const handleCreateWithRules = async (rules: HostCustomRules) => {
+  const handleCreateWithRules = async (rules: HostCustomRules, cpuPlayers?: Array<{ name: string }>) => {
     if (!player) return;
     setIsCreating(true);
     try {
@@ -132,7 +132,8 @@ export const PlayPage: React.FC = () => {
           displayName: player.displayName,
           photoURL: null,
         },
-        rules
+        rules,
+        cpuPlayers
       );
       setIsRulesModalOpen(false);
       navigate(`/room/${roomId}`);

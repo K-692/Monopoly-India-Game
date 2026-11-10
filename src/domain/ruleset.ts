@@ -14,15 +14,36 @@ import { PropertyDefinition, PropertyState } from './game-types';
 
 export const RULESET_VERSION = '1.1.0';
 
-export const STARTING_CASH_OPTIONS = [5000, 10000, 20000] as const;
+export const STARTING_CASH_MIN = 5000;
+export const STARTING_CASH_MAX = 50000;
+export const STARTING_CASH_STEP = 5000;
+export const STARTING_CASH_DEFAULT = 20000;
+export const STARTING_CASH_OPTIONS = [
+  5000, 10000, 15000, 20000, 25000, 30000, 35000, 40000, 45000, 50000,
+] as const;
 export type StartingCashOption = (typeof STARTING_CASH_OPTIONS)[number];
+
+/**
+ * Validates whether the given cash value satisfies starting cash rules:
+ * - Must be a number
+ * - Must be between ₹5,000 and ₹50,000 (inclusive)
+ * - Must be an exact multiple of ₹5,000
+ */
+export function isValidStartingCash(val: unknown): val is number {
+  if (typeof val !== 'number' || isNaN(val) || !isFinite(val)) return false;
+  return (
+    val >= STARTING_CASH_MIN &&
+    val <= STARTING_CASH_MAX &&
+    val % STARTING_CASH_STEP === 0
+  );
+}
 
 export const PASS_START_REWARD_OPTIONS = [1000, 2000, 3000] as const;
 export type PassStartRewardOption = (typeof PASS_START_REWARD_OPTIONS)[number];
 
 export interface HostCustomRules {
-  startingCash: number; // Dynamic options: 5000, 10000, 20000
-  passStartReward: number; // Dynamic options: 1000, 2000, 3000
+  startingCash: number; // Configurable: ₹5,000 to ₹50,000 in steps of ₹5,000 (default ₹20,000)
+  passStartReward: number; // Statutory standard: ₹3,000
   turnTimerSeconds: number; // 15, 30, 45, 60, 90
   maxPlayers: number; // 2..6
   jailBail: number;
