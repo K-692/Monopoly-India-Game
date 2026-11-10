@@ -331,6 +331,10 @@ export interface GameState {
   isTie?: boolean;
   turnTimeRemaining: number;
   turnTimeLimit: number;
+  movement?: MovementState | null;
+  handoff?: TurnHandoffState | null;
+  isTimerPaused?: boolean;
+  currentActionId?: string;
   rules?: {
     startingCash: number;
     passStartReward: number;
@@ -458,4 +462,33 @@ export interface WalkingAnimationState {
   targetPos: number;
   stepsRemaining: number;
 }
+
+/**
+ * Authoritative Server-Synchronized Token Movement State
+ * Tracks active token walking animation and timing bounds to pause player countdown.
+ */
+export interface MovementState {
+  playerId: string;
+  startPos: number;
+  targetPos: number;
+  steps: number;
+  startedAt: number;
+  endsAt: number;
+  durationMs: number;
+  isComplete: boolean;
+}
+
+/**
+ * Authoritative Turn Handoff State
+ * Enforces minimum 2-second pacing gap before consecutive CPU turns or after human turns.
+ */
+export interface TurnHandoffState {
+  fromPlayerUid: string;
+  toPlayerUid: string;
+  startedAt: number;
+  endsAt: number;
+  delayMs: number;
+  isActive: boolean;
+}
+
 

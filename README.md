@@ -23,6 +23,8 @@
   - Add between **0 and 3 intelligent computer opponents** directly from room creation.
   - Custom, editable names with automatic duplicate and collision validation.
   - **Strict Multi-Agent Parity**: CPUs run through the exact same authoritative game engine, rules, dice mechanisms, landing popups, and financial pipelines as human players—no cheating, no hidden rules, and no separate game modes.
+  - **Sequential Turn Integrity & 2-Second CPU Gap**: Guaranteed 2-second pacing handoff between consecutive CPU turns and after human turns. No overlapping CPU execution; actions are fully resolved before handoff.
+  - **Phase-Aware Timer Synchronization**: Player timers automatically pause during token walking animations across all connected devices and reset fresh upon entering genuinely new actionable steps (e.g. `PROPERTY_DECISION`).
   - Deterministic strategic decision-making: smart property acquisition, visiting-city house construction, bank-sold property reacquisition (inheriting existing houses), jail bail key management, and tiered Sell-to-Bank debt resolution.
 - 💰 **Configurable Starting Cash Slider**:
   - Room hosts can dynamically tune economic velocity using an intuitive range slider from **₹5,000 to ₹50,000** in steps of **₹5,000** (default: **₹20,000**).
@@ -180,7 +182,7 @@ For complete mathematical definitions, state machine proofs, and research citati
 | `npm run build:server` | Bundles the standalone server into `dist-server/index.cjs` using `esbuild`. |
 | `npm run build:desktop` | Builds both the React LAN frontend (`dist/`) and the server bundle (`dist-server/index.cjs`). |
 | `npm run desktop` | Builds desktop assets and launches the application inside native Electron. |
-| `npm test` | Runs the full Vitest test suite (131 tests across 12 files). |
+| `npm test` | Runs the full Vitest test suite (137 tests across 13 files). |
 | `npm run test:watch` | Runs Vitest in interactive watch mode for test-driven development. |
 | `npm run test:coverage`| Generates detailed test code coverage reports. |
 | `npm run typecheck` | Strict TypeScript compiler validation across client, server, and tests (`tsc -b --noEmit`). |
@@ -199,6 +201,7 @@ For complete mathematical definitions, state machine proofs, and research citati
 | **House Construction** | Monopoly holders can build houses on a city **only when actively visiting that city** on a subsequent turn. Uniform building distribution enforced across the color group. |
 | **Sell to Bank** | Players can liquidate properties to the bank for 50% value to satisfy obligations. Reacquired bank properties preserve previously built houses. |
 | **120s Debt Timer** | If cash balance drops into deficit after fees/rent, a 120-second countdown begins. The player must liquidate assets or declare bankruptcy. |
+| **Turn Sync & Timers** | Timers pause during token movement animations across all connected clients. Resets to full duration upon entering new actionable phases (e.g. `PROPERTY_DECISION`). Mandatory 2-second pacing handoff delay before CPU turns. |
 
 ---
 

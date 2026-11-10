@@ -4,8 +4,11 @@
  * Coordinates turn execution, pacing, decision-making, and command dispatch
  * for computer-controlled players on the authoritative server.
  *
- * Implements the required lifecycle:
- * WAITING_FOR_TURN → DECIDING → ACTION_PENDING → WAITING_FOR_RESULT → NEXT_ACTION/COMPLETE
+ * Enforces sequential turn execution and prevents overlapping CPU actions:
+ * - Session-level execution locks per game, turn, and player UID.
+ * - Respects the authoritative 2-second handoff delay between turns.
+ * - Respects authoritative token movement animation before executing landing actions.
+ * - Implements idempotent command IDs and bounded error retry.
  */
 
 import crypto from 'crypto';
@@ -36,25 +39,29 @@ export const DEFAULT_CPU_TIMING: CpuControllerTimingConfig = {
   jailDelay: 1200,
   managementDelay: 1000,
   debtResolutionDelay: 800,
-  postLandingBaseDelay: 1200,
+  postLandingBaseDelay: 1000,
   stepAnimationMs: 380,
   diceTumbleMs: 600,
 };
 
 export const FAST_CPU_TIMING: CpuControllerTimingConfig = {
-  rollDelay: 50,
-  jailDelay: 50,
-  managementDelay: 50,
-  debtResolutionDelay: 40,
-  postLandingBaseDelay: 50,
+  rollDelay: 40,
+  jailDelay: 40,
+  managementDelay: 40,
+  debtResolutionDelay: 30,
+  postLandingBaseDelay: 40,
   stepAnimationMs: 10,
   diceTumbleMs: 20,
 };
 
 interface GameCpuSession {
-  status: 'IDLE' | 'WAITING_FOR_TURN' | 'DECIDING' | 'ACTION_PENDING' | 'WAITING_FOR_RESULT';
+  gameId: string;
+  lockedTurnId: number | null;
+  lockedPlayerUid: string | null;
+  status: 'IDLE' | 'HANDOFF' | 'WAITING_FOR_TURN' | 'DECIDING' | 'ACTION_PENDING' | 'WAITING_FOR_RESULT';
   activeTimer: NodeJS.Timeout | null;
   isProcessing: boolean;
+  currentActionId: string | null;
   retryCount: number;
 }
 
@@ -89,6 +96,7 @@ export class CpuController {
 
   /**
    * Evaluates the latest authoritative game state to see if a CPU player needs to act.
+   * Enforces session locks, movement pauses, and handoff delays.
    */
   public onGameStateChanged(gameState: GameState): void {
     const gameId = gameState.gameId;
@@ -98,22 +106,40 @@ export class CpuController {
       return;
     }
 
-    // Determine if any computer player has an active responsibility
-    const activeCpu = this.getActiveCpuPlayer(gameState);
-    if (!activeCpu) {
-      // It is a human's turn or human's debt -> cancel any pending CPU timer for this game
+    const session = this.getSession(gameId);
+
+    // If turn handoff delay is currently active (e.g. 2-second inter-turn gap), CPU must not start
+    if (gameState.handoff?.isActive) {
+      session.status = 'HANDOFF';
       this.clearGameTimer(gameId);
-      const session = this.getSession(gameId);
-      session.status = 'WAITING_FOR_TURN';
       return;
     }
 
-    const session = this.getSession(gameId);
+    // If token movement animation is currently active, CPU must wait until pawn reaches destination
+    if (gameState.movement && !gameState.movement.isComplete) {
+      session.status = 'WAITING_FOR_RESULT';
+      this.clearGameTimer(gameId);
+      return;
+    }
 
-    // If an action is already actively executing, wait for it to complete
+    // Determine if any computer player has an active turn or financial debt responsibility
+    const activeCpu = this.getActiveCpuPlayer(gameState);
+    if (!activeCpu) {
+      this.clearGameTimer(gameId);
+      session.status = 'WAITING_FOR_TURN';
+      session.lockedTurnId = null;
+      session.lockedPlayerUid = null;
+      return;
+    }
+
+    // Session execution lock: If an action is already in flight, do not start overlapping executions
     if (session.isProcessing || session.status === 'ACTION_PENDING') {
       return;
     }
+
+    // Acquire session lock for current game turn and player
+    session.lockedTurnId = gameState.turnNumber;
+    session.lockedPlayerUid = activeCpu.uid;
 
     // Schedule next decision with human-like natural delay
     this.scheduleNextAction(gameState, activeCpu);
@@ -159,13 +185,7 @@ export class CpuController {
     }
 
     if (gameState.phase === 'PROPERTY_DECISION') {
-      // Calculate remaining movement animation duration if dice was rolled this turn
-      let animDuration = 0;
-      if (gameState.dice) {
-        const steps = Number(gameState.dice.total ?? (gameState.dice.first + gameState.dice.second));
-        animDuration = this.timingConfig.diceTumbleMs + steps * this.timingConfig.stepAnimationMs;
-      }
-      return animDuration + this.timingConfig.postLandingBaseDelay;
+      return this.timingConfig.postLandingBaseDelay;
     }
 
     if (gameState.phase === 'MANAGEMENT' || gameState.phase === 'TURN_END') {
@@ -189,16 +209,26 @@ export class CpuController {
 
     session.activeTimer = setTimeout(async () => {
       session.activeTimer = null;
-      await this.executeCpuAction(gameId, cpuPlayer.uid);
+      await this.executeCpuAction(gameId, cpuPlayer.uid, gameState.turnNumber);
     }, delay);
   }
 
   /**
-   * Evaluates decision and dispatches command to GameManager.
+   * Evaluates decision and dispatches command to GameManager under session lock.
    */
-  private async executeCpuAction(gameId: string, cpuUid: string): Promise<void> {
+  private async executeCpuAction(
+    gameId: string,
+    cpuUid: string,
+    scheduledTurnNumber: number
+  ): Promise<void> {
     const session = this.getSession(gameId);
     if (!this.dispatcher || !this.stateGetter) return;
+
+    // Verify session lock matches scheduled turn and player
+    if (session.lockedTurnId !== scheduledTurnNumber || session.lockedPlayerUid !== cpuUid) {
+      session.status = 'IDLE';
+      return;
+    }
 
     session.isProcessing = true;
     session.status = 'ACTION_PENDING';
@@ -209,6 +239,20 @@ export class CpuController {
         this.stopGame(gameId);
         session.isProcessing = false;
         session.status = 'IDLE';
+        return;
+      }
+
+      // Check if turn handoff or movement is active in fresh state
+      if (freshState.handoff?.isActive || (freshState.movement && !freshState.movement.isComplete)) {
+        session.isProcessing = false;
+        session.status = freshState.handoff?.isActive ? 'HANDOFF' : 'WAITING_FOR_RESULT';
+        return;
+      }
+
+      // If turn number advanced while scheduled, discard obsolete execution
+      if (freshState.turnNumber !== scheduledTurnNumber) {
+        session.isProcessing = false;
+        session.status = 'WAITING_FOR_TURN';
         return;
       }
 
@@ -234,8 +278,11 @@ export class CpuController {
         return;
       }
 
+      const commandId = `cmd_cpu_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
+      session.currentActionId = commandId;
+
       const command: GameCommand = {
-        commandId: `cmd_cpu_${Date.now()}_${crypto.randomUUID().slice(0, 6)}`,
+        commandId,
         roomId: freshState.roomId,
         gameId: freshState.gameId,
         expectedVersion: freshState.version,
@@ -244,23 +291,20 @@ export class CpuController {
       };
 
       session.status = 'WAITING_FOR_RESULT';
-      const result = await this.dispatcher(gameId, command, cpuUid);
+      await this.dispatcher(gameId, command, cpuUid);
       session.isProcessing = false;
+      session.currentActionId = null;
       session.retryCount = 0;
-
-      // Result of action updates state and triggers next phase
-      if (result && result.nextState) {
-        this.onGameStateChanged(result.nextState);
-      }
     } catch (err) {
       console.warn(`[CpuController] Error executing CPU action for ${cpuUid} in ${gameId}:`, err);
       session.isProcessing = false;
+      session.currentActionId = null;
       session.retryCount++;
 
       if (session.retryCount <= 2) {
         // Safe bounded retry
         setTimeout(() => {
-          this.executeCpuAction(gameId, cpuUid);
+          this.executeCpuAction(gameId, cpuUid, scheduledTurnNumber);
         }, 1000);
       } else {
         session.status = 'IDLE';
@@ -273,9 +317,13 @@ export class CpuController {
     let session = this.sessions.get(gameId);
     if (!session) {
       session = {
+        gameId,
+        lockedTurnId: null,
+        lockedPlayerUid: null,
         status: 'IDLE',
         activeTimer: null,
         isProcessing: false,
+        currentActionId: null,
         retryCount: 0,
       };
       this.sessions.set(gameId, session);

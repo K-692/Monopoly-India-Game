@@ -13,6 +13,7 @@ interface PlayerStripProps {
   transactions?: FinancialTransaction[];
   turnTimeRemaining?: number;
   turnTimeLimit?: number;
+  isTimerPaused?: boolean;
   userUid?: string;
   onSelectPlayer?: (uid: string) => void;
   onSelectSpace?: (spaceIndex: number) => void;
@@ -26,6 +27,7 @@ export const PlayerStrip: React.FC<PlayerStripProps> = ({
   transactions = [],
   turnTimeRemaining,
   turnTimeLimit = 30,
+  isTimerPaused = false,
   userUid,
   onSelectPlayer,
   onGiveUp,
@@ -145,13 +147,15 @@ export const PlayerStrip: React.FC<PlayerStripProps> = ({
                       <div
                         className={cn(
                           'flex items-center gap-0.5 px-1 py-0.2 rounded-full text-[7.5px] font-bold shrink-0',
-                          isTimerLow
+                          isTimerPaused
+                            ? 'bg-amber-100 text-amber-800'
+                            : isTimerLow
                             ? 'bg-red-500 text-white animate-pulse'
                             : 'bg-indian-terracotta-100 text-indian-terracotta-800'
                         )}
                       >
                         <Clock className="w-2 h-2" />
-                        <span>{timerVal}s</span>
+                        <span>{isTimerPaused ? 'PAUSED' : `${timerVal}s`}</span>
                       </div>
                     )}
                   </div>

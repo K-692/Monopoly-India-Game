@@ -21,7 +21,7 @@ import {
   RoomJoinResponse,
   ServerToClientEvents,
 } from '../../server/types/server-types';
-import { GameCommand, GameState } from '../domain/game-types';
+import { GameState } from '../domain/game-types';
 import { DEFAULT_HOST_RULES, HostCustomRules } from '../domain/ruleset';
 
 type TypedClient = ClientSocketType<ServerToClientEvents, ClientToServerEvents>;
@@ -384,56 +384,82 @@ describe('CPU Players & Starting Cash Server Integration', () => {
         );
       });
 
+      const cpuUid = roomRes.room!.memberUids.find((id) => id !== myUid)!;
+      let receivedCpuRoll = false;
+
+      // Register game:event listener BEFORE starting room so we never miss CPU rolling first
+      client.on('game:event', (event) => {
+        if (event.actorUid === cpuUid && (event.type === 'ROLL_DICE' || event.type === 'TRY_DOUBLES')) {
+          receivedCpuRoll = true;
+        }
+      });
+
+      const handleState = (state: GameState) => {
+        if (state.currentPlayerUid === myUid && !state.isTimerPaused && (!state.movement || state.movement.isComplete)) {
+          if (state.phase === 'AWAIT_ROLL') {
+            client.emit('game:command', {
+              commandId: 'cmd_h_roll_' + Date.now(),
+              roomId: state.roomId,
+              gameId: state.gameId,
+              expectedVersion: state.version,
+              type: 'ROLL_DICE',
+              payload: {},
+            });
+          } else if (state.phase === 'PROPERTY_DECISION') {
+            client.emit('game:command', {
+              commandId: 'cmd_h_dec_' + Date.now(),
+              roomId: state.roomId,
+              gameId: state.gameId,
+              expectedVersion: state.version,
+              type: 'DECLINE_PROPERTY',
+              payload: {},
+            });
+          } else if (state.phase === 'MANAGEMENT' || state.phase === 'TURN_END') {
+            client.emit('game:command', {
+              commandId: 'cmd_h_end_' + Date.now(),
+              roomId: state.roomId,
+              gameId: state.gameId,
+              expectedVersion: state.version,
+              type: 'END_TURN',
+              payload: {},
+            });
+          }
+        }
+      };
+
+      client.on('game:started', (d: { gameId: string; gameState: GameState }) => {
+        handleState(d.gameState);
+      });
+
+      client.on('game:state', (state: GameState) => {
+        handleState(state);
+      });
+
       const startRes = await new Promise<{ ok: boolean; gameId?: string }>((resolve) => {
         client.emit('room:start', resolve);
       });
+      expect(startRes.ok).toBe(true);
 
       const gameId = startRes.gameId!;
-      const cpuUid = roomRes.room!.memberUids.find((id) => id !== myUid)!;
 
-      // Join game and wait for CPU events
-      let receivedCpuRoll = false;
+      // Also call game:join
+      client.emit('game:join', { gameId }, (res: { ok: boolean; gameState?: GameState }) => {
+        if (res.gameState) handleState(res.gameState);
+      });
 
+      // Wait until CPU roll event is received
       await new Promise<void>((resolve) => {
-        client.on('game:event', (event) => {
-          if (event.actorUid === cpuUid && (event.type === 'ROLL_DICE' || event.type === 'TRY_DOUBLES')) {
-            receivedCpuRoll = true;
+        const interval = setInterval(() => {
+          if (receivedCpuRoll) {
+            clearInterval(interval);
             resolve();
           }
-        });
+        }, 50);
 
-        client.emit('game:join', { gameId }, (res: { ok: boolean; gameState?: GameState }) => {
-          const game = res.gameState!;
-          // If human went first, human rolls and ends turn so CPU can take its turn
-          if (game.currentPlayerUid === myUid) {
-            const rollCmd: GameCommand = {
-              commandId: 'cmd_h_roll_' + Date.now(),
-              roomId: game.roomId,
-              gameId,
-              expectedVersion: game.version,
-              type: 'ROLL_DICE',
-              payload: {},
-            };
-
-            client.emit('game:command', rollCmd, () => {
-              // Wait for state to settle then end turn
-              setTimeout(() => {
-                const endCmd: GameCommand = {
-                  commandId: 'cmd_h_end_' + Date.now(),
-                  roomId: game.roomId,
-                  gameId,
-                  expectedVersion: game.version + 1,
-                  type: 'END_TURN',
-                  payload: {},
-                };
-                client.emit('game:command', endCmd);
-              }, 100);
-            });
-          }
-        });
-
-        // Set timeout to ensure test resolves
-        setTimeout(() => resolve(), 4000);
+        setTimeout(() => {
+          clearInterval(interval);
+          resolve();
+        }, 4000);
       });
 
       expect(receivedCpuRoll).toBe(true);

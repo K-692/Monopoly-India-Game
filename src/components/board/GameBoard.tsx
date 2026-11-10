@@ -296,7 +296,11 @@ export const GameBoard: React.FC<GameBoardProps> = ({
 
   // Requirement 2: Derived polished player-facing turn indicator without technical debug info
   const playerFacingTurnMessage = (() => {
-    if (walkingAnimation) {
+    if (gameState.handoff?.isActive) {
+      const nextP = gameState.players.find((p) => p.uid === gameState.handoff?.toPlayerUid);
+      return `Handoff to ${nextP?.displayName || 'Next Player'}...`;
+    }
+    if (walkingAnimation || (gameState.movement && !gameState.movement.isComplete)) {
       return isMyTurn ? 'Processing Move...' : `Moving ${activePlayer?.displayName || 'Player'}...`;
     }
     if (isMyTurn) {
@@ -639,10 +643,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({
 
               {/* Interactive 3D Tumbling Dice with Authentic Perspective Roll Effect */}
               <div
-                onClick={isMyTurn && gameState.phase === 'AWAIT_ROLL' && !isRolling && !walkingAnimation ? onRollDice : undefined}
+                onClick={isMyTurn && gameState.phase === 'AWAIT_ROLL' && !isRolling && !walkingAnimation && !gameState.handoff?.isActive && (!gameState.movement || gameState.movement.isComplete) ? onRollDice : undefined}
                 className={cn(
                   'flex items-center gap-2.5 sm:gap-3.5 transition-all p-2 rounded-2xl min-h-[44px]',
-                  isMyTurn && gameState.phase === 'AWAIT_ROLL' && !isRolling && !walkingAnimation
+                  isMyTurn && gameState.phase === 'AWAIT_ROLL' && !isRolling && !walkingAnimation && !gameState.handoff?.isActive && (!gameState.movement || gameState.movement.isComplete)
                     ? 'cursor-pointer hover:scale-105 active:scale-95 ring-2 ring-indian-terracotta-400 bg-amber-50/90 shadow-md'
                     : ''
                 )}
@@ -663,7 +667,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
               )}
 
               {/* Center Controls: Roll Dice / End Turn / Jail Actions */}
-              {isMyTurn && gameState.phase === 'AWAIT_ROLL' && !walkingAnimation ? (
+              {isMyTurn && gameState.phase === 'AWAIT_ROLL' && !walkingAnimation && !gameState.handoff?.isActive && (!gameState.movement || gameState.movement.isComplete) ? (
                 <button
                   type="button"
                   disabled={isRolling}
@@ -673,7 +677,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                   <Dices className="w-4 h-4" />
                   <span>{isRolling ? 'Rolling...' : 'ROLL DICE'}</span>
                 </button>
-              ) : isMyTurn && (gameState.phase === 'MANAGEMENT' || gameState.phase === 'TURN_END') && !walkingAnimation ? (
+              ) : isMyTurn && (gameState.phase === 'MANAGEMENT' || gameState.phase === 'TURN_END') && !walkingAnimation && !gameState.handoff?.isActive && (!gameState.movement || gameState.movement.isComplete) ? (
                 <div className="flex items-center gap-1.5">
                   {myMortgageableProperties.length > 0 && (
                     <button
@@ -694,7 +698,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                     <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
-              ) : isMyTurn && gameState.phase === 'JAIL_DECISION' && !walkingAnimation ? (
+              ) : isMyTurn && gameState.phase === 'JAIL_DECISION' && !walkingAnimation && !gameState.handoff?.isActive && (!gameState.movement || gameState.movement.isComplete) ? (
                 <div className="flex items-center gap-1.5 flex-wrap justify-center">
                   {Boolean(activePlayer?.jailFreeCards && activePlayer.jailFreeCards > 0) && (
                     <button
@@ -730,7 +734,11 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                     <span>Roll for Doubles</span>
                   </button>
                 </div>
-              ) : walkingAnimation ? (
+              ) : gameState.handoff?.isActive ? (
+                <span className="text-[9px] font-bold text-amber-800 bg-amber-100 px-3 py-1 rounded-full border border-amber-300 animate-pulse flex items-center gap-1">
+                  ⏳ Next Turn Starting...
+                </span>
+              ) : walkingAnimation || (gameState.movement && !gameState.movement.isComplete) ? (
                 <span className="text-[8.5px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-300 animate-pulse">
                   🚶 Stepping along lane...
                 </span>

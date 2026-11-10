@@ -142,7 +142,13 @@ export interface ServerToClientEvents {
   'game:started': (data: { gameId: string; gameState: GameState }) => void;
   'game:state': (gameState: GameState) => void;
   'game:event': (event: GameEvent) => void;
-  'game:timer': (data: { remaining: number; activeUid: string }) => void;
+  'game:timer': (data: {
+    remaining: number;
+    activeUid: string;
+    isPaused?: boolean;
+    phase?: string;
+    handoff?: boolean;
+  }) => void;
   'reaction:received': (reaction: {
     id: string;
     roomId: string;

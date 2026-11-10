@@ -3,6 +3,12 @@
  * Executes authoritative game commands using the core Monopoly engine,
  * guarantees cryptographic dice randomness, enforces serialized command queues,
  * and manages server-authoritative turn countdown timers and timeouts.
+ *
+ * Implements strict turn synchronization and pacing invariants:
+ * - Movement animations pause the player timer until token arrives at destination.
+ * - Enforces minimum 2-second handoff delay between consecutive CPU turns and after human turns.
+ * - Dedicated 120-second financial resolution timer remains strictly independent.
+ * - Genuinely new actionable phases reset the timer to its full configured duration.
  */
 
 import crypto from 'crypto';
@@ -28,6 +34,8 @@ export class GameManager {
   private games: Map<string, GameState> = new Map();
   private archives: Map<string, GameArchive> = new Map();
   private gameTimers: Map<string, NodeJS.Timeout> = new Map();
+  private movementTimers: Map<string, NodeJS.Timeout> = new Map();
+  private handoffTimers: Map<string, NodeJS.Timeout> = new Map();
   private commandQueues: Map<string, Promise<unknown>> = new Map();
   private processedCommands: Map<string, ProcessedCommandRecord> = new Map();
   private broadcastCallback: GameBroadcastCallback | null = null;
@@ -47,6 +55,25 @@ export class GameManager {
 
   public setBroadcastCallback(cb: GameBroadcastCallback) {
     this.broadcastCallback = cb;
+  }
+
+  /**
+   * Computes the authoritative movement duration matching client-side walking animations.
+   */
+  public calculateMovementDuration(steps: number): number {
+    const isTest = process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
+    const tumble = isTest ? 20 : 600;
+    const stepMs = isTest ? 10 : 380;
+    const settle = isTest ? 50 : 300;
+    return tumble + steps * stepMs + settle;
+  }
+
+  /**
+   * Computes the inter-turn handoff delay (2 seconds in production, fast in test).
+   */
+  public getHandoffDelay(): number {
+    const isTest = process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
+    return isTest ? 100 : 2000;
   }
 
   // ==========================================
@@ -141,7 +168,7 @@ export class GameManager {
   }
 
   /**
-   * Internal deterministic execution with cryptographic dice and deduplication.
+   * Internal deterministic execution with cryptographic dice, movement pacing, and deduplication.
    */
   private executeCommandInternal(
     gameId: string,
@@ -156,6 +183,24 @@ export class GameManager {
     // Check duplicate command prevention (idempotent retry handling)
     if (command.commandId && this.processedCommands.has(command.commandId)) {
       return this.processedCommands.get(command.commandId)!.result;
+    }
+
+    // Validate expected version before phase and movement guards
+    if (typeof command.expectedVersion === 'number' && command.expectedVersion !== currentState.version) {
+      throw new GameEngineError(
+        'STALE_VERSION',
+        `Stale version: command expected version ${command.expectedVersion}, but current engine version is ${currentState.version}`
+      );
+    }
+
+    // Guard 1: Block actions during active turn handoff
+    if (currentState.handoff?.isActive) {
+      throw new GameEngineError('INVALID_PHASE', 'Turn handoff in progress');
+    }
+
+    // Guard 2: Block actions during active token movement animation
+    if (currentState.movement && !currentState.movement.isComplete) {
+      throw new GameEngineError('INVALID_PHASE', 'Player token is currently moving');
     }
 
     let injectedDice: [number, number] | undefined = undefined;
@@ -176,17 +221,90 @@ export class GameManager {
       });
     }
 
-    // Reset or stop turn timer based on new state
+    // Handle Completed Game
     if (result.nextState.status === 'COMPLETED') {
       this.stopTurnTimer(gameId);
-      this.cpuController.stopGame(gameId);
       this.archiveGameSession(result.nextState);
-    } else {
-      this.resetTurnTimer(result.nextState);
-      this.cpuController.onGameStateChanged(result.nextState);
+
+      if (this.broadcastCallback) {
+        this.broadcastCallback(result.nextState.roomId, 'game:event', result.event);
+        this.broadcastCallback(result.nextState.roomId, 'game:state', result.nextState);
+      }
+      return result;
     }
 
-    // Broadcast to room members
+    // Check if token moved during this command
+    const hasMovement =
+      result.nextState.dice &&
+      (command.type === 'ROLL_DICE' || (command.type === 'TRY_DOUBLES' && result.nextState.dice.isDouble));
+
+    if (hasMovement) {
+      const dice = result.nextState.dice!;
+      const steps = Number(dice.total ?? (dice.first + dice.second));
+      const startPos = Number(dice.oldPos ?? 0);
+      const targetPos = Number(dice.newPos ?? ((startPos + steps) % 40));
+      const durationMs = this.calculateMovementDuration(steps);
+
+      result.nextState.movement = {
+        playerId: actorUid,
+        startPos,
+        targetPos,
+        steps,
+        startedAt: Date.now(),
+        endsAt: Date.now() + durationMs,
+        durationMs,
+        isComplete: false,
+      };
+
+      // Immediately pause active player's countdown during token movement
+      result.nextState.isTimerPaused = true;
+      this.scheduleMovementCompletion(gameId, durationMs);
+    } else {
+      result.nextState.movement = null;
+    }
+
+    // Check if turn ended and advanced to next player
+    const isTurnAdvanced =
+      command.type === 'END_TURN' ||
+      actorUid !== result.nextState.currentPlayerUid;
+
+    if (isTurnAdvanced) {
+      const nextUid = result.nextState.currentPlayerUid;
+      const nextPlayer = result.nextState.players.find((p) => p.uid === nextUid);
+      const isNextCpu = Boolean(nextPlayer && (nextPlayer.isCpu || nextPlayer.playerType === 'COMPUTER'));
+
+      if (isNextCpu) {
+        // Enforce the 2-second minimum handoff delay before the next CPU can begin
+        const handoffDelay = this.getHandoffDelay();
+        result.nextState.handoff = {
+          fromPlayerUid: actorUid,
+          toPlayerUid: nextUid,
+          startedAt: Date.now(),
+          endsAt: Date.now() + handoffDelay,
+          delayMs: handoffDelay,
+          isActive: true,
+        };
+        result.nextState.isTimerPaused = true;
+        result.nextState.turnTimeRemaining = result.nextState.rules?.turnTimerSeconds ?? 30;
+        this.scheduleHandoffCompletion(gameId, handoffDelay);
+      } else {
+        // Human player is next: start immediately after previous turn is fully completed
+        result.nextState.handoff = null;
+        result.nextState.isTimerPaused = false;
+        this.resetTurnTimer(result.nextState);
+      }
+    } else if (!hasMovement) {
+      // Action occurred within current turn without movement (e.g. BUY_PROPERTY, BUILD, SELL_TO_BANK)
+      if (result.nextState.phase === 'ACTION_REQUIRED' && result.nextState.pendingFinancialObligation) {
+        // Dedicated 120-second financial resolution timer continues unaffected
+        this.cpuController.onGameStateChanged(result.nextState);
+      } else {
+        this.resetTurnTimer(result.nextState);
+        this.cpuController.onGameStateChanged(result.nextState);
+      }
+    }
+
+    // Broadcast updated event and state to room members
     if (this.broadcastCallback) {
       this.broadcastCallback(result.nextState.roomId, 'game:event', result.event);
       this.broadcastCallback(result.nextState.roomId, 'game:state', result.nextState);
@@ -196,17 +314,144 @@ export class GameManager {
   }
 
   // ==========================================
+  // MOVEMENT & TURN HANDOFF ORCHESTRATION
+  // ==========================================
+
+  /**
+   * Schedules authoritative movement completion after animation duration.
+   */
+  private scheduleMovementCompletion(gameId: string, durationMs: number): void {
+    const existing = this.movementTimers.get(gameId);
+    if (existing) clearTimeout(existing);
+
+    const timer = setTimeout(() => {
+      this.onMovementCompleted(gameId);
+    }, durationMs);
+
+    this.movementTimers.set(gameId, timer);
+  }
+
+  /**
+   * Authoritatively concludes token movement, resolves landing phase, and resumes timer.
+   */
+  private onMovementCompleted(gameId: string): void {
+    this.movementTimers.delete(gameId);
+    const state = this.games.get(gameId);
+    if (!state || state.status === 'COMPLETED') return;
+
+    if (state.movement) {
+      state.movement.isComplete = true;
+    }
+    state.isTimerPaused = false;
+
+    // Phase-aware timer reset when transitioning into a new actionable step:
+    if (state.phase === 'PROPERTY_DECISION') {
+      // Reset timer to full configured duration for the decision phase
+      const turnDuration = state.rules?.turnTimerSeconds ?? 30;
+      state.turnTimeRemaining = turnDuration;
+      this.startTurnTimer(state);
+    } else if (state.phase === 'ACTION_REQUIRED' && state.pendingFinancialObligation) {
+      // Debt resolution retains dedicated 120-second countdown
+    } else if (state.phase === 'MANAGEMENT' || state.phase === 'TURN_END') {
+      const turnDuration = state.rules?.turnTimerSeconds ?? 30;
+      state.turnTimeRemaining = turnDuration;
+      this.startTurnTimer(state);
+    }
+
+    // Broadcast state and timer resumption to all clients
+    if (this.broadcastCallback) {
+      this.broadcastCallback(state.roomId, 'game:state', state);
+      this.broadcastCallback(state.roomId, 'game:timer', {
+        remaining: state.turnTimeRemaining,
+        activeUid: state.currentPlayerUid,
+        isPaused: false,
+        phase: state.phase,
+      });
+    }
+
+    // Trigger CPU controller to execute decision now that token has landed
+    this.cpuController.onGameStateChanged(state);
+  }
+
+  /**
+   * Schedules authoritative handoff completion after 2-second delay.
+   */
+  private scheduleHandoffCompletion(gameId: string, delayMs: number): void {
+    const existing = this.handoffTimers.get(gameId);
+    if (existing) clearTimeout(existing);
+
+    const timer = setTimeout(() => {
+      this.onHandoffCompleted(gameId);
+    }, delayMs);
+
+    this.handoffTimers.set(gameId, timer);
+  }
+
+  /**
+   * Authoritatively activates the next CPU player's turn after the 2-second handoff delay.
+   */
+  private onHandoffCompleted(gameId: string): void {
+    this.handoffTimers.delete(gameId);
+    const state = this.games.get(gameId);
+    if (!state || state.status === 'COMPLETED') return;
+
+    state.handoff = null;
+    state.isTimerPaused = false;
+
+    // Start next player's timer fresh with full configured duration
+    const turnDuration = state.rules?.turnTimerSeconds ?? 30;
+    state.turnTimeRemaining = turnDuration;
+    this.startTurnTimer(state);
+
+    if (this.broadcastCallback) {
+      this.broadcastCallback(state.roomId, 'game:state', state);
+      this.broadcastCallback(state.roomId, 'game:timer', {
+        remaining: turnDuration,
+        activeUid: state.currentPlayerUid,
+        isPaused: false,
+        phase: state.phase,
+        handoff: false,
+      });
+    }
+
+    // Officially trigger CPU action now that handoff delay has elapsed
+    this.cpuController.onGameStateChanged(state);
+  }
+
+  // ==========================================
   // SERVER TURN TIMER & TIMEOUT AUTOMATION
   // ==========================================
 
   private startTurnTimer(gameState: GameState): void {
     const gameId = gameState.gameId;
-    this.stopTurnTimer(gameId);
+    const existingTimer = this.gameTimers.get(gameId);
+    if (existingTimer) {
+      clearInterval(existingTimer);
+      this.gameTimers.delete(gameId);
+    }
 
     const timer = setInterval(() => {
       const current = this.games.get(gameId);
       if (!current || current.status === 'COMPLETED') {
         this.stopTurnTimer(gameId);
+        return;
+      }
+
+      // If timer is paused (movement active or 2-second handoff in progress), do NOT decrement
+      if (
+        current.isTimerPaused ||
+        (current.movement && !current.movement.isComplete) ||
+        current.handoff?.isActive
+      ) {
+        if (this.broadcastCallback) {
+          this.broadcastCallback(current.roomId, 'game:timer', {
+            remaining: current.turnTimeRemaining,
+            activeUid: current.currentPlayerUid,
+            isPaused: true,
+            phase: current.phase,
+            handoff: Boolean(current.handoff?.isActive),
+          });
+        }
         return;
       }
 
@@ -233,6 +478,8 @@ export class GameManager {
           this.broadcastCallback(current.roomId, 'game:timer', {
             remaining: nextRemaining,
             activeUid: timerActiveUid,
+            isPaused: false,
+            phase: current.phase,
           });
         }
       }
@@ -242,7 +489,11 @@ export class GameManager {
   }
 
   private resetTurnTimer(gameState: GameState): void {
-    // Reset timer countdown to standard turn duration (or custom rules)
+    // If in ACTION_REQUIRED with a financial obligation, preserve the 120-second deadline
+    if (gameState.phase === 'ACTION_REQUIRED' && gameState.pendingFinancialObligation) {
+      return;
+    }
+
     const turnDuration = gameState.rules?.turnTimerSeconds ?? 30;
     gameState.turnTimeRemaining = turnDuration;
     this.startTurnTimer(gameState);
@@ -254,7 +505,18 @@ export class GameManager {
       clearInterval(existing);
       this.gameTimers.delete(gameId);
     }
-    this.cpuController.stopGame(gameId);
+
+    const moveTimer = this.movementTimers.get(gameId);
+    if (moveTimer) {
+      clearTimeout(moveTimer);
+      this.movementTimers.delete(gameId);
+    }
+
+    const handoffTimer = this.handoffTimers.get(gameId);
+    if (handoffTimer) {
+      clearTimeout(handoffTimer);
+      this.handoffTimers.delete(gameId);
+    }
   }
 
   /**
@@ -264,6 +526,15 @@ export class GameManager {
     const freshState = this.games.get(gameState.gameId) || gameState;
     if (freshState.status === 'COMPLETED') {
       this.stopTurnTimer(freshState.gameId);
+      return;
+    }
+
+    // Do not execute timeout while paused (during movement or handoff)
+    if (
+      freshState.isTimerPaused ||
+      (freshState.movement && !freshState.movement.isComplete) ||
+      freshState.handoff?.isActive
+    ) {
       return;
     }
 

@@ -294,13 +294,20 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     };
 
     // Handle authoritative server turn timer ticks
-    const handleServerTimer = (data: { remaining: number; activeUid: string }) => {
+    const handleServerTimer = (data: {
+      remaining: number;
+      activeUid: string;
+      isPaused?: boolean;
+      phase?: string;
+      handoff?: boolean;
+    }) => {
       set((s) => {
         if (!s.gameState) return s;
         return {
           gameState: {
             ...s.gameState,
             turnTimeRemaining: data.remaining,
+            isTimerPaused: data.isPaused ?? s.gameState.isTimerPaused,
           },
         };
       });
@@ -367,7 +374,15 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
 
   dispatchAction: (commandType, payload = {}) => {
     const { gameState, isRolling, walkingAnimation } = get();
-    if (!gameState || isRolling || walkingAnimation) return;
+    if (
+      !gameState ||
+      isRolling ||
+      walkingAnimation ||
+      gameState.handoff?.isActive ||
+      (gameState.movement && !gameState.movement.isComplete)
+    ) {
+      return;
+    }
 
     const command: GameCommand = {
       commandId: 'cmd_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),

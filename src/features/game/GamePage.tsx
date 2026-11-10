@@ -291,6 +291,12 @@ export const GamePage: React.FC = () => {
             transactions={gameState.transactions}
             turnTimeRemaining={gameState.turnTimeRemaining}
             turnTimeLimit={gameState.turnTimeLimit}
+            isTimerPaused={Boolean(
+              gameState.isTimerPaused ||
+              walkingAnimation ||
+              gameState.handoff?.isActive ||
+              (gameState.movement && !gameState.movement.isComplete)
+            )}
             onSelectPlayer={() => {}}
             onSelectSpace={selectSpace}
             userUid={player?.uid || 'player_1'}
@@ -309,7 +315,12 @@ export const GamePage: React.FC = () => {
             onDismissCardPopup={() => {}}
             onDismissMoneyAck={() => {}}
             onDispatch={dispatchAction}
-            isMyTurn={isMyTurn && !walkingAnimation}
+            isMyTurn={
+              isMyTurn &&
+              !walkingAnimation &&
+              !gameState.handoff?.isActive &&
+              (!gameState.movement || gameState.movement.isComplete)
+            }
             userUid={player?.uid || 'player_1'}
             lastEvent={events[0]}
             walkingAnimation={walkingAnimation}
