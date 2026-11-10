@@ -27,9 +27,10 @@
   - **Automatic Turn Completion Without Timer Dependency**: As soon as a CPU completes its actions and has no further decisions to make, it automatically finishes its turn via authoritative `END_TURN` without waiting for the normal turn timer to expire.
   - **Phase-Aware Timer Synchronization**: Player timers automatically pause during token walking animations across all connected devices and reset fresh upon entering genuinely new actionable steps (e.g. `PROPERTY_DECISION`).
   - Deterministic strategic decision-making: smart property acquisition, visiting-city house construction, bank-sold property reacquisition (inheriting existing houses), jail bail key management, and tiered Sell-to-Bank debt resolution.
-- 💰 **Configurable Starting Cash Slider**:
+- 💰 **Configurable Starting Cash & Start Crossing Money**:
   - Room hosts can dynamically tune economic velocity using an intuitive range slider from **₹5,000 to ₹50,000** in steps of **₹5,000** (default: **₹20,000**).
-  - Statutory fiscal policies remain fixed: **₹3,000** START pass reward, **₹500** Central Jail bail, **₹500** GST / Wealth Levy, and 120-second emergency debt countdown.
+  - Configurable **Start Crossing Money (Pass START Salary)** directly in the room creation modal with selectable options of **₹1,000**, **₹2,000**, or **₹3,000** (default: **₹3,000**).
+  - Statutory fiscal policies remain fixed: **₹500** Central Jail bail, **₹500** GST / Wealth Levy, and 120-second emergency debt countdown.
 - 🇮🇳 **Authentic Indian Economic Flavor**:
   - Prominent Indian cities: Mumbai, Delhi, Bengaluru, Kolkata, Chennai, Hyderabad, Ahmedabad, Jaipur, Pune, and more.
   - Reserve Bank of India (RBI) conventions, GST Checkposts, Civic Funds, Market Buzz events, and Infrastructure Wealth Levies.
@@ -183,7 +184,7 @@ For complete mathematical definitions, state machine proofs, and research citati
 | `npm run build:server` | Bundles the standalone server into `dist-server/index.cjs` using `esbuild`. |
 | `npm run build:desktop` | Builds both the React LAN frontend (`dist/`) and the server bundle (`dist-server/index.cjs`). |
 | `npm run desktop` | Builds desktop assets and launches the application inside native Electron. |
-| `npm test` | Runs the full Vitest test suite (149 tests across 13 files). |
+| `npm test` | Runs the full Vitest test suite (153 tests across 13 files). |
 | `npm run test:watch` | Runs Vitest in interactive watch mode for test-driven development. |
 | `npm run test:coverage`| Generates detailed test code coverage reports. |
 | `npm run typecheck` | Strict TypeScript compiler validation across client, server, and tests (`tsc -b --noEmit`). |

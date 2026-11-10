@@ -330,6 +330,131 @@ describe('CPU Players & Starting Cash Server Integration', () => {
   });
 
   // ==========================================
+  // START CROSSING MONEY (PASS START REWARD)
+  // ==========================================
+  describe('Start Crossing Money (Pass START Reward) Configuration', () => {
+    it('configures ₹1,000 start crossing money and follows it in gameplay', async () => {
+      const client = createClient();
+      await new Promise<void>((resolve) => {
+        client.emit('player:register', { displayName: 'Host1k' }, () => resolve());
+      });
+
+      const roomRes = await new Promise<RoomCreateResponse>((resolve) => {
+        client.emit(
+          'room:create',
+          {
+            customRules: { ...DEFAULT_HOST_RULES, passStartReward: 1000 },
+            cpuPlayers: [{ name: 'Bot1' }],
+          },
+          resolve
+        );
+      });
+
+      expect(roomRes.ok).toBe(true);
+      expect(roomRes.room?.customRules?.passStartReward).toBe(1000);
+
+      const startRes = await new Promise<{ ok: boolean; gameId?: string }>((resolve) => {
+        client.emit('room:start', resolve);
+      });
+      expect(startRes.ok).toBe(true);
+
+      const gm = serverInstance.gameManager;
+      const state = gm.getGame(startRes.gameId!)!;
+      expect(state.rules?.passStartReward).toBe(1000);
+
+      client.disconnect();
+    });
+
+    it('configures ₹2,000 start crossing money and follows it in gameplay', async () => {
+      const client = createClient();
+      await new Promise<void>((resolve) => {
+        client.emit('player:register', { displayName: 'Host2k' }, () => resolve());
+      });
+
+      const roomRes = await new Promise<RoomCreateResponse>((resolve) => {
+        client.emit(
+          'room:create',
+          {
+            customRules: { ...DEFAULT_HOST_RULES, passStartReward: 2000 },
+            cpuPlayers: [{ name: 'Bot2' }],
+          },
+          resolve
+        );
+      });
+
+      expect(roomRes.ok).toBe(true);
+      expect(roomRes.room?.customRules?.passStartReward).toBe(2000);
+
+      const startRes = await new Promise<{ ok: boolean; gameId?: string }>((resolve) => {
+        client.emit('room:start', resolve);
+      });
+      expect(startRes.ok).toBe(true);
+
+      const gm = serverInstance.gameManager;
+      const state = gm.getGame(startRes.gameId!)!;
+      expect(state.rules?.passStartReward).toBe(2000);
+
+      client.disconnect();
+    });
+
+    it('configures ₹3,000 start crossing money and follows it in gameplay', async () => {
+      const client = createClient();
+      await new Promise<void>((resolve) => {
+        client.emit('player:register', { displayName: 'Host3k' }, () => resolve());
+      });
+
+      const roomRes = await new Promise<RoomCreateResponse>((resolve) => {
+        client.emit(
+          'room:create',
+          {
+            customRules: { ...DEFAULT_HOST_RULES, passStartReward: 3000 },
+            cpuPlayers: [{ name: 'Bot3' }],
+          },
+          resolve
+        );
+      });
+
+      expect(roomRes.ok).toBe(true);
+      expect(roomRes.room?.customRules?.passStartReward).toBe(3000);
+
+      const startRes = await new Promise<{ ok: boolean; gameId?: string }>((resolve) => {
+        client.emit('room:start', resolve);
+      });
+      expect(startRes.ok).toBe(true);
+
+      const gm = serverInstance.gameManager;
+      const state = gm.getGame(startRes.gameId!)!;
+      expect(state.rules?.passStartReward).toBe(3000);
+
+      client.disconnect();
+    });
+
+    it('sanitizes invalid start crossing reward to default ₹3,000', async () => {
+      const client = createClient();
+      await new Promise<void>((resolve) => {
+        client.emit('player:register', { displayName: 'HostInvalid' }, () => resolve());
+      });
+
+      const roomRes = await new Promise<RoomCreateResponse>((resolve) => {
+        client.emit(
+          'room:create',
+          {
+            // Pass invalid amount 9999
+            customRules: { ...DEFAULT_HOST_RULES, passStartReward: 9999 as unknown as number },
+            cpuPlayers: [{ name: 'BotInv' }],
+          },
+          resolve
+        );
+      });
+
+      expect(roomRes.ok).toBe(true);
+      expect(roomRes.room?.customRules?.passStartReward).toBe(3000);
+
+      client.disconnect();
+    });
+  });
+
+  // ==========================================
   // CPU AUTONOMOUS GAMEPLAY
   // ==========================================
   describe('CPU Gameplay Automation', () => {

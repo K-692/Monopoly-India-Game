@@ -6,6 +6,7 @@ import {
   STARTING_CASH_MAX,
   STARTING_CASH_STEP,
   STARTING_CASH_DEFAULT,
+  PASS_START_REWARD_OPTIONS,
 } from '@/domain/ruleset';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -135,7 +136,7 @@ export const CreateRoomRulesModal: React.FC<CreateRoomRulesModalProps> = ({
       {
         ...rules,
         startingCash: rules.startingCash,
-        passStartReward: 3000,
+        passStartReward: rules.passStartReward,
         jailBail: 500,
       },
       cpuPlayers.map((c) => ({ name: c.name.trim() }))
@@ -205,6 +206,38 @@ export const CreateRoomRulesModal: React.FC<CreateRoomRulesModalProps> = ({
               <span className="text-indian-terracotta-600 font-bold">Step: ₹{STARTING_CASH_STEP.toLocaleString('en-IN')}</span>
               <span>₹{STARTING_CASH_MAX.toLocaleString('en-IN')} (Max)</span>
             </div>
+          </div>
+
+          {/* Start Crossing Money (Pass START Reward) */}
+          <div className="p-3 bg-indian-parchment-100/60 dark:bg-indian-navy-800/60 rounded-xl border border-indian-parchment-300 dark:border-indian-navy-700">
+            <div className="flex items-center justify-between mb-2">
+              <label className="font-bold text-indian-navy-900 dark:text-indian-parchment-100 uppercase tracking-wider text-xs flex items-center gap-1.5">
+                <IndianRupee className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span>Start Crossing Money</span>
+              </label>
+              <span className="font-mono font-bold text-xs text-emerald-600 dark:text-emerald-400">
+                ₹{rules.passStartReward.toLocaleString('en-IN')}
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {PASS_START_REWARD_OPTIONS.map((amt) => (
+                <button
+                  type="button"
+                  key={amt}
+                  onClick={() => setRules((prev) => ({ ...prev, passStartReward: amt }))}
+                  className={`py-2 rounded-lg font-bold border transition-all cursor-pointer text-center ${
+                    rules.passStartReward === amt
+                      ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs'
+                      : 'bg-white dark:bg-indian-navy-900 text-indian-navy-900 dark:text-gray-300 border-indian-parchment-300 dark:border-indian-navy-700 hover:bg-indian-parchment-200 dark:hover:bg-indian-navy-800'
+                  }`}
+                >
+                  ₹{amt.toLocaleString('en-IN')}
+                </button>
+              ))}
+            </div>
+            <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1.5">
+              Salary credited to a player each time they complete a board circuit or land on START.
+            </p>
           </div>
 
           {/* Computer Players Section (Section 2) */}
@@ -326,9 +359,8 @@ export const CreateRoomRulesModal: React.FC<CreateRoomRulesModalProps> = ({
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
               <span>Standard Fixed Statutory Rules</span>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-gray-600 dark:text-gray-300 text-[10px]">
-              <div>Pass START: <strong className="text-indian-navy-900 dark:text-white font-mono">₹3,000</strong></div>
-              <div>Center Jail Bail: <strong className="text-indian-navy-900 dark:text-white font-mono">₹500</strong></div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-gray-600 dark:text-gray-300 text-[10px]">
+              <div>Central Jail Bail: <strong className="text-indian-navy-900 dark:text-white font-mono">₹500</strong></div>
               <div>GST Checkpost: <strong className="text-indian-navy-900 dark:text-white font-mono">₹500</strong></div>
               <div>Wealth Levy: <strong className="text-indian-navy-900 dark:text-white font-mono">₹500</strong></div>
               <div>Debt Timer: <strong className="text-indian-navy-900 dark:text-white font-mono">120s</strong></div>

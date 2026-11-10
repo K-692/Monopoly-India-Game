@@ -10,6 +10,7 @@ import {
   DEFAULT_HOST_RULES,
   HostCustomRules,
   isValidStartingCash,
+  PASS_START_REWARD_OPTIONS,
 } from '../../src/domain/ruleset';
 import { PlayerSession, PlayerSessionPublic, ServerRoom } from '../types/server-types';
 
@@ -202,8 +203,12 @@ export class RoomManager {
       ? customRules.startingCash
       : DEFAULT_HOST_RULES.startingCash;
 
+    // Pass START reward: configurable by host with options of ₹1,000, ₹2,000, or ₹3,000 (default ₹3,000)
+    const passStartReward = (PASS_START_REWARD_OPTIONS as readonly number[]).includes(customRules?.passStartReward ?? 0)
+      ? customRules!.passStartReward
+      : DEFAULT_HOST_RULES.passStartReward;
+
     // Standard fixed statutory values
-    const passStartReward = 3000;
     const jailBail = 500;
 
     const rules: HostCustomRules = {
