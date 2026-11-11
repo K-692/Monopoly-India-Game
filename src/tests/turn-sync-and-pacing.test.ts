@@ -1354,6 +1354,8 @@ describe('Turn Synchronization, CPU Pacing & Player Timers', () => {
       afterState1.players[0].jailTurns = 1;
       afterState1.players[0].cash = 1200;
       afterState1.phase = 'JAIL_DECISION';
+      afterState1.movement = null;
+      afterState1.isTimerPaused = false;
 
       await gm.triggerTimeout(gameId);
 
@@ -1628,6 +1630,502 @@ describe('Turn Synchronization, CPU Pacing & Player Timers', () => {
         expect(resDoubles.nextState.players[0].inJail).toBe(true);
         expect(resDoubles.nextState.phase).toBe('TURN_END');
       }
+
+      gm.stopTurnTimer(gameId);
+    });
+  });
+
+  // ==========================================
+  // AUTOMATIC BUILD HOUSE / TOWER ON HUMAN TIMEOUT (11 REGRESSION TESTS)
+  // ==========================================
+  describe('Automatic Build House / Commercial Tower on Human Turn Timeout (11 Regressions)', () => {
+    // Test 1 — Automatically build a house
+    it('Test 1 — Automatically builds a house when a human player times out on an eligible city', async () => {
+      const gm = new GameManager();
+      const members: Record<string, RoomMember> = {
+        player_h1: { uid: 'player_h1', displayName: 'Human 1', photoURL: null, isReady: true, colorToken: '#EF4444', joinedAt: 1 },
+        player_h2: { uid: 'player_h2', displayName: 'Human 2', photoURL: null, isReady: true, colorToken: '#3B82F6', joinedAt: 2 },
+      };
+      const room = createTestRoom('room_build_1', 'player_h1', members);
+      const startRes = gm.startGame(room, 'player_h1');
+      const gameId = startRes.gameId!;
+      const state = gm.getGame(gameId)!;
+
+      // Standing on Space 1 (Jaipur, cost ₹500), bought in turn 1, currently turn 2
+      state.currentPlayerUid = 'player_h1';
+      state.turnNumber = 2;
+      state.players[0].position = 1;
+      state.players[0].cash = 2000;
+      state.properties[1] = {
+        spaceIndex: 1,
+        propertyId: 'jaipur',
+        ownerUid: 'player_h1',
+        isMortgaged: false,
+        buildings: 0,
+        ownershipState: 'OWNED',
+        boughtOnTurn: 1,
+      };
+      state.phase = 'MANAGEMENT';
+
+      await gm.triggerTimeout(gameId);
+
+      const afterState = gm.getGame(gameId)!;
+      // Building count increased by exactly 1
+      expect(afterState.properties[1].buildings).toBe(1);
+      // Cost of Jaipur house (₹500) deducted
+      expect(afterState.players[0].cash).toBe(1500);
+      // Transaction recorded
+      const tx = afterState.transactions?.find((t) => t.type === 'HOUSE_PURCHASE');
+      expect(tx).toBeDefined();
+      expect(tx?.amount).toBe(500);
+      // Player remains active player in MANAGEMENT
+      expect(afterState.currentPlayerUid).toBe('player_h1');
+      expect(afterState.phase).toBe('MANAGEMENT');
+
+      gm.stopTurnTimer(gameId);
+    });
+
+    // Test 2 — Exactly sufficient cash
+    it('Test 2 — Automatically builds when cash balance exactly equals the building cost', async () => {
+      const gm = new GameManager();
+      const members: Record<string, RoomMember> = {
+        player_h1: { uid: 'player_h1', displayName: 'Human 1', photoURL: null, isReady: true, colorToken: '#EF4444', joinedAt: 1 },
+        player_h2: { uid: 'player_h2', displayName: 'Human 2', photoURL: null, isReady: true, colorToken: '#3B82F6', joinedAt: 2 },
+      };
+      const room = createTestRoom('room_build_2', 'player_h1', members);
+      const startRes = gm.startGame(room, 'player_h1');
+      const gameId = startRes.gameId!;
+      const state = gm.getGame(gameId)!;
+
+      state.currentPlayerUid = 'player_h1';
+      state.turnNumber = 2;
+      state.players[0].position = 1;
+      state.players[0].cash = 500; // Exactly ₹500
+      state.properties[1] = {
+        spaceIndex: 1,
+        propertyId: 'jaipur',
+        ownerUid: 'player_h1',
+        isMortgaged: false,
+        buildings: 0,
+        ownershipState: 'OWNED',
+        boughtOnTurn: 1,
+      };
+      state.phase = 'MANAGEMENT';
+
+      await gm.triggerTimeout(gameId);
+
+      const afterState = gm.getGame(gameId)!;
+      expect(afterState.properties[1].buildings).toBe(1);
+      expect(afterState.players[0].cash).toBe(0);
+      expect(afterState.phase).toBe('MANAGEMENT');
+
+      gm.stopTurnTimer(gameId);
+    });
+
+    // Test 3 — Automatically build a Commercial Tower
+    it('Test 3 — Automatically builds a Commercial Tower when player has 4 houses and sufficient cash', async () => {
+      const gm = new GameManager();
+      const members: Record<string, RoomMember> = {
+        player_h1: { uid: 'player_h1', displayName: 'Human 1', photoURL: null, isReady: true, colorToken: '#EF4444', joinedAt: 1 },
+        player_h2: { uid: 'player_h2', displayName: 'Human 2', photoURL: null, isReady: true, colorToken: '#3B82F6', joinedAt: 2 },
+      };
+      const room = createTestRoom('room_build_3', 'player_h1', members);
+      const startRes = gm.startGame(room, 'player_h1');
+      const gameId = startRes.gameId!;
+      const state = gm.getGame(gameId)!;
+
+      state.currentPlayerUid = 'player_h1';
+      state.turnNumber = 2;
+      state.players[0].position = 1;
+      state.players[0].cash = 3000;
+      state.properties[1] = {
+        spaceIndex: 1,
+        propertyId: 'jaipur',
+        ownerUid: 'player_h1',
+        isMortgaged: false,
+        buildings: 4, // 4 houses
+        ownershipState: 'OWNED',
+        boughtOnTurn: 1,
+      };
+      state.phase = 'MANAGEMENT';
+
+      await gm.triggerTimeout(gameId);
+
+      const afterState = gm.getGame(gameId)!;
+      expect(afterState.properties[1].buildings).toBe(5); // Commercial Tower
+      expect(afterState.players[0].cash).toBe(2500);
+
+      const tx = afterState.transactions?.find((t) => t.type === 'BUILDING_PURCHASE');
+      expect(tx).toBeDefined();
+      expect(tx?.description).toContain('Commercial Tower');
+
+      gm.stopTurnTimer(gameId);
+    });
+
+    // Test 4 — Multiple timeout cycles
+    it('Test 4 — Builds exactly one development per timeout cycle across consecutive timeouts', async () => {
+      const gm = new GameManager();
+      const members: Record<string, RoomMember> = {
+        player_h1: { uid: 'player_h1', displayName: 'Human 1', photoURL: null, isReady: true, colorToken: '#EF4444', joinedAt: 1 },
+        player_h2: { uid: 'player_h2', displayName: 'Human 2', photoURL: null, isReady: true, colorToken: '#3B82F6', joinedAt: 2 },
+      };
+      const room = createTestRoom('room_build_4', 'player_h1', members);
+      const startRes = gm.startGame(room, 'player_h1');
+      const gameId = startRes.gameId!;
+      const state = gm.getGame(gameId)!;
+
+      state.currentPlayerUid = 'player_h1';
+      state.turnNumber = 2;
+      state.players[0].position = 1;
+      state.players[0].cash = 5000;
+      state.properties[1] = {
+        spaceIndex: 1,
+        propertyId: 'jaipur',
+        ownerUid: 'player_h1',
+        isMortgaged: false,
+        buildings: 1,
+        ownershipState: 'OWNED',
+        boughtOnTurn: 1,
+      };
+      state.phase = 'MANAGEMENT';
+
+      // Timeout 1: constructs House #2
+      await gm.triggerTimeout(gameId);
+
+      const state1 = gm.getGame(gameId)!;
+      expect(state1.properties[1].buildings).toBe(2);
+      expect(state1.players[0].cash).toBe(4500);
+      expect(state1.phase).toBe('MANAGEMENT');
+      expect(state1.turnTimeRemaining).toBe(30);
+
+      // Timeout 2: constructs House #3
+      await gm.triggerTimeout(gameId);
+
+      const state2 = gm.getGame(gameId)!;
+      expect(state2.properties[1].buildings).toBe(3);
+      expect(state2.players[0].cash).toBe(4000);
+      expect(state2.phase).toBe('MANAGEMENT');
+
+      gm.stopTurnTimer(gameId);
+    });
+
+    // Test 5 — Insufficient cash
+    it('Test 5 — Ends turn normally when player cash is insufficient for building', async () => {
+      const gm = new GameManager();
+      const members: Record<string, RoomMember> = {
+        player_h1: { uid: 'player_h1', displayName: 'Human 1', photoURL: null, isReady: true, colorToken: '#EF4444', joinedAt: 1 },
+        player_h2: { uid: 'player_h2', displayName: 'Human 2', photoURL: null, isReady: true, colorToken: '#3B82F6', joinedAt: 2 },
+      };
+      const room = createTestRoom('room_build_5', 'player_h1', members);
+      const startRes = gm.startGame(room, 'player_h1');
+      const gameId = startRes.gameId!;
+      const state = gm.getGame(gameId)!;
+
+      state.currentPlayerUid = 'player_h1';
+      state.turnNumber = 2;
+      state.players[0].position = 1;
+      state.players[0].cash = 300; // < 500
+      state.properties[1] = {
+        spaceIndex: 1,
+        propertyId: 'jaipur',
+        ownerUid: 'player_h1',
+        isMortgaged: false,
+        buildings: 0,
+        ownershipState: 'OWNED',
+        boughtOnTurn: 1,
+      };
+      state.phase = 'MANAGEMENT';
+
+      await gm.triggerTimeout(gameId);
+
+      const afterState = gm.getGame(gameId)!;
+      expect(afterState.properties[1].buildings).toBe(0);
+      expect(afterState.players[0].cash).toBe(300);
+      // Turn ended and passed to next player
+      expect(afterState.currentPlayerUid).toBe('player_h2');
+
+      gm.stopTurnTimer(gameId);
+    });
+
+    // Test 6 — City purchased during current turn
+    it('Test 6 — Ends turn normally when city was purchased during current turn', async () => {
+      const gm = new GameManager();
+      const members: Record<string, RoomMember> = {
+        player_h1: { uid: 'player_h1', displayName: 'Human 1', photoURL: null, isReady: true, colorToken: '#EF4444', joinedAt: 1 },
+        player_h2: { uid: 'player_h2', displayName: 'Human 2', photoURL: null, isReady: true, colorToken: '#3B82F6', joinedAt: 2 },
+      };
+      const room = createTestRoom('room_build_6', 'player_h1', members);
+      const startRes = gm.startGame(room, 'player_h1');
+      const gameId = startRes.gameId!;
+      const state = gm.getGame(gameId)!;
+
+      state.currentPlayerUid = 'player_h1';
+      state.turnNumber = 3;
+      state.players[0].position = 1;
+      state.players[0].cash = 2000;
+      state.properties[1] = {
+        spaceIndex: 1,
+        propertyId: 'jaipur',
+        ownerUid: 'player_h1',
+        isMortgaged: false,
+        buildings: 0,
+        ownershipState: 'OWNED',
+        boughtOnTurn: 3, // Purchased on current turn!
+      };
+      state.phase = 'MANAGEMENT';
+
+      await gm.triggerTimeout(gameId);
+
+      const afterState = gm.getGame(gameId)!;
+      expect(afterState.properties[1].buildings).toBe(0);
+      expect(afterState.players[0].cash).toBe(2000);
+      expect(afterState.currentPlayerUid).toBe('player_h2');
+
+      gm.stopTurnTimer(gameId);
+    });
+
+    // Test 7 — City is mortgaged or not owned by the player
+    it('Test 7 — Ends turn normally when city is mortgaged or not owned', async () => {
+      const gm = new GameManager();
+      const members: Record<string, RoomMember> = {
+        player_h1: { uid: 'player_h1', displayName: 'Human 1', photoURL: null, isReady: true, colorToken: '#EF4444', joinedAt: 1 },
+        player_h2: { uid: 'player_h2', displayName: 'Human 2', photoURL: null, isReady: true, colorToken: '#3B82F6', joinedAt: 2 },
+      };
+      const room = createTestRoom('room_build_7', 'player_h1', members);
+      const startRes = gm.startGame(room, 'player_h1');
+      const gameId = startRes.gameId!;
+      const state = gm.getGame(gameId)!;
+
+      // 7A: Mortgaged city
+      state.currentPlayerUid = 'player_h1';
+      state.turnNumber = 2;
+      state.players[0].position = 1;
+      state.players[0].cash = 2000;
+      state.properties[1] = {
+        spaceIndex: 1,
+        propertyId: 'jaipur',
+        ownerUid: 'player_h1',
+        isMortgaged: true,
+        buildings: 0,
+        ownershipState: 'MORTGAGED',
+        boughtOnTurn: 1,
+      };
+      state.phase = 'MANAGEMENT';
+
+      await gm.triggerTimeout(gameId);
+
+      const afterState1 = gm.getGame(gameId)!;
+      expect(afterState1.properties[1].buildings).toBe(0);
+      expect(afterState1.currentPlayerUid).toBe('player_h2');
+
+      // 7B: Owned by opponent
+      afterState1.currentPlayerUid = 'player_h1';
+      afterState1.players[0].position = 3;
+      afterState1.properties[3] = {
+        spaceIndex: 3,
+        propertyId: 'jodhpur',
+        ownerUid: 'player_h2', // Opponent owns it
+        isMortgaged: false,
+        buildings: 0,
+        ownershipState: 'OWNED',
+        boughtOnTurn: 1,
+      };
+      afterState1.phase = 'MANAGEMENT';
+
+      await gm.triggerTimeout(gameId);
+
+      const afterState2 = gm.getGame(gameId)!;
+      expect(afterState2.properties[3].buildings).toBe(0);
+      expect(afterState2.currentPlayerUid).toBe('player_h2');
+
+      gm.stopTurnTimer(gameId);
+    });
+
+    // Test 8 — Maximum development already reached
+    it('Test 8 — Ends turn normally when property already has a Commercial Tower (level 5)', async () => {
+      const gm = new GameManager();
+      const members: Record<string, RoomMember> = {
+        player_h1: { uid: 'player_h1', displayName: 'Human 1', photoURL: null, isReady: true, colorToken: '#EF4444', joinedAt: 1 },
+        player_h2: { uid: 'player_h2', displayName: 'Human 2', photoURL: null, isReady: true, colorToken: '#3B82F6', joinedAt: 2 },
+      };
+      const room = createTestRoom('room_build_8', 'player_h1', members);
+      const startRes = gm.startGame(room, 'player_h1');
+      const gameId = startRes.gameId!;
+      const state = gm.getGame(gameId)!;
+
+      state.currentPlayerUid = 'player_h1';
+      state.turnNumber = 2;
+      state.players[0].position = 1;
+      state.players[0].cash = 5000;
+      state.properties[1] = {
+        spaceIndex: 1,
+        propertyId: 'jaipur',
+        ownerUid: 'player_h1',
+        isMortgaged: false,
+        buildings: 5, // Max level!
+        ownershipState: 'OWNED',
+        boughtOnTurn: 1,
+      };
+      state.phase = 'MANAGEMENT';
+
+      await gm.triggerTimeout(gameId);
+
+      const afterState = gm.getGame(gameId)!;
+      expect(afterState.properties[1].buildings).toBe(5);
+      expect(afterState.players[0].cash).toBe(5000);
+      expect(afterState.currentPlayerUid).toBe('player_h2');
+
+      gm.stopTurnTimer(gameId);
+    });
+
+    // Test 9 — Player is not standing on a developable city
+    it('Test 9 — Ends turn normally when player is not standing on a developable city', async () => {
+      const gm = new GameManager();
+      const members: Record<string, RoomMember> = {
+        player_h1: { uid: 'player_h1', displayName: 'Human 1', photoURL: null, isReady: true, colorToken: '#EF4444', joinedAt: 1 },
+        player_h2: { uid: 'player_h2', displayName: 'Human 2', photoURL: null, isReady: true, colorToken: '#3B82F6', joinedAt: 2 },
+      };
+      const room = createTestRoom('room_build_9', 'player_h1', members);
+      const startRes = gm.startGame(room, 'player_h1');
+      const gameId = startRes.gameId!;
+      const state = gm.getGame(gameId)!;
+
+      // Standing on Space 5 (CST Mumbai Railway transit)
+      state.currentPlayerUid = 'player_h1';
+      state.turnNumber = 2;
+      state.players[0].position = 5;
+      state.players[0].cash = 5000;
+      state.phase = 'MANAGEMENT';
+
+      await gm.triggerTimeout(gameId);
+
+      const afterState = gm.getGame(gameId)!;
+      expect(afterState.currentPlayerUid).toBe('player_h2');
+
+      gm.stopTurnTimer(gameId);
+    });
+
+    // Test 10 — CPU regression
+    it('Test 10 — Preserves CPU ₹1,500 reserve requirement and does not apply human timeout auto-build to CPU', async () => {
+      const gm = new GameManager({ managementDelay: 50 });
+      const members: Record<string, RoomMember> = {
+        cpu_1: {
+          uid: 'cpu_1',
+          displayName: 'Computer 1',
+          photoURL: null,
+          isReady: true,
+          colorToken: '#EF4444',
+          joinedAt: 1,
+          isCpu: true,
+          playerType: 'COMPUTER',
+        },
+        player_h1: {
+          uid: 'player_h1',
+          displayName: 'Human 1',
+          photoURL: null,
+          isReady: true,
+          colorToken: '#3B82F6',
+          joinedAt: 2,
+        },
+      };
+      const room = createTestRoom('room_cpu_reg', 'cpu_1', members);
+      const startRes = gm.startGame(room, 'cpu_1');
+      const gameId = startRes.gameId!;
+      const state = gm.getGame(gameId)!;
+
+      // CPU has ₹1,800. Building cost is ₹500. Cash after building would be ₹1,300 (< ₹1,500 reserve).
+      state.currentPlayerUid = 'cpu_1';
+      state.turnNumber = 2;
+      state.players[0].position = 1;
+      state.players[0].cash = 1800;
+      state.properties[1] = {
+        spaceIndex: 1,
+        propertyId: 'jaipur',
+        ownerUid: 'cpu_1',
+        isMortgaged: false,
+        buildings: 0,
+        ownershipState: 'OWNED',
+        boughtOnTurn: 1,
+      };
+      state.phase = 'MANAGEMENT';
+
+      // Timeout on CPU turn should NOT build because it would breach the reserve rule
+      await gm.triggerTimeout(gameId);
+
+      const afterState = gm.getGame(gameId)!;
+      expect(afterState.properties[1].buildings).toBe(0);
+      expect(afterState.players[0].cash).toBe(1800);
+      // Turn finished
+      expect(afterState.currentPlayerUid).toBe('player_h1');
+
+      gm.stopTurnTimer(gameId);
+    });
+
+    // Test 11 — Manual action before timeout
+    it('Test 11 — Prevents duplicate or stale automatic BUILD if player manually built before timeout', async () => {
+      const gm = new GameManager();
+      const members: Record<string, RoomMember> = {
+        player_h1: { uid: 'player_h1', displayName: 'Human 1', photoURL: null, isReady: true, colorToken: '#EF4444', joinedAt: 1 },
+        player_h2: { uid: 'player_h2', displayName: 'Human 2', photoURL: null, isReady: true, colorToken: '#3B82F6', joinedAt: 2 },
+      };
+      const room = createTestRoom('room_build_11', 'player_h1', members);
+      const startRes = gm.startGame(room, 'player_h1');
+      const gameId = startRes.gameId!;
+      const state = gm.getGame(gameId)!;
+
+      state.currentPlayerUid = 'player_h1';
+      state.turnNumber = 2;
+      state.players[0].position = 1;
+      state.players[0].cash = 3000;
+      state.properties[1] = {
+        spaceIndex: 1,
+        propertyId: 'jaipur',
+        ownerUid: 'player_h1',
+        isMortgaged: false,
+        buildings: 0,
+        ownershipState: 'OWNED',
+        boughtOnTurn: 1,
+      };
+      state.phase = 'MANAGEMENT';
+
+      const initialVersion = state.version;
+
+      // Player manually executes BUILD
+      await gm.processCommand(
+        gameId,
+        {
+          commandId: 'cmd_manual_build_11',
+          roomId: room.roomId,
+          gameId,
+          expectedVersion: initialVersion,
+          type: 'BUILD',
+          payload: { spaceIndex: 1 },
+        },
+        'player_h1'
+      );
+
+      const stateAfterManual = gm.getGame(gameId)!;
+      expect(stateAfterManual.properties[1].buildings).toBe(1);
+      expect(stateAfterManual.players[0].cash).toBe(2500);
+
+      // Now attempt to run a stale timeout command that was queued with initialVersion
+      const staleCmd: GameCommand = {
+        commandId: 'timeout_stale_build_11',
+        roomId: room.roomId,
+        gameId,
+        expectedVersion: initialVersion, // Stale version!
+        type: 'BUILD',
+        payload: { spaceIndex: 1 },
+      };
+
+      await expect(
+        gm.processCommand(gameId, staleCmd, 'player_h1', { isServerTimeout: true })
+      ).rejects.toThrow();
+
+      // Buildings must remain exactly 1, no duplicate building
+      const finalState = gm.getGame(gameId)!;
+      expect(finalState.properties[1].buildings).toBe(1);
+      expect(finalState.players[0].cash).toBe(2500);
 
       gm.stopTurnTimer(gameId);
     });

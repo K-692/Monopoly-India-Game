@@ -17,7 +17,7 @@ import { createInitialGame } from '../../src/domain/game-engine/create-initial-g
 import { applyGameCommand, EngineResult, GameEngineError } from '../../src/domain/game-engine/engine';
 import { generateFairDicePair } from '../../src/domain/game-engine/dice-fairness';
 import { BOARD_SPACES } from '../../src/domain/board-config';
-import { getAuthoritativeBailAmount, getSortedEligibleSellToBankProperties } from '../../src/domain/ruleset';
+import { canBuildOnProperty, getAuthoritativeBailAmount, getSortedEligibleSellToBankProperties } from '../../src/domain/ruleset';
 import { ServerRoom } from '../types/server-types';
 import { CpuController, CpuControllerTimingConfig } from './cpu-controller';
 
@@ -196,11 +196,6 @@ export class GameManager {
     const currentState = this.games.get(gameId);
     if (!currentState) {
       throw new GameEngineError('GAME_NOT_FOUND', 'Active game state not found');
-    }
-
-    // For server-authorized timeouts, sync expectedVersion with currentState.version
-    if (options?.isServerTimeout) {
-      command.expectedVersion = currentState.version;
     }
 
     // Check duplicate command prevention (idempotent retry handling)
@@ -622,7 +617,60 @@ export class GameManager {
             this.recoverStuckTurn(freshState.gameId);
           });
         }
-      } else if (freshState.phase === 'MANAGEMENT' || freshState.phase === 'TURN_END') {
+      } else if (freshState.phase === 'MANAGEMENT') {
+        const activePlayer = freshState.players.find((p) => p.uid === activeUid);
+        const isCpu = Boolean(activePlayer && (activePlayer.isCpu || activePlayer.playerType === 'COMPUTER'));
+
+        let executedBuild = false;
+        // Feature: Automatically build house/tower when a human player times out on an eligible city
+        if (!isCpu && activePlayer && !activePlayer.isBankrupt && !activePlayer.isDisqualified) {
+          const buildCheck = canBuildOnProperty(
+            activePlayer.position,
+            activePlayer.uid,
+            freshState.properties,
+            activePlayer.cash,
+            activePlayer.position,
+            freshState.turnNumber
+          );
+
+          if (buildCheck.allowed) {
+            const cmd: GameCommand = {
+              commandId,
+              roomId: freshState.roomId,
+              gameId: freshState.gameId,
+              expectedVersion: freshState.version,
+              type: 'BUILD',
+              payload: { spaceIndex: activePlayer.position },
+            };
+            await this.processCommand(freshState.gameId, cmd, activeUid, { isServerTimeout: true }).catch((e) => {
+              if (e instanceof GameEngineError && e.code === 'STALE_VERSION') {
+                return;
+              }
+              console.warn('Timeout BUILD failed:', e);
+              this.recoverStuckTurn(freshState.gameId);
+            });
+            executedBuild = true;
+          }
+        }
+
+        if (!executedBuild) {
+          const cmd: GameCommand = {
+            commandId,
+            roomId: freshState.roomId,
+            gameId: freshState.gameId,
+            expectedVersion: freshState.version,
+            type: 'END_TURN',
+            payload: {},
+          };
+          await this.processCommand(freshState.gameId, cmd, activeUid, { isServerTimeout: true }).catch((e) => {
+            if (e instanceof GameEngineError && e.code === 'STALE_VERSION') {
+              return;
+            }
+            console.warn('Timeout END_TURN failed:', e);
+            this.recoverStuckTurn(freshState.gameId);
+          });
+        }
+      } else if (freshState.phase === 'TURN_END') {
         const cmd: GameCommand = {
           commandId,
           roomId: freshState.roomId,
@@ -632,6 +680,9 @@ export class GameManager {
           payload: {},
         };
         await this.processCommand(freshState.gameId, cmd, activeUid, { isServerTimeout: true }).catch((e) => {
+          if (e instanceof GameEngineError && e.code === 'STALE_VERSION') {
+            return;
+          }
           console.warn('Timeout END_TURN failed:', e);
           this.recoverStuckTurn(freshState.gameId);
         });

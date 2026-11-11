@@ -3,7 +3,7 @@
 > **Document Type:** Formal System Architecture & Research Implementation Record  
 > **Repository:** `https://github.com/K-692/Monopoly-India-Game`  
 > **Target Audience:** Systems Researchers, Distributed Systems Engineers, Game Theory & Multi-Agent Researchers  
-> **Status:** Current State Production Implementation (Low-Balance 120s Window, Reacquisition Terminology & Centered Dice-Anchored Inspection Overlay)  
+> **Status:** Current State Production Implementation (Low-Balance 120s Window, Centered Dice-Anchored Inspection Overlay, Intelligent Timeouts, Auto-Jail Bail Resolution & Auto-Construction Timeout)  
 
 ---
 
@@ -237,6 +237,7 @@ flowchart TD
     M17["17. Low-Balance Label, Reacquisition Terminology & Centered Inspection Overlay<br>• Updated spectator Low-Balance Resolution timer label to authoritative 120s Window (expiresAt = now + 120000)<br>• Property-noun-aware reacquisition dialog: 'Reacquire City' vs 'Reacquire Property' for transits/utilities<br>• Aligned insufficient balance toast notification to 'this city' vs 'this property'<br>• Repositioned Board Inspection Mode overlay directly centered over the two dice via React portal (#board-inspection-dice-anchor)<br>• High stacking priority (z-[130]) ensuring dice are covered without obscuring perimeter tiles or grid boundaries<br>• Removed central board wave layer, SVG waves, and rotating watermark for a clean dice arena<br>• 249 Tests Passing (100%) across 21 test suites"]
     M18["18. Human Timeout Auto-Resolution & Build Shortcut Refinement<br>• Intelligent human PROPERTY_DECISION timeout: auto-buy if affordable (price/soldToBankPayout), auto-decline if not, immediate auto-end-turn<br>• Automatic reacquisition timeout: auto-unmortgage if cash >= cost, auto-decline if insufficient<br>• Authoritative getSortedEligibleSellToBankProperties sorting: ascending max tariff with spaceIndex tie-break<br>• Step-by-step liquidation at 120s financial timeout: sells only what is needed, surrenders debtor only after all eligible properties exhausted<br>• Internal isServerTimeout option bypassing deadline check for server timeouts<br>• Contextual N shortcut refined to 'N — Decline / Done' (skips construction & ends turn, identical to Done button)<br>• 265 Tests Passing (100%) across 22 test suites"]
     M19["19. Automatic Jail Decision Resolution on Turn Timeout<br>• Authoritative bail check via getAuthoritativeBailAmount(freshState)<br>• Cash >= bailAmount: auto-executes PAY_BAIL, deducts exact bail, clears jail state, transitions to AWAIT_ROLL with reset timer<br>• Cash < bailAmount: auto-executes TRY_DOUBLES with server cryptographic fair dice<br>• Zero duplicate transactions or rolls; preserves CPU natural strategy and manual user actions<br>• 274 Tests Passing (100%) across 22 test suites"]
+    M20["20. Automatic Build House / Commercial Tower on Human Turn Timeout<br>• Authoritative MANAGEMENT timeout separation from TURN_END in GameManager.handleTimeout<br>• Evaluates canBuildOnProperty() on active human player's current city position<br>• Eligible human player: executes BUILD with isServerTimeout: true, constructs 1 house/tower, resets turn timer<br>• Ineligible / CPU / no funds: executes END_TURN cleanly<br>• No CPU ₹1,500 reserve imposed on humans; strict version-concurrency safety prevents duplicate/stale builds<br>• 285 Tests Passing (100%) across 22 test suites"]
 
     M1 --> M2
     M2 --> M3
@@ -256,6 +257,7 @@ flowchart TD
     M16 --> M17
     M17 --> M18
     M18 --> M19
+    M19 --> M20
 ```
 
 ---
@@ -263,6 +265,9 @@ flowchart TD
 ## 7. Verification Matrix & Formal Invariants
 
 | Invariant | Formal Definition | Enforcement Point | Verification Result |
+| :--- | :--- | :--- | :--- |
+| **Automatic Construction Timeout** | $\text{Phase} = \text{MANAGEMENT} \land \text{Human}(p) \land \text{canBuild}(p, \text{pos}) \land \text{Timeout} \implies \text{exec}(\text{BUILD}) \land \text{resetTimer}()$ | `game-manager.ts` (`handleTimeout`) | ✅ Verified (`turn-sync-and-pacing.test.ts`) |
+| **Construction Timeout Fallback** | $\text{Phase} = \text{MANAGEMENT} \land (\neg \text{canBuild}(p, \text{pos}) \lor \text{CPU}(p)) \land \text{Timeout} \implies \text{exec}(\text{END\_TURN})$ | `game-manager.ts` (`handleTimeout`) | ✅ Verified (`turn-sync-and-pacing.test.ts`) |
 | :--- | :--- | :--- | :--- |
 | **Automatic Jail Timeout Decision** | $\text{Phase} = \text{JAIL\_DECISION} \land \text{Timeout} \implies \begin{cases} \text{exec}(\text{PAY\_BAIL}) & \text{if } \text{Cash} \ge \text{Bail} \\ \text{exec}(\text{TRY\_DOUBLES}) & \text{if } \text{Cash} < \text{Bail} \end{cases}$ | `game-manager.ts` (`handleTimeout`) | ✅ Verified (`turn-sync-and-pacing.test.ts`) |
 | **Intelligent Property Timeout** | $\text{Phase} = \text{PROPERTY\_DECISION} \land \text{Human}(p) \land \text{Timeout} \implies (\text{Cash} \ge \text{Price} \to \text{BUY} \mid \text{DECLINE}) \land \text{END\_TURN}$ | `game-manager.ts` (`handleHumanPropertyDecisionTimeout`) | ✅ Verified (`human-timeout-and-build-shortcut.test.tsx`) |
