@@ -186,7 +186,7 @@ For complete mathematical definitions, state machine proofs, and research citati
 | **Card Financial Clarity** | Civic Fund and Market Buzz cards highlight monetary impact with clear color polarity: **+ ₹...** in emerald green for reward earnings, **- ₹...** in coral red for payments/losses, and clean neutral formatting for movement/utility cards. Nonexistent auction references removed. |
 | **Turn Continuity Safeguards** | Zero-stall guarantee: Authoritative CPU decision controller provides phase-aware deterministic fallbacks across all phases, and the server turn manager executes stuck-turn recovery if CPU retries are ever exhausted. |
 | **Central Jail & Bail** | Players enter jail via "Go to Jail" square or card events. Release methods: **Bail Key Card**, **₹500 Statutory Bail**, or rolling doubles within 3 attempts. Automatic release on 4th turn. |
-| **House Construction** | Monopoly holders can build houses on a city **only when actively visiting that city** on a subsequent turn. Uniform building distribution enforced across the color group. Spacebar or Enter builds directly when prompt is active. |
+| **House Construction** | Monopoly holders can build houses on a city **only when actively visiting that city** on a subsequent turn. Uniform building distribution enforced across the color group. Pressing Enter builds directly when prompt is active. |
 | **Sell to Bank** | Players can liquidate properties to the bank for 50% purchase + 50% development value to satisfy obligations. Reacquired bank properties preserve previously built houses. |
 | **120s Debt Timer & Board Preview** | If cash balance drops into deficit after fees/rent, a 120-second countdown begins. The player can Adjust Payouts to sell to bank or inspect the unblurred board via an accessible bottom-left docked banner with live countdown. |
 | **Turn Sync & Timers** | Timers pause during token movement animations across all connected clients. Resets to full duration upon entering new actionable phases (e.g. `PROPERTY_DECISION`). Mandatory 2-second pacing handoff delay before CPU turns. |
@@ -198,17 +198,14 @@ For complete mathematical definitions, state machine proofs, and research citati
 
 For laptop and desktop players, context-sensitive keyboard shortcuts streamline gameplay:
 
-| Key | Context / Condition | Executed Action |
+| Key | Action | Context / Details |
 | :--- | :--- | :--- |
-| <kbd>Spacebar</kbd> | `AWAIT_ROLL` phase | **Roll Dice**: Rolls the dice and animates 3D pips |
-| <kbd>Spacebar</kbd> | `JAIL_DECISION` phase | **Try Double**: Attempts to roll doubles to escape jail without paying bail |
-| <kbd>Spacebar</kbd> | When visiting monopoly city with active build prompt | **Build House/Tower**: Directly constructs next house development or Commercial Sky Tower |
-| <kbd>Spacebar</kbd> | Management or finished turn state (no build active) | **End Turn**: Concludes current turn when eligible |
-| <kbd>S</kbd> | Player has unmortgaged properties | **Sell to Bank**: Opens / activates the Sell-to-Bank mortgage interface |
-| <kbd>Enter</kbd> | Actionable prompt | **Accept / Bail**: Buys property, accepts reacquisition, builds house, or pays jail bail / uses card |
-| <kbd>N</kbd> | Actionable prompt | **Decline**: Declines property purchase, declines reacquisition, or finishes building |
+| <kbd>Spacebar</kbd> | **Roll Dice / Try Double / End Turn** | Context-sensitive: rolls dice in `AWAIT_ROLL`, attempts doubles in `JAIL_DECISION`, or ends turn when eligible during `MANAGEMENT` and `TURN_END` |
+| <kbd>Enter</kbd> | **Accept / Bail / Build House/Tower** | Context-sensitive: constructs development when visiting owned monopoly city, accepts property purchase, reacquires mortgaged city from Bank, or pays bail/uses card in Central Jail |
+| <kbd>S</kbd> | **Sell to Bank** | Opens / activates the Sell-to-Bank mortgage interface to liquidate assets for cash |
+| <kbd>N</kbd> | **Decline** | Declines property purchase, declines reacquisition, or skips construction |
 
-> **Permanent Visual Reference:** A compact, non-intrusive keycap guide (`SPACE — Roll Dice / Try Double / Build House/Tower / End Turn`, `S — Sell to Bank`, `ENTER — Accept / Bail`, `N — Decline`) is permanently anchored at the bottom of the left player information panel for instant reference during matches. Complete rules and mechanics are fully documented in **Section 12: Keyboard Shortcuts** and the **Buildings** category of the in-game Rules Guide.  
+> **Permanent Visual Reference:** A compact, non-intrusive keycap guide (`SPACE — Roll Dice / Try Double / End Turn`, `ENTER — Accept / Bail / Build House/Tower`, `S — Sell to Bank`, `N — Decline`) is permanently anchored at the bottom of the left player information panel for instant reference during matches. Complete rules and mechanics are fully documented in **Section 12: Keyboard Shortcuts** and the **Buildings** category of the in-game Rules Guide.  
 > **Safety Safeguards:** Keyboard shortcuts are automatically suppressed while typing in text inputs or textareas, during modals/rules dialogs, during debt board preview, on computer player turns, and against key-repeat spam.
 
 ---

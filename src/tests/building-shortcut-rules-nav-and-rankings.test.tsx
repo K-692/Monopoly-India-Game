@@ -12,7 +12,7 @@ import {
 import { RoomManager } from '../../server/rooms/room-manager';
 import { createInitialGame } from '@/domain/game-engine/create-initial-game';
 
-describe('1. Spacebar Shortcut for Build House/Tower', () => {
+describe('1. Enter Shortcut for Build House/Tower', () => {
   const createBaseGameState = (overrides?: Partial<GameState>): GameState => ({
     gameId: 'game_build_test',
     roomId: 'room_build_test',
@@ -111,7 +111,7 @@ describe('1. Spacebar Shortcut for Build House/Tower', () => {
     vi.clearAllMocks();
   });
 
-  it('Spacebar invokes BUILD action when building interface is actively available', () => {
+  it('Enter invokes BUILD action when building interface is actively available', () => {
     const onDispatch = vi.fn();
     const gameState = createBaseGameState();
 
@@ -131,15 +131,15 @@ describe('1. Spacebar Shortcut for Build House/Tower', () => {
     expect(screen.getByText('🔨 Build Development?')).toBeInTheDocument();
     expect(screen.getByText('Build House')).toBeInTheDocument();
 
-    // Press Spacebar
-    fireEvent.keyDown(window, { code: 'Space' });
+    // Press Enter
+    fireEvent.keyDown(window, { key: 'Enter' });
 
     // Dispatches BUILD with spaceIndex 6
     expect(onDispatch).toHaveBeenCalledTimes(1);
     expect(onDispatch).toHaveBeenCalledWith('BUILD', { spaceIndex: 6 });
   });
 
-  it('Spacebar does not accidentally end the turn while build prompt is active', () => {
+  it('Spacebar does NOT trigger BUILD when building interface is active; it ends turn instead', () => {
     const onDispatch = vi.fn();
     const gameState = createBaseGameState();
 
@@ -157,9 +157,94 @@ describe('1. Spacebar Shortcut for Build House/Tower', () => {
 
     fireEvent.keyDown(window, { code: 'Space' });
 
-    // Should NOT call END_TURN
-    expect(onDispatch).not.toHaveBeenCalledWith('END_TURN');
+    // Should NOT call BUILD
+    expect(onDispatch).not.toHaveBeenCalledWith('BUILD', { spaceIndex: 6 });
+    expect(onDispatch).toHaveBeenCalledWith('END_TURN');
+  });
+
+  it('Enter does not trigger Buy Property or Bail while building prompt is active', () => {
+    const onDispatch = vi.fn();
+    const gameState = createBaseGameState();
+
+    render(
+      <GameBoard
+        gameState={gameState}
+        selectedSpaceIndex={null}
+        onSelectSpace={vi.fn()}
+        isRolling={false}
+        onDispatch={onDispatch}
+        isMyTurn={true}
+        userUid="user_human"
+      />
+    );
+
+    fireEvent.keyDown(window, { key: 'Enter' });
+
+    expect(onDispatch).toHaveBeenCalledTimes(1);
     expect(onDispatch).toHaveBeenCalledWith('BUILD', { spaceIndex: 6 });
+    expect(onDispatch).not.toHaveBeenCalledWith('BUY_PROPERTY', expect.anything());
+    expect(onDispatch).not.toHaveBeenCalledWith('PAY_BAIL');
+  });
+
+  it('Enter continues to trigger BUY_PROPERTY when property purchase prompt is active', () => {
+    const onDispatch = vi.fn();
+    const gameState = createBaseGameState({
+      phase: 'PROPERTY_DECISION',
+      pendingAction: { type: 'BUY_OR_AUCTION', playerUid: 'user_human', spaceIndex: 6 },
+      properties: {
+        6: {
+          spaceIndex: 6,
+          propertyId: 'prop_6',
+          ownerUid: null,
+          ownershipState: 'UNOWNED',
+          isMortgaged: false,
+          buildings: 0,
+          mortgagePayout: 0,
+          soldToBankPayout: 0,
+        },
+      },
+    });
+
+    render(
+      <GameBoard
+        gameState={gameState}
+        selectedSpaceIndex={null}
+        onSelectSpace={vi.fn()}
+        isRolling={false}
+        onDispatch={onDispatch}
+        isMyTurn={true}
+        userUid="user_human"
+      />
+    );
+
+    fireEvent.keyDown(window, { key: 'Enter' });
+    expect(onDispatch).toHaveBeenCalledWith('BUY_PROPERTY', { spaceIndex: 6 });
+  });
+
+  it('Enter continues to trigger PAY_BAIL when in JAIL_DECISION', () => {
+    const onDispatch = vi.fn();
+    const gameState = createBaseGameState({
+      phase: 'JAIL_DECISION',
+      players: [
+        { ...createBaseGameState().players[0], inJail: true, jailTurns: 1, jailFreeCards: 0 },
+        createBaseGameState().players[1],
+      ],
+    });
+
+    render(
+      <GameBoard
+        gameState={gameState}
+        selectedSpaceIndex={null}
+        onSelectSpace={vi.fn()}
+        isRolling={false}
+        onDispatch={onDispatch}
+        isMyTurn={true}
+        userUid="user_human"
+      />
+    );
+
+    fireEvent.keyDown(window, { key: 'Enter' });
+    expect(onDispatch).toHaveBeenCalledWith('PAY_BAIL');
   });
 
   it('Spacebar ends turn when building is NOT eligible during MANAGEMENT phase', () => {
@@ -349,7 +434,7 @@ describe('2. Rules Navigation & Structure (Requirement 3)', () => {
 
     // Shows Keyboard Shortcuts content
     expect(screen.getAllByText('Keyboard Shortcuts').length).toBeGreaterThan(0);
-    expect(screen.getByText(/constructs House\/Tower development/i)).toBeInTheDocument();
+    expect(screen.getByText(/executes House\/Tower development/i)).toBeInTheDocument();
   });
 
   it('Return to Overview button navigates back to Overview', () => {
@@ -367,14 +452,17 @@ describe('2. Rules Navigation & Structure (Requirement 3)', () => {
     expect(screen.getAllByText(/Objective of the Game/i).length).toBeGreaterThan(0);
   });
 
-  it('Keyboard Shortcuts accurately documents Spacebar Build House/Tower', () => {
+  it('Keyboard Shortcuts accurately documents Enter Build House/Tower', () => {
     const sec12 = GAME_RULES_SECTIONS.find((s) => s.id === 'keyboard-shortcuts');
     expect(sec12).toBeDefined();
-    const mappingPoint = sec12?.items[0]?.points.find((p) => p.startsWith('SPACE:'));
-    expect(mappingPoint).toContain('rolls dice during AWAIT_ROLL');
-    expect(mappingPoint).toContain('tries doubles while in Central Jail');
-    expect(mappingPoint).toContain('constructs House/Tower development');
-    expect(mappingPoint).toContain('ends your turn');
+    const mappingSpace = sec12?.items[0]?.points.find((p) => p.startsWith('SPACE:'));
+    expect(mappingSpace).toContain('rolls dice during AWAIT_ROLL');
+    expect(mappingSpace).toContain('tries doubles while in Central Jail');
+    expect(mappingSpace).toContain('ends your turn');
+    expect(mappingSpace).not.toContain('House/Tower');
+
+    const mappingEnter = sec12?.items[0]?.points.find((p) => p.startsWith('ENTER:'));
+    expect(mappingEnter).toContain('executes House/Tower development');
   });
 });
 

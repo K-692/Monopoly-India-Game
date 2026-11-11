@@ -429,9 +429,9 @@ describe('2. Permanent Keyboard Shortcuts Reference & Rules Guide (Requirements 
     expect(screen.getByText('S')).toBeDefined();
     expect(screen.getByText('ENTER')).toBeDefined();
     expect(screen.getByText('N')).toBeDefined();
-    expect(screen.getByText(/Roll Dice \/ Try Double \/ Build House\/Tower \/ End Turn/i)).toBeDefined();
+    expect(screen.getByText(/Roll Dice \/ Try Double \/ End Turn/i)).toBeDefined();
     expect(screen.getByText(/Sell to Bank/i)).toBeDefined();
-    expect(screen.getByText(/Accept \/ Bail/i)).toBeDefined();
+    expect(screen.getByText(/Accept \/ Bail \/ Build House\/Tower/i)).toBeDefined();
     expect(screen.getByText(/Decline/i)).toBeDefined();
   });
 

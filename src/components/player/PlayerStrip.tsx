@@ -265,10 +265,22 @@ export const PlayerStrip: React.FC<PlayerStripProps> = ({
               SPACE
             </kbd>
             <span
-              title="Roll Dice / Try Double / Build House/Tower / End Turn"
+              title="Roll Dice / Try Double / End Turn"
               className="text-[6.5px] sm:text-[7px] font-medium text-gray-600 dark:text-gray-300 truncate text-right"
             >
-              Roll Dice / Try Double / Build House/Tower / End Turn
+              Roll Dice / Try Double / End Turn
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between gap-1">
+            <kbd className="px-1 py-0.2 rounded font-mono font-black text-[7px] sm:text-[7.5px] bg-stone-100 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 shadow-2xs text-indian-navy-900 dark:text-indian-parchment-100 shrink-0">
+              ENTER
+            </kbd>
+            <span
+              title="Accept / Bail / Build House/Tower"
+              className="text-[6.5px] sm:text-[7px] font-medium text-gray-600 dark:text-gray-300 truncate text-right"
+            >
+              Accept / Bail / Build House/Tower
             </span>
           </div>
 
@@ -278,15 +290,6 @@ export const PlayerStrip: React.FC<PlayerStripProps> = ({
             </kbd>
             <span className="text-[7px] sm:text-[7.5px] font-medium text-gray-600 dark:text-gray-300 truncate text-right">
               Sell to Bank
-            </span>
-          </div>
-
-          <div className="flex items-center justify-between gap-1">
-            <kbd className="px-1 py-0.2 rounded font-mono font-black text-[7px] sm:text-[7.5px] bg-stone-100 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 shadow-2xs text-indian-navy-900 dark:text-indian-parchment-100 shrink-0">
-              ENTER
-            </kbd>
-            <span className="text-[7px] sm:text-[7.5px] font-medium text-gray-600 dark:text-gray-300 truncate text-right">
-              Accept / Bail
             </span>
           </div>
 

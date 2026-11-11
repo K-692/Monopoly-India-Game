@@ -431,9 +431,9 @@ export const GAME_RULES_SECTIONS: RuleSection[] = [
       {
         subtitle: 'Context-Sensitive Key Mapping',
         points: [
-          'SPACE: Context-sensitive primary action — rolls dice during AWAIT_ROLL, tries doubles while in Central Jail (JAIL_DECISION), constructs House/Tower development when building prompt is actively available, or ends your turn when eligible during MANAGEMENT and TURN_END.',
+          'SPACE: Context-sensitive primary action — rolls dice during AWAIT_ROLL, tries doubles while in Central Jail (JAIL_DECISION), or ends your turn when eligible during MANAGEMENT and TURN_END.',
+          'ENTER: Context-sensitive positive confirmation — accepts property purchase prompt, unmortgages/reacquires properties from Bank, executes House/Tower development when building prompt is active, or pays Central Jail bail.',
           'S: Opens Sell to Bank interface (voluntary mortgage) to liquidate properties for cash when eligible.',
-          'ENTER: Context-sensitive positive confirmation — accepts property purchase prompt, unmortgages/reacquires properties from Bank, confirms house construction, or pays Central Jail bail.',
           'N: Context-sensitive negative action — declines property purchase, skips construction, declines reacquisition, or closes voluntary mortgage and card modals.',
         ],
       },
@@ -486,8 +486,8 @@ export const BUILDINGS_RULE_SECTION: GameRulesSection = {
     {
       subtitle: 'Keyboard Controls for Building',
       points: [
-        'SPACE: When the Build House/Tower prompt is active on your landed property, press Spacebar to build development immediately.',
-        'ENTER: You can also press Enter to accept the building prompt.',
+        'ENTER: When the Build House/Tower interface is active on your landed property, press Enter to build development immediately.',
+        'SPACE: Use Spacebar for general turn progression (Roll Dice, Try Double, End Turn).',
         'N: Press N to decline or skip building and conclude your turn without building.',
       ],
     },

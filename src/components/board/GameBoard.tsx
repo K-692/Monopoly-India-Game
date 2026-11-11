@@ -508,7 +508,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         !gameState.handoff?.isActive &&
         (!gameState.movement || gameState.movement.isComplete);
 
-      // --- Spacebar: Context-Sensitive Roll / Try Double / Build House/Tower / End Turn ---
+      // --- Spacebar: Context-Sensitive Roll / Try Double / End Turn ---
       if (e.code === 'Space') {
         // Prevent default spacebar scrolling whenever holding the active turn
         e.preventDefault();
@@ -526,13 +526,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             return;
           }
 
-          // Context 3: Build House / Tower when building prompt is actively available
-          if (canBuildHere && playerSpace?.type === 'PROPERTY') {
-            onDispatch?.('BUILD', { spaceIndex: playerPos });
-            return;
-          }
-
-          // Context 4: End turn when eligible
+          // Context 3: End turn when eligible
           if (gameState.phase === 'MANAGEMENT' || gameState.phase === 'TURN_END') {
             onDispatch?.('END_TURN');
             return;
@@ -552,10 +546,17 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         }
       }
 
-      // --- Enter: Context-Sensitive Accept / Bail ---
+      // --- Enter: Context-Sensitive Accept / Bail / Build House/Tower ---
       if (e.key === 'Enter') {
         if (canAct) {
-          // Context 1: Central Jail Bail (Use Card or Pay Bail)
+          // Context 1: Build House / Tower when building prompt is actively available
+          if (canBuildHere && playerSpace?.type === 'PROPERTY') {
+            e.preventDefault();
+            onDispatch?.('BUILD', { spaceIndex: playerPos });
+            return;
+          }
+
+          // Context 2: Central Jail Bail (Use Card or Pay Bail)
           if (gameState.phase === 'JAIL_DECISION') {
             e.preventDefault();
             if (activePlayer?.jailFreeCards && activePlayer.jailFreeCards > 0) {
@@ -566,27 +567,20 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             return;
           }
 
-          // Context 2: Accept Property Purchase Prompt
+          // Context 3: Accept Property Purchase Prompt
           if (isShowingPurchasePrompt) {
             e.preventDefault();
             onDispatch?.('BUY_PROPERTY', { spaceIndex: playerPos });
             return;
           }
 
-          // Context 3: Accept Reacquire Mortgaged Property from Bank
+          // Context 4: Accept Reacquire Mortgaged Property from Bank
           if (isOwnMortgagedCity && canAffordReacquire) {
             e.preventDefault();
             onDispatch?.('UNMORTGAGE', {
               spaceIndex: playerPos,
               landingId: gameState.reacquisitionOpportunity?.landingId,
             });
-            return;
-          }
-
-          // Context 4: Accept Building House / Tower Development
-          if (canBuildHere && playerSpace?.type === 'PROPERTY') {
-            e.preventDefault();
-            onDispatch?.('BUILD', { spaceIndex: playerPos });
             return;
           }
         }
