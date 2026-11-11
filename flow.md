@@ -229,7 +229,7 @@ flowchart TD
     M9["9. Game Economy, Turn Alerts & Inspection<br>• Festival Travel instruction & singular salary<br>• Human-only client-local procedural audio chime<br>• Highest Net Worth winner determination<br>• Sell-to-Bank tariff-based sorting & interactive board preview<br>• 164 Tests Passing (100%) across 14 test suites"]
     M10["10. Player Cards, Turn Timer & 11-Section Rules<br>• Separate prominent Balance & distinct gold NET WORTH<br>• Active-player-only turn timer countdown in card header<br>• Centralized authoritative 11-section rules guide (game-rules-guide.ts)<br>• Non-blocking RulesModal with search & category navigation<br>• 173 Tests Passing (100%) across 15 test suites"]
     M11["11. Net Worth Typography, Bottom-Left Preview, Audio Alerts & Shortcuts<br>• Increased Net Worth font size with clear 3-tier visual hierarchy<br>• Bottom-left anchored Return-to-Sell-to-Bank control with 120s countdown<br>• Web Audio PURCHASE_PROMPT (G5->C6) and DECLINE_ACTION (F4->Db4) alerts<br>• Accessible keyboard shortcuts: Space (Roll), Enter (Confirm/Buy), N (Decline)<br>• 185 Tests Passing (100%) across 16 test suites"]
-    M12["12. Simplified Room Creation & 6-Slot Waiting Lobby<br>• Create Room modal simplified: fixed 6 slots, no CPU configuration during creation<br>• Waiting lobby redesigned with 6 fixed slots accommodating any mix of Humans & CPUs<br>• Host-only CPU management: add, rename, and remove with real-time Socket.IO sync<br>• Human readiness system: all human players (including host) must explicitly mark ready<br>• Start Game validation: >= 2 total players and all humans ready verified on server<br>• 199 Tests Passing (100%) across 18 test suites"]
+    M12["12. Simplified Room Creation & 6-Slot Waiting Lobby<br>• Create Room modal simplified: fixed 6 slots, no CPU configuration during creation<br>• Waiting lobby redesigned with 6 fixed slots accommodating any mix of Humans & CPUs<br>• Host-only CPU management: add, rename, and remove with real-time Socket.IO sync<br>• Human readiness system: all human players (including host) must explicitly mark ready<br>• Start Game validation: >= 2 total players and all humans ready verified on server<br>• Scrollable lobby viewport (overflow-y-auto) & clean room slots section header<br>• 199 Tests Passing (100%) across 18 test suites"]
 
     M1 --> M2
     M2 --> M3
@@ -276,6 +276,7 @@ flowchart TD
 | **Host-Only CPU Control** | $\text{Op} \in \{\text{Add}, \text{Remove}, \text{Rename}\} \land \text{caller} \neq \text{hostUid} \implies \bot$ | `room-manager.ts` (`addCpu`, `removeCpu`, `renameCpu`) | ✅ Verified (`room-lobby-redesign.test.ts`) |
 | **Human Ready Requirement**| $\forall p \in \text{Humans}, \text{initReady}(p) = \text{false} \land \text{HostIncluded}(p)$ | `room-manager.ts` (`createRoom`, `joinRoom`) | ✅ Verified (`room-lobby-redesign.test.ts`) |
 | **Dual Start Guard** | $\text{CanStart}(\text{Room}) \iff |\text{Members}| \ge 2 \land (\forall h \in \text{Humans}, \text{isReady}(h) = \text{true})$ | `game-manager.ts` (`startGame`) | ✅ Verified (`room-lobby-redesign.test.ts`) |
+| **Scrollable Lobby Viewport** | $\text{Container}(\text{Lobby}) \in \text{overflow-y-auto} \land \neg \text{HeaderAddBtn}$ | `LobbyPage.tsx` | ✅ Verified (`room-lobby-ui.test.tsx`) |
 
 ---
 

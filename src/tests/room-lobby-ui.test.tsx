@@ -273,7 +273,11 @@ describe('LobbyPage 6-Slot Grid, Readiness & Host CPU Controls UI', () => {
       </MemoryRouter>
     );
 
-    // Host can click "Add CPU" button in header
+    // The "Room Slots" section header does not contain an Add CPU button on its right side
+    const roomSlotsHeading = screen.getByText(/Room Slots \(2 \/ 6\)/i).closest('div');
+    expect(roomSlotsHeading?.querySelector('button')).toBeNull();
+
+    // Host can click "Add CPU" button in available slot cards
     const addCpuBtns = screen.getAllByRole('button', { name: /Add CPU/i });
     expect(addCpuBtns.length).toBeGreaterThan(0);
     fireEvent.click(addCpuBtns[0]);

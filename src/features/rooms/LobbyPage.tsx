@@ -360,8 +360,9 @@ export const LobbyPage: React.FC = () => {
   const emptySlotCount = Math.max(0, TOTAL_ROOM_SLOTS - memberList.length);
 
   return (
-    <div className="flex-1 max-w-3xl mx-auto w-full px-4 py-6">
-      {/* Header */}
+    <div className="flex-1 overflow-y-auto w-full px-4 py-6">
+      <div className="max-w-3xl mx-auto pb-8">
+        {/* Header */}
       <div className="flex items-center justify-between pb-4 mb-6 border-b border-indian-parchment-300 dark:border-indian-navy-700">
         <button
           onClick={handleLeave}
@@ -509,35 +510,14 @@ export const LobbyPage: React.FC = () => {
 
       {/* Section 2 & 3: Six Fixed Player Slots Grid & Host CPU Management */}
       <div className="mb-6">
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <h3 className="text-xs font-bold text-indian-navy-800 dark:text-indian-parchment-200 uppercase tracking-wider flex items-center gap-1.5">
-              <Users className="w-4 h-4 text-indian-terracotta-600" />
-              <span>Room Slots ({memberList.length} / {TOTAL_ROOM_SLOTS})</span>
-            </h3>
-            <p className="text-[11px] text-gray-500">
-              Min 2 players required. Humans must be ready; CPUs are auto-ready.
-            </p>
-          </div>
-
-          {/* Host-only Add CPU button in header */}
-          {isHost && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleAddCpu}
-              disabled={memberList.length >= TOTAL_ROOM_SLOTS || isAddingCpu}
-              className="text-xs h-8 px-3 flex items-center gap-1.5 border-blue-400 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/40 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              title={memberList.length >= TOTAL_ROOM_SLOTS ? 'Room is full' : 'Add a Computer Player'}
-            >
-              {isAddingCpu ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <Plus className="w-3.5 h-3.5" />
-              )}
-              <span>Add CPU</span>
-            </Button>
-          )}
+        <div className="mb-3">
+          <h3 className="text-xs font-bold text-indian-navy-800 dark:text-indian-parchment-200 uppercase tracking-wider flex items-center gap-1.5">
+            <Users className="w-4 h-4 text-indian-terracotta-600" />
+            <span>Room Slots ({memberList.length} / {TOTAL_ROOM_SLOTS})</span>
+          </h3>
+          <p className="text-[11px] text-gray-500">
+            Min 2 players required. Humans must be ready; CPUs are auto-ready.
+          </p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -791,5 +771,6 @@ export const LobbyPage: React.FC = () => {
         </div>
       </div>
     </div>
+  </div>
   );
 };
