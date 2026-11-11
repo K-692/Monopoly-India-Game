@@ -124,7 +124,7 @@ describe('Settings Popup, Board Visual Enhancements, and UI Refinements', () => 
   });
 
   describe('4. Central Board Wave Animation and Corner Tile Styling', () => {
-    it('renders central board wave layer with non-interactive overlay', () => {
+    it('verifies central board has clean plain background without decorative wave layers or watermark', () => {
       const mockMembers: Record<string, RoomMember> = {
         p1: {
           uid: 'p1',
@@ -161,11 +161,8 @@ describe('Settings Popup, Board Visual Enhancements, and UI Refinements', () => 
         />
       );
 
-      const waveLayer = screen.getByTestId('central-board-wave-layer');
-      expect(waveLayer).toBeInTheDocument();
-      expect(waveLayer.className).toContain('pointer-events-none');
-      expect(waveLayer.querySelector('.animate-board-wave-1')).toBeInTheDocument();
-      expect(waveLayer.querySelector('.animate-board-wave-2')).toBeInTheDocument();
+      expect(screen.queryByTestId('central-board-wave-layer')).not.toBeInTheDocument();
+      expect(screen.getByTestId('board-dice-container')).toBeInTheDocument();
     });
 
     it('matches REST and GO TO JAIL tile background to START tile', () => {

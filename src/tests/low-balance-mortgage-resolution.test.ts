@@ -8,7 +8,7 @@ const mockMembers = {
   user_3: { uid: 'user_3', displayName: 'Player 3', photoURL: null, colorToken: '#4CAF50', isReady: true, joinedAt: 3 },
 };
 
-describe('60-Second Low-Balance Mortgage Resolution & Disqualification', () => {
+describe('120-Second Low-Balance Mortgage Resolution & Disqualification', () => {
   // =========================================================================
   // SCENARIO A: SINGLE MORTGAGE RAISES ENOUGH CASH -> AUTOMATIC PAYMENT RESUMPTION
   // =========================================================================
@@ -173,7 +173,7 @@ describe('60-Second Low-Balance Mortgage Resolution & Disqualification', () => {
   // =========================================================================
   // SCENARIO C: INSUFFICIENT FUNDS AFTER MORTGAGING -> TIMEOUT AT 0s DISQUALIFIES
   // =========================================================================
-  it('Scenario C: remains in resolution when funds still insufficient, then disqualifies on 60s timeout', () => {
+  it('Scenario C: remains in resolution when funds still insufficient, then disqualifies on 120s timeout', () => {
     let state = createInitialGame('room_1', 'game_1', mockMembers, undefined, 'user_1');
 
     // Setup big rent obligation: ₹2,000
@@ -227,7 +227,7 @@ describe('60-Second Low-Balance Mortgage Resolution & Disqualification', () => {
     expect(state.pendingFinancialObligation).toBeDefined();
     expect(state.pendingFinancialObligation?.remainingAmountDue).toBe(1100);
 
-    // Exact 60s deadline was NOT reset or extended!
+    // Exact 120s deadline was NOT reset or extended!
     expect(state.pendingFinancialObligation?.expiresAt).toBe(originalExpiresAt);
 
     // At 0 seconds: authoritative server timeout executes disqualification (GIVE_UP with reason: TIMEOUT)
@@ -372,7 +372,7 @@ describe('60-Second Low-Balance Mortgage Resolution & Disqualification', () => {
   // =========================================================================
   // SCENARIO F: TIMEOUT RACE CONDITION REJECTS LATE MORTGAGE REQUESTS
   // =========================================================================
-  it('Scenario F: rejects mortgage request arriving after the 60-second deadline has expired', () => {
+  it('Scenario F: rejects mortgage request arriving after the resolution deadline has expired', () => {
     const state = createInitialGame('room_1', 'game_1', mockMembers, undefined, 'user_1');
 
     state.properties[1].ownerUid = 'user_1';

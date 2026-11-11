@@ -183,6 +183,77 @@ describe('Refinements: Net Worth Typography, Board Preview, Alert Sounds & Keybo
       fireEvent.click(returnBtn);
       expect(handleInspectionChange).toHaveBeenCalledWith(false);
     });
+
+    it('displays "120s Window" in the spectator Low-Balance Resolution pop-up', () => {
+      const mockObligation = {
+        obligationId: 'obl_spec',
+        paymentType: 'TAX' as const,
+        createdAt: Date.now(),
+        idempotencyKey: 'idem_spec',
+        debtorUid: 'user_human',
+        creditorUid: 'BANK',
+        amountDue: 4000,
+        remainingAmountDue: 4000,
+        reason: 'Statutory GST Assessment',
+        expiresAt: Date.now() + 120000,
+        status: 'PENDING' as const,
+      };
+
+      render(
+        <FinancialResolutionModal
+          obligation={mockObligation}
+          players={[mockHumanPlayer, mockCpuPlayer]}
+          properties={mockProperties}
+          currentUserUid="user_cpu" // spectator
+          turnTimeRemaining={115}
+        />
+      );
+
+      expect(screen.getByText('120s Window')).toBeInTheDocument();
+      expect(screen.getByText(/remaining/i)).toBeInTheDocument();
+    });
+
+    it('anchors the inspection overlay into board-inspection-dice-anchor when available', () => {
+      // Create anchor element in DOM matching GameBoard's dice anchor
+      const anchor = document.createElement('div');
+      anchor.id = 'board-inspection-dice-anchor';
+      document.body.appendChild(anchor);
+
+      const mockObligation = {
+        obligationId: 'obl_anchor',
+        paymentType: 'TAX' as const,
+        createdAt: Date.now(),
+        idempotencyKey: 'idem_anchor',
+        debtorUid: 'user_human',
+        creditorUid: 'BANK',
+        amountDue: 4000,
+        remainingAmountDue: 4000,
+        reason: 'Statutory GST Assessment',
+        expiresAt: Date.now() + 120000,
+        status: 'PENDING' as const,
+      };
+
+      render(
+        <FinancialResolutionModal
+          obligation={mockObligation}
+          players={[mockHumanPlayer]}
+          properties={mockProperties}
+          currentUserUid="user_human"
+          turnTimeRemaining={115}
+          onInspectionModeChange={vi.fn()}
+        />
+      );
+
+      // Enter inspection mode
+      fireEvent.click(screen.getByRole('button', { name: /View Board/i }));
+
+      // The overlay is portaled into the anchor element
+      const overlay = screen.getByTestId('board-inspection-overlay');
+      expect(anchor.contains(overlay)).toBe(true);
+
+      // Cleanup
+      document.body.removeChild(anchor);
+    });
   });
 
   // =========================================================================
@@ -461,6 +532,105 @@ describe('Refinements: Net Worth Typography, Board Preview, Alert Sounds & Keybo
       // Repeat event
       fireEvent.keyDown(window, { code: 'Space', key: ' ', repeat: true });
       expect(onRollDice).not.toHaveBeenCalled();
+    });
+  });
+
+  // =========================================================================
+  // 5. Reacquisition Pop-up Content (Reacquire City vs Reacquire Property)
+  // =========================================================================
+  describe('5. Reacquisition Pop-up Content & Terminology', () => {
+    it('displays "Reacquire City" prompt when active player lands on their mortgaged city', () => {
+      const mortgagedCityState: PropertyState = {
+        spaceIndex: 39, // Marine Drive (City / PROPERTY)
+        propertyId: 'prop_39',
+        ownerUid: 'user_human',
+        isMortgaged: true,
+        mortgagePayout: 2000,
+        buildings: 0,
+        ownershipState: 'MORTGAGED',
+      };
+
+      const gameState = createBaseGameState({
+        phase: 'PROPERTY_DECISION',
+        currentPlayerUid: 'user_human',
+        players: [{ ...mockHumanPlayer, position: 39, cash: 10000 }],
+        properties: { ...mockProperties, 39: mortgagedCityState },
+        reacquisitionOpportunity: {
+          landingId: 'reacquire_city_test',
+          spaceIndex: 39,
+          playerUid: 'user_human',
+          cost: 2000,
+          status: 'PENDING',
+          turnNumber: 1,
+        },
+      });
+
+      render(
+        <GameBoard
+          gameState={gameState}
+          selectedSpaceIndex={null}
+          onSelectSpace={vi.fn()}
+          isRolling={false}
+          isMyTurn={true}
+          userUid="user_human"
+        />
+      );
+
+      expect(screen.getByText('Reacquire City from Bank?')).toBeInTheDocument();
+      expect(
+        screen.getByText((_, element) =>
+          element?.tagName.toLowerCase() === 'p' &&
+          /Reacquire .* from the bank for ₹2,000/i.test(element.textContent || '')
+        )
+      ).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Reacquire City/i })).toBeInTheDocument();
+    });
+
+    it('displays "Reacquire Property" prompt when active player lands on their mortgaged transit or utility', () => {
+      const mortgagedTransitState: PropertyState = {
+        spaceIndex: 5, // Howrah Railway (TRANSIT / Property)
+        propertyId: 'prop_5',
+        ownerUid: 'user_human',
+        isMortgaged: true,
+        mortgagePayout: 1000,
+        buildings: 0,
+        ownershipState: 'MORTGAGED',
+      };
+
+      const gameState = createBaseGameState({
+        phase: 'PROPERTY_DECISION',
+        currentPlayerUid: 'user_human',
+        players: [{ ...mockHumanPlayer, position: 5, cash: 10000 }],
+        properties: { ...mockProperties, 5: mortgagedTransitState },
+        reacquisitionOpportunity: {
+          landingId: 'reacquire_prop_test',
+          spaceIndex: 5,
+          playerUid: 'user_human',
+          cost: 1000,
+          status: 'PENDING',
+          turnNumber: 1,
+        },
+      });
+
+      render(
+        <GameBoard
+          gameState={gameState}
+          selectedSpaceIndex={null}
+          onSelectSpace={vi.fn()}
+          isRolling={false}
+          isMyTurn={true}
+          userUid="user_human"
+        />
+      );
+
+      expect(screen.getByText('Reacquire Property from Bank?')).toBeInTheDocument();
+      expect(
+        screen.getByText((_, element) =>
+          element?.tagName.toLowerCase() === 'p' &&
+          /Reacquire .* from the bank for ₹1,000/i.test(element.textContent || '')
+        )
+      ).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Reacquire Property/i })).toBeInTheDocument();
     });
   });
 });

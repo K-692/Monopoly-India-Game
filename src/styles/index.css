@@ -226,39 +226,6 @@
   animation: slideOutLeft 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-/* Subtle Dynamic Wave Animations for Central Board Background */
-@keyframes boardWave1 {
-  0% {
-    transform: translate3d(0, 0, 0);
-  }
-  50% {
-    transform: translate3d(-33.333%, 3%, 0);
-  }
-  100% {
-    transform: translate3d(0, 0, 0);
-  }
-}
-
-@keyframes boardWave2 {
-  0% {
-    transform: translate3d(-33.333%, 2%, 0);
-  }
-  50% {
-    transform: translate3d(0, -2%, 0);
-  }
-  100% {
-    transform: translate3d(-33.333%, 2%, 0);
-  }
-}
-
-.animate-board-wave-1 {
-  animation: boardWave1 24s ease-in-out infinite;
-}
-
-.animate-board-wave-2 {
-  animation: boardWave2 32s ease-in-out infinite;
-}
-
 /* START Grid & Directional Arrow Animations */
 @keyframes startGlow {
   0%, 100% {
@@ -289,8 +256,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-board-wave-1,
-  .animate-board-wave-2,
   .animate-start-glow,
   .animate-start-arrow {
     animation: none !important;

@@ -3,7 +3,7 @@
 > **Document Type:** Formal System Architecture & Research Implementation Record  
 > **Repository:** `https://github.com/K-692/Monopoly-India-Game`  
 > **Target Audience:** Systems Researchers, Distributed Systems Engineers, Game Theory & Multi-Agent Researchers  
-> **Status:** Current State Production Implementation (Settings Popup Modal, Subtle Board Animations, Corner Tile Harmonization & CPU1 Formatting)  
+> **Status:** Current State Production Implementation (Low-Balance 120s Window, Reacquisition Terminology & Centered Dice-Anchored Inspection Overlay)  
 
 ---
 
@@ -234,6 +234,7 @@ flowchart TD
     M14["14. Building Shortcut, Rules Navigation & NET WORTH Tie-Breaking<br>• Spacebar context extended: Roll Dice, Try Double, Build House/Tower, End Turn<br>• Permanent left panel shortcut reference & Section 12 updated with Build House/Tower<br>• Rules popup categorized into 9 structured navigation categories with desktop sidebar & mobile bar<br>• Strict room-join sequence tie-breaking: unique sequential ranks #1..#N across human and CPU players<br>• Monotonic roomJoinSequence lifecycle persisted across reconnection and player rotations<br>• 235 Tests Passing (100%) across 20 test suites"]
     M15["15. Build House/Tower Shortcut Remapped to Enter<br>• Enter context extended: Accept / Bail / Build House/Tower (top priority on landed developable city)<br>• Spacebar refined to pure turn progression: Roll Dice, Try Double, End Turn<br>• Left panel shortcut reference updated: SPACE (Roll/Try Double/End Turn) & ENTER (Accept/Bail/Build House/Tower)<br>• Rules guide Section 12 & Buildings detail updated with new keyboard controls<br>• 238 Tests Passing (100%) across 20 test suites"]
     M16["16. Global Settings Popup, Subtle Board Waves, Corner Harmonization & UI Polish<br>• Settings converted to global non-blocking popup dialog accessible across landing, lobby, and gameplay screens<br>• Active gameplay protected: match continues in background without timer/turn pause or component unmounting<br>• Default CPU naming updated to CPU1, CPU2, CPU3 (without space) while retaining custom names<br>• Central board flowing SVG wave animation (animate-board-wave-1/2, pointer-events-none, <6% opacity)<br>• Corner spaces REST and GO TO JAIL background styled identical to START (bg-indian-parchment-100)<br>• START tile subtle ambient pulse (animate-start-glow) and directional arrow movement (animate-start-arrow)<br>• Landing page (?) Rules button added opening authoritative RulesModal<br>• Spacing refined on left player panel keyboard shortcut reference (mb-2 sm:mb-2.5 pb-0.5)<br>• 245 Tests Passing (100%) across 21 test suites"]
+    M17["17. Low-Balance Label, Reacquisition Terminology & Centered Inspection Overlay<br>• Updated spectator Low-Balance Resolution timer label to authoritative 120s Window (expiresAt = now + 120000)<br>• Property-noun-aware reacquisition dialog: 'Reacquire City' vs 'Reacquire Property' for transits/utilities<br>• Aligned insufficient balance toast notification to 'this city' vs 'this property'<br>• Repositioned Board Inspection Mode overlay directly centered over the two dice via React portal (#board-inspection-dice-anchor)<br>• High stacking priority (z-[130]) ensuring dice are covered without obscuring perimeter tiles or grid boundaries<br>• Removed central board wave layer, SVG waves, and rotating watermark for a clean dice arena<br>• 249 Tests Passing (100%) across 21 test suites"]
 
     M1 --> M2
     M2 --> M3
@@ -250,6 +251,7 @@ flowchart TD
     M13 --> M14
     M14 --> M15
     M15 --> M16
+    M16 --> M17
 ```
 
 ---
@@ -258,6 +260,10 @@ flowchart TD
 
 | Invariant | Formal Definition | Enforcement Point | Verification Result |
 | :--- | :--- | :--- | :--- |
+| **Authoritative Low-Balance Label** | $\text{Label}(\text{WindowTimer}) = \text{"120s Window"} \land \text{expiresAt} = t_{\text{start}} + 120000\text{ms}$ | `FinancialResolutionModal.tsx` | ✅ Verified (`shortcuts-alerts-and-preview.test.tsx`) |
+| **Reacquisition Terminology** | $\text{Prompt}(\text{Type}) = \begin{cases} \text{"Reacquire City"} & \text{if } \text{Type} = \text{PROPERTY} \\ \text{"Reacquire Property"} & \text{otherwise} \end{cases}$ | `GameBoard.tsx` & `ruleset.ts` | ✅ Verified (`shortcuts-alerts-and-preview.test.tsx`) |
+| **Centered Inspection Anchor** | $\text{OverlayPos} \equiv \text{Anchor}(\text{DiceContainer}) \land \text{ZIndex} = 130 \land \neg \text{ObscuresPerimeterTiles}$ | `GameBoard.tsx` & `FinancialResolutionModal.tsx` | ✅ Verified (`shortcuts-alerts-and-preview.test.tsx`) |
+| **Clean Dice Arena** | $\neg \text{Exists}(\text{central-board-wave-layer}) \land \neg \text{Exists}(\text{rotating-watermark})$ | `GameBoard.tsx` & `index.css` | ✅ Verified (`settings-popup-visuals-and-cpu.test.tsx`) |
 | **Sequential Control** | $\forall t, \left|\{p \in \text{Players} \mid \text{canAct}(p, t)\}\right| \le 1$ | `GameManager.executeCommandInternal` | ✅ Verified (`turn-sync-and-pacing.test.ts`) |
 | **Movement Immobility** | $\text{movement.isComplete} = \text{false} \implies \forall \text{cmd}, \text{processCommand}(\text{cmd}) = \bot$ | `GameManager.executeCommandInternal` | ✅ Verified (`turn-sync-and-pacing.test.ts`) |
 | **Movement Timer Pause** | $\text{movement.isComplete} = \text{false} \implies \frac{d(\text{turnTimeRemaining})}{dt} = 0$ | `GameManager.startTurnTimer` | ✅ Verified (`turn-sync-and-pacing.test.ts`) |

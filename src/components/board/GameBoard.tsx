@@ -424,7 +424,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
           dedupKey: noticeKey,
           type: 'warning',
           title: 'Reacquisition Unavailable',
-          message: 'Insufficient balance to reacquire this property.',
+          message: `Insufficient balance to reacquire this ${propertyNoun.toLowerCase()}.`,
         });
       }
     }
@@ -440,6 +440,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     canAffordBuild,
     isOwnMortgagedCity,
     canAffordReacquire,
+    propertyNoun,
     gameState.turnNumber,
     playerPos,
     onDispatch,
@@ -800,46 +801,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             gridRow: '2 / 11',
           }}
         >
-          {/* Subtle Heritage Geometric Watermark Background */}
-          <div className="absolute inset-0 opacity-[0.04] pointer-events-none flex items-center justify-center">
-            <div className="w-80 h-80 rounded-full border-[12px] border-indian-navy-900 dark:border-white border-dashed animate-spin-very-slow" />
-          </div>
-
-          {/* Requirement 3: Continuous Subtle Dynamic Wave Animation Layer */}
-          <div
-            data-testid="central-board-wave-layer"
-            aria-hidden="true"
-            className="absolute inset-0 pointer-events-none overflow-hidden z-0"
-          >
-            {/* Primary Gentle Flowing Wave */}
-            <div className="absolute -inset-x-full inset-y-0 w-[300%] h-full animate-board-wave-1 opacity-[0.06] dark:opacity-[0.035] will-change-transform">
-              <svg
-                viewBox="0 0 1440 320"
-                className="w-full h-full object-cover text-indian-terracotta-500"
-                preserveAspectRatio="none"
-              >
-                <path
-                  fill="currentColor"
-                  d="M0,96L48,112C96,128,192,160,288,160C384,160,480,128,576,122.7C672,117,768,139,864,154.7C960,171,1056,181,1152,165.3C1248,149,1344,107,1392,85.3L1440,64L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"
-                />
-              </svg>
-            </div>
-
-            {/* Secondary Counter-Flowing Wave for Fluid Dynamic Treatment */}
-            <div className="absolute -inset-x-full inset-y-0 w-[300%] h-full animate-board-wave-2 opacity-[0.045] dark:opacity-[0.025] will-change-transform">
-              <svg
-                viewBox="0 0 1440 320"
-                className="w-full h-full object-cover text-amber-500"
-                preserveAspectRatio="none"
-              >
-                <path
-                  fill="currentColor"
-                  d="M0,192L48,176C96,160,192,128,288,133.3C384,139,480,181,576,197.3C672,213,768,203,864,181.3C960,160,1056,128,1152,128C1248,128,1344,160,1392,176L1440,192L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"
-                />
-              </svg>
-            </div>
-          </div>
-
           {/* Top Center: Turn Step Acknowledgment Banner */}
           <div className="w-full max-w-sm z-10 shrink-0">
             <TurnStepAcknowledgment
@@ -849,7 +810,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
           </div>
 
           {/* Middle Row: Civic Fund Indexed List, 3D Dice Rolling Arena, and Market Buzz Indexed List */}
-          <div className="w-full flex-1 flex items-stretch justify-between gap-1.5 sm:gap-3 my-auto z-10 px-1 sm:px-2 min-h-0 overflow-hidden">
+          <div className="w-full flex-1 flex items-stretch justify-between gap-1.5 sm:gap-3 my-auto z-10 px-1 sm:px-2 min-h-0">
             {/* Panel 1: Civic Fund (All 12 Community Treasury Rules Indexed 1..12 — Desktop: visible; Mobile: compact drawer) */}
             <div className="hidden md:flex md:w-[37%] max-w-[280px] min-w-[160px] h-full rounded-xl bg-gradient-to-br from-indian-terracotta-800 via-amber-950 to-stone-900 text-white p-1.5 border-2 border-amber-400/80 shadow-xl flex-col justify-between overflow-hidden shrink-0">
               <div className="flex items-center justify-between border-b border-amber-300/40 pb-0.5 shrink-0">
@@ -959,10 +920,11 @@ export const GameBoard: React.FC<GameBoardProps> = ({
 
               {/* Interactive 3D Tumbling Dice with Authentic Perspective Roll Effect */}
               <div
-                onClick={isMyTurn && gameState.phase === 'AWAIT_ROLL' && !isRolling && !walkingAnimation && !gameState.handoff?.isActive && (!gameState.movement || gameState.movement.isComplete) ? onRollDice : undefined}
+                data-testid="board-dice-container"
+                onClick={isMyTurn && gameState.phase === 'AWAIT_ROLL' && !isRolling && !walkingAnimation && !gameState.handoff?.isActive && (!gameState.movement || gameState.movement.isComplete) && !isBoardInspecting ? onRollDice : undefined}
                 className={cn(
-                  'flex items-center gap-2.5 sm:gap-3.5 transition-all p-2 rounded-2xl min-h-[44px]',
-                  isMyTurn && gameState.phase === 'AWAIT_ROLL' && !isRolling && !walkingAnimation && !gameState.handoff?.isActive && (!gameState.movement || gameState.movement.isComplete)
+                  'relative flex items-center justify-center gap-2.5 sm:gap-3.5 transition-all p-2 rounded-2xl min-h-[44px]',
+                  isMyTurn && gameState.phase === 'AWAIT_ROLL' && !isRolling && !walkingAnimation && !gameState.handoff?.isActive && (!gameState.movement || gameState.movement.isComplete) && !isBoardInspecting
                     ? 'cursor-pointer hover:scale-105 active:scale-95 ring-2 ring-indian-terracotta-400 bg-amber-50/90 shadow-md'
                     : ''
                 )}
@@ -973,6 +935,13 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                 <div className={cn('transition-transform duration-200 [transform-style:preserve-3d]', isRolling && 'animate-dice-roll-2')}>
                   {renderDiceFace(displayDice[1], 1)}
                 </div>
+
+                {/* Explicit Positioning Anchor for Board Inspection Mode */}
+                <div
+                  id="board-inspection-dice-anchor"
+                  data-testid="board-inspection-dice-anchor"
+                  className="absolute inset-0 flex items-center justify-center pointer-events-none z-[130]"
+                />
               </div>
 
               {/* Dice Outcome Total Indicator — ONLY Combined Result */}
@@ -1283,18 +1252,19 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                 <>
                   <div className="flex items-center justify-between border-b border-white/20 pb-1.5">
                     <span className="font-serif font-black text-xs text-amber-200">
-                      🔄 Acquire {propertyNoun} from Bank?
+                      Reacquire {propertyNoun} from Bank?
                     </span>
                     <span className="font-black text-emerald-400 text-xs">
                       ₹{reacquisitionCost.toLocaleString('en-IN')}
                     </span>
                   </div>
                   <p className="text-[11px] text-gray-200 leading-tight">
-                    Acquire <strong className="text-white">{playerSpace.name}</strong> from the bank for ₹{reacquisitionCost.toLocaleString('en-IN')}? All existing developments are preserved and rent collection will resume.
+                    Reacquire <strong className="text-white">{playerSpace.name}</strong> from the bank for ₹{reacquisitionCost.toLocaleString('en-IN')}? All existing developments are preserved and rent collection will resume.
                   </p>
                   <div className="flex items-center gap-1.5 pt-1">
                     <button
                       type="button"
+                      data-testid="reacquire-confirm-btn"
                       onClick={() =>
                         onDispatch?.('UNMORTGAGE', {
                           spaceIndex: playerPos,
@@ -1304,7 +1274,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                       className="flex-1 py-2 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-500 text-white shadow-md active:scale-95 transition-all flex items-center justify-center gap-1 cursor-pointer min-h-[44px]"
                     >
                       <Check className="w-3.5 h-3.5" />
-                      <span>Acquire {propertyNoun}</span>
+                      <span>Reacquire {propertyNoun}</span>
                     </button>
                     <button
                       type="button"

@@ -173,7 +173,7 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
             <div className="flex items-center justify-between text-[10px] text-gray-400 pt-0.5">
               <span className="flex items-center gap-1 text-amber-300">
                 <Clock className="w-3 h-3" />
-                <span>60s Window</span>
+                <span>120s Window</span>
               </span>
               <span className={cn(
                 'font-mono font-bold',
@@ -194,13 +194,14 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
   // =========================================================================
   if (typeof document === 'undefined') return null;
 
-  // Requirement 5: Full-Quality Interactive Board Preview (Read-Only)
-  // Positioned directly on top of the dices at the center of the board so it never covers any grid tiles
+  // Requirement 3: Full-Quality Interactive Board Preview (Read-Only)
+  // Positioned directly over the two dice in the centre of the board so it never covers perimeter property tiles
   if (isCheckingBoard) {
-    return (
+    const inspectionBox = (
       <div
+        data-testid="board-inspection-overlay"
         onClick={(e) => e.stopPropagation()}
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[130] w-[calc(100%-24px)] max-w-[280px] sm:max-w-[310px] select-none animate-scale-in pointer-events-auto"
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[130] w-[270px] sm:w-[295px] max-w-[90vw] select-none animate-scale-in pointer-events-auto"
       >
         <div className="rounded-2xl bg-[#090D1A]/95 border-2 border-amber-500/80 shadow-[0_12px_36px_rgba(0,0,0,0.95)] p-2.5 sm:p-3 text-white backdrop-blur-md space-y-2">
           <div className="flex items-center justify-between gap-1.5">
@@ -243,6 +244,12 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
         </div>
       </div>
     );
+
+    const anchorEl = typeof document !== 'undefined' ? document.getElementById('board-inspection-dice-anchor') : null;
+    if (anchorEl) {
+      return createPortal(inspectionBox, anchorEl);
+    }
+    return inspectionBox;
   }
 
   return createPortal(
