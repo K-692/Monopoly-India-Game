@@ -30,6 +30,8 @@ export interface RuleSection {
   items: RuleSectionItem[];
 }
 
+export type GameRulesSection = RuleSection;
+
 export const GAME_RULES_SECTIONS: RuleSection[] = [
   {
     id: 'objective',
@@ -371,6 +373,7 @@ export const GAME_RULES_SECTIONS: RuleSection[] = [
         subtitle: 'Tie-Breaking Protocol',
         points: [
           'The highest Net Worth player is declared champion.',
+          'Live Dynamic Rankings: All player cards in the left panel display real-time sequential rank badges (#1 to #N). When Net Worth values are tied, ties are broken strictly by original room-joining order (the earlier joined player receives the better rank).',
           'Tie-Breaker 1: Highest remaining Cash Balance.',
           'Tie-Breaker 2: Lowest Player UID order.',
         ],
@@ -428,7 +431,7 @@ export const GAME_RULES_SECTIONS: RuleSection[] = [
       {
         subtitle: 'Context-Sensitive Key Mapping',
         points: [
-          'SPACE: Context-sensitive primary action — rolls dice during AWAIT_ROLL, rolls for doubles in Central Jail (JAIL_DECISION), or ends your turn during MANAGEMENT and TURN_END.',
+          'SPACE: Context-sensitive primary action — rolls dice during AWAIT_ROLL, tries doubles while in Central Jail (JAIL_DECISION), constructs House/Tower development when building prompt is actively available, or ends your turn when eligible during MANAGEMENT and TURN_END.',
           'S: Opens Sell to Bank interface (voluntary mortgage) to liquidate properties for cash when eligible.',
           'ENTER: Context-sensitive positive confirmation — accepts property purchase prompt, unmortgages/reacquires properties from Bank, confirms house construction, or pays Central Jail bail.',
           'N: Context-sensitive negative action — declines property purchase, skips construction, declines reacquisition, or closes voluntary mortgage and card modals.',
@@ -444,5 +447,123 @@ export const GAME_RULES_SECTIONS: RuleSection[] = [
         ],
       },
     ],
+  },
+];
+
+export const BUILDINGS_RULE_SECTION: GameRulesSection = {
+  id: 'buildings-detail',
+  number: 5,
+  title: 'Buildings & Developments',
+  badge: 'Construction',
+  icon: 'Building2',
+  summary:
+    'Rules governing House and Commercial Tower construction, visiting-city eligibility, statutory costs, and bank preservation.',
+  items: [
+    {
+      subtitle: 'Monopoly & Visiting-City Construction Rule',
+      points: [
+        'Complete Color Group Monopoly: A player must own all properties within a color group before constructing houses.',
+        'Visiting City Requirement: In Indian Monopoly, construction is only permitted when actively landing on / visiting your owned monopoly city on a subsequent turn.',
+        'No Remote Building: You cannot construct developments remotely on properties located elsewhere on the board.',
+      ],
+    },
+    {
+      subtitle: 'Building Tiers & Commercial Tower Upgrade',
+      points: [
+        'Houses: Construct up to 4 houses per city in sequential order (1, 2, 3, 4 houses).',
+        'Commercial Sky Tower: The 5th tier upgrade replaces the 4 houses with a prestigious Commercial Tower, generating peak rent tariffs.',
+        'Uniform Building Rule: Developments must be built evenly across the color group. You cannot build a second house on a city until all cities in that group have at least one house.',
+      ],
+    },
+    {
+      subtitle: 'Development Costs & Bank Preservation',
+      points: [
+        'Cost per Tier: Statutory construction cost varies by color group (from ₹500 for Brown cities up to ₹4,000 for Dark Blue cities).',
+        'Selling to Bank: If mortgaged or sold to the Bank, you receive 50% of the deed purchase cost plus 50% of all invested building costs.',
+        'Development Preservation: Reacquiring a mortgaged property from the Bank preserves all existing houses and towers intact.',
+      ],
+    },
+    {
+      subtitle: 'Keyboard Controls for Building',
+      points: [
+        'SPACE: When the Build House/Tower prompt is active on your landed property, press Spacebar to build development immediately.',
+        'ENTER: You can also press Enter to accept the building prompt.',
+        'N: Press N to decline or skip building and conclude your turn without building.',
+      ],
+    },
+  ],
+};
+
+export interface RulesCategory {
+  id: string;
+  name: string;
+  icon: string;
+  description: string;
+  sectionIds: string[];
+}
+
+export const RULES_CATEGORIES: RulesCategory[] = [
+  {
+    id: 'overview',
+    name: 'Overview',
+    icon: 'Trophy',
+    description: 'Game objective, balance vs. net worth, and champion rules',
+    sectionIds: ['objective'],
+  },
+  {
+    id: 'setup-players',
+    name: 'Setup & Players',
+    icon: 'Users',
+    description: 'Room slots, human readiness, starting cash, and computer players (CPUs)',
+    sectionIds: ['setup', 'multiplayer-cpu'],
+  },
+  {
+    id: 'turns-actions',
+    name: 'Turns & Actions',
+    icon: 'PlayCircle',
+    description: 'Turn sequence, fair dice rolls, token movement, and START salary',
+    sectionIds: ['turn-sequence', 'start-salary'],
+  },
+  {
+    id: 'properties-rent',
+    name: 'Properties & Rent',
+    icon: 'Building2',
+    description: 'City deeds, tariffs, monopolies, transit airports/railways, and utilities',
+    sectionIds: ['properties-ownership'],
+  },
+  {
+    id: 'buildings',
+    name: 'Buildings',
+    icon: 'Hammer',
+    description: 'House and Commercial Tower construction, visiting-city rule, and limits',
+    sectionIds: ['buildings-detail'],
+  },
+  {
+    id: 'cards-special-tiles',
+    name: 'Cards & Special Tiles',
+    icon: 'Flame',
+    description: 'Civic Fund, Market Buzz, Central Jail, Rest House, and taxes',
+    sectionIds: ['cards-events', 'taxes-special-tiles'],
+  },
+  {
+    id: 'finance-debt',
+    name: 'Finance & Debt',
+    icon: 'Landmark',
+    description: 'Selling properties to the bank, 120s debt timer, and liquidation',
+    sectionIds: ['sell-to-bank', 'debt-bankruptcy'],
+  },
+  {
+    id: 'winning-rankings',
+    name: 'Winning & Rankings',
+    icon: 'Crown',
+    description: 'Authoritative NET WORTH formula, sequential rank badges, and tie-breakers',
+    sectionIds: ['winning'],
+  },
+  {
+    id: 'keyboard-shortcuts',
+    name: 'Keyboard Shortcuts',
+    icon: 'Keyboard',
+    description: 'Context-sensitive Spacebar, S, Enter, and N desktop keyboard controls',
+    sectionIds: ['keyboard-shortcuts'],
   },
 ];

@@ -508,7 +508,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         !gameState.handoff?.isActive &&
         (!gameState.movement || gameState.movement.isComplete);
 
-      // --- Spacebar: Context-Sensitive Roll / Try Double / End Turn ---
+      // --- Spacebar: Context-Sensitive Roll / Try Double / Build House/Tower / End Turn ---
       if (e.code === 'Space') {
         // Prevent default spacebar scrolling whenever holding the active turn
         e.preventDefault();
@@ -526,7 +526,13 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             return;
           }
 
-          // Context 3: End turn when eligible
+          // Context 3: Build House / Tower when building prompt is actively available
+          if (canBuildHere && playerSpace?.type === 'PROPERTY') {
+            onDispatch?.('BUILD', { spaceIndex: playerPos });
+            return;
+          }
+
+          // Context 4: End turn when eligible
           if (gameState.phase === 'MANAGEMENT' || gameState.phase === 'TURN_END') {
             onDispatch?.('END_TURN');
             return;

@@ -231,6 +231,7 @@ flowchart TD
     M11["11. Net Worth Typography, Bottom-Left Preview, Audio Alerts & Shortcuts<br>• Increased Net Worth font size with clear 3-tier visual hierarchy<br>• Bottom-left anchored Return-to-Sell-to-Bank control with 120s countdown<br>• Web Audio PURCHASE_PROMPT (G5->C6) and DECLINE_ACTION (F4->Db4) alerts<br>• Accessible keyboard shortcuts: Space (Roll), Enter (Confirm/Buy), N (Decline)<br>• 185 Tests Passing (100%) across 16 test suites"]
     M12["12. Simplified Room Creation & 6-Slot Waiting Lobby<br>• Create Room modal simplified: fixed 6 slots, no CPU configuration during creation<br>• Waiting lobby redesigned with 6 fixed slots accommodating any mix of Humans & CPUs<br>• Host-only CPU management: add, rename, and remove with real-time Socket.IO sync<br>• Human readiness system: all human players (including host) must explicitly mark ready<br>• Start Game validation: >= 2 total players and all humans ready verified on server<br>• Scrollable lobby viewport (overflow-y-auto) & clean room slots section header<br>• 199 Tests Passing (100%) across 18 test suites"]
     M13["13. Contextual Shortcuts, Dynamic Net Worth Rankings & Continuity Safeguards<br>• Contextual shortcuts: Spacebar (Roll dice / Try Double / End turn), S (Sell to Bank), Enter (Accept / Bail), N (Decline)<br>• Permanent compact keycap shortcut reference below left player panel<br>• Section 12 Keyboard Shortcuts in centralized rules guide & rules modal<br>• Dynamic live NET WORTH competition rankings (#1, #2, #3) with highlighted #1 badge<br>• Card money formatting: green +₹ for rewards, red -₹ for costs, neutral for utility cards<br>• Audited card content: cleaned nonexistent auction references in market_4<br>• Robust CPU fallback decision generator & server stuck-turn recovery safeguards<br>• 220 Tests Passing (100%) across 19 test suites"]
+    M14["14. Building Shortcut, Rules Navigation & NET WORTH Tie-Breaking<br>• Spacebar context extended: Roll Dice, Try Double, Build House/Tower, End Turn<br>• Permanent left panel shortcut reference & Section 12 updated with Build House/Tower<br>• Rules popup categorized into 9 structured navigation categories with desktop sidebar & mobile bar<br>• Strict room-join sequence tie-breaking: unique sequential ranks #1..#N across human and CPU players<br>• Monotonic roomJoinSequence lifecycle persisted across reconnection and player rotations<br>• 235 Tests Passing (100%) across 20 test suites"]
 
     M1 --> M2
     M2 --> M3
@@ -244,6 +245,7 @@ flowchart TD
     M10 --> M11
     M11 --> M12
     M12 --> M13
+    M13 --> M14
 ```
 
 ---
@@ -285,6 +287,10 @@ flowchart TD
 | **Dynamic Net Worth Rankings** | $\text{Rank}(p) = 1 + \sum_{o \neq p} \mathbb{I}(\text{NetWorth}(o) > \text{NetWorth}(p))$ (competition ranking with gold #1 badge) | `PlayerStrip.tsx` | ✅ Verified (`contextual-shortcuts-and-rankings.test.tsx`) |
 | **Card Financial Polarity** | $\text{Gain} \implies +\text{₹} (\text{green}) \land \text{Loss} \implies -\text{₹} (\text{red}) \land \text{Neutral} \implies \text{plain}$ | `board-config.ts`, `GameBoard.tsx`, `RulesModal.tsx` | ✅ Verified (`contextual-shortcuts-and-rankings.test.tsx`) |
 | **CPU Fallback Safeguards** | $\forall \text{Phase}, \text{RetriesExhausted} \implies \text{fallbackDecision}(\text{Phase}) \neq \bot \land \text{stuckRecovery}(\text{Phase}) \neq \bot$ | `cpu-controller.ts` & `game-manager.ts` | ✅ Verified (`contextual-shortcuts-and-rankings.test.tsx`) |
+| **Spacebar Building Context** | $\text{Phase} = \text{MANAGEMENT} \land \text{canBuildHere} \implies \text{Key}(\text{Spacebar}) \to \text{BUILD} \land \neg \text{END\_TURN}$ | `GameBoard.tsx` | ✅ Verified (`building-shortcut-rules-nav-and-rankings.test.tsx`) |
+| **Sequential Rank Tie-Break**| $\text{NetWorth}(p_i) = \text{NetWorth}(p_j) \implies (\text{Rank}(p_i) < \text{Rank}(p_j) \iff \text{joinSeq}(p_i) < \text{joinSeq}(p_j))$ | `PlayerStrip.tsx` | ✅ Verified (`building-shortcut-rules-nav-and-rankings.test.tsx`) |
+| **Join Sequence Immutability**| $\forall p, \text{joinSeq}(p) = \text{const} \land \forall t, \text{Rotate}(\text{playerOrder}) \implies \Delta(\text{joinSeq}) = 0$ | `room-manager.ts` & `create-initial-game.ts` | ✅ Verified (`building-shortcut-rules-nav-and-rankings.test.tsx`) |
+| **Categorized Rules Navigation**| $|\text{Categories}| = 9 \land \text{Filter}(\text{cat}) \to \text{Sections}(\text{cat}) \land \text{NonMutating} = \text{true}$ | `game-rules-guide.ts` & `RulesModal.tsx` | ✅ Verified (`building-shortcut-rules-nav-and-rankings.test.tsx`) |
 
 ---
 

@@ -90,6 +90,7 @@ export function createInitialGame(
     turnTimeoutCount: 0,
     isCpu: Boolean(m.isCpu),
     playerType: m.playerType || (m.isCpu ? 'COMPUTER' : 'HUMAN'),
+    roomJoinSequence: m.roomJoinSequence ?? (index + 1),
   }));
 
   const now = Date.now();

@@ -142,6 +142,7 @@ export interface PlayerState {
   turnTimeoutCount: number;
   isCpu?: boolean;
   playerType?: PlayerType;
+  roomJoinSequence?: number;
 }
 
 export type PropertyOwnershipState = 'UNOWNED' | 'OWNED' | 'MORTGAGED' | 'BLOCKED';
@@ -426,6 +427,7 @@ export interface RoomMember {
   colorToken: string;
   isCpu?: boolean;
   playerType?: PlayerType;
+  roomJoinSequence?: number;
 }
 
 export interface RoomState {
@@ -445,6 +447,7 @@ export interface RoomState {
   createdAt: number;
   updatedAt: number;
   expiresAt: number;
+  nextJoinSequence?: number;
 }
 
 export interface EmoteReaction {

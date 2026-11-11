@@ -237,6 +237,7 @@ export class RoomManager {
       colorToken: hostSession.avatarColor || PLAYER_PALETTE[0],
       isCpu: false,
       playerType: 'HUMAN',
+      roomJoinSequence: 1,
     };
 
     // Validate computer players configuration if provided
@@ -297,6 +298,7 @@ export class RoomManager {
           colorToken: assignedColor,
           isCpu: true,
           playerType: 'COMPUTER',
+          roomJoinSequence: 2 + i,
         };
 
         configuredCpuMembers.push(cpuMember);
@@ -327,6 +329,7 @@ export class RoomManager {
       members: membersRecord,
       memberUids,
       cpuPlayers: cpuConfigs.length > 0 ? cpuConfigs : undefined,
+      nextJoinSequence: 2 + configuredCpuMembers.length,
       createdAt: Date.now(),
       updatedAt: Date.now(),
       expiresAt: Date.now() + 24 * 60 * 60 * 1000, // 24-hour lifetime
@@ -406,6 +409,11 @@ export class RoomManager {
       assignedColor = freeColor || PLAYER_PALETTE[currentMemberCount % PLAYER_PALETTE.length];
     }
 
+    const nextSeq =
+      room.nextJoinSequence ||
+      Math.max(0, ...Object.values(room.members).map((m) => m.roomJoinSequence || 0)) + 1;
+    room.nextJoinSequence = nextSeq + 1;
+
     const newMember: RoomMember = {
       uid: playerUid,
       displayName: playerSession.displayName,
@@ -415,6 +423,7 @@ export class RoomManager {
       colorToken: assignedColor,
       isCpu: false,
       playerType: 'HUMAN',
+      roomJoinSequence: nextSeq,
     };
 
     room.members[playerUid] = newMember;
@@ -525,6 +534,11 @@ export class RoomManager {
     const freeColor = PLAYER_PALETTE.find((c) => !takenColors.has(c));
     const assignedColor = freeColor || PLAYER_PALETTE[currentCount % PLAYER_PALETTE.length];
 
+    const nextSeq =
+      room.nextJoinSequence ||
+      Math.max(0, ...Object.values(room.members).map((m) => m.roomJoinSequence || 0)) + 1;
+    room.nextJoinSequence = nextSeq + 1;
+
     const cpuUid = 'cpu_' + crypto.randomUUID().replace(/-/g, '').slice(0, 10);
     const cpuMember: RoomMember = {
       uid: cpuUid,
@@ -535,6 +549,7 @@ export class RoomManager {
       colorToken: assignedColor,
       isCpu: true,
       playerType: 'COMPUTER',
+      roomJoinSequence: nextSeq,
     };
 
     room.members[cpuUid] = cpuMember;

@@ -71,10 +71,11 @@ export const PlayerStrip: React.FC<PlayerStripProps> = ({
 
   const inspectedPlayer = players.find((p) => p.uid === inspectedPlayerUid) || null;
 
-  // Requirement 6: Dynamic Live NET WORTH Competition Rankings (#1, #2, #3, ...)
+  // Requirement 4: Dynamic Live NET WORTH Rankings with Room Join Sequence Tie-Breaking (#1, #2, #3, ...)
   const playerRanks = React.useMemo(() => {
-    const netWorths = players.map((p) => ({
+    const netWorths = players.map((p, idx) => ({
       uid: p.uid,
+      roomJoinSequence: p.roomJoinSequence ?? (idx + 1),
       netWorth: calculateNetWorth(
         p.uid,
         p.cash,
@@ -83,15 +84,18 @@ export const PlayerStrip: React.FC<PlayerStripProps> = ({
       ),
     }));
 
-    const sorted = [...netWorths].sort((a, b) => b.netWorth - a.netWorth);
+    // 1. Sort by NET WORTH in descending order
+    // 2. Tie-break using original roomJoinSequence in ascending order (earlier join gets lower rank number)
+    const sorted = [...netWorths].sort((a, b) => {
+      if (b.netWorth !== a.netWorth) {
+        return b.netWorth - a.netWorth;
+      }
+      return a.roomJoinSequence - b.roomJoinSequence;
+    });
 
     const ranks: Record<string, number> = {};
-    let currentRank = 1;
     for (let i = 0; i < sorted.length; i++) {
-      if (i > 0 && sorted[i].netWorth < sorted[i - 1].netWorth) {
-        currentRank = i + 1;
-      }
-      ranks[sorted[i].uid] = currentRank;
+      ranks[sorted[i].uid] = i + 1;
     }
     return ranks;
   }, [players, properties, pendingFinancialObligation]);
@@ -260,8 +264,11 @@ export const PlayerStrip: React.FC<PlayerStripProps> = ({
             <kbd className="px-1 py-0.2 rounded font-mono font-black text-[7px] sm:text-[7.5px] bg-stone-100 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 shadow-2xs text-indian-navy-900 dark:text-indian-parchment-100 shrink-0">
               SPACE
             </kbd>
-            <span className="text-[7px] sm:text-[7.5px] font-medium text-gray-600 dark:text-gray-300 truncate text-right">
-              Roll / Try Double / End Turn
+            <span
+              title="Roll Dice / Try Double / Build House/Tower / End Turn"
+              className="text-[6.5px] sm:text-[7px] font-medium text-gray-600 dark:text-gray-300 truncate text-right"
+            >
+              Roll Dice / Try Double / Build House/Tower / End Turn
             </span>
           </div>
 

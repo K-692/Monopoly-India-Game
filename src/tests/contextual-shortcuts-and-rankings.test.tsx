@@ -429,7 +429,7 @@ describe('2. Permanent Keyboard Shortcuts Reference & Rules Guide (Requirements 
     expect(screen.getByText('S')).toBeDefined();
     expect(screen.getByText('ENTER')).toBeDefined();
     expect(screen.getByText('N')).toBeDefined();
-    expect(screen.getByText(/Roll \/ Try Double \/ End Turn/i)).toBeDefined();
+    expect(screen.getByText(/Roll Dice \/ Try Double \/ Build House\/Tower \/ End Turn/i)).toBeDefined();
     expect(screen.getByText(/Sell to Bank/i)).toBeDefined();
     expect(screen.getByText(/Accept \/ Bail/i)).toBeDefined();
     expect(screen.getByText(/Decline/i)).toBeDefined();
@@ -534,7 +534,7 @@ describe('3. Dynamic NET WORTH Rankings (Requirements 25-31)', () => {
     expect(screen.getByTestId('player-rank-user_cpu').textContent).toBe('#3');
   });
 
-  it('29. Assigns equal ranks on ties using competition ranking (e.g. #1, #1, #3)', () => {
+  it('29. Assigns unique sequential ranks on ties using room-joining sequence (e.g. #1, #2, #3)', () => {
     const tiedPlayers: PlayerState[] = [
       {
         uid: 'player_a',
@@ -542,6 +542,7 @@ describe('3. Dynamic NET WORTH Rankings (Requirements 25-31)', () => {
         colorToken: '#dc2626',
         cash: 20000,
         netWorth: 20000,
+        roomJoinSequence: 1, // Joined 1st
         position: 0,
         isBankrupt: false,
         isDisqualified: false,
@@ -559,6 +560,7 @@ describe('3. Dynamic NET WORTH Rankings (Requirements 25-31)', () => {
         colorToken: '#2563eb',
         cash: 20000,
         netWorth: 20000,
+        roomJoinSequence: 2, // Joined 2nd (equal Net Worth to A)
         position: 0,
         isBankrupt: false,
         isDisqualified: false,
@@ -576,6 +578,7 @@ describe('3. Dynamic NET WORTH Rankings (Requirements 25-31)', () => {
         colorToken: '#16a34a',
         cash: 5000,
         netWorth: 5000,
+        roomJoinSequence: 3, // Joined 3rd
         position: 0,
         isBankrupt: false,
         isDisqualified: false,
@@ -598,10 +601,10 @@ describe('3. Dynamic NET WORTH Rankings (Requirements 25-31)', () => {
       />
     );
 
-    // Both tied for #1
+    // Tied Net Worth broken by room join order: A (1st) gets #1, B (2nd) gets #2
     expect(screen.getByTestId('player-rank-player_a').textContent).toBe('#1');
-    expect(screen.getByTestId('player-rank-player_b').textContent).toBe('#1');
-    // Third player gets #3 (competition ranking)
+    expect(screen.getByTestId('player-rank-player_b').textContent).toBe('#2');
+    // Third player gets #3
     expect(screen.getByTestId('player-rank-player_c').textContent).toBe('#3');
   });
 
