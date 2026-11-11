@@ -179,9 +179,9 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
       <div
         data-testid="board-inspection-overlay"
         onClick={(e) => e.stopPropagation()}
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[130] w-[270px] sm:w-[295px] max-w-[90vw] select-none animate-scale-in pointer-events-auto"
+        className="relative pointer-events-auto z-[130] w-[280px] sm:w-[310px] max-w-[90vw] select-none animate-scale-in shrink-0"
       >
-        <div className="rounded-2xl bg-[#090D1A]/95 border-2 border-amber-500/80 shadow-[0_12px_36px_rgba(0,0,0,0.95)] p-2.5 sm:p-3 text-white backdrop-blur-md space-y-2">
+        <div className="rounded-2xl bg-[#090D1A] border-2 border-amber-500/80 shadow-[0_12px_36px_rgba(0,0,0,0.95)] p-2.5 sm:p-3 text-white backdrop-blur-md space-y-2">
           <div className="flex items-center justify-between gap-1.5">
             <div className="flex items-center gap-1.5 min-w-0">
               <div className="w-6 h-6 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0">
@@ -227,7 +227,11 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
     if (anchorEl) {
       return createPortal(inspectionBox, anchorEl);
     }
-    return inspectionBox;
+    return (
+      <div className="fixed inset-0 z-[130] flex items-center justify-center pointer-events-none">
+        {inspectionBox}
+      </div>
+    );
   }
 
   return createPortal(

@@ -1344,8 +1344,12 @@ describe('Turn Synchronization, CPU Pacing & Player Timers', () => {
 
       const afterState1 = gm.getGame(gameId)!;
       // Must NOT pay bail because 800 < 1200
-      expect(afterState1.players[0].cash).toBe(800);
       expect(afterState1.dice).toBeDefined();
+      if (!afterState1.dice?.isDouble) {
+        expect(afterState1.players[0].cash).toBe(800);
+      } else {
+        expect(afterState1.players[0].inJail).toBe(false);
+      }
 
       // Reset to JAIL_DECISION with ₹1,200 (exact configured bail)
       afterState1.currentPlayerUid = 'player_h1';

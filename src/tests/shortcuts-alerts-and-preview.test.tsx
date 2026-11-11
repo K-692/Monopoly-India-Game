@@ -150,6 +150,12 @@ describe('Refinements: Net Worth Typography, Board Preview, Alert Sounds & Keybo
         status: 'PENDING' as const,
       };
 
+      // Set up anchor in DOM matching GameBoard's dice anchor
+      const anchor = document.createElement('div');
+      anchor.id = 'board-inspection-dice-anchor';
+      anchor.className = 'absolute inset-0 flex items-center justify-center pointer-events-none z-[130]';
+      document.body.appendChild(anchor);
+
       render(
         <FinancialResolutionModal
           obligation={mockObligation}
@@ -171,17 +177,19 @@ describe('Refinements: Net Worth Typography, Board Preview, Alert Sounds & Keybo
       expect(returnBtn).toBeInTheDocument();
       expect(returnBtn.textContent).toContain('Return to Sell to Bank');
 
-      // Verify center board positioning classes directly over dices (never covers perimeter grid)
-      const container = returnBtn.closest('.absolute');
-      expect(container).toBeDefined();
-      expect(container?.className).toContain('top-1/2');
-      expect(container?.className).toContain('left-1/2');
-      expect(container?.className).toContain('-translate-x-1/2');
-      expect(container?.className).toContain('-translate-y-1/2');
+      // The overlay is rendered as a centered child inside the dice anchor without conflicting translate
+      const overlay = screen.getByTestId('board-inspection-overlay');
+      expect(anchor.contains(overlay)).toBe(true);
+      expect(overlay.className).toContain('pointer-events-auto');
+      expect(overlay.className).toContain('animate-scale-in');
+      expect(overlay.className).not.toContain('-translate-x-1/2');
+      expect(overlay.className).not.toContain('top-1/2');
 
       // Clicking returns to the sell-to-bank dialog without cancelling the debt
       fireEvent.click(returnBtn);
       expect(handleInspectionChange).toHaveBeenCalledWith(false);
+
+      document.body.removeChild(anchor);
     });
 
     it('displays "120s Window" in the spectator Low-Balance Resolution pop-up', () => {

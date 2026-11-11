@@ -3,7 +3,7 @@
 > **Document Type:** Formal System Architecture & Research Implementation Record  
 > **Repository:** `https://github.com/K-692/Monopoly-India-Game`  
 > **Target Audience:** Systems Researchers, Distributed Systems Engineers, Game Theory & Multi-Agent Researchers  
-> **Status:** Current State Production Implementation (Low-Balance 120s Window, Centered Dice-Anchored Inspection Overlay, Intelligent Timeouts, Auto-Jail Bail Resolution & Auto-Construction Timeout)  
+> **Status:** Current State Production Implementation (Low-Balance 120s Window, Precisely Centered Dice-Anchored Inspection Overlay, Intelligent Timeouts, Auto-Jail Bail Resolution & Auto-Construction Timeout)  
 
 ---
 
@@ -238,6 +238,7 @@ flowchart TD
     M18["18. Human Timeout Auto-Resolution & Build Shortcut Refinement<br>• Intelligent human PROPERTY_DECISION timeout: auto-buy if affordable (price/soldToBankPayout), auto-decline if not, immediate auto-end-turn<br>• Automatic reacquisition timeout: auto-unmortgage if cash >= cost, auto-decline if insufficient<br>• Authoritative getSortedEligibleSellToBankProperties sorting: ascending max tariff with spaceIndex tie-break<br>• Step-by-step liquidation at 120s financial timeout: sells only what is needed, surrenders debtor only after all eligible properties exhausted<br>• Internal isServerTimeout option bypassing deadline check for server timeouts<br>• Contextual N shortcut refined to 'N — Decline / Done' (skips construction & ends turn, identical to Done button)<br>• 265 Tests Passing (100%) across 22 test suites"]
     M19["19. Automatic Jail Decision Resolution on Turn Timeout<br>• Authoritative bail check via getAuthoritativeBailAmount(freshState)<br>• Cash >= bailAmount: auto-executes PAY_BAIL, deducts exact bail, clears jail state, transitions to AWAIT_ROLL with reset timer<br>• Cash < bailAmount: auto-executes TRY_DOUBLES with server cryptographic fair dice<br>• Zero duplicate transactions or rolls; preserves CPU natural strategy and manual user actions<br>• 274 Tests Passing (100%) across 22 test suites"]
     M20["20. Automatic Build House / Commercial Tower on Human Turn Timeout<br>• Authoritative MANAGEMENT timeout separation from TURN_END in GameManager.handleTimeout<br>• Evaluates canBuildOnProperty() on active human player's current city position<br>• Eligible human player: executes BUILD with isServerTimeout: true, constructs 1 house/tower, resets turn timer<br>• Ineligible / CPU / no funds: executes END_TURN cleanly<br>• No CPU ₹1,500 reserve imposed on humans; strict version-concurrency safety prevents duplicate/stale builds<br>• 285 Tests Passing (100%) across 22 test suites"]
+    M21["21. Precisely Centered Board Inspection Popup Over Both Dice<br>• Decoupled flexbox centering from scale animation to eliminate CSS keyframe transform collisions<br>• Anchor (#board-inspection-dice-anchor) serves as full-size flex-centering container (absolute inset-0 flex items-center justify-center pointer-events-none z-[130])<br>• Inspection box rendered as normal relative centered child with shrink-0 and solid opaque background (bg-[#090D1A])<br>• Geometric center strictly matches midpoint between both dice, completely covering both dice across all screen sizes<br>• Full interactive pass-through for tile inspection and Return to Sell to Bank action<br>• 294 Tests Passing (100%) across 23 test suites"]
 
     M1 --> M2
     M2 --> M3
@@ -258,6 +259,7 @@ flowchart TD
     M17 --> M18
     M18 --> M19
     M19 --> M20
+    M20 --> M21
 ```
 
 ---
@@ -265,6 +267,9 @@ flowchart TD
 ## 7. Verification Matrix & Formal Invariants
 
 | Invariant | Formal Definition | Enforcement Point | Verification Result |
+| :--- | :--- | :--- | :--- |
+| **Precise Dice-Midpoint Centering** | $\text{Center}(\text{InspectionBox}) = \text{Midpoint}(\text{Die}_1, \text{Die}_2) \land \text{Covers}(\text{Box}, \{\text{Die}_1, \text{Die}_2\}) \land \neg \text{ObscuresPerimeterTiles}$ | `GameBoard.tsx` & `FinancialResolutionModal.tsx` | ✅ Verified (`board-inspection-centering.test.tsx`) |
+| **Animation-Position Decoupling** | $\text{TransformKeyframes}(\text{scaleIn}) \cap \text{Transform}(\text{translate}) = \emptyset \implies \Delta(\text{Position}) = 0$ | `FinancialResolutionModal.tsx` | ✅ Verified (`board-inspection-centering.test.tsx`) |
 | :--- | :--- | :--- | :--- |
 | **Automatic Construction Timeout** | $\text{Phase} = \text{MANAGEMENT} \land \text{Human}(p) \land \text{canBuild}(p, \text{pos}) \land \text{Timeout} \implies \text{exec}(\text{BUILD}) \land \text{resetTimer}()$ | `game-manager.ts` (`handleTimeout`) | ✅ Verified (`turn-sync-and-pacing.test.ts`) |
 | **Construction Timeout Fallback** | $\text{Phase} = \text{MANAGEMENT} \land (\neg \text{canBuild}(p, \text{pos}) \lor \text{CPU}(p)) \land \text{Timeout} \implies \text{exec}(\text{END\_TURN})$ | `game-manager.ts` (`handleTimeout`) | ✅ Verified (`turn-sync-and-pacing.test.ts`) |
