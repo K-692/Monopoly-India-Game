@@ -134,7 +134,7 @@ describe('Refinements: Net Worth Typography, Board Preview, Alert Sounds & Keybo
   // 2. Return to Sell to Bank Control Position
   // =========================================================================
   describe('2. Repositioned Return-to-Sell-to-Bank Control', () => {
-    it('positions the Return to Sell to Bank control at the bottom-left corner of the board area', () => {
+    it('positions the Return to Sell to Bank control at the center of the board on top of the dices', () => {
       const handleInspectionChange = vi.fn();
       const mockObligation = {
         obligationId: 'obl_1',
@@ -171,11 +171,13 @@ describe('Refinements: Net Worth Typography, Board Preview, Alert Sounds & Keybo
       expect(returnBtn).toBeInTheDocument();
       expect(returnBtn.textContent).toContain('Return to Sell to Bank');
 
-      // Verify bottom-left positioning classes
-      const container = returnBtn.closest('.fixed');
+      // Verify center board positioning classes directly over dices (never covers perimeter grid)
+      const container = returnBtn.closest('.absolute');
       expect(container).toBeDefined();
-      expect(container?.className).toContain('bottom-3');
-      expect(container?.className).toContain('left-3');
+      expect(container?.className).toContain('top-1/2');
+      expect(container?.className).toContain('left-1/2');
+      expect(container?.className).toContain('-translate-x-1/2');
+      expect(container?.className).toContain('-translate-y-1/2');
 
       // Clicking returns to the sell-to-bank dialog without cancelling the debt
       fireEvent.click(returnBtn);

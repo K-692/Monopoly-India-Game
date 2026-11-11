@@ -195,12 +195,12 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
   if (typeof document === 'undefined') return null;
 
   // Requirement 5: Full-Quality Interactive Board Preview (Read-Only)
+  // Positioned directly on top of the dices at the center of the board so it never covers any grid tiles
   if (isCheckingBoard) {
-    return createPortal(
-      /* Requirement 2: Repositioned Return-to-Sell-to-Bank Control at bottom-left corner of the board-view area */
+    return (
       <div
         onClick={(e) => e.stopPropagation()}
-        className="fixed bottom-3 left-3 sm:bottom-4 sm:left-4 md:left-[172px] z-[130] w-[calc(100vw-24px)] max-w-[280px] sm:max-w-[310px] select-none animate-slide-up pointer-events-auto pb-[env(safe-area-inset-bottom,0px)] pl-[env(safe-area-inset-left,0px)]"
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[130] w-[calc(100%-24px)] max-w-[280px] sm:max-w-[310px] select-none animate-scale-in pointer-events-auto"
       >
         <div className="rounded-2xl bg-[#090D1A]/95 border-2 border-amber-500/80 shadow-[0_12px_36px_rgba(0,0,0,0.95)] p-2.5 sm:p-3 text-white backdrop-blur-md space-y-2">
           <div className="flex items-center justify-between gap-1.5">
@@ -241,8 +241,7 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
             <span>Return to Sell to Bank</span>
           </button>
         </div>
-      </div>,
-      document.body
+      </div>
     );
   }
 
