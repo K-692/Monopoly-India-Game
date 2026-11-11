@@ -297,8 +297,11 @@ export const PlayerStrip: React.FC<PlayerStripProps> = ({
             <kbd className="px-1 py-0.2 rounded font-mono font-black text-[7px] sm:text-[7.5px] bg-stone-100 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 shadow-2xs text-indian-navy-900 dark:text-indian-parchment-100 shrink-0">
               N
             </kbd>
-            <span className="text-[7px] sm:text-[7.5px] font-medium text-gray-600 dark:text-gray-300 truncate text-right">
-              Decline
+            <span
+              title="Decline property purchase/reacquisition or skip building (Done)"
+              className="text-[7px] sm:text-[7.5px] font-medium text-gray-600 dark:text-gray-300 truncate text-right"
+            >
+              Decline / Done
             </span>
           </div>
         </div>

@@ -99,7 +99,7 @@ export function applyGameCommand(
   command: GameCommand,
   actorUid: string,
   injectedDice?: [number, number],
-  options?: { cardRuleIndex?: number }
+  options?: { cardRuleIndex?: number; isServerTimeout?: boolean }
 ): EngineResult {
   // Validate basic state preconditions
   if (currentState.status === 'COMPLETED') {
@@ -601,9 +601,9 @@ export function applyGameCommand(
         throw new GameEngineError('NOT_YOUR_TURN', 'You can only mortgage properties during your turn or debt resolution');
       }
 
-      // Section 6: Race condition protection - reject stale requests if 120-second window expired
+      // Section 6: Race condition protection - reject stale client requests if 120-second window expired
       if (isObligationDebtor && state.pendingFinancialObligation?.expiresAt) {
-        if (Date.now() > state.pendingFinancialObligation.expiresAt + 1500) {
+        if (!options?.isServerTimeout && Date.now() > state.pendingFinancialObligation.expiresAt + 1500) {
           throw new GameEngineError('OBLIGATION_EXPIRED', 'Financial resolution 120-second window has expired');
         }
       }

@@ -7,7 +7,7 @@ import { CityDeedModal } from './CityDeedModal';
 import { FinancialResolutionModal } from './FinancialResolutionModal';
 import { usePopupPosition } from './use-popup-position';
 import { getSpaceGridCoord } from './board-layout-utils';
-import { calculateMortgageValue, calculateRent, canBuildOnProperty, getAuthoritativeBailAmount, getPropertyNoun } from '@/domain/ruleset';
+import { calculateMortgageValue, canBuildOnProperty, getAuthoritativeBailAmount, getPropertyNoun, getSortedEligibleSellToBankProperties } from '@/domain/ruleset';
 import { TurnStepAcknowledgment } from '@/components/feedback/TurnStepAcknowledgment';
 import { PopupTurnTimer } from '@/components/feedback/PopupTurnTimer';
 import { useToastStore } from '@/components/feedback/toast-store';
@@ -49,25 +49,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   const [voluntaryMortgageOpen, setVoluntaryMortgageOpen] = useState(false);
   const [isBoardInspecting, setIsBoardInspecting] = useState(false);
 
-  // Eligible properties owned by current user that are eligible to mortgage
-  // Requirement 4: Sorted in increasing order of maximum possible tariff (rent) value (lowest first, highest last)
-  // Stable secondary tie-breaker: property board spaceIndex
-  const myMortgageableProperties = Object.entries(gameState.properties)
-    .filter(([_, prop]) => prop.ownerUid === userUid && !prop.isMortgaged && prop.ownershipState === 'OWNED')
-    .map(([idx, prop]) => {
-      const spaceIndex = Number(idx);
-      const space = BOARD_SPACES[spaceIndex];
-      const mortgageVal = calculateMortgageValue(spaceIndex, prop);
-      // Authoritative maximum potential tariff at current development level (dice = 12 for utilities)
-      const maxTariff = calculateRent(spaceIndex, gameState.properties, 12, undefined, false);
-      return { spaceIndex, space, prop, mortgageVal, maxTariff };
-    })
-    .sort((a, b) => {
-      if (a.maxTariff !== b.maxTariff) {
-        return a.maxTariff - b.maxTariff;
-      }
-      return a.spaceIndex - b.spaceIndex;
-    });
+  // Eligible properties owned by current user that are eligible to mortgage (authoritative domain utility)
+  const myMortgageableProperties = userUid
+    ? getSortedEligibleSellToBankProperties(userUid, gameState.properties)
+    : [];
 
   // Dynamic rapid tumbling dice faces & random dots during roll animation
   const [displayDice, setDisplayDice] = useState<[number, number]>([
@@ -588,27 +573,29 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         return;
       }
 
-      // --- N: Context-Sensitive Decline ---
+      // --- N: Context-Sensitive Decline / Done ---
       if (e.key === 'n' || e.key === 'N') {
-        // A. Decline Property Purchase Prompt
-        if (isShowingPurchasePrompt) {
-          e.preventDefault();
-          handleDeclineAction();
-          return;
-        }
+        if (canAct) {
+          // A. Decline Property Purchase Prompt
+          if (isShowingPurchasePrompt) {
+            e.preventDefault();
+            handleDeclineAction();
+            return;
+          }
 
-        // B. Decline Reacquire from Bank
-        if (isOwnMortgagedCity && canAffordReacquire) {
-          e.preventDefault();
-          handleDeclineAction();
-          return;
-        }
+          // B. Decline Reacquire from Bank
+          if (isOwnMortgagedCity && canAffordReacquire) {
+            e.preventDefault();
+            handleDeclineAction();
+            return;
+          }
 
-        // C. Skip Building (Done building for this turn)
-        if (canBuildHere && playerSpace?.type === 'PROPERTY') {
-          e.preventDefault();
-          onDispatch?.('END_TURN');
-          return;
+          // C. Skip Building (Done building for this turn) - performs exact same action as clicking Done
+          if (canBuildHere && playerSpace?.type === 'PROPERTY') {
+            e.preventDefault();
+            onDispatch?.('END_TURN');
+            return;
+          }
         }
 
         // D. Close voluntary mortgage modal if open
@@ -1238,6 +1225,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                     </button>
                     <button
                       type="button"
+                      data-testid="build-done-btn"
+                      title="Skip building and end turn (Shortcut: N)"
                       onClick={() => onDispatch?.('END_TURN')}
                       className="px-3.5 py-2 rounded-xl font-bold text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 active:scale-95 transition-all cursor-pointer min-h-[44px]"
                     >

@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { createInitialGame } from '../domain/game-engine/create-initial-game';
 import { applyGameCommand, GameEngineError } from '../domain/game-engine/engine';
+import { GameManager } from '../../server/game/game-manager';
+import { ServerRoom } from '../../server/types/server-types';
 
 const mockMembers = {
   user_1: { uid: 'user_1', displayName: 'Player 1', photoURL: null, colorToken: '#FF5722', isReady: true, joinedAt: 1 },
@@ -171,98 +173,113 @@ describe('120-Second Low-Balance Mortgage Resolution & Disqualification', () => 
   });
 
   // =========================================================================
-  // SCENARIO C: INSUFFICIENT FUNDS AFTER MORTGAGING -> TIMEOUT AT 0s DISQUALIFIES
+  // SCENARIO C: INSUFFICIENT FUNDS -> 120s TIMEOUT LIQUIDATES REMAINING ASSETS BEFORE SURRENDER
   // =========================================================================
-  it('Scenario C: remains in resolution when funds still insufficient, then disqualifies on 120s timeout', () => {
-    let state = createInitialGame('room_1', 'game_1', mockMembers, undefined, 'user_1');
+  it('Scenario C: remains in resolution when funds still insufficient, liquidates remaining eligible properties on 120s timeout, then disqualifies when exhausted', async () => {
+    const gm = new GameManager();
+    const room: ServerRoom = {
+      roomId: 'room_1',
+      inviteCode: 'TEST01',
+      inviteCodeHash: 'hash_test',
+      hostUid: 'user_1',
+      status: 'LOBBY',
+      maxPlayers: 6,
+      turnTimerSeconds: 30,
+      gameMode: 'STANDARD',
+      memberUids: Object.keys(mockMembers),
+      members: mockMembers,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      expiresAt: Date.now() + 3600000,
+    };
+    const startRes = gm.startGame(room, 'user_1');
+    const gameId = startRes.gameId!;
+    const state = gm.getGame(gameId)!;
+    state.currentPlayerUid = 'user_1';
 
-    // Setup big rent obligation: ₹2,000
+    // Setup big rent obligation: ₹1,500
     state.properties[39].ownerUid = 'user_2';
     state.properties[39].ownershipState = 'OWNED';
 
-    // user_1 only owns 1 property yielding ₹300
+    // user_1 owns 2 properties: Space 1 and Space 3 (each yielding ₹300 mortgage)
     state.properties[1].ownerUid = 'user_1';
     state.properties[1].ownershipState = 'OWNED';
+    state.properties[3].ownerUid = 'user_1';
+    state.properties[3].ownershipState = 'OWNED';
     state.players[0].cash = 100;
     state.players[0].position = 33;
 
-    state = applyGameCommand(
+    const rollRes = applyGameCommand(
       state,
       {
         commandId: 'cmd_roll_c',
         roomId: 'room_1',
-        gameId: 'game_1',
+        gameId,
         expectedVersion: state.version,
         type: 'ROLL_DICE',
         payload: {},
       },
       'user_1',
       [3, 3]
-    ).nextState;
+    );
+    Object.assign(state, rollRes.nextState);
 
     expect(state.phase).toBe('ACTION_REQUIRED');
     const originalExpiresAt = state.pendingFinancialObligation?.expiresAt;
 
-    // Mortgages space 1 -> gets ₹300. Total = 400 < 350? Wait, let's make debt bigger
-    // Let's set debt on obligation directly to test large shortfall
+    // Set debt to 1500
     state.pendingFinancialObligation!.amountDue = 1500;
     state.pendingFinancialObligation!.remainingAmountDue = 1400;
 
-    state = applyGameCommand(
+    // Player manually mortgages only space 1 -> gets ₹300
+    const mortRes = applyGameCommand(
       state,
       {
         commandId: 'cmd_mortgage_partial',
         roomId: 'room_1',
-        gameId: 'game_1',
+        gameId,
         expectedVersion: state.version,
         type: 'MORTGAGE',
         payload: { spaceIndex: 1 },
       },
       'user_1'
-    ).nextState;
+    );
+    Object.assign(state, mortRes.nextState);
 
     // Balance is 100 + 300 = 400 < 1500. Still insufficient!
     expect(state.players[0].cash).toBe(400);
     expect(state.phase).toBe('ACTION_REQUIRED');
     expect(state.pendingFinancialObligation).toBeDefined();
     expect(state.pendingFinancialObligation?.remainingAmountDue).toBe(1100);
-
-    // Exact 120s deadline was NOT reset or extended!
     expect(state.pendingFinancialObligation?.expiresAt).toBe(originalExpiresAt);
 
-    // At 0 seconds: authoritative server timeout executes disqualification (GIVE_UP with reason: TIMEOUT)
+    // Property 3 is still eligible and owned by debtor!
+    expect(state.properties[3].ownershipState).toBe('OWNED');
+
+    // At 120s timeout: server does NOT immediately disqualify; it first liquidates property 3!
+    // Since 400 + 300 = 700 is still < 1500, and all assets are now exhausted, it surrenders!
     const u2CashBefore = state.players[1].cash;
-    state = applyGameCommand(
-      state,
-      {
-        commandId: 'cmd_server_timeout',
-        roomId: 'room_1',
-        gameId: 'game_1',
-        expectedVersion: state.version,
-        type: 'GIVE_UP',
-        payload: { reason: 'TIMEOUT' },
-      },
-      'user_1'
-    ).nextState;
+    await gm.handleTimeout(state);
 
-    // Debtor is disqualified & bankrupt
-    expect(state.players[0].isBankrupt).toBe(true);
-    expect(state.players[0].isDisqualified).toBe(true);
+    const afterState = gm.getGame(gameId)!;
 
-    // Property 1 was sold to bank (unowned in bank)
-    expect(state.properties[1].ownershipState).toBe('UNOWNED');
-    expect(state.properties[1].ownerUid).toBeNull();
+    // Both Property 1 and Property 3 were sold to bank
+    expect(afterState.properties[1].ownershipState).toBe('UNOWNED');
+    expect(afterState.properties[3].ownershipState).toBe('UNOWNED');
+
+    // Debtor is disqualified & bankrupt after exhausting all assets
+    expect(afterState.players[0].isBankrupt).toBe(true);
+    expect(afterState.players[0].isDisqualified).toBe(true);
 
     // Obligation cleared
-    expect(state.pendingFinancialObligation).toBeNull();
+    expect(afterState.pendingFinancialObligation).toBeNull();
 
-    // Remaining cash transferred to creditor on surrender adjustment
-    expect(state.players[0].cash).toBe(0);
-    expect(state.players[1].cash).toBe(u2CashBefore + 400);
+    // Remaining cash transferred to creditor on surrender adjustment (700 = 100 + 300 + 300)
+    expect(afterState.players[0].cash).toBe(0);
+    expect(afterState.players[1].cash).toBe(u2CashBefore + 700);
 
-    // Section 9: Immediate game termination on disqualification
-    expect(state.status).toBe('COMPLETED');
-    expect(state.winnerUid).toBe('user_2');
+    // Immediate game termination
+    expect(afterState.status).toBe('COMPLETED');
   });
 
   // =========================================================================

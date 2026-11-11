@@ -97,6 +97,7 @@ Waiting for players...
       │   │  - Cryptographic Fair Dice (Rejection Sampling, Zero Modulo Bias)│   │
       │   │  - Serialized Action Queue (Zero Race Conditions)                │   │
       │   │  - 120s Debt Resolution Timer & Monotonic State Sync             │   │
+      │   │  - Intelligent Human Timeout Auto-Resolution & Auto-Liquidation  │   │
       │   +────────────┬─────────────────────────────────────────────────────+   │
       │                │                                                         │
       │   +────────────▼───────────────────────────────────+                     │
@@ -208,9 +209,9 @@ For laptop and desktop players, context-sensitive keyboard shortcuts streamline 
 | <kbd>Spacebar</kbd> | **Roll Dice / Try Double / End Turn** | Context-sensitive: rolls dice in `AWAIT_ROLL`, attempts doubles in `JAIL_DECISION`, or ends turn when eligible during `MANAGEMENT` and `TURN_END` |
 | <kbd>Enter</kbd> | **Accept / Bail / Build House/Tower** | Context-sensitive: constructs development when visiting owned monopoly city, accepts property purchase, reacquires mortgaged city from Bank, or pays bail/uses card in Central Jail |
 | <kbd>S</kbd> | **Sell to Bank** | Opens / activates the Sell-to-Bank mortgage interface to liquidate assets for cash |
-| <kbd>N</kbd> | **Decline** | Declines property purchase, declines reacquisition, or skips construction |
+| <kbd>N</kbd> | **Decline / Done** | Declines property purchase, declines reacquisition, or skips construction (identical to the **Done** button) to finish turn |
 
-> **Permanent Visual Reference:** A compact, non-intrusive keycap guide (`SPACE — Roll Dice / Try Double / End Turn`, `ENTER — Accept / Bail / Build House/Tower`, `S — Sell to Bank`, `N — Decline`) is permanently anchored at the bottom of the left player information panel for instant reference during matches. Complete rules and mechanics are fully documented in **Section 12: Keyboard Shortcuts** and the **Buildings** category of the in-game Rules Guide.  
+> **Permanent Visual Reference:** A compact, non-intrusive keycap guide (`SPACE — Roll Dice / Try Double / End Turn`, `ENTER — Accept / Bail / Build House/Tower`, `S — Sell to Bank`, `N — Decline / Done`) is permanently anchored at the bottom of the left player information panel for instant reference during matches. Complete rules and mechanics are fully documented in **Section 12: Keyboard Shortcuts** and the **Buildings** category of the in-game Rules Guide.  
 > **Safety Safeguards:** Keyboard shortcuts are automatically suppressed while typing in text inputs or textareas, during modals/rules dialogs, during debt board preview, on computer player turns, and against key-repeat spam.
 
 ---

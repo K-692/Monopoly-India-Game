@@ -10,7 +10,7 @@ import {
   TRANSIT_SPACES,
   UTILITY_SPACES,
 } from './board-config';
-import { PendingFinancialObligation, PropertyDefinition, PropertyState } from './game-types';
+import { BoardSpaceDefinition, PendingFinancialObligation, PropertyDefinition, PropertyState } from './game-types';
 
 export const RULESET_VERSION = '1.1.0';
 
@@ -374,3 +374,59 @@ export function calculateNetWorth(
 
   return cash + assetVal - debt;
 }
+
+export interface EligibleSellToBankProperty {
+  spaceIndex: number;
+  space: BoardSpaceDefinition;
+  prop: PropertyState;
+  mortgageVal: number;
+  maxTariff: number;
+}
+
+/**
+ * Returns eligible properties owned by a debtor that can be sold to the bank,
+ * sorted according to authoritative liquidation priority:
+ * 1. Maximum possible tariff in ascending order (lowest potential rent first, highest rent last)
+ *    (using calculateRent(spaceIndex, properties, 12, undefined, false))
+ * 2. spaceIndex in ascending order as stable tie-breaker.
+ *
+ * Excludes properties that are:
+ * - Not owned by the debtor
+ * - Already mortgaged (isMortgaged === true or ownershipState === 'MORTGAGED')
+ * - Permanently blocked (ownershipState === 'BLOCKED')
+ */
+export function getSortedEligibleSellToBankProperties(
+  debtorUid: string,
+  properties: Record<number, PropertyState>
+): EligibleSellToBankProperty[] {
+  return Object.entries(properties)
+    .filter(
+      ([_, prop]) =>
+        prop &&
+        prop.ownerUid === debtorUid &&
+        !prop.isMortgaged &&
+        prop.ownershipState !== 'MORTGAGED' &&
+        prop.ownershipState !== 'BLOCKED'
+    )
+    .map(([idx, prop]) => {
+      const spaceIndex = Number(idx);
+      const space = BOARD_SPACES[spaceIndex];
+      const mortgageVal = calculateMortgageValue(spaceIndex, prop);
+      // Authoritative maximum potential tariff at current development level (dice = 12 for utilities)
+      const maxTariff = calculateRent(spaceIndex, properties, 12, undefined, false);
+      return {
+        spaceIndex,
+        space,
+        prop,
+        mortgageVal,
+        maxTariff,
+      };
+    })
+    .sort((a, b) => {
+      if (a.maxTariff !== b.maxTariff) {
+        return a.maxTariff - b.maxTariff;
+      }
+      return a.spaceIndex - b.spaceIndex;
+    });
+}
+

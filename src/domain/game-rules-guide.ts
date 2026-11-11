@@ -434,7 +434,7 @@ export const GAME_RULES_SECTIONS: RuleSection[] = [
           'SPACE: Context-sensitive primary action — rolls dice during AWAIT_ROLL, tries doubles while in Central Jail (JAIL_DECISION), or ends your turn when eligible during MANAGEMENT and TURN_END.',
           'ENTER: Context-sensitive positive confirmation — accepts property purchase prompt, unmortgages/reacquires properties from Bank, executes House/Tower development when building prompt is active, or pays Central Jail bail.',
           'S: Opens Sell to Bank interface (voluntary mortgage) to liquidate properties for cash when eligible.',
-          'N: Context-sensitive negative action — declines property purchase, skips construction, declines reacquisition, or closes voluntary mortgage and card modals.',
+          'N: Context-sensitive negative action — declines property purchases, declines reacquisition, skips construction using the same action as the Done button, or closes supported modals (voluntary mortgage and card popups).',
         ],
       },
       {
@@ -488,7 +488,7 @@ export const BUILDINGS_RULE_SECTION: GameRulesSection = {
       points: [
         'ENTER: When the Build House/Tower interface is active on your landed property, press Enter to build development immediately.',
         'SPACE: Use Spacebar for general turn progression (Roll Dice, Try Double, End Turn).',
-        'N: Press N to decline or skip building and conclude your turn without building.',
+        'N: Press N or click Done to skip building and end the current turn.',
       ],
     },
   ],

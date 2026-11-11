@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { GameActionType, PendingFinancialObligation, PlayerState, PropertyState } from '@/domain/game-types';
-import { BOARD_SPACES } from '@/domain/board-config';
-import { calculateMortgageValue, calculateRent } from '@/domain/ruleset';
+import { getSortedEligibleSellToBankProperties } from '@/domain/ruleset';
 import { Landmark, Building2, Home, CheckCircle2, ShieldAlert, ArrowRight, Clock, AlertTriangle, CheckSquare, Square, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 
@@ -63,29 +62,8 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
 
   // Eligible properties owned by debtor that are not already mortgaged or blocked
   // Requirement 4: Sorted in increasing order of maximum possible tariff (rent) value (lowest first, highest last)
-  // Stable secondary tie-breaker: property board spaceIndex
-  const eligibleProperties = Object.entries(properties)
-    .filter(([_, prop]) => prop.ownerUid === obligation.debtorUid && !prop.isMortgaged && prop.ownershipState !== 'BLOCKED')
-    .map(([idx, prop]) => {
-      const spaceIndex = Number(idx);
-      const space = BOARD_SPACES[spaceIndex];
-      const mortgageVal = calculateMortgageValue(spaceIndex, prop);
-      // Authoritative maximum potential tariff at current development level (dice = 12 for utilities)
-      const maxTariff = calculateRent(spaceIndex, properties, 12, undefined, false);
-      return {
-        spaceIndex,
-        space,
-        prop,
-        mortgageVal,
-        maxTariff,
-      };
-    })
-    .sort((a, b) => {
-      if (a.maxTariff !== b.maxTariff) {
-        return a.maxTariff - b.maxTariff;
-      }
-      return a.spaceIndex - b.spaceIndex;
-    });
+  // Stable secondary tie-breaker: property board spaceIndex (authoritative domain utility)
+  const eligibleProperties = getSortedEligibleSellToBankProperties(obligation.debtorUid, properties);
 
   // Calculate dynamic totals for selected properties in Adjust Payouts mode
   const totalSelectedPayout = selectedSpaceIndices.reduce((sum, idx) => {

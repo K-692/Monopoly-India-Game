@@ -12,10 +12,12 @@
  */
 
 import crypto from 'crypto';
-import { GameArchive, GameCommand, GameState } from '../../src/domain/game-types';
+import { GameArchive, GameCommand, GameState, PropertyDefinition, TransitDefinition, UtilityDefinition } from '../../src/domain/game-types';
 import { createInitialGame } from '../../src/domain/game-engine/create-initial-game';
 import { applyGameCommand, EngineResult, GameEngineError } from '../../src/domain/game-engine/engine';
 import { generateFairDicePair } from '../../src/domain/game-engine/dice-fairness';
+import { BOARD_SPACES } from '../../src/domain/board-config';
+import { getSortedEligibleSellToBankProperties } from '../../src/domain/ruleset';
 import { ServerRoom } from '../types/server-types';
 import { CpuController, CpuControllerTimingConfig } from './cpu-controller';
 
@@ -152,7 +154,8 @@ export class GameManager {
   public async processCommand(
     gameId: string,
     command: GameCommand,
-    actorUid: string
+    actorUid: string,
+    options?: { cardRuleIndex?: number; isServerTimeout?: boolean }
   ): Promise<EngineResult> {
     // Serialize commands using a per-game promise queue
     const currentQueue = this.commandQueues.get(gameId) || Promise.resolve();
@@ -170,7 +173,7 @@ export class GameManager {
         .catch(() => {}) // Continue queue even if previous command rejected
         .then(() => {
           try {
-            const result = this.executeCommandInternal(gameId, command, actorUid);
+            const result = this.executeCommandInternal(gameId, command, actorUid, options);
             resolveCommand(result);
           } catch (err) {
             rejectCommand(err);
@@ -187,11 +190,17 @@ export class GameManager {
   private executeCommandInternal(
     gameId: string,
     command: GameCommand,
-    actorUid: string
+    actorUid: string,
+    options?: { cardRuleIndex?: number; isServerTimeout?: boolean }
   ): EngineResult {
     const currentState = this.games.get(gameId);
     if (!currentState) {
       throw new GameEngineError('GAME_NOT_FOUND', 'Active game state not found');
+    }
+
+    // For server-authorized timeouts, sync expectedVersion with currentState.version
+    if (options?.isServerTimeout) {
+      command.expectedVersion = currentState.version;
     }
 
     // Check duplicate command prevention (idempotent retry handling)
@@ -224,7 +233,7 @@ export class GameManager {
       injectedDice = generateFairDicePair();
     }
 
-    const result = applyGameCommand(currentState, command, actorUid, injectedDice);
+    const result = applyGameCommand(currentState, command, actorUid, injectedDice, options);
 
     // Save updated state and cache command for deduplication
     this.games.set(gameId, result.nextState);
@@ -492,7 +501,9 @@ export class GameManager {
         // Authoritative server timeout action: stop the ticking timer first to prevent duplicate firings
         this.stopTurnTimer(gameId);
         current.turnTimeRemaining = 0;
-        this.handleTimeout(current);
+        this.handleTimeout(current).catch((err) => {
+          console.warn('handleTimeout error:', err);
+        });
       } else {
         current.turnTimeRemaining = nextRemaining;
         if (this.broadcastCallback) {
@@ -541,9 +552,20 @@ export class GameManager {
   }
 
   /**
+   * Public test and runtime trigger to invoke authoritative server timeout action.
+   */
+  public async triggerTimeout(gameId: string): Promise<void> {
+    const state = this.games.get(gameId);
+    if (!state) return;
+    this.stopTurnTimer(gameId);
+    state.turnTimeRemaining = 0;
+    await this.handleTimeout(state);
+  }
+
+  /**
    * Executes an authoritative server timeout action when turn countdown hits zero.
    */
-  private handleTimeout(gameState: GameState): void {
+  public async handleTimeout(gameState: GameState): Promise<void> {
     const freshState = this.games.get(gameState.gameId) || gameState;
     if (freshState.status === 'COMPLETED') {
       this.stopTurnTimer(freshState.gameId);
@@ -572,23 +594,33 @@ export class GameManager {
           type: 'ROLL_DICE',
           payload: {},
         };
-        this.processCommand(freshState.gameId, cmd, activeUid).catch((e) => {
+        await this.processCommand(freshState.gameId, cmd, activeUid, { isServerTimeout: true }).catch((e) => {
           console.warn('Timeout ROLL_DICE failed:', e);
           this.recoverStuckTurn(freshState.gameId);
         });
       } else if (freshState.phase === 'PROPERTY_DECISION') {
-        const cmd: GameCommand = {
-          commandId,
-          roomId: freshState.roomId,
-          gameId: freshState.gameId,
-          expectedVersion: freshState.version,
-          type: 'DECLINE_PROPERTY',
-          payload: {},
-        };
-        this.processCommand(freshState.gameId, cmd, activeUid).catch((e) => {
-          console.warn('Timeout DECLINE_PROPERTY failed:', e);
-          this.recoverStuckTurn(freshState.gameId);
-        });
+        const activePlayer = freshState.players.find((p) => p.uid === activeUid);
+        const isCpu = Boolean(activePlayer && (activePlayer.isCpu || activePlayer.playerType === 'COMPUTER'));
+
+        if (!isCpu) {
+          await this.handleHumanPropertyDecisionTimeout(freshState.gameId, activeUid).catch((e) => {
+            console.warn('Human timeout property decision failed:', e);
+            this.recoverStuckTurn(freshState.gameId);
+          });
+        } else {
+          const cmd: GameCommand = {
+            commandId,
+            roomId: freshState.roomId,
+            gameId: freshState.gameId,
+            expectedVersion: freshState.version,
+            type: 'DECLINE_PROPERTY',
+            payload: {},
+          };
+          await this.processCommand(freshState.gameId, cmd, activeUid, { isServerTimeout: true }).catch((e) => {
+            console.warn('Timeout DECLINE_PROPERTY failed:', e);
+            this.recoverStuckTurn(freshState.gameId);
+          });
+        }
       } else if (freshState.phase === 'MANAGEMENT' || freshState.phase === 'TURN_END') {
         const cmd: GameCommand = {
           commandId,
@@ -598,7 +630,7 @@ export class GameManager {
           type: 'END_TURN',
           payload: {},
         };
-        this.processCommand(freshState.gameId, cmd, activeUid).catch((e) => {
+        await this.processCommand(freshState.gameId, cmd, activeUid, { isServerTimeout: true }).catch((e) => {
           console.warn('Timeout END_TURN failed:', e);
           this.recoverStuckTurn(freshState.gameId);
         });
@@ -611,7 +643,7 @@ export class GameManager {
           type: 'TRY_DOUBLES',
           payload: {},
         };
-        this.processCommand(freshState.gameId, cmd, activeUid).catch((e) => {
+        await this.processCommand(freshState.gameId, cmd, activeUid, { isServerTimeout: true }).catch((e) => {
           console.warn('Timeout TRY_DOUBLES failed:', e);
           this.recoverStuckTurn(freshState.gameId);
         });
@@ -619,25 +651,306 @@ export class GameManager {
         const obligation = freshState.pendingFinancialObligation;
         const debtorUid = obligation.debtorUid;
         const debtor = freshState.players.find((p) => p.uid === debtorUid);
-        const canResolve = debtor && debtor.cash >= obligation.amountDue;
-        const cmd: GameCommand = {
-          commandId,
-          roomId: freshState.roomId,
-          gameId: freshState.gameId,
-          expectedVersion: freshState.version,
-          type: canResolve ? 'RESOLVE_OBLIGATION' : 'GIVE_UP',
-          payload: canResolve ? {} : { reason: 'TIMEOUT' },
-        };
-        this.processCommand(freshState.gameId, cmd, debtorUid).catch((e) => {
-          console.warn('Timeout financial resolution failed:', e);
-          this.recoverStuckTurn(freshState.gameId);
-        });
+        const isCpu = Boolean(debtor && (debtor.isCpu || debtor.playerType === 'COMPUTER'));
+
+        if (!isCpu) {
+          await this.handleHumanFinancialTimeout(freshState.gameId, debtorUid).catch((e) => {
+            console.warn('Human timeout financial liquidation failed:', e);
+            this.recoverStuckTurn(freshState.gameId);
+          });
+        } else {
+          const canResolve = debtor && debtor.cash >= obligation.amountDue;
+          const cmd: GameCommand = {
+            commandId,
+            roomId: freshState.roomId,
+            gameId: freshState.gameId,
+            expectedVersion: freshState.version,
+            type: canResolve ? 'RESOLVE_OBLIGATION' : 'GIVE_UP',
+            payload: canResolve ? {} : { reason: 'TIMEOUT' },
+          };
+          await this.processCommand(freshState.gameId, cmd, debtorUid, { isServerTimeout: true }).catch((e) => {
+            console.warn('Timeout financial resolution failed:', e);
+            this.recoverStuckTurn(freshState.gameId);
+          });
+        }
       } else {
         this.recoverStuckTurn(freshState.gameId);
       }
     } catch (err) {
       console.warn('Timeout execution error:', err);
       this.recoverStuckTurn(freshState.gameId);
+    }
+  }
+
+  /**
+   * Intelligently auto-resolves property/city purchase and reacquisition decisions
+   * when a human player times out during PROPERTY_DECISION phase.
+   */
+  private async handleHumanPropertyDecisionTimeout(gameId: string, playerUid: string): Promise<void> {
+    const state = this.games.get(gameId);
+    if (!state || state.status === 'COMPLETED') return;
+    if (state.currentPlayerUid !== playerUid || state.phase !== 'PROPERTY_DECISION') return;
+
+    const player = state.players.find((p) => p.uid === playerUid);
+    if (!player || player.isBankrupt || player.isDisqualified) return;
+
+    // Check Scenario B: Reacquisition of a mortgaged or bank-owned property
+    if (
+      state.reacquisitionOpportunity &&
+      state.reacquisitionOpportunity.status === 'PENDING' &&
+      state.reacquisitionOpportunity.playerUid === playerUid
+    ) {
+      const opp = state.reacquisitionOpportunity;
+      const canAfford = player.cash >= opp.cost;
+
+      if (canAfford) {
+        await this.processCommand(
+          gameId,
+          {
+            commandId: 'timeout_reacquire_' + Date.now() + '_' + crypto.randomUUID().slice(0, 6),
+            roomId: state.roomId,
+            gameId,
+            expectedVersion: state.version,
+            type: 'UNMORTGAGE',
+            payload: { spaceIndex: opp.spaceIndex, landingId: opp.landingId },
+          },
+          playerUid,
+          { isServerTimeout: true }
+        );
+      } else {
+        await this.processCommand(
+          gameId,
+          {
+            commandId: 'timeout_decline_reacquire_' + Date.now() + '_' + crypto.randomUUID().slice(0, 6),
+            roomId: state.roomId,
+            gameId,
+            expectedVersion: state.version,
+            type: 'DECLINE_REACQUISITION',
+            payload: { spaceIndex: opp.spaceIndex },
+          },
+          playerUid,
+          { isServerTimeout: true }
+        );
+      }
+    } else {
+      // Scenario A: Normal property / city purchase
+      const space = BOARD_SPACES[player.position];
+      const propState = state.properties[player.position];
+
+      const isUnowned =
+        propState &&
+        !propState.ownerUid &&
+        propState.ownershipState !== 'BLOCKED' &&
+        !propState.isMortgaged &&
+        propState.ownershipState !== 'MORTGAGED';
+
+      if (isUnowned && space && ('price' in space || propState.soldToBankPayout)) {
+        const isBankAcquisition = Boolean(propState.soldToBankPayout && propState.soldToBankPayout > 0);
+        const price = isBankAcquisition
+          ? propState.soldToBankPayout!
+          : (space as PropertyDefinition | TransitDefinition | UtilityDefinition).price;
+
+        if (player.cash >= price) {
+          await this.processCommand(
+            gameId,
+            {
+              commandId: 'timeout_buy_' + Date.now() + '_' + crypto.randomUUID().slice(0, 6),
+              roomId: state.roomId,
+              gameId,
+              expectedVersion: state.version,
+              type: 'BUY_PROPERTY',
+              payload: { spaceIndex: space.spaceIndex },
+            },
+            playerUid,
+            { isServerTimeout: true }
+          );
+        } else {
+          await this.processCommand(
+            gameId,
+            {
+              commandId: 'timeout_decline_buy_' + Date.now() + '_' + crypto.randomUUID().slice(0, 6),
+              roomId: state.roomId,
+              gameId,
+              expectedVersion: state.version,
+              type: 'DECLINE_PROPERTY',
+              payload: {},
+            },
+            playerUid,
+            { isServerTimeout: true }
+          );
+        }
+      } else {
+        await this.processCommand(
+          gameId,
+          {
+            commandId: 'timeout_decline_fallback_' + Date.now() + '_' + crypto.randomUUID().slice(0, 6),
+            roomId: state.roomId,
+            gameId,
+            expectedVersion: state.version,
+            type: 'DECLINE_PROPERTY',
+            payload: {},
+          },
+          playerUid,
+          { isServerTimeout: true }
+        );
+      }
+    }
+
+    // Turn progression: automatically complete turn if no further mandatory actions
+    await this.autoEndTurnIfManagement(gameId, playerUid);
+  }
+
+  /**
+   * Intelligently auto-liquidates eligible assets when a human debtor times out
+   * on the 120-second financial resolution countdown.
+   */
+  private async handleHumanFinancialTimeout(gameId: string, debtorUid: string): Promise<void> {
+    // Step 1: Check existing balance
+    let state = this.games.get(gameId);
+    if (!state || state.status === 'COMPLETED') return;
+    if (state.phase !== 'ACTION_REQUIRED' || !state.pendingFinancialObligation) return;
+    if (state.pendingFinancialObligation.debtorUid !== debtorUid) return;
+
+    let debtor = state.players.find((p) => p.uid === debtorUid);
+    if (!debtor) return;
+
+    if (debtor.cash >= state.pendingFinancialObligation.amountDue) {
+      await this.processCommand(
+        gameId,
+        {
+          commandId: 'timeout_resolve_' + Date.now() + '_' + crypto.randomUUID().slice(0, 6),
+          roomId: state.roomId,
+          gameId,
+          expectedVersion: state.version,
+          type: 'RESOLVE_OBLIGATION',
+          payload: {},
+        },
+        debtorUid,
+        { isServerTimeout: true }
+      );
+      await this.autoEndTurnIfManagement(gameId, debtorUid);
+      return;
+    }
+
+    // Step 2 & 3: Sell assets one at a time following exact UI sorted order
+    while (true) {
+      state = this.games.get(gameId);
+      if (!state || state.status === 'COMPLETED') return;
+
+      // Stop immediately if obligation has already been resolved or cancelled
+      if (state.phase !== 'ACTION_REQUIRED' || !state.pendingFinancialObligation) {
+        break;
+      }
+      if (state.pendingFinancialObligation.debtorUid !== debtorUid) return;
+
+      debtor = state.players.find((p) => p.uid === debtorUid);
+      if (!debtor) return;
+
+      // Check if cash has become sufficient
+      if (debtor.cash >= state.pendingFinancialObligation.amountDue) {
+        await this.processCommand(
+          gameId,
+          {
+            commandId: 'timeout_resolve_' + Date.now() + '_' + crypto.randomUUID().slice(0, 6),
+            roomId: state.roomId,
+            gameId,
+            expectedVersion: state.version,
+            type: 'RESOLVE_OBLIGATION',
+            payload: {},
+          },
+          debtorUid,
+          { isServerTimeout: true }
+        );
+        break;
+      }
+
+      // Retrieve exact Sell-to-Bank priority list
+      const eligibleProps = getSortedEligibleSellToBankProperties(debtorUid, state.properties);
+      if (eligibleProps.length === 0) {
+        // No more eligible properties remain to sell
+        break;
+      }
+
+      // Select and sell the first asset in the sorted list
+      const nextToSell = eligibleProps[0];
+      await this.processCommand(
+        gameId,
+        {
+          commandId: 'timeout_mortgage_' + Date.now() + '_' + nextToSell.spaceIndex + '_' + crypto.randomUUID().slice(0, 6),
+          roomId: state.roomId,
+          gameId,
+          expectedVersion: state.version,
+          type: 'MORTGAGE',
+          payload: { spaceIndex: nextToSell.spaceIndex },
+        },
+        debtorUid,
+        { isServerTimeout: true }
+      );
+    }
+
+    // Step 5: Surrender only after all eligible assets are exhausted
+    state = this.games.get(gameId);
+    if (!state || state.status === 'COMPLETED') return;
+
+    if (
+      state.phase === 'ACTION_REQUIRED' &&
+      state.pendingFinancialObligation &&
+      state.pendingFinancialObligation.debtorUid === debtorUid
+    ) {
+      debtor = state.players.find((p) => p.uid === debtorUid);
+      if (debtor && debtor.cash < state.pendingFinancialObligation.amountDue) {
+        const remainingProps = getSortedEligibleSellToBankProperties(debtorUid, state.properties);
+        if (remainingProps.length === 0) {
+          // No eligible assets remain AND available cash < outstanding amount due -> Surrender!
+          await this.processCommand(
+            gameId,
+            {
+              commandId: 'timeout_give_up_' + Date.now() + '_' + crypto.randomUUID().slice(0, 6),
+              roomId: state.roomId,
+              gameId,
+              expectedVersion: state.version,
+              type: 'GIVE_UP',
+              payload: { reason: 'TIMEOUT' },
+            },
+            debtorUid,
+            { isServerTimeout: true }
+          );
+          return;
+        }
+      }
+    }
+
+    // Step 6: Continue the turn after successful settlement
+    await this.autoEndTurnIfManagement(gameId, debtorUid);
+  }
+
+  /**
+   * Helper: If the given player is the active player and in MANAGEMENT/TURN_END phase
+   * with no pending actions or debt, completes their turn automatically.
+   */
+  private async autoEndTurnIfManagement(gameId: string, playerUid: string): Promise<void> {
+    const state = this.games.get(gameId);
+    if (
+      state &&
+      state.status === 'IN_PROGRESS' &&
+      state.currentPlayerUid === playerUid &&
+      (state.phase === 'MANAGEMENT' || state.phase === 'TURN_END') &&
+      !state.pendingAction &&
+      !state.pendingFinancialObligation
+    ) {
+      await this.processCommand(
+        gameId,
+        {
+          commandId: 'timeout_end_turn_' + Date.now() + '_' + crypto.randomUUID().slice(0, 6),
+          roomId: state.roomId,
+          gameId,
+          expectedVersion: state.version,
+          type: 'END_TURN',
+          payload: {},
+        },
+        playerUid,
+        { isServerTimeout: true }
+      );
     }
   }
 
