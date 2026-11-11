@@ -236,6 +236,7 @@ flowchart TD
     M16["16. Global Settings Popup, Subtle Board Waves, Corner Harmonization & UI Polish<br>• Settings converted to global non-blocking popup dialog accessible across landing, lobby, and gameplay screens<br>• Active gameplay protected: match continues in background without timer/turn pause or component unmounting<br>• Default CPU naming updated to CPU1, CPU2, CPU3 (without space) while retaining custom names<br>• Central board flowing SVG wave animation (animate-board-wave-1/2, pointer-events-none, <6% opacity)<br>• Corner spaces REST and GO TO JAIL background styled identical to START (bg-indian-parchment-100)<br>• START tile subtle ambient pulse (animate-start-glow) and directional arrow movement (animate-start-arrow)<br>• Landing page (?) Rules button added opening authoritative RulesModal<br>• Spacing refined on left player panel keyboard shortcut reference (mb-2 sm:mb-2.5 pb-0.5)<br>• 245 Tests Passing (100%) across 21 test suites"]
     M17["17. Low-Balance Label, Reacquisition Terminology & Centered Inspection Overlay<br>• Updated spectator Low-Balance Resolution timer label to authoritative 120s Window (expiresAt = now + 120000)<br>• Property-noun-aware reacquisition dialog: 'Reacquire City' vs 'Reacquire Property' for transits/utilities<br>• Aligned insufficient balance toast notification to 'this city' vs 'this property'<br>• Repositioned Board Inspection Mode overlay directly centered over the two dice via React portal (#board-inspection-dice-anchor)<br>• High stacking priority (z-[130]) ensuring dice are covered without obscuring perimeter tiles or grid boundaries<br>• Removed central board wave layer, SVG waves, and rotating watermark for a clean dice arena<br>• 249 Tests Passing (100%) across 21 test suites"]
     M18["18. Human Timeout Auto-Resolution & Build Shortcut Refinement<br>• Intelligent human PROPERTY_DECISION timeout: auto-buy if affordable (price/soldToBankPayout), auto-decline if not, immediate auto-end-turn<br>• Automatic reacquisition timeout: auto-unmortgage if cash >= cost, auto-decline if insufficient<br>• Authoritative getSortedEligibleSellToBankProperties sorting: ascending max tariff with spaceIndex tie-break<br>• Step-by-step liquidation at 120s financial timeout: sells only what is needed, surrenders debtor only after all eligible properties exhausted<br>• Internal isServerTimeout option bypassing deadline check for server timeouts<br>• Contextual N shortcut refined to 'N — Decline / Done' (skips construction & ends turn, identical to Done button)<br>• 265 Tests Passing (100%) across 22 test suites"]
+    M19["19. Automatic Jail Decision Resolution on Turn Timeout<br>• Authoritative bail check via getAuthoritativeBailAmount(freshState)<br>• Cash >= bailAmount: auto-executes PAY_BAIL, deducts exact bail, clears jail state, transitions to AWAIT_ROLL with reset timer<br>• Cash < bailAmount: auto-executes TRY_DOUBLES with server cryptographic fair dice<br>• Zero duplicate transactions or rolls; preserves CPU natural strategy and manual user actions<br>• 274 Tests Passing (100%) across 22 test suites"]
 
     M1 --> M2
     M2 --> M3
@@ -254,6 +255,7 @@ flowchart TD
     M15 --> M16
     M16 --> M17
     M17 --> M18
+    M18 --> M19
 ```
 
 ---
@@ -262,6 +264,7 @@ flowchart TD
 
 | Invariant | Formal Definition | Enforcement Point | Verification Result |
 | :--- | :--- | :--- | :--- |
+| **Automatic Jail Timeout Decision** | $\text{Phase} = \text{JAIL\_DECISION} \land \text{Timeout} \implies \begin{cases} \text{exec}(\text{PAY\_BAIL}) & \text{if } \text{Cash} \ge \text{Bail} \\ \text{exec}(\text{TRY\_DOUBLES}) & \text{if } \text{Cash} < \text{Bail} \end{cases}$ | `game-manager.ts` (`handleTimeout`) | ✅ Verified (`turn-sync-and-pacing.test.ts`) |
 | **Intelligent Property Timeout** | $\text{Phase} = \text{PROPERTY\_DECISION} \land \text{Human}(p) \land \text{Timeout} \implies (\text{Cash} \ge \text{Price} \to \text{BUY} \mid \text{DECLINE}) \land \text{END\_TURN}$ | `game-manager.ts` (`handleHumanPropertyDecisionTimeout`) | ✅ Verified (`human-timeout-and-build-shortcut.test.tsx`) |
 | **Reacquisition Timeout** | $\text{HasReacq}(p) \land \text{Human}(p) \land \text{Timeout} \implies (\text{Cash} \ge \text{Cost} \to \text{UNMORTGAGE} \mid \text{DECLINE\_REACQ}) \land \text{END\_TURN}$ | `game-manager.ts` (`handleHumanPropertyDecisionTimeout`) | ✅ Verified (`human-timeout-and-build-shortcut.test.tsx`) |
 | **Sorted Sell-to-Bank Liquidation** | $\text{LiquidationOrder} \equiv \arg\min_{p \in \text{Eligible}} \langle \text{maxTariff}(p), \text{spaceIndex}(p) \rangle$ (sells only until debt covered) | `ruleset.ts` & `game-manager.ts` | ✅ Verified (`human-timeout-and-build-shortcut.test.tsx`) |

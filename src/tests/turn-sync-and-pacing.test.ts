@@ -22,6 +22,8 @@ import {
 import { GameCommand, RoomMember } from '../domain/game-types';
 import { DEFAULT_HOST_RULES, HostCustomRules } from '../domain/ruleset';
 import { GameManager } from '../../server/game/game-manager';
+import { applyGameCommand } from '../domain/game-engine/engine';
+import { createInitialGame } from '../domain/game-engine/create-initial-game';
 
 type TypedClient = ClientSocketType<ServerToClientEvents, ClientToServerEvents>;
 
@@ -1211,6 +1213,421 @@ describe('Turn Synchronization, CPU Pacing & Player Timers', () => {
 
       expect(settled.pendingFinancialObligation.expiresAt).toBe(deadline);
       expect(settled.turnTimeRemaining).toBe(120);
+
+      gm.stopTurnTimer(gameId);
+    });
+  });
+
+  // ==========================================
+  // AUTOMATIC JAIL DECISION RESOLUTION ON TIMEOUT (9 REGRESSION TESTS)
+  // ==========================================
+  describe('Automatic Jail Decision Resolution on Turn Timeout', () => {
+    // 1. A human with exactly the configured bail amount automatically pays bail.
+    it('1. automatically pays bail when a human player has exactly the configured bail amount on timeout', async () => {
+      const gm = new GameManager();
+      const members: Record<string, RoomMember> = {
+        player_h1: { uid: 'player_h1', displayName: 'HumanPlayer1', photoURL: null, isReady: true, colorToken: '#EF4444', joinedAt: Date.now() },
+        player_h2: { uid: 'player_h2', displayName: 'HumanPlayer2', photoURL: null, isReady: true, colorToken: '#3B82F6', joinedAt: Date.now() },
+      };
+      const room = createTestRoom('room_jail_exact', 'player_h1', members, { ...DEFAULT_HOST_RULES, jailBail: 500 });
+      const startRes = gm.startGame(room, 'player_h1');
+      const gameId = startRes.gameId!;
+      const state = gm.getGame(gameId)!;
+
+      state.currentPlayerUid = 'player_h1';
+      state.players[0].inJail = true;
+      state.players[0].position = 10;
+      state.players[0].jailTurns = 1;
+      state.players[0].cash = 500;
+      state.phase = 'JAIL_DECISION';
+
+      await gm.triggerTimeout(gameId);
+
+      const afterState = gm.getGame(gameId)!;
+      expect(afterState.players[0].cash).toBe(0);
+      expect(afterState.players[0].inJail).toBe(false);
+      expect(afterState.players[0].jailTurns).toBe(0);
+      expect(afterState.phase).toBe('AWAIT_ROLL');
+
+      gm.stopTurnTimer(gameId);
+    });
+
+    // 2. A human with more than the configured bail amount automatically pays bail.
+    it('2. automatically pays bail when a human player has more than the configured bail amount on timeout', async () => {
+      const gm = new GameManager();
+      const members: Record<string, RoomMember> = {
+        player_h1: { uid: 'player_h1', displayName: 'HumanPlayer1', photoURL: null, isReady: true, colorToken: '#EF4444', joinedAt: Date.now() },
+        player_h2: { uid: 'player_h2', displayName: 'HumanPlayer2', photoURL: null, isReady: true, colorToken: '#3B82F6', joinedAt: Date.now() },
+      };
+      const room = createTestRoom('room_jail_surplus', 'player_h1', members, { ...DEFAULT_HOST_RULES, jailBail: 500 });
+      const startRes = gm.startGame(room, 'player_h1');
+      const gameId = startRes.gameId!;
+      const state = gm.getGame(gameId)!;
+
+      state.currentPlayerUid = 'player_h1';
+      state.players[0].inJail = true;
+      state.players[0].position = 10;
+      state.players[0].jailTurns = 1;
+      state.players[0].cash = 2500;
+      state.phase = 'JAIL_DECISION';
+
+      await gm.triggerTimeout(gameId);
+
+      const afterState = gm.getGame(gameId)!;
+      expect(afterState.players[0].cash).toBe(2000);
+      expect(afterState.players[0].inJail).toBe(false);
+      expect(afterState.players[0].jailTurns).toBe(0);
+      expect(afterState.phase).toBe('AWAIT_ROLL');
+
+      gm.stopTurnTimer(gameId);
+    });
+
+    // 3. A human with insufficient cash automatically attempts doubles.
+    it('3. automatically executes TRY_DOUBLES when human cash is insufficient for bail on timeout', async () => {
+      const gm = new GameManager();
+      const members: Record<string, RoomMember> = {
+        player_h1: { uid: 'player_h1', displayName: 'HumanPlayer1', photoURL: null, isReady: true, colorToken: '#EF4444', joinedAt: Date.now() },
+        player_h2: { uid: 'player_h2', displayName: 'HumanPlayer2', photoURL: null, isReady: true, colorToken: '#3B82F6', joinedAt: Date.now() },
+      };
+      const room = createTestRoom('room_jail_insufficient', 'player_h1', members, { ...DEFAULT_HOST_RULES, jailBail: 500 });
+      const startRes = gm.startGame(room, 'player_h1');
+      const gameId = startRes.gameId!;
+      const state = gm.getGame(gameId)!;
+
+      state.currentPlayerUid = 'player_h1';
+      state.players[0].inJail = true;
+      state.players[0].position = 10;
+      state.players[0].jailTurns = 1;
+      state.players[0].cash = 300; // < 500
+      state.phase = 'JAIL_DECISION';
+
+      await gm.triggerTimeout(gameId);
+
+      const afterState = gm.getGame(gameId)!;
+      // Bail must NOT be deducted
+      expect(afterState.players[0].cash).toBe(300);
+      expect(afterState.dice).toBeDefined();
+      if (afterState.dice?.isDouble) {
+        expect(afterState.players[0].inJail).toBe(false);
+        expect(afterState.players[0].jailTurns).toBe(0);
+      } else {
+        expect(afterState.players[0].inJail).toBe(true);
+        expect(afterState.players[0].jailTurns).toBe(2);
+      }
+
+      gm.stopTurnTimer(gameId);
+    });
+
+    // 4. The configured host bail amount is respected instead of assuming ₹500.
+    it('4. respects configured custom host bail amount instead of assuming default ₹500', async () => {
+      const gm = new GameManager();
+      const members: Record<string, RoomMember> = {
+        player_h1: { uid: 'player_h1', displayName: 'HumanPlayer1', photoURL: null, isReady: true, colorToken: '#EF4444', joinedAt: Date.now() },
+        player_h2: { uid: 'player_h2', displayName: 'HumanPlayer2', photoURL: null, isReady: true, colorToken: '#3B82F6', joinedAt: Date.now() },
+      };
+      // Custom host configured bail = ₹1,200
+      const room = createTestRoom('room_jail_custom', 'player_h1', members, { ...DEFAULT_HOST_RULES, jailBail: 1200 });
+      const startRes = gm.startGame(room, 'player_h1');
+      const gameId = startRes.gameId!;
+      const state = gm.getGame(gameId)!;
+      state.rules!.jailBail = 1200;
+
+      // Has ₹800 (more than default 500, but less than configured 1200)
+      state.currentPlayerUid = 'player_h1';
+      state.players[0].inJail = true;
+      state.players[0].position = 10;
+      state.players[0].jailTurns = 1;
+      state.players[0].cash = 800;
+      state.phase = 'JAIL_DECISION';
+
+      await gm.triggerTimeout(gameId);
+
+      const afterState1 = gm.getGame(gameId)!;
+      // Must NOT pay bail because 800 < 1200
+      expect(afterState1.players[0].cash).toBe(800);
+      expect(afterState1.dice).toBeDefined();
+
+      // Reset to JAIL_DECISION with ₹1,200 (exact configured bail)
+      afterState1.currentPlayerUid = 'player_h1';
+      afterState1.players[0].inJail = true;
+      afterState1.players[0].position = 10;
+      afterState1.players[0].jailTurns = 1;
+      afterState1.players[0].cash = 1200;
+      afterState1.phase = 'JAIL_DECISION';
+
+      await gm.triggerTimeout(gameId);
+
+      const afterState2 = gm.getGame(gameId)!;
+      expect(afterState2.players[0].cash).toBe(0); // 1200 - 1200
+      expect(afterState2.players[0].inJail).toBe(false);
+      expect(afterState2.phase).toBe('AWAIT_ROLL');
+
+      gm.stopTurnTimer(gameId);
+    });
+
+    // 5. PAY_BAIL correctly releases the player and transitions to AWAIT_ROLL.
+    it('5. PAY_BAIL correctly releases the player, records transactions, resets timer, and transitions to AWAIT_ROLL', async () => {
+      const gm = new GameManager();
+      const members: Record<string, RoomMember> = {
+        player_h1: { uid: 'player_h1', displayName: 'HumanPlayer1', photoURL: null, isReady: true, colorToken: '#EF4444', joinedAt: Date.now() },
+        player_h2: { uid: 'player_h2', displayName: 'HumanPlayer2', photoURL: null, isReady: true, colorToken: '#3B82F6', joinedAt: Date.now() },
+      };
+      const room = createTestRoom('room_jail_release', 'player_h1', members, { ...DEFAULT_HOST_RULES, turnTimerSeconds: 45, jailBail: 500 });
+      const startRes = gm.startGame(room, 'player_h1');
+      const gameId = startRes.gameId!;
+      const state = gm.getGame(gameId)!;
+
+      state.currentPlayerUid = 'player_h1';
+      state.players[0].inJail = true;
+      state.players[0].position = 10;
+      state.players[0].jailTurns = 2;
+      state.players[0].cash = 1500;
+      state.phase = 'JAIL_DECISION';
+
+      await gm.triggerTimeout(gameId);
+
+      const afterState = gm.getGame(gameId)!;
+      expect(afterState.players[0].cash).toBe(1000);
+      expect(afterState.players[0].inJail).toBe(false);
+      expect(afterState.players[0].jailTurns).toBe(0);
+      expect(afterState.phase).toBe('AWAIT_ROLL');
+
+      // Check transaction and active notification
+      expect(afterState.activeMoneyTransaction?.type).toBe('BAIL');
+      expect(afterState.activeMoneyTransaction?.amount).toBe(500);
+      const tx = afterState.transactions?.find((t) => t.type === 'JAIL_PAYMENT');
+      expect(tx).toBeDefined();
+      expect(tx?.amount).toBe(500);
+
+      // Verify timer is running and reset to full turn duration (45s)
+      expect(afterState.turnTimeRemaining).toBe(45);
+      expect(afterState.isTimerPaused).toBe(false);
+
+      gm.stopTurnTimer(gameId);
+    });
+
+    // 6. TRY_DOUBLES preserves existing behaviour for both successful and unsuccessful rolls.
+    it('6. TRY_DOUBLES preserves existing behaviour for both successful and unsuccessful rolls', () => {
+      const members: Record<string, RoomMember> = {
+        player_h1: { uid: 'player_h1', displayName: 'HumanPlayer1', photoURL: null, isReady: true, colorToken: '#EF4444', joinedAt: Date.now() },
+        player_h2: { uid: 'player_h2', displayName: 'HumanPlayer2', photoURL: null, isReady: true, colorToken: '#3B82F6', joinedAt: Date.now() },
+      };
+      const room = createTestRoom('room_jail_doubles_behavior', 'player_h1', members);
+      const initial = createInitialGame(room.roomId, 'game_doubles_test', members, room.customRules, 'player_h1');
+
+      // Sub-case A: Successful roll with doubles [3, 3]
+      const stateA = JSON.parse(JSON.stringify(initial));
+      stateA.currentPlayerUid = 'player_h1';
+      stateA.players[0].inJail = true;
+      stateA.players[0].position = 10;
+      stateA.players[0].jailTurns = 1;
+      stateA.players[0].cash = 200;
+      stateA.phase = 'JAIL_DECISION';
+
+      const resDoubles = applyGameCommand(
+        stateA,
+        {
+          commandId: 'cmd_try_doubles_win',
+          roomId: room.roomId,
+          gameId: 'game_doubles_test',
+          expectedVersion: stateA.version,
+          type: 'TRY_DOUBLES',
+          payload: {},
+        },
+        'player_h1',
+        [3, 3] // Double!
+      );
+
+      expect(resDoubles.nextState.players[0].inJail).toBe(false);
+      expect(resDoubles.nextState.players[0].jailTurns).toBe(0);
+      expect(resDoubles.nextState.players[0].escapedJailThisTurn).toBe(true);
+      expect(resDoubles.nextState.players[0].position).toBe(16); // 10 + 6 = 16
+      expect(resDoubles.nextState.dice?.isDouble).toBe(true);
+
+      // Sub-case B: Unsuccessful roll without doubles [2, 4]
+      const stateB = JSON.parse(JSON.stringify(initial));
+      stateB.currentPlayerUid = 'player_h1';
+      stateB.players[0].inJail = true;
+      stateB.players[0].position = 10;
+      stateB.players[0].jailTurns = 1;
+      stateB.players[0].cash = 200;
+      stateB.phase = 'JAIL_DECISION';
+
+      const resNoDoubles = applyGameCommand(
+        stateB,
+        {
+          commandId: 'cmd_try_doubles_loss',
+          roomId: room.roomId,
+          gameId: 'game_doubles_test',
+          expectedVersion: stateB.version,
+          type: 'TRY_DOUBLES',
+          payload: {},
+        },
+        'player_h1',
+        [2, 4] // Not doubles
+      );
+
+      expect(resNoDoubles.nextState.players[0].inJail).toBe(true);
+      expect(resNoDoubles.nextState.players[0].jailTurns).toBe(2);
+      expect(resNoDoubles.nextState.players[0].escapedJailThisTurn).toBe(false);
+      expect(resNoDoubles.nextState.players[0].position).toBe(10); // Still at jail
+      expect(resNoDoubles.nextState.phase).toBe('TURN_END');
+    });
+
+    // 7. No duplicate bail payment or doubles attempt occurs.
+    it('7. prevents duplicate bail payment or doubles attempt on subsequent or duplicate timeout triggers', async () => {
+      const gm = new GameManager();
+      const members: Record<string, RoomMember> = {
+        player_h1: { uid: 'player_h1', displayName: 'HumanPlayer1', photoURL: null, isReady: true, colorToken: '#EF4444', joinedAt: Date.now() },
+        player_h2: { uid: 'player_h2', displayName: 'HumanPlayer2', photoURL: null, isReady: true, colorToken: '#3B82F6', joinedAt: Date.now() },
+      };
+      const room = createTestRoom('room_jail_dedup', 'player_h1', members, { ...DEFAULT_HOST_RULES, jailBail: 500 });
+      const startRes = gm.startGame(room, 'player_h1');
+      const gameId = startRes.gameId!;
+      const state = gm.getGame(gameId)!;
+
+      state.currentPlayerUid = 'player_h1';
+      state.players[0].inJail = true;
+      state.players[0].position = 10;
+      state.players[0].jailTurns = 1;
+      state.players[0].cash = 1000;
+      state.phase = 'JAIL_DECISION';
+
+      // First timeout trigger executes PAY_BAIL
+      await gm.triggerTimeout(gameId);
+
+      const stateAfterFirst = gm.getGame(gameId)!;
+      expect(stateAfterFirst.players[0].cash).toBe(500); // 1000 - 500
+      expect(stateAfterFirst.players[0].inJail).toBe(false);
+      expect(stateAfterFirst.phase).toBe('AWAIT_ROLL');
+
+      const bailTxsFirst = stateAfterFirst.transactions?.filter((t) => t.type === 'JAIL_PAYMENT') ?? [];
+      expect(bailTxsFirst).toHaveLength(1);
+
+      // Attempt second timeout immediately — phase is now AWAIT_ROLL, so it rolls dice, never pays bail twice!
+      await gm.triggerTimeout(gameId);
+
+      const stateAfterSecond = gm.getGame(gameId)!;
+      const bailTxsSecond = stateAfterSecond.transactions?.filter((t) => t.type === 'JAIL_PAYMENT') ?? [];
+      // Exactly one bail payment ever occurred
+      expect(bailTxsSecond).toHaveLength(1);
+
+      gm.stopTurnTimer(gameId);
+    });
+
+    // 8. Existing CPU jail decisions remain unchanged.
+    it('8. preserves CPU natural strategic jail decisions via CpuController without waiting for timeout', async () => {
+      const gm = new GameManager({ jailDelay: 50 });
+      const members: Record<string, RoomMember> = {
+        cpu_1: {
+          uid: 'cpu_1',
+          displayName: 'Computer 1',
+          photoURL: null,
+          isReady: true,
+          colorToken: '#EF4444',
+          joinedAt: Date.now(),
+          isCpu: true,
+          playerType: 'COMPUTER',
+        },
+        player_h1: {
+          uid: 'player_h1',
+          displayName: 'HumanPlayer1',
+          photoURL: null,
+          isReady: true,
+          colorToken: '#3B82F6',
+          joinedAt: Date.now(),
+        },
+      };
+      const room = createTestRoom('room_cpu_jail', 'cpu_1', members, { ...DEFAULT_HOST_RULES, jailBail: 500 });
+      const startRes = gm.startGame(room, 'cpu_1');
+      const gameId = startRes.gameId!;
+      const state = gm.getGame(gameId)!;
+
+      state.currentPlayerUid = 'cpu_1';
+      state.players[0].inJail = true;
+      state.players[0].position = 10;
+      state.players[0].jailTurns = 1;
+      state.players[0].cash = 3000;
+      state.phase = 'JAIL_DECISION';
+      state.turnTimeRemaining = 30; // Plenty of time remaining!
+
+      // Notify CpuController
+      gm.getCpuController().onGameStateChanged(state);
+
+      // Wait for CPU jail delay (50ms)
+      await new Promise((r) => setTimeout(r, 120));
+
+      const afterCpu = gm.getGame(gameId)!;
+      // CPU executed decision before timeout occurred
+      expect(afterCpu.turnTimeRemaining).toBeGreaterThan(0);
+      // Since CPU had 3000 cash, it paid bail and was released or used card
+      expect(afterCpu.players[0].inJail).toBe(false);
+
+      gm.stopTurnTimer(gameId);
+    });
+
+    // 9. Normal manual bail and doubles actions remain unaffected.
+    it('9. preserves normal manual PAY_BAIL and TRY_DOUBLES actions before turn timer expires', async () => {
+      const gm = new GameManager();
+      const members: Record<string, RoomMember> = {
+        player_h1: { uid: 'player_h1', displayName: 'HumanPlayer1', photoURL: null, isReady: true, colorToken: '#EF4444', joinedAt: Date.now() },
+        player_h2: { uid: 'player_h2', displayName: 'HumanPlayer2', photoURL: null, isReady: true, colorToken: '#3B82F6', joinedAt: Date.now() },
+      };
+      const room = createTestRoom('room_manual_jail', 'player_h1', members, { ...DEFAULT_HOST_RULES, jailBail: 500 });
+      const startRes = gm.startGame(room, 'player_h1');
+      const gameId = startRes.gameId!;
+      const state = gm.getGame(gameId)!;
+
+      // 9A: Manual PAY_BAIL
+      state.currentPlayerUid = 'player_h1';
+      state.players[0].inJail = true;
+      state.players[0].position = 10;
+      state.players[0].jailTurns = 1;
+      state.players[0].cash = 1000;
+      state.phase = 'JAIL_DECISION';
+
+      const resBail = await gm.processCommand(
+        gameId,
+        {
+          commandId: 'cmd_manual_bail',
+          roomId: room.roomId,
+          gameId,
+          expectedVersion: state.version,
+          type: 'PAY_BAIL',
+          payload: {},
+        },
+        'player_h1'
+      );
+
+      expect(resBail.nextState.players[0].cash).toBe(500);
+      expect(resBail.nextState.players[0].inJail).toBe(false);
+      expect(resBail.nextState.phase).toBe('AWAIT_ROLL');
+
+      // 9B: Manual TRY_DOUBLES
+      resBail.nextState.players[0].inJail = true;
+      resBail.nextState.players[0].position = 10;
+      resBail.nextState.phase = 'JAIL_DECISION';
+
+      const resDoubles = await gm.processCommand(
+        gameId,
+        {
+          commandId: 'cmd_manual_doubles',
+          roomId: room.roomId,
+          gameId,
+          expectedVersion: resBail.nextState.version,
+          type: 'TRY_DOUBLES',
+          payload: {},
+        },
+        'player_h1'
+      );
+
+      expect(resDoubles.nextState.dice).toBeDefined();
+      if (resDoubles.nextState.dice?.isDouble) {
+        expect(resDoubles.nextState.players[0].inJail).toBe(false);
+      } else {
+        expect(resDoubles.nextState.players[0].inJail).toBe(true);
+        expect(resDoubles.nextState.phase).toBe('TURN_END');
+      }
 
       gm.stopTurnTimer(gameId);
     });

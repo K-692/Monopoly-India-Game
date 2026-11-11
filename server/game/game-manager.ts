@@ -17,7 +17,7 @@ import { createInitialGame } from '../../src/domain/game-engine/create-initial-g
 import { applyGameCommand, EngineResult, GameEngineError } from '../../src/domain/game-engine/engine';
 import { generateFairDicePair } from '../../src/domain/game-engine/dice-fairness';
 import { BOARD_SPACES } from '../../src/domain/board-config';
-import { getSortedEligibleSellToBankProperties } from '../../src/domain/ruleset';
+import { getAuthoritativeBailAmount, getSortedEligibleSellToBankProperties } from '../../src/domain/ruleset';
 import { ServerRoom } from '../types/server-types';
 import { CpuController, CpuControllerTimingConfig } from './cpu-controller';
 
@@ -528,6 +528,7 @@ export class GameManager {
 
     const turnDuration = gameState.rules?.turnTimerSeconds ?? 30;
     gameState.turnTimeRemaining = turnDuration;
+    gameState.isTimerPaused = false;
     this.startTurnTimer(gameState);
   }
 
@@ -635,16 +636,21 @@ export class GameManager {
           this.recoverStuckTurn(freshState.gameId);
         });
       } else if (freshState.phase === 'JAIL_DECISION') {
+        const activePlayer = freshState.players.find((p) => p.uid === activeUid);
+        const bailAmount = getAuthoritativeBailAmount(freshState);
+        const hasSufficientCash = Boolean(activePlayer && activePlayer.cash >= bailAmount);
+
+        const commandType = hasSufficientCash ? 'PAY_BAIL' : 'TRY_DOUBLES';
         const cmd: GameCommand = {
           commandId,
           roomId: freshState.roomId,
           gameId: freshState.gameId,
           expectedVersion: freshState.version,
-          type: 'TRY_DOUBLES',
+          type: commandType,
           payload: {},
         };
         await this.processCommand(freshState.gameId, cmd, activeUid, { isServerTimeout: true }).catch((e) => {
-          console.warn('Timeout TRY_DOUBLES failed:', e);
+          console.warn(`Timeout ${commandType} failed:`, e);
           this.recoverStuckTurn(freshState.gameId);
         });
       } else if (freshState.phase === 'ACTION_REQUIRED' && freshState.pendingFinancialObligation) {

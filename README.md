@@ -97,7 +97,7 @@ Waiting for players...
       │   │  - Cryptographic Fair Dice (Rejection Sampling, Zero Modulo Bias)│   │
       │   │  - Serialized Action Queue (Zero Race Conditions)                │   │
       │   │  - 120s Debt Resolution Timer & Monotonic State Sync             │   │
-      │   │  - Intelligent Human Timeout Auto-Resolution & Auto-Liquidation  │   │
+      │   │  - Intelligent Turn & Jail Timeout Auto-Resolution & Liquidation   │   │
       │   +────────────┬─────────────────────────────────────────────────────+   │
       │                │                                                         │
       │   +────────────▼───────────────────────────────────+                     │
