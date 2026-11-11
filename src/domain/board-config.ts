@@ -754,7 +754,7 @@ export const MARKET_BUZZ_CARDS: CardAction[] = [
     id: 'market_4',
     deck: 'MARKET',
     title: 'Railway expansion',
-    description: 'Advance to the next Transit space. If another player owns it, pay twice the normal transit rent. If unowned, you may buy it or it goes to auction.',
+    description: 'Advance to the next Transit space (Railway or Airport). If another player owns it, pay twice the normal transit rent. If unowned, you may buy it from the Bank.',
     actionType: 'ADVANCE_NEXT_TRANSIT',
   },
   {
@@ -822,3 +822,31 @@ export const MARKET_BUZZ_CARDS: CardAction[] = [
     targetSpace: 39,
   },
 ];
+
+/**
+ * Returns the authoritative financial effect of a Civic Fund or Market Buzz card
+ * on the player's cash balance:
+ * - 'GAIN': Player receives cash (+ prefix, green color)
+ * - 'LOSS': Player spends/pays cash (- prefix, red color)
+ * - 'NEUTRAL': Non-monetary effect (movement, jail pass, to jail, etc.)
+ */
+export type CardFinancialEffect = 'GAIN' | 'LOSS' | 'NEUTRAL';
+
+export function getCardFinancialEffect(card: CardAction): CardFinancialEffect {
+  if (
+    card.actionType === 'CASH_BANK' ||
+    card.actionType === 'TRANSIT_DIVIDEND' ||
+    card.actionType === 'DEVELOPMENT_GRANT'
+  ) {
+    return 'GAIN';
+  }
+  if (
+    card.actionType === 'PAY_BANK' ||
+    card.actionType === 'PAY_PLAYERS' ||
+    card.actionType === 'DEED_TAX' ||
+    card.actionType === 'REPAIR_TAX'
+  ) {
+    return 'LOSS';
+  }
+  return 'NEUTRAL';
+}

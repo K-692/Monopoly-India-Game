@@ -193,8 +193,8 @@ describe('Player Cards: Separate Balance, Gold Net Worth & Active Turn Timer', (
 });
 
 describe('In-Game Rules Guide & RulesModal (?) Requirements', () => {
-  it('Requirement 3.B: contains all 11 authoritative sections with complete fidelity', () => {
-    expect(GAME_RULES_SECTIONS).toHaveLength(11);
+  it('Requirement 3.B: contains all authoritative sections with complete fidelity', () => {
+    expect(GAME_RULES_SECTIONS).toHaveLength(12);
 
     const expectedSections = [
       { num: 1, title: 'Objective of the Game' },
@@ -208,6 +208,7 @@ describe('In-Game Rules Guide & RulesModal (?) Requirements', () => {
       { num: 9, title: 'Debt and Bankruptcy' },
       { num: 10, title: 'Winning the Game' },
       { num: 11, title: 'Multiplayer and CPU Rules' },
+      { num: 12, title: 'Keyboard Shortcuts' },
     ];
 
     expectedSections.forEach(({ num, title }) => {

@@ -160,7 +160,7 @@ For complete mathematical definitions, state machine proofs, and research citati
 | `npm run build:server` | Bundles the standalone server into `dist-server/index.cjs` using `esbuild`. |
 | `npm run build:desktop` | Builds both the React LAN frontend (`dist/`) and the server bundle (`dist-server/index.cjs`). |
 | `npm run desktop` | Builds desktop assets and launches the application inside native Electron. |
-| `npm test` | Runs the full Vitest test suite (199 tests across 18 test files). |
+| `npm test` | Runs the full Vitest test suite (220 tests across 19 test files). |
 | `npm run test:watch` | Runs Vitest in interactive watch mode for test-driven development. |
 | `npm run test:coverage`| Generates detailed test code coverage reports. |
 | `npm run typecheck` | Strict TypeScript compiler validation across client, server, and tests (`tsc -b --noEmit`). |
@@ -180,7 +180,10 @@ For complete mathematical definitions, state machine proofs, and research citati
 | **Starting Balance** | **Configurable via Slider**: ₹5,000 to ₹50,000 (step ₹5,000, default ₹20,000). Applied uniformly to all human & CPU players. |
 | **Crossing START** | **Host-Configurable Salary**: Selectable options of ₹1,000, ₹2,000, or ₹3,000 (default ₹2,000) credited each circuit or via Festival Travel card. |
 | **Winner & Net Worth** | Match champion is determined strictly by **highest Net Worth** (Cash + Total Owned Assets - Outstanding Liabilities), tie-broken by remaining Cash Balance, then Player UID. |
+| **Dynamic Net Worth Rankings** | Player cards in the left panel feature live authoritative rank badges (**#1**, **#2**, **#3**) based on Net Worth, highlighting the #1 player in gold and applying standard competition ranking (e.g. #1, #1, #3) on ties. |
 | **Player Cards & Net Worth** | Left information panel displays prominent liquid Cash Balance (largest) and separate gold NET WORTH amount (medium font, gold badge). The running turn timer is integrated directly inside the active player's card, moving dynamically on handoff. |
+| **Card Financial Clarity** | Civic Fund and Market Buzz cards highlight monetary impact with clear color polarity: **+ ₹...** in emerald green for reward earnings, **- ₹...** in coral red for payments/losses, and clean neutral formatting for movement/utility cards. Nonexistent auction references removed. |
+| **Turn Continuity Safeguards** | Zero-stall guarantee: Authoritative CPU decision controller provides phase-aware deterministic fallbacks across all phases, and the server turn manager executes stuck-turn recovery if CPU retries are ever exhausted. |
 | **Central Jail & Bail** | Players enter jail via "Go to Jail" square or card events. Release methods: **Bail Key Card**, **₹500 Statutory Bail**, or rolling doubles within 3 attempts. Automatic release on 4th turn. |
 | **House Construction** | Monopoly holders can build houses on a city **only when actively visiting that city** on a subsequent turn. Uniform building distribution enforced across the color group. |
 | **Sell to Bank** | Players can liquidate properties to the bank for 50% purchase + 50% development value to satisfy obligations. Reacquired bank properties preserve previously built houses. |
@@ -192,15 +195,19 @@ For complete mathematical definitions, state machine proofs, and research citati
 
 ## ⌨️ Desktop Keyboard Shortcuts
 
-For laptop and desktop players, quick-action keyboard shortcuts streamline turn actions:
+For laptop and desktop players, context-sensitive keyboard shortcuts streamline gameplay:
 
 | Key | Context / Condition | Executed Action |
 | :--- | :--- | :--- |
-| <kbd>Space</kbd> | `AWAIT_ROLL` or `JAIL_DECISION` for active human player | **Rolls the Dice** (prevents page scrolling) |
-| <kbd>Enter</kbd> | Active human player with actionable prompt | **Confirms Primary Action**: Buy Property, Reacquire from Bank, Build House, or End Turn |
-| <kbd>N</kbd> | Active human player with actionable prompt | **Declines / Skips Action**: Decline Property, Decline Reacquisition, Skip Building, or Close Voluntary Mortgage |
+| <kbd>Spacebar</kbd> | `AWAIT_ROLL` phase | **Roll Dice**: Rolls the dice and animates 3D pips |
+| <kbd>Spacebar</kbd> | `JAIL_DECISION` phase | **Try Double**: Attempts to roll doubles to escape jail without paying bail |
+| <kbd>Spacebar</kbd> | Management or finished turn state | **End Turn**: Concludes current turn when eligible |
+| <kbd>S</kbd> | Player has unmortgaged properties | **Sell to Bank**: Opens / activates the Sell-to-Bank mortgage interface |
+| <kbd>Enter</kbd> | Actionable prompt | **Accept / Bail**: Buys property, accepts reacquisition, builds house, or pays jail bail / uses card |
+| <kbd>N</kbd> | Actionable prompt | **Decline**: Declines property purchase, declines reacquisition, or finishes building |
 
-> **Safety note:** Shortcuts are automatically suppressed when typing inside text inputs, when rules or modal dialogs are open, during board inspection preview, or during computer player turns.
+> **Permanent Visual Reference:** A compact, non-intrusive keycap guide is permanently anchored at the bottom of the left player information panel for instant reference during matches. Complete rules and mechanics are fully documented in **Section 12: Keyboard Shortcuts** of the in-game Rules Guide.  
+> **Safety Safeguards:** Keyboard shortcuts are automatically suppressed while typing in text inputs or textareas, during modals/rules dialogs, during debt board preview, on computer player turns, and against key-repeat spam.
 
 ---
 

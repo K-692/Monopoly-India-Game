@@ -386,7 +386,7 @@ describe('Refinements: Net Worth Typography, Board Preview, Alert Sounds & Keybo
       expect(onDispatch).toHaveBeenCalledWith('BUY_PROPERTY', { spaceIndex: 6 });
     });
 
-    it('Enter activates END_TURN when player is in MANAGEMENT phase', () => {
+    it('Spacebar activates END_TURN when player is in MANAGEMENT phase', () => {
       const onDispatch = vi.fn();
 
       const gameState = createBaseGameState({
@@ -406,7 +406,7 @@ describe('Refinements: Net Worth Typography, Board Preview, Alert Sounds & Keybo
         />
       );
 
-      fireEvent.keyDown(window, { key: 'Enter' });
+      fireEvent.keyDown(window, { code: 'Space' });
       expect(onDispatch).toHaveBeenCalledWith('END_TURN');
     });
 

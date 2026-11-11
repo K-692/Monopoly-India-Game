@@ -643,11 +643,51 @@ export class GameManager {
 
   /**
    * Fail-safe recovery if a turn action threw an error or rejected,
-   * restarting countdown to prevent game freeze.
+   * applying a safe phase-specific fallback to prevent game freeze.
    */
   private recoverStuckTurn(gameId: string): void {
     const state = this.games.get(gameId);
     if (!state || state.status === 'COMPLETED') return;
+
+    console.warn(
+      `[GameManager] [STABILITY] Recovering stuck turn for game ${gameId} in phase ${state.phase}, player ${state.currentPlayerUid}`
+    );
+
+    const activePlayer = state.players.find((p) => p.uid === state.currentPlayerUid);
+    const commandId = 'recovery_' + Date.now() + '_' + crypto.randomUUID().slice(0, 6);
+
+    // If active player is a CPU, trigger CPU controller directly to take safe action
+    if (activePlayer && (activePlayer.isCpu || activePlayer.playerType === 'COMPUTER')) {
+      const fallback = this.cpuController.getSafeFallbackDecision(state, activePlayer);
+      if (fallback) {
+        this.processCommand(gameId, {
+          commandId,
+          roomId: state.roomId,
+          gameId: state.gameId,
+          expectedVersion: state.version,
+          type: fallback.type,
+          payload: fallback.payload || {},
+        }, activePlayer.uid).catch(() => {
+          this.resetTurnTimer(state);
+        });
+        return;
+      }
+    }
+
+    if (state.phase === 'MANAGEMENT' || state.phase === 'TURN_END') {
+      this.processCommand(gameId, {
+        commandId,
+        roomId: state.roomId,
+        gameId: state.gameId,
+        expectedVersion: state.version,
+        type: 'END_TURN',
+        payload: {},
+      }, state.currentPlayerUid).catch(() => {
+        this.resetTurnTimer(state);
+      });
+      return;
+    }
+
     this.resetTurnTimer(state);
   }
 

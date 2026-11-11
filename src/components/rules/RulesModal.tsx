@@ -16,9 +16,10 @@ import {
   CheckCircle2,
   ChevronRight,
   Search,
+  Keyboard,
 } from 'lucide-react';
 import { GAME_RULES_SECTIONS } from '@/domain/game-rules-guide';
-import { CIVIC_FUND_CARDS, MARKET_BUZZ_CARDS } from '@/domain/board-config';
+import { CIVIC_FUND_CARDS, MARKET_BUZZ_CARDS, getCardFinancialEffect } from '@/domain/board-config';
 
 interface RulesModalProps {
   isOpen: boolean;
@@ -28,6 +29,8 @@ interface RulesModalProps {
 // Icon mapper helper
 const renderSectionIcon = (iconName: string, className = 'w-4 h-4') => {
   switch (iconName) {
+    case 'Keyboard':
+      return <Keyboard className={className} />;
     case 'Trophy':
       return <Trophy className={className} />;
     case 'Sliders':
@@ -294,11 +297,28 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
                                 <span className="w-4 h-4 rounded-full bg-stone-700 text-white text-[9px] font-bold flex items-center justify-center">
                                   {idx + 1}
                                 </span>
-                                {card.amount && (
-                                  <span className="font-mono font-bold text-[10px] text-emerald-600 dark:text-emerald-400">
-                                    ₹{card.amount.toLocaleString('en-IN')}
-                                  </span>
-                                )}
+                                {card.amount && card.actionType !== 'MOVE_RELATIVE' && (() => {
+                                  const effect = getCardFinancialEffect(card);
+                                  if (effect === 'LOSS') {
+                                    return (
+                                      <span className="font-mono font-bold text-[10px] text-red-600 dark:text-red-400">
+                                        - ₹{Math.abs(card.amount).toLocaleString('en-IN')}
+                                      </span>
+                                    );
+                                  }
+                                  if (effect === 'GAIN') {
+                                    return (
+                                      <span className="font-mono font-bold text-[10px] text-emerald-600 dark:text-emerald-400">
+                                        + ₹{card.amount.toLocaleString('en-IN')}
+                                      </span>
+                                    );
+                                  }
+                                  return (
+                                    <span className="font-mono font-bold text-[10px] text-stone-600 dark:text-stone-300">
+                                      ₹{card.amount.toLocaleString('en-IN')}
+                                    </span>
+                                  );
+                                })()}
                               </div>
                               <div className="font-bold text-[11px] text-indian-navy-900 dark:text-white">
                                 {card.title}

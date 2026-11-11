@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { BOARD_SPACES, CIVIC_FUND_CARDS, MARKET_BUZZ_CARDS } from '@/domain/board-config';
+import { BOARD_SPACES, CIVIC_FUND_CARDS, MARKET_BUZZ_CARDS, getCardFinancialEffect } from '@/domain/board-config';
 import { CardAction, GameActionType, GameEvent, GameState, PropertyDefinition, WalkingAnimationState } from '@/domain/game-types';
 import { BoardSpaceTile } from './BoardSpaceTile';
 import { CityDeedModal } from './CityDeedModal';
@@ -474,18 +474,19 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     }
   }, [isShowingPurchasePrompt, gameState.turnNumber, playerPos]);
 
-  // Requirement 4: Global gameplay keyboard shortcuts (Space, Enter, N)
+  // Requirement 1: Global gameplay context-sensitive keyboard shortcuts (Space, S, Enter, N)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // 1. Never trigger on repeated keys (holding key down)
       if (e.repeat) return;
 
-      // 2. Ignore when typing inside input fields, textareas, or content-editable elements
+      // 2. Ignore when typing inside input fields, textareas, selects, or content-editable elements
       const target = e.target as HTMLElement | null;
       if (
         target &&
         (target.tagName === 'INPUT' ||
           target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT' ||
           target.isContentEditable ||
           target.getAttribute?.('role') === 'textbox')
       ) {
@@ -501,65 +502,92 @@ export const GameBoard: React.FC<GameBoardProps> = ({
       // 5. Read-only board inspection mode suppresses gameplay actions
       if (isBoardInspecting) return;
 
-      // --- Space: Roll the Dice ---
+      const canAct =
+        !isRolling &&
+        !walkingAnimation &&
+        !gameState.handoff?.isActive &&
+        (!gameState.movement || gameState.movement.isComplete);
+
+      // --- Spacebar: Context-Sensitive Roll / Try Double / End Turn ---
       if (e.code === 'Space') {
-        const canRoll =
-          !isRolling &&
-          !walkingAnimation &&
-          !gameState.handoff?.isActive &&
-          (!gameState.movement || gameState.movement.isComplete);
+        // Prevent default spacebar scrolling whenever holding the active turn
+        e.preventDefault();
 
-        if (canRoll && gameState.phase === 'AWAIT_ROLL') {
-          e.preventDefault();
-          onRollDice?.();
-        } else if (canRoll && gameState.phase === 'JAIL_DECISION') {
-          e.preventDefault();
-          onDispatch?.('TRY_DOUBLES');
+        if (canAct) {
+          // Context 1: Roll dice during roll phase
+          if (gameState.phase === 'AWAIT_ROLL') {
+            onRollDice?.();
+            return;
+          }
+
+          // Context 2: Try Double while in Central Jail
+          if (gameState.phase === 'JAIL_DECISION') {
+            onDispatch?.('TRY_DOUBLES');
+            return;
+          }
+
+          // Context 3: End turn when eligible
+          if (gameState.phase === 'MANAGEMENT' || gameState.phase === 'TURN_END') {
+            onDispatch?.('END_TURN');
+            return;
+          }
         }
         return;
       }
 
-      // --- Enter: Positive / Confirmation Actions ---
+      // --- S: Sell to Bank ---
+      if (e.key === 's' || e.key === 'S') {
+        if (canAct) {
+          if (!voluntaryMortgageOpen && myMortgageableProperties.length > 0) {
+            e.preventDefault();
+            setVoluntaryMortgageOpen(true);
+            return;
+          }
+        }
+      }
+
+      // --- Enter: Context-Sensitive Accept / Bail ---
       if (e.key === 'Enter') {
-        // A. Buy / Acquire Property Prompt
-        if (isShowingPurchasePrompt) {
-          e.preventDefault();
-          onDispatch?.('BUY_PROPERTY', { spaceIndex: playerPos });
-          return;
-        }
+        if (canAct) {
+          // Context 1: Central Jail Bail (Use Card or Pay Bail)
+          if (gameState.phase === 'JAIL_DECISION') {
+            e.preventDefault();
+            if (activePlayer?.jailFreeCards && activePlayer.jailFreeCards > 0) {
+              onDispatch?.('USE_JAIL_CARD');
+            } else if (activePlayer && activePlayer.cash >= authoritativeBail) {
+              onDispatch?.('PAY_BAIL');
+            }
+            return;
+          }
 
-        // B. Reacquire Mortgaged Property from Bank
-        if (isOwnMortgagedCity && canAffordReacquire) {
-          e.preventDefault();
-          onDispatch?.('UNMORTGAGE', {
-            spaceIndex: playerPos,
-            landingId: gameState.reacquisitionOpportunity?.landingId,
-          });
-          return;
-        }
+          // Context 2: Accept Property Purchase Prompt
+          if (isShowingPurchasePrompt) {
+            e.preventDefault();
+            onDispatch?.('BUY_PROPERTY', { spaceIndex: playerPos });
+            return;
+          }
 
-        // C. Build House Development Prompt
-        if (canBuildHere && playerSpace?.type === 'PROPERTY') {
-          e.preventDefault();
-          onDispatch?.('BUILD', { spaceIndex: playerPos });
-          return;
-        }
+          // Context 3: Accept Reacquire Mortgaged Property from Bank
+          if (isOwnMortgagedCity && canAffordReacquire) {
+            e.preventDefault();
+            onDispatch?.('UNMORTGAGE', {
+              spaceIndex: playerPos,
+              landingId: gameState.reacquisitionOpportunity?.landingId,
+            });
+            return;
+          }
 
-        // D. End Turn
-        if (
-          (gameState.phase === 'MANAGEMENT' || gameState.phase === 'TURN_END') &&
-          !walkingAnimation &&
-          !gameState.handoff?.isActive &&
-          (!gameState.movement || gameState.movement.isComplete)
-        ) {
-          e.preventDefault();
-          onDispatch?.('END_TURN');
-          return;
+          // Context 4: Accept Building House / Tower Development
+          if (canBuildHere && playerSpace?.type === 'PROPERTY') {
+            e.preventDefault();
+            onDispatch?.('BUILD', { spaceIndex: playerPos });
+            return;
+          }
         }
         return;
       }
 
-      // --- N: Negative / Decline Actions ---
+      // --- N: Context-Sensitive Decline ---
       if (e.key === 'n' || e.key === 'N') {
         // A. Decline Property Purchase Prompt
         if (isShowingPurchasePrompt) {
@@ -588,6 +616,13 @@ export const GameBoard: React.FC<GameBoardProps> = ({
           setVoluntaryMortgageOpen(false);
           return;
         }
+
+        // E. Close card inspection modal if open
+        if (inspectedCard) {
+          e.preventDefault();
+          setInspectedCard(null);
+          return;
+        }
       }
     };
 
@@ -612,6 +647,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     canBuildHere,
     playerSpace,
     voluntaryMortgageOpen,
+    myMortgageableProperties.length,
+    activePlayer,
+    authoritativeBail,
+    inspectedCard,
     handleDeclineAction,
   ]);
 
@@ -822,9 +861,35 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                           {card.title}
                         </span>
                       </div>
-                      <span className="shrink-0 text-[8.5px] sm:text-[9.5px] md:text-[10px] font-black text-amber-300 ml-1">
-                        {card.amount ? `₹${card.amount}` : (ruleNum === 9 ? 'Jail Pass' : (ruleNum === 10 ? 'To Jail' : ''))}
-                      </span>
+                      {(() => {
+                        const effect = getCardFinancialEffect(card);
+                        if (card.amount) {
+                          if (effect === 'LOSS') {
+                            return (
+                              <span className="shrink-0 text-[8.5px] sm:text-[9.5px] md:text-[10px] font-black text-red-400 ml-1">
+                                - ₹{Math.abs(card.amount).toLocaleString('en-IN')}
+                              </span>
+                            );
+                          }
+                          if (effect === 'GAIN') {
+                            return (
+                              <span className="shrink-0 text-[8.5px] sm:text-[9.5px] md:text-[10px] font-black text-emerald-300 ml-1">
+                                + ₹{card.amount.toLocaleString('en-IN')}
+                              </span>
+                            );
+                          }
+                          return (
+                            <span className="shrink-0 text-[8.5px] sm:text-[9.5px] md:text-[10px] font-black text-amber-300 ml-1">
+                              ₹{card.amount.toLocaleString('en-IN')}
+                            </span>
+                          );
+                        }
+                        return (
+                          <span className="shrink-0 text-[8px] sm:text-[9px] font-bold text-amber-300/90 ml-1">
+                            {ruleNum === 9 ? 'Jail Pass' : (ruleNum === 10 ? 'To Jail' : '')}
+                          </span>
+                        );
+                      })()}
                     </div>
                   );
                 })}
@@ -1015,9 +1080,30 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                           {card.title}
                         </span>
                       </div>
-                      <span className="shrink-0 text-[8.5px] sm:text-[9.5px] md:text-[10px] font-black text-emerald-300 ml-1">
-                        {card.amount ? `₹${card.amount}` : (ruleNum === 5 ? '-3 Spaces' : (ruleNum === 9 ? 'To Jail' : (ruleNum === 2 ? 'To Start' : (ruleNum === 3 ? 'To CP' : (ruleNum === 12 ? 'To Marine' : '')))))}
-                      </span>
+                      {(() => {
+                        const effect = getCardFinancialEffect(card);
+                        if (card.amount && card.actionType !== 'MOVE_RELATIVE') {
+                          if (effect === 'LOSS') {
+                            return (
+                              <span className="shrink-0 text-[8.5px] sm:text-[9.5px] md:text-[10px] font-black text-red-400 ml-1">
+                                - ₹{Math.abs(card.amount).toLocaleString('en-IN')}
+                              </span>
+                            );
+                          }
+                          if (effect === 'GAIN') {
+                            return (
+                              <span className="shrink-0 text-[8.5px] sm:text-[9.5px] md:text-[10px] font-black text-emerald-300 ml-1">
+                                + ₹{card.amount.toLocaleString('en-IN')}
+                              </span>
+                            );
+                          }
+                        }
+                        return (
+                          <span className="shrink-0 text-[8px] sm:text-[9px] font-bold text-teal-300/90 ml-1">
+                            {ruleNum === 5 ? '-3 Spaces' : (ruleNum === 9 ? 'To Jail' : (ruleNum === 2 ? 'To Start' : (ruleNum === 3 ? 'To CP' : (ruleNum === 12 ? 'To Marine' : ''))))}
+                          </span>
+                        );
+                      })()}
                     </div>
                   );
                 })}
@@ -1392,13 +1478,34 @@ export const GameBoard: React.FC<GameBoardProps> = ({
               {inspectedCard.description}
             </p>
 
-            {inspectedCard.amount && (
-              <div className="pt-2">
-                <span className="inline-block px-3 py-1 rounded-full text-xs font-black bg-white text-indian-navy-950 shadow-sm">
-                  Amount: ₹{inspectedCard.amount.toLocaleString('en-IN')}
-                </span>
-              </div>
-            )}
+            {inspectedCard.amount && inspectedCard.actionType !== 'MOVE_RELATIVE' && (() => {
+              const effect = getCardFinancialEffect(inspectedCard);
+              if (effect === 'LOSS') {
+                return (
+                  <div className="pt-2">
+                    <span className="inline-block px-3 py-1 rounded-full text-xs font-black bg-red-950 text-red-400 border border-red-500/50 shadow-sm">
+                      Cost: - ₹{Math.abs(inspectedCard.amount).toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                );
+              }
+              if (effect === 'GAIN') {
+                return (
+                  <div className="pt-2">
+                    <span className="inline-block px-3 py-1 rounded-full text-xs font-black bg-emerald-950 text-emerald-400 border border-emerald-500/50 shadow-sm">
+                      Reward: + ₹{inspectedCard.amount.toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                );
+              }
+              return (
+                <div className="pt-2">
+                  <span className="inline-block px-3 py-1 rounded-full text-xs font-black bg-white text-indian-navy-950 shadow-sm">
+                    Amount: ₹{inspectedCard.amount.toLocaleString('en-IN')}
+                  </span>
+                </div>
+              );
+            })()}
           </div>
         </div>,
         document.body

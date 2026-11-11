@@ -416,4 +416,33 @@ export const GAME_RULES_SECTIONS: RuleSection[] = [
       },
     ],
   },
+  {
+    id: 'keyboard-shortcuts',
+    number: 12,
+    title: 'Keyboard Shortcuts',
+    badge: 'Controls & Accessibility',
+    icon: 'Keyboard',
+    summary:
+      'Fast, context-sensitive keyboard controls for seamless and responsive gameplay without needing mouse clicks.',
+    items: [
+      {
+        subtitle: 'Context-Sensitive Key Mapping',
+        points: [
+          'SPACE: Context-sensitive primary action — rolls dice during AWAIT_ROLL, rolls for doubles in Central Jail (JAIL_DECISION), or ends your turn during MANAGEMENT and TURN_END.',
+          'S: Opens Sell to Bank interface (voluntary mortgage) to liquidate properties for cash when eligible.',
+          'ENTER: Context-sensitive positive confirmation — accepts property purchase prompt, unmortgages/reacquires properties from Bank, confirms house construction, or pays Central Jail bail.',
+          'N: Context-sensitive negative action — declines property purchase, skips construction, declines reacquisition, or closes voluntary mortgage and card modals.',
+        ],
+      },
+      {
+        subtitle: 'Safety & Pacing Rules',
+        points: [
+          'Only the currently active local human player can invoke keyboard controls. Computer players never receive local key actions.',
+          'Keyboard shortcuts are automatically suppressed while typing in input fields, textareas, selects, or search inputs.',
+          'Key-repeat is ignored to prevent accidental multiple rolls or rapid unintended actions.',
+          'Action priority: Active modals take precedence over general background turn actions.',
+        ],
+      },
+    ],
+  },
 ];

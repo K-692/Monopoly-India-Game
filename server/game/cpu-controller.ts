@@ -13,7 +13,7 @@
 
 import crypto from 'crypto';
 import { GameCommand, GameState, PlayerState } from '../../src/domain/game-types';
-import { decideNextAction } from '../../src/domain/game-engine/cpu-decision-engine';
+import { decideNextAction, CpuActionDecision } from '../../src/domain/game-engine/cpu-decision-engine';
 import { EngineResult } from '../../src/domain/game-engine/engine';
 
 export type StateGetter = (gameId: string) => GameState | null;
@@ -260,6 +260,60 @@ export class CpuController {
   }
 
   /**
+   * Generates a safe, legal fallback decision appropriate for the current game phase
+   * whenever decision heuristics fail or encounter unexpected state.
+   */
+  public getSafeFallbackDecision(
+    state: GameState,
+    cpu: PlayerState
+  ): CpuActionDecision | null {
+    if (state.status === 'COMPLETED') return null;
+
+    if (state.phase === 'AWAIT_ROLL') {
+      return { type: 'ROLL_DICE', reason: 'Safe fallback roll' };
+    }
+
+    if (state.phase === 'JAIL_DECISION') {
+      if (cpu.jailFreeCards && cpu.jailFreeCards > 0) {
+        return { type: 'USE_JAIL_CARD', reason: 'Safe fallback: use jail card' };
+      }
+      const bailCost = state.rules?.jailBail ?? 500;
+      if (cpu.cash >= bailCost) {
+        return { type: 'PAY_BAIL', reason: 'Safe fallback: pay bail' };
+      }
+      return { type: 'TRY_DOUBLES', reason: 'Safe fallback: roll for doubles' };
+    }
+
+    if (state.phase === 'PROPERTY_DECISION') {
+      return { type: 'DECLINE_PROPERTY', reason: 'Safe fallback: decline property' };
+    }
+
+    if (state.phase === 'ACTION_REQUIRED' && state.pendingFinancialObligation) {
+      const obligation = state.pendingFinancialObligation;
+      if (cpu.cash >= obligation.amountDue) {
+        return { type: 'RESOLVE_OBLIGATION', reason: 'Safe fallback: resolve debt' };
+      }
+      const mortgageable = Object.values(state.properties).find(
+        (p) => p.ownerUid === cpu.uid && p.ownershipState === 'OWNED' && (!p.buildings || p.buildings === 0)
+      );
+      if (mortgageable) {
+        return {
+          type: 'MORTGAGE',
+          payload: { spaceIndex: mortgageable.spaceIndex },
+          reason: 'Safe fallback: mortgage asset',
+        };
+      }
+      return { type: 'GIVE_UP', payload: { reason: 'BANKRUPTCY_FALLBACK' }, reason: 'Safe fallback: surrender on debt' };
+    }
+
+    if (state.phase === 'MANAGEMENT' || state.phase === 'TURN_END') {
+      return { type: 'END_TURN', reason: 'Safe fallback: end turn' };
+    }
+
+    return { type: 'END_TURN', reason: 'Emergency fallback: end turn' };
+  }
+
+  /**
    * Evaluates decision and dispatches command to GameManager under session lock.
    */
   private async executeCpuAction(
@@ -340,25 +394,28 @@ export class CpuController {
             type: 'END_TURN',
             reason: `${freshCpu.displayName} automatically completed turn with no further actions.`,
           };
-        } else {
-          // Category B: CPU still has an unresolved action or cannot end turn in current phase
+        } else if (session.retryCount < 2) {
+          // Category B: CPU still has an unresolved action or cannot end turn in current phase; retry once
           console.warn(
-            `[CpuController] CPU ${cpuUid} received null decision during phase ${freshState.phase}. Pending action: ${freshState.pendingAction?.type}, obligation: ${freshState.pendingFinancialObligation?.obligationId}`
+            `[CpuController] CPU ${cpuUid} received null decision during phase ${freshState.phase}. Retrying decision...`
           );
           session.isProcessing = false;
           session.currentActionId = null;
           session.retryCount++;
-
-          if (session.retryCount <= 2) {
-            session.status = 'DECIDING';
-            setTimeout(() => {
-              this.executeCpuAction(gameId, cpuUid, scheduledTurnNumber);
-            }, 1000);
-          } else {
-            session.status = 'IDLE';
-            session.retryCount = 0;
-          }
+          session.status = 'DECIDING';
+          setTimeout(() => {
+            this.executeCpuAction(gameId, cpuUid, scheduledTurnNumber);
+          }, 500);
           return;
+        } else {
+          // Category D: Fallback safe recovery - ensure turn NEVER halts
+          console.warn(
+            `[CpuController] [STABILITY] Retries exhausted for CPU ${cpuUid} in phase ${freshState.phase}. Invoking safe phase fallback.`
+          );
+          decision = this.getSafeFallbackDecision(freshState, freshCpu) || {
+            type: 'END_TURN',
+            reason: 'Emergency fallback: end turn to prevent stall',
+          };
         }
       }
 

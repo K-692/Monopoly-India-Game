@@ -230,6 +230,7 @@ flowchart TD
     M10["10. Player Cards, Turn Timer & 11-Section Rules<br>• Separate prominent Balance & distinct gold NET WORTH<br>• Active-player-only turn timer countdown in card header<br>• Centralized authoritative 11-section rules guide (game-rules-guide.ts)<br>• Non-blocking RulesModal with search & category navigation<br>• 173 Tests Passing (100%) across 15 test suites"]
     M11["11. Net Worth Typography, Bottom-Left Preview, Audio Alerts & Shortcuts<br>• Increased Net Worth font size with clear 3-tier visual hierarchy<br>• Bottom-left anchored Return-to-Sell-to-Bank control with 120s countdown<br>• Web Audio PURCHASE_PROMPT (G5->C6) and DECLINE_ACTION (F4->Db4) alerts<br>• Accessible keyboard shortcuts: Space (Roll), Enter (Confirm/Buy), N (Decline)<br>• 185 Tests Passing (100%) across 16 test suites"]
     M12["12. Simplified Room Creation & 6-Slot Waiting Lobby<br>• Create Room modal simplified: fixed 6 slots, no CPU configuration during creation<br>• Waiting lobby redesigned with 6 fixed slots accommodating any mix of Humans & CPUs<br>• Host-only CPU management: add, rename, and remove with real-time Socket.IO sync<br>• Human readiness system: all human players (including host) must explicitly mark ready<br>• Start Game validation: >= 2 total players and all humans ready verified on server<br>• Scrollable lobby viewport (overflow-y-auto) & clean room slots section header<br>• 199 Tests Passing (100%) across 18 test suites"]
+    M13["13. Contextual Shortcuts, Dynamic Net Worth Rankings & Continuity Safeguards<br>• Contextual shortcuts: Spacebar (Roll dice / Try Double / End turn), S (Sell to Bank), Enter (Accept / Bail), N (Decline)<br>• Permanent compact keycap shortcut reference below left player panel<br>• Section 12 Keyboard Shortcuts in centralized rules guide & rules modal<br>• Dynamic live NET WORTH competition rankings (#1, #2, #3) with highlighted #1 badge<br>• Card money formatting: green +₹ for rewards, red -₹ for costs, neutral for utility cards<br>• Audited card content: cleaned nonexistent auction references in market_4<br>• Robust CPU fallback decision generator & server stuck-turn recovery safeguards<br>• 220 Tests Passing (100%) across 19 test suites"]
 
     M1 --> M2
     M2 --> M3
@@ -242,6 +243,7 @@ flowchart TD
     M9 --> M10
     M10 --> M11
     M11 --> M12
+    M12 --> M13
 ```
 
 ---
@@ -277,6 +279,12 @@ flowchart TD
 | **Human Ready Requirement**| $\forall p \in \text{Humans}, \text{initReady}(p) = \text{false} \land \text{HostIncluded}(p)$ | `room-manager.ts` (`createRoom`, `joinRoom`) | ✅ Verified (`room-lobby-redesign.test.ts`) |
 | **Dual Start Guard** | $\text{CanStart}(\text{Room}) \iff |\text{Members}| \ge 2 \land (\forall h \in \text{Humans}, \text{isReady}(h) = \text{true})$ | `game-manager.ts` (`startGame`) | ✅ Verified (`room-lobby-redesign.test.ts`) |
 | **Scrollable Lobby Viewport** | $\text{Container}(\text{Lobby}) \in \text{overflow-y-auto} \land \neg \text{HeaderAddBtn}$ | `LobbyPage.tsx` | ✅ Verified (`room-lobby-ui.test.tsx`) |
+| **Contextual Shortcuts** | $\text{Spacebar} \in \{\text{Roll}, \text{TryDouble}, \text{EndTurn}\}, \text{S} \to \text{SellToBank}, \text{Enter} \in \{\text{Accept}, \text{Bail}\}, \text{N} \to \text{Decline}$ | `GameBoard.tsx` | ✅ Verified (`contextual-shortcuts-and-rankings.test.tsx`) |
+| **Permanent Shortcut Reference** | $\text{Visible}(\text{Keycaps}) \land \text{AnchoredBottom}(\text{PlayerPanel})$ | `PlayerStrip.tsx` | ✅ Verified (`contextual-shortcuts-and-rankings.test.tsx`) |
+| **Rules Guide Section 12** | $|\text{RulesSections}| = 12 \land \text{HasSection}(\text{'keyboard-shortcuts'})$ | `game-rules-guide.ts` & `RulesModal.tsx` | ✅ Verified (`player-cards-timer-and-rules.test.tsx`, `contextual-shortcuts-and-rankings.test.tsx`) |
+| **Dynamic Net Worth Rankings** | $\text{Rank}(p) = 1 + \sum_{o \neq p} \mathbb{I}(\text{NetWorth}(o) > \text{NetWorth}(p))$ (competition ranking with gold #1 badge) | `PlayerStrip.tsx` | ✅ Verified (`contextual-shortcuts-and-rankings.test.tsx`) |
+| **Card Financial Polarity** | $\text{Gain} \implies +\text{₹} (\text{green}) \land \text{Loss} \implies -\text{₹} (\text{red}) \land \text{Neutral} \implies \text{plain}$ | `board-config.ts`, `GameBoard.tsx`, `RulesModal.tsx` | ✅ Verified (`contextual-shortcuts-and-rankings.test.tsx`) |
+| **CPU Fallback Safeguards** | $\forall \text{Phase}, \text{RetriesExhausted} \implies \text{fallbackDecision}(\text{Phase}) \neq \bot \land \text{stuckRecovery}(\text{Phase}) \neq \bot$ | `cpu-controller.ts` & `game-manager.ts` | ✅ Verified (`contextual-shortcuts-and-rankings.test.tsx`) |
 
 ---
 

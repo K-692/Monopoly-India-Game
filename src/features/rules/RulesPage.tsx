@@ -11,7 +11,7 @@ import {
   Trophy,
   Clock,
 } from 'lucide-react';
-import { CIVIC_FUND_CARDS, MARKET_BUZZ_CARDS } from '@/domain/board-config';
+import { CIVIC_FUND_CARDS, MARKET_BUZZ_CARDS, getCardFinancialEffect } from '@/domain/board-config';
 
 export const RulesPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'overview' | 'civic' | 'market' | 'bankruptcy'>('overview');
@@ -188,11 +188,28 @@ export const RulesPage: React.FC = () => {
                   <span className="w-5 h-5 rounded-full bg-amber-700 text-white text-[10px] font-black flex items-center justify-center">
                     {idx + 1}
                   </span>
-                  {card.amount && (
-                    <span className="text-xs font-mono font-black text-emerald-600 dark:text-emerald-400">
-                      ₹{card.amount.toLocaleString('en-IN')}
-                    </span>
-                  )}
+                  {card.amount && card.actionType !== 'MOVE_RELATIVE' && (() => {
+                    const effect = getCardFinancialEffect(card);
+                    if (effect === 'LOSS') {
+                      return (
+                        <span className="text-xs font-mono font-black text-red-600 dark:text-red-400">
+                          - ₹{Math.abs(card.amount).toLocaleString('en-IN')}
+                        </span>
+                      );
+                    }
+                    if (effect === 'GAIN') {
+                      return (
+                        <span className="text-xs font-mono font-black text-emerald-600 dark:text-emerald-400">
+                          + ₹{card.amount.toLocaleString('en-IN')}
+                        </span>
+                      );
+                    }
+                    return (
+                      <span className="text-xs font-mono font-black text-stone-600 dark:text-stone-300">
+                        ₹{card.amount.toLocaleString('en-IN')}
+                      </span>
+                    );
+                  })()}
                 </div>
                 <h4 className="font-serif font-black text-xs text-indian-navy-900 dark:text-amber-100">
                   {card.title}
@@ -232,11 +249,28 @@ export const RulesPage: React.FC = () => {
                   <span className="w-5 h-5 rounded-full bg-teal-700 text-white text-[10px] font-black flex items-center justify-center">
                     {idx + 1}
                   </span>
-                  {card.amount && (
-                    <span className="text-xs font-mono font-black text-emerald-600 dark:text-emerald-400">
-                      ₹{card.amount.toLocaleString('en-IN')}
-                    </span>
-                  )}
+                  {card.amount && card.actionType !== 'MOVE_RELATIVE' && (() => {
+                    const effect = getCardFinancialEffect(card);
+                    if (effect === 'LOSS') {
+                      return (
+                        <span className="text-xs font-mono font-black text-red-600 dark:text-red-400">
+                          - ₹{Math.abs(card.amount).toLocaleString('en-IN')}
+                        </span>
+                      );
+                    }
+                    if (effect === 'GAIN') {
+                      return (
+                        <span className="text-xs font-mono font-black text-emerald-600 dark:text-emerald-400">
+                          + ₹{card.amount.toLocaleString('en-IN')}
+                        </span>
+                      );
+                    }
+                    return (
+                      <span className="text-xs font-mono font-black text-stone-600 dark:text-stone-300">
+                        ₹{card.amount.toLocaleString('en-IN')}
+                      </span>
+                    );
+                  })()}
                 </div>
                 <h4 className="font-serif font-black text-xs text-indian-navy-900 dark:text-teal-100">
                   {card.title}

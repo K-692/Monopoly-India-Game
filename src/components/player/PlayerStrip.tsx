@@ -71,69 +71,110 @@ export const PlayerStrip: React.FC<PlayerStripProps> = ({
 
   const inspectedPlayer = players.find((p) => p.uid === inspectedPlayerUid) || null;
 
+  // Requirement 6: Dynamic Live NET WORTH Competition Rankings (#1, #2, #3, ...)
+  const playerRanks = React.useMemo(() => {
+    const netWorths = players.map((p) => ({
+      uid: p.uid,
+      netWorth: calculateNetWorth(
+        p.uid,
+        p.cash,
+        properties,
+        pendingFinancialObligation
+      ),
+    }));
+
+    const sorted = [...netWorths].sort((a, b) => b.netWorth - a.netWorth);
+
+    const ranks: Record<string, number> = {};
+    let currentRank = 1;
+    for (let i = 0; i < sorted.length; i++) {
+      if (i > 0 && sorted[i].netWorth < sorted[i - 1].netWorth) {
+        currentRank = i + 1;
+      }
+      ranks[sorted[i].uid] = currentRank;
+    }
+    return ranks;
+  }, [players, properties, pendingFinancialObligation]);
+
   return (
-    <div className="flex flex-col gap-1 w-full select-none overflow-hidden">
-      {/* Panel Header */}
-      <div className="flex items-center justify-between px-1">
-        <h2 className="text-[10px] font-bold text-indian-navy-800 dark:text-indian-parchment-200 uppercase tracking-wider">
-          Players ({players.length})
-        </h2>
-        <span className="text-[8px] text-gray-500 font-medium">
-          Click info
-        </span>
-      </div>
+    <div className="flex flex-col justify-between h-full w-full select-none overflow-hidden">
+      <div className="flex flex-col gap-1 w-full overflow-y-auto custom-scrollbar min-h-0 flex-1 pr-0.5">
+        {/* Panel Header */}
+        <div className="flex items-center justify-between px-1">
+          <h2 className="text-[10px] font-bold text-indian-navy-800 dark:text-indian-parchment-200 uppercase tracking-wider">
+            Players ({players.length})
+          </h2>
+          <span className="text-[8px] text-gray-500 font-medium">
+            Click info
+          </span>
+        </div>
 
-      {/* Slim, Compact Player Cards List */}
-      <div className="flex flex-col gap-1 w-full">
-        {players.map((player) => {
-          const isTurn = player.uid === currentPlayerUid;
-          const flash = cashFlash[player.uid];
-          const timerVal = turnTimeRemaining ?? turnTimeLimit;
-          const isTimerLow = timerVal <= 10;
-          const computedNetWorth = calculateNetWorth(
-            player.uid,
-            player.cash,
-            properties,
-            pendingFinancialObligation
-          );
+        {/* Slim, Compact Player Cards List */}
+        <div className="flex flex-col gap-1 w-full">
+          {players.map((player) => {
+            const isTurn = player.uid === currentPlayerUid;
+            const flash = cashFlash[player.uid];
+            const timerVal = turnTimeRemaining ?? turnTimeLimit;
+            const isTimerLow = timerVal <= 10;
+            const computedNetWorth = calculateNetWorth(
+              player.uid,
+              player.cash,
+              properties,
+              pendingFinancialObligation
+            );
+            const rank = playerRanks[player.uid] || 1;
+            const isLeader = rank === 1;
 
-          return (
-            <Card
-              key={player.uid}
-              data-testid={`player-card-${player.uid}`}
-              onClick={() => {
-                setInspectedPlayerUid(player.uid);
-                onSelectPlayer?.(player.uid);
-              }}
-              className={cn(
-                'p-1.5 cursor-pointer transition-all duration-200 select-none overflow-hidden relative shadow-2xs',
-                isTurn
-                  ? 'border-indian-terracotta-500 bg-amber-50/90 dark:bg-indian-navy-800 ring-1.5 ring-indian-terracotta-400'
-                  : 'border-indian-parchment-300 dark:border-indian-navy-700 bg-white dark:bg-indian-navy-900 hover:border-indian-terracotta-300'
-              )}
-            >
-              <div className="flex items-center gap-1.5 min-w-0">
-                {/* Avatar with Player Token Color */}
-                <div
-                  style={{ backgroundColor: player.colorToken }}
-                  className="w-5 h-5 rounded-full border-1.5 border-white shadow-token-glow flex items-center justify-center text-[9px] text-white font-black shrink-0"
-                >
-                  {player.displayName.charAt(0).toUpperCase()}
-                </div>
+            return (
+              <Card
+                key={player.uid}
+                data-testid={`player-card-${player.uid}`}
+                onClick={() => {
+                  setInspectedPlayerUid(player.uid);
+                  onSelectPlayer?.(player.uid);
+                }}
+                className={cn(
+                  'p-1.5 cursor-pointer transition-all duration-200 select-none overflow-hidden relative shadow-2xs',
+                  isTurn
+                    ? 'border-indian-terracotta-500 bg-amber-50/90 dark:bg-indian-navy-800 ring-1.5 ring-indian-terracotta-400'
+                    : 'border-indian-parchment-300 dark:border-indian-navy-700 bg-white dark:bg-indian-navy-900 hover:border-indian-terracotta-300'
+                )}
+              >
+                <div className="flex items-center gap-1.5 min-w-0">
+                  {/* Avatar with Player Token Color */}
+                  <div
+                    style={{ backgroundColor: player.colorToken }}
+                    className="w-5 h-5 rounded-full border-1.5 border-white shadow-token-glow flex items-center justify-center text-[9px] text-white font-black shrink-0"
+                  >
+                    {player.displayName.charAt(0).toUpperCase()}
+                  </div>
 
-                {/* Name, Status & Turn Timer Header */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-1">
-                    <div className="flex items-center gap-1 min-w-0 truncate">
-                      <span className="text-[9px] sm:text-[9.5px] font-bold text-indian-navy-900 dark:text-white truncate block">
-                        {player.displayName}
-                      </span>
-                      {(player.isCpu || player.playerType === 'COMPUTER') && (
-                        <span className="px-1 py-0.2 rounded text-[7px] font-black bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-800 shrink-0">
-                          CPU
+                  {/* Name, Status & Turn Timer Header */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-1">
+                      <div className="flex items-center gap-1 min-w-0 truncate">
+                        {/* Dynamic NET WORTH Rank Badge */}
+                        <span
+                          data-testid={`player-rank-${player.uid}`}
+                          className={cn(
+                            'px-1 py-0.2 rounded text-[7px] sm:text-[7.5px] font-black shrink-0 border leading-none',
+                            isLeader
+                              ? 'bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border-amber-400 dark:border-amber-700'
+                              : 'bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 border-stone-300 dark:border-stone-700'
+                          )}
+                          title={`Rank #${rank} by Net Worth`}
+                        >
+                          #{rank}
                         </span>
-                      )}
-                    </div>
+                        <span className="text-[9px] sm:text-[9.5px] font-bold text-indian-navy-900 dark:text-white truncate block">
+                          {player.displayName}
+                        </span>
+                        {(player.isCpu || player.playerType === 'COMPUTER') && (
+                          <span className="px-1 py-0.2 rounded text-[7px] font-black bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-800 shrink-0">
+                            CPU
+                          </span>
+                        )}
+                      </div>
 
                     {/* Requirement 2: Active Player's Turn Timer Countdown inside card header */}
                     {isTurn && (
@@ -204,6 +245,54 @@ export const PlayerStrip: React.FC<PlayerStripProps> = ({
           <span>Give Up</span>
         </button>
       )}
+      </div>
+
+      {/* Requirement 2: Permanent Compact Keyboard Shortcut Reference Below Left Panel */}
+      <div
+        data-testid="keyboard-shortcuts-reference"
+        className="mt-auto pt-1.5 border-t border-indian-parchment-300 dark:border-indian-navy-700/80 flex flex-col gap-1 text-[8px] sm:text-[8.5px] select-none text-indian-navy-800 dark:text-indian-parchment-200 shrink-0"
+      >
+        <span className="text-[7.5px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400 px-0.5">
+          Keyboard Shortcuts
+        </span>
+        <div className="flex flex-col gap-1 px-0.5">
+          <div className="flex items-center justify-between gap-1">
+            <kbd className="px-1 py-0.2 rounded font-mono font-black text-[7px] sm:text-[7.5px] bg-stone-100 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 shadow-2xs text-indian-navy-900 dark:text-indian-parchment-100 shrink-0">
+              SPACE
+            </kbd>
+            <span className="text-[7px] sm:text-[7.5px] font-medium text-gray-600 dark:text-gray-300 truncate text-right">
+              Roll / Try Double / End Turn
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between gap-1">
+            <kbd className="px-1 py-0.2 rounded font-mono font-black text-[7px] sm:text-[7.5px] bg-stone-100 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 shadow-2xs text-indian-navy-900 dark:text-indian-parchment-100 shrink-0">
+              S
+            </kbd>
+            <span className="text-[7px] sm:text-[7.5px] font-medium text-gray-600 dark:text-gray-300 truncate text-right">
+              Sell to Bank
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between gap-1">
+            <kbd className="px-1 py-0.2 rounded font-mono font-black text-[7px] sm:text-[7.5px] bg-stone-100 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 shadow-2xs text-indian-navy-900 dark:text-indian-parchment-100 shrink-0">
+              ENTER
+            </kbd>
+            <span className="text-[7px] sm:text-[7.5px] font-medium text-gray-600 dark:text-gray-300 truncate text-right">
+              Accept / Bail
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between gap-1">
+            <kbd className="px-1 py-0.2 rounded font-mono font-black text-[7px] sm:text-[7.5px] bg-stone-100 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 shadow-2xs text-indian-navy-900 dark:text-indian-parchment-100 shrink-0">
+              N
+            </kbd>
+            <span className="text-[7px] sm:text-[7.5px] font-medium text-gray-600 dark:text-gray-300 truncate text-right">
+              Decline
+            </span>
+          </div>
+        </div>
+      </div>
 
       {/* Confirmation Modal for Give Up (Requirement 7) */}
       {showGiveUpConfirm && (
