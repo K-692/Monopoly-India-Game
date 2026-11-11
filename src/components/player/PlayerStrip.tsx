@@ -160,7 +160,7 @@ export const PlayerStrip: React.FC<PlayerStripProps> = ({
                     <div
                       data-testid={`player-balance-${player.uid}`}
                       className={cn(
-                        'flex items-center text-[10px] sm:text-[11px] font-black transition-all rounded leading-tight',
+                        'flex items-center text-[11px] sm:text-[12px] font-black transition-all rounded leading-tight',
                         flash === 'up' && 'text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/50 scale-105',
                         flash === 'down' && 'text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-950/50 scale-105',
                         !flash && 'text-emerald-700 dark:text-emerald-400'
@@ -171,15 +171,18 @@ export const PlayerStrip: React.FC<PlayerStripProps> = ({
                     </div>
                   </div>
 
-                  {/* Requirement 1.A & 1.B: Separate Distinct Gold NET WORTH Display */}
+                  {/* Requirement 1.A & 1.B: Separate Distinct Gold NET WORTH Display with Increased Amount Font Size */}
                   <div
                     data-testid={`player-networth-${player.uid}`}
-                    className="flex items-center justify-between text-[7px] sm:text-[7.5px] font-bold text-amber-600 dark:text-amber-400 tracking-tight leading-none mt-0.5 pt-0.5 border-t border-amber-200/50 dark:border-amber-900/40"
+                    className="flex items-center justify-between gap-1 text-amber-600 dark:text-amber-400 mt-0.5 pt-0.5 border-t border-amber-200/50 dark:border-amber-900/40 leading-tight"
                   >
-                    <span className="uppercase text-amber-700/80 dark:text-amber-400/80 tracking-wider">
+                    <span className="text-[6.5px] sm:text-[7px] font-bold text-amber-700/80 dark:text-amber-400/80 uppercase tracking-wider shrink-0">
                       NET WORTH
                     </span>
-                    <span className="font-mono font-bold">
+                    <span
+                      data-testid={`player-networth-amount-${player.uid}`}
+                      className="font-mono font-bold text-[9px] sm:text-[10px] truncate"
+                    >
                       ₹{computedNetWorth.toLocaleString('en-IN')}
                     </span>
                   </div>

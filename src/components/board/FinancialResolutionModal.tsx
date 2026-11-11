@@ -197,50 +197,47 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
   // Requirement 5: Full-Quality Interactive Board Preview (Read-Only)
   if (isCheckingBoard) {
     return createPortal(
-      /* Top Floating Inspection Banner - Sharp, Unblurred Board underneath allows direct tile clicks */
+      /* Requirement 2: Repositioned Return-to-Sell-to-Bank Control at bottom-left corner of the board-view area */
       <div
         onClick={(e) => e.stopPropagation()}
-        className="fixed top-3 left-1/2 -translate-x-1/2 z-[130] w-[94vw] max-w-lg select-none animate-slide-down pointer-events-auto"
+        className="fixed bottom-3 left-3 sm:bottom-4 sm:left-4 md:left-[172px] z-[130] w-[calc(100vw-24px)] max-w-[280px] sm:max-w-[310px] select-none animate-slide-up pointer-events-auto pb-[env(safe-area-inset-bottom,0px)] pl-[env(safe-area-inset-left,0px)]"
       >
-        <div className="rounded-2xl bg-[#090D1A]/95 border-2 border-amber-500/80 shadow-[0_16px_48px_rgba(0,0,0,0.95)] p-3.5 text-white backdrop-blur-md space-y-2.5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
-                <Eye className="w-4 h-4 animate-pulse" />
+        <div className="rounded-2xl bg-[#090D1A]/95 border-2 border-amber-500/80 shadow-[0_12px_36px_rgba(0,0,0,0.95)] p-2.5 sm:p-3 text-white backdrop-blur-md space-y-2">
+          <div className="flex items-center justify-between gap-1.5">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <div className="w-6 h-6 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0">
+                <Eye className="w-3.5 h-3.5 animate-pulse" />
               </div>
-              <div>
-                <h4 className="font-serif font-black text-xs sm:text-sm tracking-wide text-amber-300 uppercase">
+              <div className="min-w-0">
+                <h4 className="font-serif font-black text-[11px] sm:text-xs tracking-wide text-amber-300 uppercase truncate">
                   Board Inspection Mode
                 </h4>
-                <span className="text-[10px] text-gray-300 block">Read-only view • Click any space to inspect</span>
+                <span className="text-[9px] text-gray-300 block truncate">Read-only view • Click tiles to inspect</span>
               </div>
             </div>
             <div
               className={cn(
-                'flex items-center gap-1 text-[11px] font-mono font-bold px-2.5 py-1 rounded-lg border',
+                'flex items-center gap-1 text-[10px] font-mono font-bold px-2 py-0.5 rounded-lg border shrink-0',
                 timeLeft <= 15
                   ? 'bg-red-950/90 text-red-300 border-red-500 animate-pulse'
                   : 'bg-amber-950/80 text-amber-300 border-amber-600/50'
               )}
             >
-              <Clock className="w-3.5 h-3.5" />
-              <span>{timeLeft}s remaining</span>
+              <Clock className="w-3 h-3 shrink-0" />
+              <span>{timeLeft}s</span>
             </div>
           </div>
 
-          <p className="text-[11px] text-gray-300 leading-snug">
-            Inspect individual cities, ownership, tariffs, and houses on the board. When ready, return to complete your Sell to Bank settlement.
-          </p>
-
           <button
             type="button"
+            data-testid="return-to-sell-to-bank"
             onClick={() => {
               setIsCheckingBoard(false);
               onInspectionModeChange?.(false);
             }}
-            className="w-full py-2.5 px-4 rounded-xl font-black text-xs bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-indian-navy-950 shadow-lg flex items-center justify-center gap-2 cursor-pointer min-h-[44px] active:scale-95 transition-all"
+            className="w-full py-2 px-3 rounded-xl font-black text-xs bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-indian-navy-950 shadow-md flex items-center justify-center gap-1.5 cursor-pointer min-h-[40px] active:scale-95 transition-all"
           >
-            <ArrowRight className="w-4 h-4 rotate-180" />
+            <ArrowRight className="w-3.5 h-3.5 rotate-180 shrink-0" />
             <span>Return to Sell to Bank</span>
           </button>
         </div>

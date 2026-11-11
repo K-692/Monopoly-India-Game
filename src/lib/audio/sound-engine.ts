@@ -27,7 +27,9 @@ export type SoundType =
   | 'NOTIFICATION'
   | 'TURN_ALERT'
   | 'CASH_CREDIT'
-  | 'CASH_DEBIT';
+  | 'CASH_DEBIT'
+  | 'PURCHASE_PROMPT'
+  | 'DECLINE_ACTION';
 
 class SoundEngine {
   private ctx: AudioContext | null = null;
@@ -130,6 +132,12 @@ class SoundEngine {
           break;
         case 'CASH_DEBIT':
           this.playCashDebit(ctx);
+          break;
+        case 'PURCHASE_PROMPT':
+          this.playPurchasePrompt(ctx);
+          break;
+        case 'DECLINE_ACTION':
+          this.playDeclineAction(ctx);
           break;
         default:
           // All other sounds intentionally removed:
@@ -302,6 +310,66 @@ class SoundEngine {
 
       gain.gain.setValueAtTime(0, t0 + time);
       gain.gain.linearRampToValueAtTime(this.masterVolume * 0.20, t0 + time + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.001, t0 + time + duration);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(t0 + time);
+      osc.stop(t0 + time + duration + 0.02);
+    });
+  }
+
+  /**
+   * 6. Property/City Purchase Prompt alert: pleasant, welcoming notification chime (G5 -> C6)
+   * Played strictly on the active human player's local device when a purchase decision popup appears.
+   */
+  private playPurchasePrompt(ctx: AudioContext): void {
+    const t0 = ctx.currentTime;
+    const notes = [
+      { freq: 783.99, time: 0, duration: 0.12 },     // G5 (bright opening tone)
+      { freq: 1046.50, time: 0.08, duration: 0.22 }, // C6 (pleasant resolving bell)
+    ];
+
+    notes.forEach(({ freq, time, duration }) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, t0 + time);
+
+      gain.gain.setValueAtTime(0, t0 + time);
+      gain.gain.linearRampToValueAtTime(this.masterVolume * 0.22, t0 + time + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.001, t0 + time + duration);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(t0 + time);
+      osc.stop(t0 + time + duration + 0.02);
+    });
+  }
+
+  /**
+   * 7. Decline action sound: short, subtle, soft alert tone (F4 -> Db4)
+   * Played immediately when a human player declines a property/action via button or 'N' shortcut.
+   */
+  private playDeclineAction(ctx: AudioContext): void {
+    const t0 = ctx.currentTime;
+    const notes = [
+      { freq: 349.23, time: 0, duration: 0.08 },     // F4
+      { freq: 277.18, time: 0.06, duration: 0.14 },  // Db4
+    ];
+
+    notes.forEach(({ freq, time, duration }) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, t0 + time);
+
+      gain.gain.setValueAtTime(0, t0 + time);
+      gain.gain.linearRampToValueAtTime(this.masterVolume * 0.18, t0 + time + 0.01);
       gain.gain.exponentialRampToValueAtTime(0.001, t0 + time + duration);
 
       osc.connect(gain);

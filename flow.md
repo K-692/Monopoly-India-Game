@@ -3,7 +3,7 @@
 > **Document Type:** Formal System Architecture & Research Implementation Record  
 > **Repository:** `https://github.com/K-692/Monopoly-India-Game`  
 > **Target Audience:** Systems Researchers, Distributed Systems Engineers, Game Theory & Multi-Agent Researchers  
-> **Status:** Current State Production Implementation (Turn Synchronization, CPU Pacing & Timer Precision)  
+> **Status:** Current State Production Implementation (Economy, Net Worth Hierarchy, Audio Alerts, Board Preview & Keyboard Shortcuts)  
 
 ---
 
@@ -228,6 +228,7 @@ flowchart TD
     M8["8. Configurable Start Crossing Money<br>• Room creation modal options: ₹1,000, ₹2,000, ₹3,000<br>• Server room manager and engine integration<br>• 153 Tests Passing (100%) across 13 test suites<br>• Zero-error typecheck, lint, and production builds"]
     M9["9. Game Economy, Turn Alerts & Inspection<br>• Festival Travel instruction & singular salary<br>• Human-only client-local procedural audio chime<br>• Highest Net Worth winner determination<br>• Sell-to-Bank tariff-based sorting & interactive board preview<br>• 164 Tests Passing (100%) across 14 test suites"]
     M10["10. Player Cards, Turn Timer & 11-Section Rules<br>• Separate prominent Balance & distinct gold NET WORTH<br>• Active-player-only turn timer countdown in card header<br>• Centralized authoritative 11-section rules guide (game-rules-guide.ts)<br>• Non-blocking RulesModal with search & category navigation<br>• 173 Tests Passing (100%) across 15 test suites"]
+    M11["11. Net Worth Typography, Bottom-Left Preview, Audio Alerts & Shortcuts<br>• Increased Net Worth font size with clear 3-tier visual hierarchy<br>• Bottom-left anchored Return-to-Sell-to-Bank control with 120s countdown<br>• Web Audio PURCHASE_PROMPT (G5->C6) and DECLINE_ACTION (F4->Db4) alerts<br>• Accessible keyboard shortcuts: Space (Roll), Enter (Confirm/Buy), N (Decline)<br>• 185 Tests Passing (100%) across 16 test suites"]
 
     M1 --> M2
     M2 --> M3
@@ -238,6 +239,7 @@ flowchart TD
     M7 --> M8
     M8 --> M9
     M9 --> M10
+    M10 --> M11
 ```
 
 ---
@@ -264,6 +266,10 @@ flowchart TD
 | **Dual Financial Metrics** | $\text{Display}(\text{Card}) = \{\text{Balance: } \text{Cash}, \text{NET WORTH: } \text{NetWorth}_{\text{gold}}\}$ | `PlayerStrip.tsx` & `PlayerDetailModal.tsx` | ✅ Verified (`player-cards-timer-and-rules.test.tsx`) |
 | **Active-Only Turn Timer** | $\text{TimerVisible}(p) \iff p = \text{currentPlayerUid} \land \text{isBankrupt}(p) = \text{false}$ | `PlayerStrip.tsx` | ✅ Verified (`player-cards-timer-and-rules.test.tsx`) |
 | **Authoritative 11 Rules** | $|\text{RulesSections}| = 11 \land \text{NonBlocking}(\text{Modal}) = \text{true}$ | `game-rules-guide.ts` & `RulesModal.tsx` | ✅ Verified (`player-cards-timer-and-rules.test.tsx`) |
+| **Net Worth Typography** | $\text{Size}(\text{Cash}) > \text{Size}(\text{NetWorthAmount}) > \text{Size}(\text{NetWorthLabel})$ | `PlayerStrip.tsx` | ✅ Verified (`shortcuts-alerts-and-preview.test.tsx`) |
+| **Bottom-Left Preview** | $\text{PreviewControl} \in \text{BottomLeft}(\text{BoardArea}) \land \text{Overlay} = \text{Hidden}$ | `FinancialResolutionModal.tsx` | ✅ Verified (`shortcuts-alerts-and-preview.test.tsx`) |
+| **Prompt & Decline Audio**| $\text{PlayAlert}(\text{Action}) \iff \text{HumanPlayer} \land \text{Action} \in \{\text{Prompt}, \text{Decline}\}$ | `sound-engine.ts` & `GameBoard.tsx` | ✅ Verified (`shortcuts-alerts-and-preview.test.tsx`) |
+| **Safe Keyboard Shortcuts**| $\text{Key}(\text{Space} \mid \text{Enter} \mid \text{N}) \land \neg \text{InputFocused} \land \neg \text{ModalOpen} \implies \text{ExecAction}$ | `GameBoard.tsx` | ✅ Verified (`shortcuts-alerts-and-preview.test.tsx`) |
 
 ---
 

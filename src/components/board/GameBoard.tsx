@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { BOARD_SPACES, CIVIC_FUND_CARDS, MARKET_BUZZ_CARDS } from '@/domain/board-config';
 import { CardAction, GameActionType, GameEvent, GameState, PropertyDefinition, WalkingAnimationState } from '@/domain/game-types';
@@ -443,6 +443,176 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     gameState.turnNumber,
     playerPos,
     onDispatch,
+  ]);
+
+  // Requirement 3.B: Decline action handler with distinct alert feedback tone
+  const handleDeclineAction = useCallback(() => {
+    sound.play('DECLINE_ACTION');
+    onDispatch?.('DECLINE_PROPERTY');
+  }, [onDispatch]);
+
+  // Requirement 3.A: Alert tone for Property/City Purchase Prompt
+  const lastPurchasePromptKeyRef = useRef<string | null>(null);
+
+  const isShowingPurchasePrompt = Boolean(
+    isMyTurn &&
+    !isCpuTurn &&
+    isPropertyDecision &&
+    isUnownedPurchasable &&
+    canAffordCity &&
+    playerSpace &&
+    'price' in playerSpace
+  );
+
+  useEffect(() => {
+    if (!isShowingPurchasePrompt) return;
+
+    const promptKey = `${gameState.turnNumber}_${playerPos}_purchase`;
+    if (lastPurchasePromptKeyRef.current !== promptKey) {
+      lastPurchasePromptKeyRef.current = promptKey;
+      sound.play('PURCHASE_PROMPT');
+    }
+  }, [isShowingPurchasePrompt, gameState.turnNumber, playerPos]);
+
+  // Requirement 4: Global gameplay keyboard shortcuts (Space, Enter, N)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // 1. Never trigger on repeated keys (holding key down)
+      if (e.repeat) return;
+
+      // 2. Ignore when typing inside input fields, textareas, or content-editable elements
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.isContentEditable ||
+          target.getAttribute?.('role') === 'textbox')
+      ) {
+        return;
+      }
+
+      // 3. Do not trigger when rules modal or external dialog is open
+      if (document.getElementById('rules-modal-title')) return;
+
+      // 4. Keyboard shortcuts only active for local human player holding the current turn
+      if (!isMyTurn || isCpuTurn) return;
+
+      // 5. Read-only board inspection mode suppresses gameplay actions
+      if (isBoardInspecting) return;
+
+      // --- Space: Roll the Dice ---
+      if (e.code === 'Space') {
+        const canRoll =
+          !isRolling &&
+          !walkingAnimation &&
+          !gameState.handoff?.isActive &&
+          (!gameState.movement || gameState.movement.isComplete);
+
+        if (canRoll && gameState.phase === 'AWAIT_ROLL') {
+          e.preventDefault();
+          onRollDice?.();
+        } else if (canRoll && gameState.phase === 'JAIL_DECISION') {
+          e.preventDefault();
+          onDispatch?.('TRY_DOUBLES');
+        }
+        return;
+      }
+
+      // --- Enter: Positive / Confirmation Actions ---
+      if (e.key === 'Enter') {
+        // A. Buy / Acquire Property Prompt
+        if (isShowingPurchasePrompt) {
+          e.preventDefault();
+          onDispatch?.('BUY_PROPERTY', { spaceIndex: playerPos });
+          return;
+        }
+
+        // B. Reacquire Mortgaged Property from Bank
+        if (isOwnMortgagedCity && canAffordReacquire) {
+          e.preventDefault();
+          onDispatch?.('UNMORTGAGE', {
+            spaceIndex: playerPos,
+            landingId: gameState.reacquisitionOpportunity?.landingId,
+          });
+          return;
+        }
+
+        // C. Build House Development Prompt
+        if (canBuildHere && playerSpace?.type === 'PROPERTY') {
+          e.preventDefault();
+          onDispatch?.('BUILD', { spaceIndex: playerPos });
+          return;
+        }
+
+        // D. End Turn
+        if (
+          (gameState.phase === 'MANAGEMENT' || gameState.phase === 'TURN_END') &&
+          !walkingAnimation &&
+          !gameState.handoff?.isActive &&
+          (!gameState.movement || gameState.movement.isComplete)
+        ) {
+          e.preventDefault();
+          onDispatch?.('END_TURN');
+          return;
+        }
+        return;
+      }
+
+      // --- N: Negative / Decline Actions ---
+      if (e.key === 'n' || e.key === 'N') {
+        // A. Decline Property Purchase Prompt
+        if (isShowingPurchasePrompt) {
+          e.preventDefault();
+          handleDeclineAction();
+          return;
+        }
+
+        // B. Decline Reacquire from Bank
+        if (isOwnMortgagedCity && canAffordReacquire) {
+          e.preventDefault();
+          handleDeclineAction();
+          return;
+        }
+
+        // C. Skip Building (Done building for this turn)
+        if (canBuildHere && playerSpace?.type === 'PROPERTY') {
+          e.preventDefault();
+          onDispatch?.('END_TURN');
+          return;
+        }
+
+        // D. Close voluntary mortgage modal if open
+        if (voluntaryMortgageOpen) {
+          e.preventDefault();
+          setVoluntaryMortgageOpen(false);
+          return;
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [
+    isMyTurn,
+    isCpuTurn,
+    isBoardInspecting,
+    isRolling,
+    walkingAnimation,
+    gameState.handoff?.isActive,
+    gameState.movement,
+    gameState.phase,
+    gameState.reacquisitionOpportunity?.landingId,
+    onRollDice,
+    onDispatch,
+    isShowingPurchasePrompt,
+    playerPos,
+    isOwnMortgagedCity,
+    canAffordReacquire,
+    canBuildHere,
+    playerSpace,
+    voluntaryMortgageOpen,
+    handleDeclineAction,
   ]);
 
   // Requirement 5: Premium digital board game 3D dice appearance with clear pips and authentic depth
@@ -934,6 +1104,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                   <div className="flex items-center gap-1.5 pt-1">
                     <button
                       type="button"
+                      data-testid="buy-property-btn"
                       onClick={() => onDispatch?.('BUY_PROPERTY', { spaceIndex: playerPos })}
                       className="flex-1 py-2 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-500 text-white shadow-md active:scale-95 transition-all flex items-center justify-center gap-1 cursor-pointer min-h-[44px]"
                     >
@@ -942,7 +1113,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                     </button>
                     <button
                       type="button"
-                      onClick={() => onDispatch?.('DECLINE_PROPERTY')}
+                      data-testid="decline-property-btn"
+                      onClick={handleDeclineAction}
                       className="px-3.5 py-2 rounded-xl font-bold text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 active:scale-95 transition-all cursor-pointer min-h-[44px]"
                     >
                       Decline
@@ -1015,7 +1187,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                     </button>
                     <button
                       type="button"
-                      onClick={() => onDispatch?.('DECLINE_PROPERTY')}
+                      data-testid="reacquire-decline-btn"
+                      onClick={handleDeclineAction}
                       className="px-3.5 py-2 rounded-xl font-bold text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 active:scale-95 transition-all cursor-pointer min-h-[44px]"
                     >
                       Decline
