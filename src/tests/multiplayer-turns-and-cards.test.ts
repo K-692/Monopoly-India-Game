@@ -91,7 +91,8 @@ describe('Indian Monopoly Comprehensive Hardening Suite', () => {
         await new Promise<void>((res) => client2.emit('room:join', { inviteCode: roomRes.inviteCode }, () => res()));
         await new Promise<void>((res) => client3.emit('room:join', { inviteCode: roomRes.inviteCode }, () => res()));
 
-        // Mark ready
+        // Mark ready (including host)
+        await new Promise<void>((res) => client1.emit('room:set-ready', { isReady: true }, () => res()));
         await new Promise<void>((res) => client2.emit('room:set-ready', { isReady: true }, () => res()));
         await new Promise<void>((res) => client3.emit('room:set-ready', { isReady: true }, () => res()));
 

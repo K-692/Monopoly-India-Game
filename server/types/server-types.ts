@@ -110,6 +110,21 @@ export interface ClientToServerEvents {
     callback?: (res: { ok: boolean; error?: string }) => void
   ) => void;
 
+  'room:add-cpu': (
+    data?: { name?: string },
+    callback?: (res: { ok: boolean; room?: RoomState; error?: string }) => void
+  ) => void;
+
+  'room:remove-cpu': (
+    data: { cpuUid: string },
+    callback?: (res: { ok: boolean; room?: RoomState; error?: string }) => void
+  ) => void;
+
+  'room:rename-cpu': (
+    data: { cpuUid: string; newName: string },
+    callback?: (res: { ok: boolean; room?: RoomState; error?: string }) => void
+  ) => void;
+
   'room:start': (
     callback?: (res: GameStartResponse) => void
   ) => void;

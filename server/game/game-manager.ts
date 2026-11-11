@@ -91,14 +91,28 @@ export class GameManager {
       return { ok: false, error: 'Only the room host can start the game.' };
     }
 
-    const memberCount = Object.keys(room.members).length;
-    if (memberCount < 2) {
-      return { ok: false, error: 'At least 2 players are required to start a match.' };
+    const members = Object.values(room.members);
+    if (members.length < 2) {
+      return { ok: false, error: 'At least 2 total players are required to start a match.' };
     }
 
-    const allReady = Object.values(room.members).every((m) => m.isReady);
-    if (!allReady) {
-      return { ok: false, error: 'All players must be Ready before starting.' };
+    // Requirement 5: Every human player (including the host) must be explicitly READY. CPUs are automatically ready.
+    const unreadyHumans = members.filter(
+      (m) => !m.isCpu && m.playerType !== 'COMPUTER' && !m.isReady
+    );
+    if (unreadyHumans.length > 0) {
+      const names = unreadyHumans.map((m) => m.displayName).join(', ');
+      return {
+        ok: false,
+        error: `Cannot start match: waiting for ${names} to be Ready.`,
+      };
+    }
+
+    // Ensure all CPUs are marked ready
+    for (const m of members) {
+      if (m.isCpu || m.playerType === 'COMPUTER') {
+        m.isReady = true;
+      }
     }
 
     const memberUids = Object.keys(room.members);

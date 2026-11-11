@@ -205,6 +205,72 @@ export function setupSocketHandlers(
       }
     });
 
+    socket.on('room:add-cpu', (data, callback) => {
+      if (!requireSession(socket, roomManager)) {
+        if (typeof callback === 'function') callback({ ok: false, error: 'Unauthenticated' });
+        return;
+      }
+      const session = socket.data.session!;
+      if (!session.roomId) {
+        if (typeof callback === 'function') callback({ ok: false, error: 'Not in a room' });
+        return;
+      }
+
+      const result = roomManager.addCpu(session.roomId, session.uid, data?.name);
+      if (result.ok && result.room) {
+        io.to(session.roomId).emit('room:state', result.room);
+        if (typeof callback === 'function') callback({ ok: true, room: result.room });
+      } else {
+        if (typeof callback === 'function') {
+          callback({ ok: false, error: result.error || 'Failed to add computer player' });
+        }
+      }
+    });
+
+    socket.on('room:remove-cpu', ({ cpuUid }, callback) => {
+      if (!requireSession(socket, roomManager)) {
+        if (typeof callback === 'function') callback({ ok: false, error: 'Unauthenticated' });
+        return;
+      }
+      const session = socket.data.session!;
+      if (!session.roomId) {
+        if (typeof callback === 'function') callback({ ok: false, error: 'Not in a room' });
+        return;
+      }
+
+      const result = roomManager.removeCpu(session.roomId, session.uid, cpuUid);
+      if (result.ok && result.room) {
+        io.to(session.roomId).emit('room:state', result.room);
+        if (typeof callback === 'function') callback({ ok: true, room: result.room });
+      } else {
+        if (typeof callback === 'function') {
+          callback({ ok: false, error: result.error || 'Failed to remove computer player' });
+        }
+      }
+    });
+
+    socket.on('room:rename-cpu', ({ cpuUid, newName }, callback) => {
+      if (!requireSession(socket, roomManager)) {
+        if (typeof callback === 'function') callback({ ok: false, error: 'Unauthenticated' });
+        return;
+      }
+      const session = socket.data.session!;
+      if (!session.roomId) {
+        if (typeof callback === 'function') callback({ ok: false, error: 'Not in a room' });
+        return;
+      }
+
+      const result = roomManager.renameCpu(session.roomId, session.uid, cpuUid, newName);
+      if (result.ok && result.room) {
+        io.to(session.roomId).emit('room:state', result.room);
+        if (typeof callback === 'function') callback({ ok: true, room: result.room });
+      } else {
+        if (typeof callback === 'function') {
+          callback({ ok: false, error: result.error || 'Failed to rename computer player' });
+        }
+      }
+    });
+
     socket.on('room:leave', (callback) => {
       const session = socket.data.session;
       if (!session || !session.roomId) {

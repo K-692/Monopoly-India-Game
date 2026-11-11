@@ -65,13 +65,15 @@ Waiting for players...
 1. **Host**:
    - Open `http://localhost:4173` (or your printed LAN IP).
    - Enter your name and click **Customize Rules & Host**.
-   - Adjust the **Starting Cash Slider** (₹5,000 to ₹50,000).
-   - Add **0 to 3 Computer Players** (e.g. CPU1, Sherlock, Trader) and configure turn timer / player limits.
-   - Click **Create Room**.
-2. **Share Invite**:
-   - Other players scan the on-screen **QR Code** directly with their smartphone cameras, or navigate to the displayed invite link / 6-character room code.
-3. **Start Game**:
-   - Supports 1 human host + computer players, or mixed human and computer lobbies! When ready, the host starts the match.
+   - Adjust the **Starting Cash Slider** (₹5,000 to ₹50,000), start crossing reward, and turn timer.
+   - Click **Create Room** (fixed 6-player capacity, creates you as the human host).
+2. **Waiting Lobby & Multi-Agent Seating**:
+   - Invite friends using the on-screen **QR Code** or 6-character room code (up to 6 total slots).
+   - Use the host-only **Add CPU** button to seat autonomous computer players in open slots.
+   - Rename or remove CPUs on the fly directly from the lobby seats grid.
+3. **Ready Up & Start**:
+   - All human players (including the host) click **Ready Up**. CPUs are automatically ready!
+   - When at least 2 total players are present and all human players are ready, the host clicks **Start Game**.
 
 ---
 
@@ -158,7 +160,7 @@ For complete mathematical definitions, state machine proofs, and research citati
 | `npm run build:server` | Bundles the standalone server into `dist-server/index.cjs` using `esbuild`. |
 | `npm run build:desktop` | Builds both the React LAN frontend (`dist/`) and the server bundle (`dist-server/index.cjs`). |
 | `npm run desktop` | Builds desktop assets and launches the application inside native Electron. |
-| `npm test` | Runs the full Vitest test suite (185 tests across 16 test files). |
+| `npm test` | Runs the full Vitest test suite (194 tests across 18 test files). |
 | `npm run test:watch` | Runs Vitest in interactive watch mode for test-driven development. |
 | `npm run test:coverage`| Generates detailed test code coverage reports. |
 | `npm run typecheck` | Strict TypeScript compiler validation across client, server, and tests (`tsc -b --noEmit`). |
@@ -171,6 +173,10 @@ For complete mathematical definitions, state machine proofs, and research citati
 
 | Feature | Mechanics & Rule Specification |
 | :--- | :--- |
+| **6-Slot Waiting Lobby** | **Fixed 6-Player Capacity**: Open slots can be filled by any mix of humans and CPUs (e.g. 1 human + 1 CPU, 2 humans + 4 CPUs, etc.). Never allows exceeding 6 players. |
+| **Host CPU Management** | **Lobby-Centric Controls**: Host can add autonomous CPUs to open slots, rename CPUs with unique custom names, or remove CPUs to free slots with real-time Socket.IO synchronization. |
+| **Human Readiness** | **Universal Ready Requirement**: All human players (including the host) must explicitly mark themselves ready before the game can start. CPUs are automatically ready. |
+| **Game Start Conditions** | Requires at least **2 total players** and **100% human readiness** before the host can start. Explanatory feedback dynamically explains unready blockers. |
 | **Starting Balance** | **Configurable via Slider**: ₹5,000 to ₹50,000 (step ₹5,000, default ₹20,000). Applied uniformly to all human & CPU players. |
 | **Crossing START** | **Host-Configurable Salary**: Selectable options of ₹1,000, ₹2,000, or ₹3,000 (default ₹2,000) credited each circuit or via Festival Travel card. |
 | **Winner & Net Worth** | Match champion is determined strictly by **highest Net Worth** (Cash + Total Owned Assets - Outstanding Liabilities), tie-broken by remaining Cash Balance, then Player UID. |

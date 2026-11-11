@@ -101,7 +101,7 @@ describe('Indian Monopoly LAN Multiplayer Server Integration', () => {
         expect(roomA.roomId).toBeDefined();
         expect(roomA.inviteCode).toMatch(/^[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{6}$/);
         expect(roomA.hostUid).toBe(regA.uid);
-        expect(roomA.members[regA.uid].isReady).toBe(true);
+        expect(roomA.members[regA.uid].isReady).toBe(false);
 
         // 2. Reject invalid code
         const invalidJoin = await new Promise<{ ok: boolean; error?: string }>((resolve) => {
@@ -118,17 +118,33 @@ describe('Indian Monopoly LAN Multiplayer Server Integration', () => {
         expect(validJoin.room?.members[regB.uid]).toBeDefined();
         expect(validJoin.room?.members[regB.uid].isReady).toBe(false);
 
-        // 4. Reject when room is full
-        const clientC = createClient();
+        // 4. Fill remaining slots up to 6 players
+        const extraClients: TypedClient[] = [];
+        for (let i = 3; i <= 6; i++) {
+          const extraC = createClient();
+          extraClients.push(extraC);
+          await new Promise<void>((resolve) => {
+            extraC.emit('player:register', { displayName: `Player ${i}` }, () => resolve());
+          });
+          const res = await new Promise<RoomJoinResponse>((resolve) => {
+            extraC.emit('room:join', { inviteCode: roomA.inviteCode }, resolve);
+          });
+          expect(res.ok).toBe(true);
+        }
+
+        // 5. Reject 7th player when room capacity (6) is full
+        const clientSeventh = createClient();
         await new Promise<void>((resolve) => {
-          clientC.emit('player:register', { displayName: 'Player C' }, () => resolve());
+          clientSeventh.emit('player:register', { displayName: 'Player Seventh' }, () => resolve());
         });
         const fullJoin = await new Promise<{ ok: boolean; error?: string }>((resolve) => {
-          clientC.emit('room:join', { inviteCode: roomA.inviteCode }, (res) => resolve(res));
+          clientSeventh.emit('room:join', { inviteCode: roomA.inviteCode }, (res) => resolve(res));
         });
         expect(fullJoin.ok).toBe(false);
         expect(fullJoin.error).toContain('full');
-        clientC.disconnect();
+
+        clientSeventh.disconnect();
+        extraClients.forEach((c) => c.disconnect());
       } finally {
         clientA.disconnect();
         clientB.disconnect();
@@ -241,6 +257,7 @@ describe('Indian Monopoly LAN Multiplayer Server Integration', () => {
 
         const createRes = await new Promise<RoomCreateResponse>((res) => clientA.emit('room:create', {}, res));
         await new Promise<RoomJoinResponse>((res) => clientB.emit('room:join', { inviteCode: createRes.inviteCode! }, res));
+        await new Promise((res) => clientA.emit('room:set-ready', { isReady: true }, res));
         await new Promise((res) => clientB.emit('room:set-ready', { isReady: true }, res));
 
         // Start match

@@ -56,7 +56,7 @@ export const DEFAULT_HOST_RULES: HostCustomRules = {
   startingCash: 20000,
   passStartReward: 3000,
   turnTimerSeconds: 30,
-  maxPlayers: 4,
+  maxPlayers: 6,
   jailBail: 500,
   allowAuctions: true,
   gameMode: 'STANDARD',

@@ -32,6 +32,9 @@ interface RoomStoreState {
   ) => Promise<{ ok: boolean; roomId?: string; error?: string }>;
   subscribeToRoom: (roomId: string) => () => void;
   toggleReady: (roomId: string, isReady: boolean) => Promise<boolean>;
+  addCpu: (name?: string) => Promise<{ ok: boolean; error?: string }>;
+  removeCpu: (cpuUid: string) => Promise<{ ok: boolean; error?: string }>;
+  renameCpu: (cpuUid: string, newName: string) => Promise<{ ok: boolean; error?: string }>;
   startGame: (roomId: string) => Promise<{ ok: boolean; gameId?: string; error?: string }>;
   leaveRoom: () => void;
   setError: (err: string | null) => void;
@@ -217,6 +220,63 @@ export const useRoomStore = create<RoomStoreState>((set, get) => ({
           resolve(true);
         } else {
           resolve(false);
+        }
+      });
+    });
+  },
+
+  addCpu: async (name?: string) => {
+    const socket = getSocket();
+    sound.play('BUTTON_CLICK');
+
+    return new Promise((resolve) => {
+      socket.emit('room:add-cpu', name ? { name } : undefined, (response) => {
+        if (response && response.ok && response.room) {
+          set({ currentRoom: response.room, error: null });
+          resolve({ ok: true });
+        } else {
+          const err = response?.error || 'Failed to add computer player.';
+          sound.play('GO_TO_JAIL');
+          set({ error: err });
+          resolve({ ok: false, error: err });
+        }
+      });
+    });
+  },
+
+  removeCpu: async (cpuUid: string) => {
+    const socket = getSocket();
+    sound.play('BUTTON_CLICK');
+
+    return new Promise((resolve) => {
+      socket.emit('room:remove-cpu', { cpuUid }, (response) => {
+        if (response && response.ok && response.room) {
+          set({ currentRoom: response.room, error: null });
+          resolve({ ok: true });
+        } else {
+          const err = response?.error || 'Failed to remove computer player.';
+          sound.play('GO_TO_JAIL');
+          set({ error: err });
+          resolve({ ok: false, error: err });
+        }
+      });
+    });
+  },
+
+  renameCpu: async (cpuUid: string, newName: string) => {
+    const socket = getSocket();
+    sound.play('BUTTON_CLICK');
+
+    return new Promise((resolve) => {
+      socket.emit('room:rename-cpu', { cpuUid, newName }, (response) => {
+        if (response && response.ok && response.room) {
+          set({ currentRoom: response.room, error: null });
+          resolve({ ok: true });
+        } else {
+          const err = response?.error || 'Failed to rename computer player.';
+          sound.play('GO_TO_JAIL');
+          set({ error: err });
+          resolve({ ok: false, error: err });
         }
       });
     });

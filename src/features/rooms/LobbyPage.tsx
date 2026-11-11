@@ -19,10 +19,18 @@ import {
   Wifi,
   ChevronDown,
   Bot,
+  Plus,
+  Trash2,
+  Pencil,
+  CheckCircle2,
+  Clock,
+  X,
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import { copyToClipboard } from '@/lib/utils/clipboard';
 import { useToastStore } from '@/components/feedback/toast-store';
+
+const TOTAL_ROOM_SLOTS = 6;
 
 export const LobbyPage: React.FC = () => {
   const { roomId } = useParams<{ roomId: string }>();
@@ -37,6 +45,9 @@ export const LobbyPage: React.FC = () => {
     setSelectedLanAddress,
     subscribeToRoom,
     toggleReady,
+    addCpu,
+    removeCpu,
+    renameCpu,
     startGame,
     leaveRoom,
   } = useRoomStore();
@@ -45,6 +56,11 @@ export const LobbyPage: React.FC = () => {
   const [copiedLink, setCopiedLink] = useState(false);
   const [isTogglingReady, setIsTogglingReady] = useState(false);
   const [isStartingGame, setIsStartingGame] = useState(false);
+  const [isAddingCpu, setIsAddingCpu] = useState(false);
+  const [removingCpuUid, setRemovingCpuUid] = useState<string | null>(null);
+  const [editingCpuId, setEditingCpuId] = useState<string | null>(null);
+  const [editingCpuName, setEditingCpuName] = useState('');
+  const [isSavingCpuName, setIsSavingCpuName] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [showQrModal, setShowQrModal] = useState(false);
 
@@ -170,6 +186,88 @@ export const LobbyPage: React.FC = () => {
     }
   };
 
+  // Host CPU Management Controls
+  const handleAddCpu = async () => {
+    if (!isHost || isAddingCpu || !currentRoom) return;
+    if (Object.keys(currentRoom.members).length >= TOTAL_ROOM_SLOTS) {
+      useToastStore.getState().addToast({
+        type: 'error',
+        title: 'Room Full',
+        message: `All ${TOTAL_ROOM_SLOTS} player slots are already occupied.`,
+      });
+      return;
+    }
+
+    setIsAddingCpu(true);
+    try {
+      const res = await addCpu();
+      if (!res.ok && res.error) {
+        useToastStore.getState().addToast({
+          type: 'error',
+          title: 'Add CPU Failed',
+          message: res.error,
+        });
+      }
+    } finally {
+      setIsAddingCpu(false);
+    }
+  };
+
+  const handleRemoveCpu = async (cpuUid: string) => {
+    if (!isHost || removingCpuUid) return;
+    setRemovingCpuUid(cpuUid);
+    try {
+      const res = await removeCpu(cpuUid);
+      if (!res.ok && res.error) {
+        useToastStore.getState().addToast({
+          type: 'error',
+          title: 'Remove CPU Failed',
+          message: res.error,
+        });
+      }
+    } finally {
+      setRemovingCpuUid(null);
+    }
+  };
+
+  const handleStartRename = (cpuUid: string, currentName: string) => {
+    setEditingCpuId(cpuUid);
+    setEditingCpuName(currentName);
+  };
+
+  const handleCancelRename = () => {
+    setEditingCpuId(null);
+    setEditingCpuName('');
+  };
+
+  const handleSaveRename = async (cpuUid: string) => {
+    const trimmed = editingCpuName.trim();
+    if (!trimmed) {
+      useToastStore.getState().addToast({
+        type: 'error',
+        title: 'Invalid Name',
+        message: 'Computer player name cannot be empty.',
+      });
+      return;
+    }
+
+    setIsSavingCpuName(true);
+    try {
+      const res = await renameCpu(cpuUid, trimmed);
+      if (res.ok) {
+        setEditingCpuId(null);
+      } else {
+        useToastStore.getState().addToast({
+          type: 'error',
+          title: 'Rename Failed',
+          message: res.error || 'Failed to rename computer player.',
+        });
+      }
+    } finally {
+      setIsSavingCpuName(false);
+    }
+  };
+
   const handleStartGame = async () => {
     if (!currentRoom || isStartingGame) return;
     setIsStartingGame(true);
@@ -238,7 +336,28 @@ export const LobbyPage: React.FC = () => {
   const isHost = Boolean(player && room.hostUid === player.uid);
   const currentMember = player ? room.members[player.uid] : null;
   const memberList = Object.values(room.members);
-  const canStart = isHost && memberList.length >= 2 && memberList.every((m) => m.isReady);
+
+  // Requirements 4 & 5: Readiness & Game Start Conditions
+  // 1. Minimum 2 total players (humans + CPUs).
+  // 2. Every currently present human player must be READY (including the host!). CPUs are automatically ready.
+  const humanMembers = memberList.filter((m) => !m.isCpu && m.playerType !== 'COMPUTER');
+  const unreadyHumans = humanMembers.filter((m) => !m.isReady);
+  const allHumansReady = unreadyHumans.length === 0;
+  const hasMinimumPlayers = memberList.length >= 2;
+  const canStart = isHost && hasMinimumPlayers && allHumansReady;
+
+  let startDisabledReason = '';
+  if (!hasMinimumPlayers) {
+    startDisabledReason = 'Waiting for more players (minimum 2 total players required).';
+  } else if (!allHumansReady) {
+    const unreadyNames = unreadyHumans.map((m) =>
+      m.uid === player?.uid ? 'You (Host)' : m.displayName
+    );
+    startDisabledReason = `Waiting for ${unreadyNames.join(', ')} to get ready.`;
+  }
+
+  // Calculate remaining empty slots out of 6
+  const emptySlotCount = Math.max(0, TOTAL_ROOM_SLOTS - memberList.length);
 
   return (
     <div className="flex-1 max-w-3xl mx-auto w-full px-4 py-6">
@@ -357,9 +476,9 @@ export const LobbyPage: React.FC = () => {
         <Card className="p-3.5 mb-6 border-indian-parchment-300 bg-amber-50/50 dark:bg-indian-navy-800">
           <div className="flex items-center gap-2 mb-2 text-xs font-bold text-indian-navy-800 dark:text-indian-parchment-200">
             <Sliders className="w-4 h-4 text-indian-terracotta-500" />
-            <span>Host Rules for this Match:</span>
+            <span>Match Rules Configuration:</span>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs text-gray-600 dark:text-gray-300">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs text-gray-600 dark:text-gray-300">
             <div>
               Starting Cash:{' '}
               <strong className="text-indian-navy-900 dark:text-white">
@@ -379,128 +498,297 @@ export const LobbyPage: React.FC = () => {
               </strong>
             </div>
             <div>
-              Jail Bail:{' '}
+              Capacity:{' '}
               <strong className="text-indian-navy-900 dark:text-white">
-                ₹{(room.customRules.jailBail ?? 500).toLocaleString('en-IN')}
-              </strong>
-            </div>
-            <div>
-              Max Players:{' '}
-              <strong className="text-indian-navy-900 dark:text-white">
-                {room.customRules.maxPlayers}
+                {TOTAL_ROOM_SLOTS} Slots
               </strong>
             </div>
           </div>
         </Card>
       )}
 
-      {/* Player Seats Grid */}
+      {/* Section 2 & 3: Six Fixed Player Slots Grid & Host CPU Management */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-xs font-bold text-indian-navy-800 dark:text-indian-parchment-200 uppercase tracking-wider">
-            Joined Players ({memberList.length} / {room.maxPlayers})
-          </h3>
-          <span className="text-[11px] text-gray-500">Requires minimum 2 ready players</span>
+          <div>
+            <h3 className="text-xs font-bold text-indian-navy-800 dark:text-indian-parchment-200 uppercase tracking-wider flex items-center gap-1.5">
+              <Users className="w-4 h-4 text-indian-terracotta-600" />
+              <span>Room Slots ({memberList.length} / {TOTAL_ROOM_SLOTS})</span>
+            </h3>
+            <p className="text-[11px] text-gray-500">
+              Min 2 players required. Humans must be ready; CPUs are auto-ready.
+            </p>
+          </div>
+
+          {/* Host-only Add CPU button in header */}
+          {isHost && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleAddCpu}
+              disabled={memberList.length >= TOTAL_ROOM_SLOTS || isAddingCpu}
+              className="text-xs h-8 px-3 flex items-center gap-1.5 border-blue-400 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/40 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              title={memberList.length >= TOTAL_ROOM_SLOTS ? 'Room is full' : 'Add a Computer Player'}
+            >
+              {isAddingCpu ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Plus className="w-3.5 h-3.5" />
+              )}
+              <span>Add CPU</span>
+            </Button>
+          )}
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {memberList.map((m) => (
-            <Card
-              key={m.uid}
-              className="p-3.5 flex items-center justify-between border-indian-parchment-300 bg-white dark:bg-indian-navy-850"
-            >
-              <div className="flex items-center gap-2.5">
-                <div
-                  style={{ backgroundColor: m.colorToken }}
-                  className="w-9 h-9 rounded-full border border-white text-white font-black text-sm flex items-center justify-center shadow-xs"
-                >
-                  {m.displayName.charAt(0).toUpperCase()}
-                </div>
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-bold text-indian-navy-900 dark:text-indian-parchment-100">
-                      {m.displayName}
-                    </span>
-                    {m.uid === room.hostUid && (
-                      <Crown className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
-                    )}
-                    {(m.isCpu || m.playerType === 'COMPUTER') && (
-                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-black bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-800">
-                        <Bot className="w-3 h-3" />
-                        <span>CPU</span>
-                      </span>
-                    )}
-                  </div>
-                  <span className="text-[10px] text-gray-500">
-                    {(m.isCpu || m.playerType === 'COMPUTER')
-                      ? 'Computer Opponent'
-                      : m.uid === player?.uid
-                      ? 'You'
-                      : m.uid === room.hostUid
-                      ? 'Host'
-                      : 'Member'}
-                  </span>
-                </div>
-              </div>
+          {/* Render Joined Players */}
+          {memberList.map((m, index) => {
+            const isCpu = Boolean(m.isCpu || m.playerType === 'COMPUTER');
+            const isCurrentPlayer = player && m.uid === player.uid;
+            const isEditingThisCpu = isCpu && editingCpuId === m.uid;
 
-              <Badge
-                variant={m.isReady ? 'emerald' : 'neutral'}
-                className="text-[10px] py-1 px-2.5 font-bold"
+            return (
+              <Card
+                key={m.uid}
+                className="p-3.5 flex items-center justify-between border-indian-parchment-300 bg-white dark:bg-indian-navy-850 shadow-xs transition-all"
+                data-testid={`player-slot-${m.uid}`}
               >
-                {m.isReady ? 'Ready' : 'Not Ready'}
-              </Badge>
-            </Card>
-          ))}
+                <div className="flex items-center gap-2.5 min-w-0 flex-1 mr-2">
+                  <div
+                    style={{ backgroundColor: m.colorToken }}
+                    className="w-9 h-9 rounded-full border border-white text-white font-black text-sm flex items-center justify-center shadow-xs shrink-0"
+                  >
+                    {m.displayName.charAt(0).toUpperCase()}
+                  </div>
 
-          {/* Empty Seats */}
-          {Array.from({ length: Math.max(0, room.maxPlayers - memberList.length) }).map((_, i) => (
-            <div
-              key={i}
-              className="border-2 border-dashed border-indian-parchment-300 dark:border-indian-navy-700 rounded-xl p-3.5 flex items-center justify-center text-xs text-gray-400 font-medium"
-            >
-              Waiting for player to join with code...
-            </div>
-          ))}
+                  <div className="min-w-0 flex-1">
+                    {/* Inline CPU Rename mode */}
+                    {isEditingThisCpu ? (
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="text"
+                          value={editingCpuName}
+                          maxLength={20}
+                          onChange={(e) => setEditingCpuName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleSaveRename(m.uid);
+                            if (e.key === 'Escape') handleCancelRename();
+                          }}
+                          autoFocus
+                          className="w-full px-2 py-0.5 text-xs rounded border border-blue-400 bg-white dark:bg-indian-navy-950 text-indian-navy-900 dark:text-white focus:outline-hidden"
+                          placeholder="CPU Name"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleSaveRename(m.uid)}
+                          disabled={isSavingCpuName}
+                          className="p-1 rounded text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950 cursor-pointer"
+                          title="Save Name"
+                        >
+                          {isSavingCpuName ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleCancelRename}
+                          disabled={isSavingCpuName}
+                          className="p-1 rounded text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
+                          title="Cancel"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-xs font-bold text-indian-navy-900 dark:text-indian-parchment-100 truncate max-w-[140px]">
+                          {m.displayName}
+                        </span>
+
+                        {m.uid === room.hostUid && (
+                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
+                            <Crown className="w-2.5 h-2.5 text-amber-500 fill-amber-500" />
+                            <span>Host</span>
+                          </span>
+                        )}
+
+                        {isCpu ? (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[9px] font-black bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-800">
+                            <Bot className="w-2.5 h-2.5" />
+                            <span>CPU</span>
+                          </span>
+                        ) : isCurrentPlayer ? (
+                          <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
+                            You
+                          </span>
+                        ) : null}
+
+                        {/* Host controls for renaming/removing this CPU */}
+                        {isHost && isCpu && room.status === 'LOBBY' && (
+                          <div className="inline-flex items-center gap-1 ml-1">
+                            <button
+                              type="button"
+                              onClick={() => handleStartRename(m.uid, m.displayName)}
+                              className="text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 p-0.5 rounded cursor-pointer"
+                              title="Rename CPU"
+                            >
+                              <Pencil className="w-3 h-3" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveCpu(m.uid)}
+                              disabled={removingCpuUid === m.uid}
+                              className="text-gray-400 hover:text-red-600 dark:hover:text-red-400 p-0.5 rounded cursor-pointer disabled:opacity-50"
+                              title="Remove CPU"
+                            >
+                              {removingCpuUid === m.uid ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <Trash2 className="w-3 h-3" />
+                              )}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <span className="text-[10px] text-gray-500 block">
+                      Slot {index + 1} • {isCpu ? 'Computer Player' : isCurrentPlayer ? 'Local Player' : 'Human Player'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Requirement 4: Distinct visual & text readiness indicator (not color alone) */}
+                <div className="shrink-0">
+                  {isCpu ? (
+                    <div
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800"
+                      title="Computer players are automatically ready"
+                    >
+                      <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                      <span>Ready</span>
+                    </div>
+                  ) : m.isReady ? (
+                    <div
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800"
+                      title="Player has confirmed ready"
+                    >
+                      <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                      <span>Ready</span>
+                    </div>
+                  ) : (
+                    <div
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-800"
+                      title="Waiting for player to ready up"
+                    >
+                      <Clock className="w-3 h-3 text-amber-600 dark:text-amber-400 shrink-0" />
+                      <span>Not Ready</span>
+                    </div>
+                  )}
+                </div>
+              </Card>
+            );
+          })}
+
+          {/* Render Remaining Empty Slots up to 6 */}
+          {Array.from({ length: emptySlotCount }).map((_, i) => {
+            const slotNumber = memberList.length + i + 1;
+            return (
+              <div
+                key={`empty-slot-${slotNumber}`}
+                className="border-2 border-dashed border-indian-parchment-300 dark:border-indian-navy-700 rounded-xl p-3 flex items-center justify-between text-xs text-gray-400 font-medium bg-indian-parchment-100/30 dark:bg-indian-navy-900/30"
+              >
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full border border-dashed border-gray-300 dark:border-gray-700 flex items-center justify-center text-[11px] font-bold text-gray-400">
+                    {slotNumber}
+                  </div>
+                  <div>
+                    <span className="font-bold text-gray-500 dark:text-gray-400 text-xs block">
+                      Slot {slotNumber}: Available
+                    </span>
+                    <span className="text-[10px] text-gray-400">
+                      Open for human or CPU
+                    </span>
+                  </div>
+                </div>
+
+                {isHost ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleAddCpu}
+                    disabled={isAddingCpu}
+                    className="text-[11px] h-7 px-2.5 flex items-center gap-1 border-blue-400 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/40 cursor-pointer disabled:opacity-50"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>Add CPU</span>
+                  </Button>
+                ) : (
+                  <span className="text-[10px] text-gray-400 italic">
+                    Waiting for player...
+                  </span>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
 
-      {/* Start / Ready Actions */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-indian-parchment-300 dark:border-indian-navy-700">
-        {player && currentMember && (
-          <Button
-            size="lg"
-            variant={currentMember.isReady ? 'outline' : 'secondary'}
-            disabled={isTogglingReady}
-            onClick={handleToggleReady}
-            className="w-full sm:w-auto font-bold px-6 cursor-pointer"
-          >
-            {isTogglingReady ? (
-              <Loader2 className="w-4 h-4 animate-spin mr-1.5" />
-            ) : null}
-            {currentMember.isReady ? 'Toggle Not Ready' : 'Ready Up'}
-          </Button>
-        )}
-
-        {isHost ? (
-          <Button
-            size="lg"
-            variant="primary"
-            disabled={!canStart || isStartingGame}
-            onClick={handleStartGame}
-            className="w-full sm:w-auto font-bold px-8 shadow-md flex items-center justify-center gap-2 cursor-pointer"
-          >
-            {isStartingGame ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Play className="w-4 h-4 fill-current" />
-            )}
-            <span>{isStartingGame ? 'Starting...' : 'Start Game'}</span>
-          </Button>
-        ) : (
-          <div className="text-xs text-gray-500 italic">
-            Waiting for host to start match once all players are ready...
+      {/* Requirement 4 & 5: Bottom Action Bar with Ready Toggle & Start Game */}
+      <div className="pt-4 border-t border-indian-parchment-300 dark:border-indian-navy-700 space-y-3">
+        {/* Explanation text when cannot start */}
+        {!canStart && isHost && (
+          <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 text-amber-800 dark:text-amber-200 text-xs flex items-center gap-2 animate-fade-in">
+            <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+            <span>{startDisabledReason}</span>
           </div>
         )}
+
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+          {/* Human Player Ready / Not Ready Control (Requirement 4: includes host!) */}
+          {player && currentMember && !currentMember.isCpu && (
+            <Button
+              size="lg"
+              variant={currentMember.isReady ? 'outline' : 'secondary'}
+              disabled={isTogglingReady}
+              onClick={handleToggleReady}
+              className={`w-full sm:w-auto font-bold px-6 flex items-center justify-center gap-2 cursor-pointer transition-all ${
+                currentMember.isReady
+                  ? 'border-amber-500 text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/30'
+                  : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs'
+              }`}
+            >
+              {isTogglingReady ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : currentMember.isReady ? (
+                <Clock className="w-4 h-4" />
+              ) : (
+                <Check className="w-4 h-4" />
+              )}
+              <span>{currentMember.isReady ? 'Set to Not Ready' : 'Ready Up'}</span>
+            </Button>
+          )}
+
+          {/* Host Start Game Control (Requirement 5) */}
+          {isHost ? (
+            <Button
+              size="lg"
+              variant="primary"
+              disabled={!canStart || isStartingGame}
+              onClick={handleStartGame}
+              className="w-full sm:w-auto font-bold px-8 shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isStartingGame ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Play className="w-4 h-4 fill-current" />
+              )}
+              <span>{isStartingGame ? 'Starting...' : 'Start Game'}</span>
+            </Button>
+          ) : (
+            <div className="text-xs text-gray-500 italic">
+              Waiting for host to start match once all players are ready...
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

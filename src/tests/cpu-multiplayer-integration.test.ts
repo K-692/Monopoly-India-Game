@@ -122,7 +122,7 @@ describe('CPU Players & Starting Cash Server Integration', () => {
       client.disconnect();
     });
 
-    it('rejects attempt to add more than 3 computer players', async () => {
+    it('rejects attempt to add computer players beyond 6-player capacity', async () => {
       const client = createClient();
 
       await new Promise<void>((resolve) => {
@@ -133,12 +133,14 @@ describe('CPU Players & Starting Cash Server Integration', () => {
         client.emit(
           'room:create',
           {
-            customRules: { ...DEFAULT_HOST_RULES, maxPlayers: 6 },
+            customRules: DEFAULT_HOST_RULES,
             cpuPlayers: [
               { name: 'CPU1' },
               { name: 'CPU2' },
               { name: 'CPU3' },
               { name: 'CPU4' },
+              { name: 'CPU5' },
+              { name: 'CPU6' },
             ],
           },
           resolve
@@ -146,7 +148,7 @@ describe('CPU Players & Starting Cash Server Integration', () => {
       });
 
       expect(res.ok).toBe(false);
-      expect(res.error).toContain('Maximum 3');
+      expect(res.error).toContain('capacity');
       client.disconnect();
     });
 
@@ -230,13 +232,19 @@ describe('CPU Players & Starting Cash Server Integration', () => {
         hostClient.emit('player:register', { displayName: 'CapacityHost' }, () => resolve());
       });
 
-      // 2 max players: 1 host + 1 CPU = full room
+      // 6 max players: 1 host + 5 CPUs = full room
       const roomRes = await new Promise<RoomCreateResponse>((resolve) => {
         hostClient.emit(
           'room:create',
           {
-            customRules: { ...DEFAULT_HOST_RULES, maxPlayers: 2 },
-            cpuPlayers: [{ name: 'SoloBot' }],
+            customRules: DEFAULT_HOST_RULES,
+            cpuPlayers: [
+              { name: 'Bot1' },
+              { name: 'Bot2' },
+              { name: 'Bot3' },
+              { name: 'Bot4' },
+              { name: 'Bot5' },
+            ],
           },
           resolve
         );
@@ -284,7 +292,8 @@ describe('CPU Players & Starting Cash Server Integration', () => {
       expect(roomRes.ok).toBe(true);
       expect(roomRes.room?.customRules?.startingCash).toBe(35000);
 
-      // Start the game
+      // Mark host ready and start the game
+      await new Promise<void>((resolve) => client.emit('room:set-ready', { isReady: true }, () => resolve()));
       const startRes = await new Promise<{ ok: boolean; gameId?: string }>((resolve) => {
         client.emit('room:start', resolve);
       });
@@ -353,6 +362,7 @@ describe('CPU Players & Starting Cash Server Integration', () => {
       expect(roomRes.ok).toBe(true);
       expect(roomRes.room?.customRules?.passStartReward).toBe(1000);
 
+      await new Promise<void>((resolve) => client.emit('room:set-ready', { isReady: true }, () => resolve()));
       const startRes = await new Promise<{ ok: boolean; gameId?: string }>((resolve) => {
         client.emit('room:start', resolve);
       });
@@ -385,6 +395,7 @@ describe('CPU Players & Starting Cash Server Integration', () => {
       expect(roomRes.ok).toBe(true);
       expect(roomRes.room?.customRules?.passStartReward).toBe(2000);
 
+      await new Promise<void>((resolve) => client.emit('room:set-ready', { isReady: true }, () => resolve()));
       const startRes = await new Promise<{ ok: boolean; gameId?: string }>((resolve) => {
         client.emit('room:start', resolve);
       });
@@ -417,6 +428,7 @@ describe('CPU Players & Starting Cash Server Integration', () => {
       expect(roomRes.ok).toBe(true);
       expect(roomRes.room?.customRules?.passStartReward).toBe(3000);
 
+      await new Promise<void>((resolve) => client.emit('room:set-ready', { isReady: true }, () => resolve()));
       const startRes = await new Promise<{ ok: boolean; gameId?: string }>((resolve) => {
         client.emit('room:start', resolve);
       });
@@ -476,7 +488,8 @@ describe('CPU Players & Starting Cash Server Integration', () => {
       });
       expect(roomRes.ok).toBe(true);
 
-      // Because CPU is always ready, host can start immediately with 2 players
+      // Host marks ready. Because CPU is always ready, host can start with 2 players
+      await new Promise<void>((resolve) => client.emit('room:set-ready', { isReady: true }, () => resolve()));
       const startRes = await new Promise<{ ok: boolean; gameId?: string }>((resolve) => {
         client.emit('room:start', resolve);
       });
@@ -560,6 +573,7 @@ describe('CPU Players & Starting Cash Server Integration', () => {
         handleState(state);
       });
 
+      await new Promise<void>((resolve) => client.emit('room:set-ready', { isReady: true }, () => resolve()));
       const startRes = await new Promise<{ ok: boolean; gameId?: string }>((resolve) => {
         client.emit('room:start', resolve);
       });

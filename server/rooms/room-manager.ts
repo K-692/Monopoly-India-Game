@@ -211,13 +211,15 @@ export class RoomManager {
     // Standard fixed statutory values
     const jailBail = 500;
 
+    // Maximum room capacity is fixed at 6 total player slots
+    const maxPlayers = 6;
     const rules: HostCustomRules = {
       ...(customRules ?? DEFAULT_HOST_RULES),
+      maxPlayers: 6,
       startingCash,
       passStartReward,
       jailBail,
     };
-    const maxPlayers = rules.maxPlayers ?? 4;
     const normalizedTimer: 0 | 30 | 45 | 60 =
       rules.turnTimerSeconds === 0 ? 0 :
       rules.turnTimerSeconds === 45 ? 45 :
@@ -230,7 +232,7 @@ export class RoomManager {
       uid: hostUid,
       displayName: hostSession.displayName,
       photoURL: null,
-      isReady: true, // Host is automatically marked ready
+      isReady: false, // Requirement 4: The host is also a human player and must mark themselves ready
       joinedAt: Date.now(),
       colorToken: hostSession.avatarColor || PLAYER_PALETTE[0],
       isCpu: false,
@@ -242,14 +244,10 @@ export class RoomManager {
     const cpuConfigs: { name: string }[] = [];
 
     if (cpuPlayers && Array.isArray(cpuPlayers) && cpuPlayers.length > 0) {
-      if (cpuPlayers.length > 3) {
-        return { ok: false, error: 'Maximum 3 computer players allowed per room.' };
-      }
-
       if (cpuPlayers.length + 1 > maxPlayers) {
         return {
           ok: false,
-          error: `Room capacity exceeded. Room max is ${maxPlayers} players, but host + ${cpuPlayers.length} computer players would equal ${cpuPlayers.length + 1}.`,
+          error: `Room capacity exceeded. Maximum 6 total players allowed per room (attempted ${cpuPlayers.length + 1}).`,
         };
       }
 
@@ -447,8 +445,215 @@ export class RoomManager {
       return { ok: false, error: 'Player is not a member of this room' };
     }
 
+    if (member.isCpu || member.playerType === 'COMPUTER') {
+      return { ok: false, error: 'Computer players are automatically ready.' };
+    }
+
     member.isReady = isReady;
     room.updatedAt = Date.now();
+    return { ok: true, room };
+  }
+
+  /**
+   * Adds an autonomous computer player (CPU) to an open slot in the room.
+   * Host-only operation; maximum 6 total players in room.
+   */
+  public addCpu(
+    roomId: string,
+    callerUid: string,
+    name?: string
+  ): { ok: boolean; room?: ServerRoom; cpuMember?: RoomMember; error?: string } {
+    const room = this.rooms.get(roomId);
+    if (!room) return { ok: false, error: 'Room not found' };
+
+    if (room.status !== 'LOBBY') {
+      return { ok: false, error: 'Cannot add computer players once game has started.' };
+    }
+
+    if (room.hostUid !== callerUid) {
+      return { ok: false, error: 'Only the room host can add computer players.' };
+    }
+
+    const currentCount = Object.keys(room.members).length;
+    if (currentCount >= 6) {
+      return { ok: false, error: 'Room is full. Maximum 6 players reached.' };
+    }
+
+    const existingNames = new Set(
+      Object.values(room.members).map((m) => m.displayName.trim().toLowerCase())
+    );
+
+    let finalName = '';
+    if (name && name.trim()) {
+      const rawName = name.trim();
+      if (rawName.length < 2 || rawName.length > 20) {
+        return {
+          ok: false,
+          error: `Computer player name "${rawName}" must be between 2 and 20 characters.`,
+        };
+      }
+      if (!/^[a-zA-Z0-9 _-]+$/.test(rawName)) {
+        return {
+          ok: false,
+          error: `Computer player name "${rawName}" contains invalid characters. Use letters, numbers, spaces, underscores, or hyphens.`,
+        };
+      }
+      if (existingNames.has(rawName.toLowerCase())) {
+        return {
+          ok: false,
+          error: `A player named "${rawName}" already exists in this room. Please choose a unique name.`,
+        };
+      }
+      finalName = rawName;
+    } else {
+      // Find lowest available CPU number (CPU 1, CPU 2, CPU 3...)
+      for (let i = 1; i <= 6; i++) {
+        const candidate = `CPU ${i}`;
+        const altCandidate = `CPU${i}`;
+        if (!existingNames.has(candidate.toLowerCase()) && !existingNames.has(altCandidate.toLowerCase())) {
+          finalName = candidate;
+          break;
+        }
+      }
+      if (!finalName) {
+        finalName = `CPU ${currentCount + 1}`;
+      }
+    }
+
+    // Pick distinct color token
+    const takenColors = new Set(Object.values(room.members).map((m) => m.colorToken));
+    const freeColor = PLAYER_PALETTE.find((c) => !takenColors.has(c));
+    const assignedColor = freeColor || PLAYER_PALETTE[currentCount % PLAYER_PALETTE.length];
+
+    const cpuUid = 'cpu_' + crypto.randomUUID().replace(/-/g, '').slice(0, 10);
+    const cpuMember: RoomMember = {
+      uid: cpuUid,
+      displayName: finalName,
+      photoURL: null,
+      isReady: true, // Computer players are always ready
+      joinedAt: Date.now(),
+      colorToken: assignedColor,
+      isCpu: true,
+      playerType: 'COMPUTER',
+    };
+
+    room.members[cpuUid] = cpuMember;
+    room.memberUids = Object.keys(room.members);
+    room.cpuPlayers = Object.values(room.members)
+      .filter((m) => m.isCpu || m.playerType === 'COMPUTER')
+      .map((m) => ({ name: m.displayName }));
+    room.updatedAt = Date.now();
+
+    return { ok: true, room, cpuMember };
+  }
+
+  /**
+   * Removes an autonomous computer player (CPU) from the room before the match starts.
+   * Host-only operation; cannot remove human players.
+   */
+  public removeCpu(
+    roomId: string,
+    callerUid: string,
+    cpuUid: string
+  ): { ok: boolean; room?: ServerRoom; error?: string } {
+    const room = this.rooms.get(roomId);
+    if (!room) return { ok: false, error: 'Room not found' };
+
+    if (room.status !== 'LOBBY') {
+      return { ok: false, error: 'Cannot manage computer players once game has started.' };
+    }
+
+    if (room.hostUid !== callerUid) {
+      return { ok: false, error: 'Only the room host can remove computer players.' };
+    }
+
+    const member = room.members[cpuUid];
+    if (!member) {
+      return { ok: false, error: 'Computer player not found in this room.' };
+    }
+
+    if (!member.isCpu && member.playerType !== 'COMPUTER') {
+      return { ok: false, error: 'Cannot remove human players.' };
+    }
+
+    delete room.members[cpuUid];
+    room.memberUids = Object.keys(room.members);
+    const remainingCpus = Object.values(room.members)
+      .filter((m) => m.isCpu || m.playerType === 'COMPUTER')
+      .map((m) => ({ name: m.displayName }));
+    room.cpuPlayers = remainingCpus.length > 0 ? remainingCpus : undefined;
+    room.updatedAt = Date.now();
+
+    return { ok: true, room };
+  }
+
+  /**
+   * Renames an autonomous computer player (CPU) in the lobby.
+   * Host-only operation; cannot rename human players; enforces length & uniqueness.
+   */
+  public renameCpu(
+    roomId: string,
+    callerUid: string,
+    cpuUid: string,
+    newName: string
+  ): { ok: boolean; room?: ServerRoom; error?: string } {
+    const room = this.rooms.get(roomId);
+    if (!room) return { ok: false, error: 'Room not found' };
+
+    if (room.status !== 'LOBBY') {
+      return { ok: false, error: 'Cannot manage computer players once game has started.' };
+    }
+
+    if (room.hostUid !== callerUid) {
+      return { ok: false, error: 'Only the room host can rename computer players.' };
+    }
+
+    const member = room.members[cpuUid];
+    if (!member) {
+      return { ok: false, error: 'Computer player not found in this room.' };
+    }
+
+    if (!member.isCpu && member.playerType !== 'COMPUTER') {
+      return { ok: false, error: 'Cannot rename human players.' };
+    }
+
+    const trimmed = (newName || '').trim();
+    if (!trimmed) {
+      return { ok: false, error: 'Computer player name cannot be empty.' };
+    }
+
+    if (trimmed.length < 2 || trimmed.length > 20) {
+      return {
+        ok: false,
+        error: `Computer player name "${trimmed}" must be between 2 and 20 characters.`,
+      };
+    }
+
+    if (!/^[a-zA-Z0-9 _-]+$/.test(trimmed)) {
+      return {
+        ok: false,
+        error: `Computer player name "${trimmed}" contains invalid characters. Use letters, numbers, spaces, underscores, or hyphens.`,
+      };
+    }
+
+    const targetLower = trimmed.toLowerCase();
+    const hasCollision = Object.values(room.members).some(
+      (m) => m.uid !== cpuUid && m.displayName.trim().toLowerCase() === targetLower
+    );
+
+    if (hasCollision) {
+      return {
+        ok: false,
+        error: `A player named "${trimmed}" already exists in this room. Please choose a unique name.`,
+      };
+    }
+
+    member.displayName = trimmed;
+    room.cpuPlayers = Object.values(room.members)
+      .filter((m) => m.isCpu || m.playerType === 'COMPUTER')
+      .map((m) => ({ name: m.displayName }));
+    room.updatedAt = Date.now();
+
     return { ok: true, room };
   }
 
@@ -485,7 +690,6 @@ export class RoomManager {
       const nextHost = Object.values(room.members).sort((a, b) => a.joinedAt - b.joinedAt)[0];
       if (nextHost) {
         room.hostUid = nextHost.uid;
-        nextHost.isReady = true; // Host is always ready
       }
     }
 
