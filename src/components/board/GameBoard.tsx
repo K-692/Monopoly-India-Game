@@ -805,6 +805,41 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             <div className="w-80 h-80 rounded-full border-[12px] border-indian-navy-900 dark:border-white border-dashed animate-spin-very-slow" />
           </div>
 
+          {/* Requirement 3: Continuous Subtle Dynamic Wave Animation Layer */}
+          <div
+            data-testid="central-board-wave-layer"
+            aria-hidden="true"
+            className="absolute inset-0 pointer-events-none overflow-hidden z-0"
+          >
+            {/* Primary Gentle Flowing Wave */}
+            <div className="absolute -inset-x-full inset-y-0 w-[300%] h-full animate-board-wave-1 opacity-[0.06] dark:opacity-[0.035] will-change-transform">
+              <svg
+                viewBox="0 0 1440 320"
+                className="w-full h-full object-cover text-indian-terracotta-500"
+                preserveAspectRatio="none"
+              >
+                <path
+                  fill="currentColor"
+                  d="M0,96L48,112C96,128,192,160,288,160C384,160,480,128,576,122.7C672,117,768,139,864,154.7C960,171,1056,181,1152,165.3C1248,149,1344,107,1392,85.3L1440,64L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"
+                />
+              </svg>
+            </div>
+
+            {/* Secondary Counter-Flowing Wave for Fluid Dynamic Treatment */}
+            <div className="absolute -inset-x-full inset-y-0 w-[300%] h-full animate-board-wave-2 opacity-[0.045] dark:opacity-[0.025] will-change-transform">
+              <svg
+                viewBox="0 0 1440 320"
+                className="w-full h-full object-cover text-amber-500"
+                preserveAspectRatio="none"
+              >
+                <path
+                  fill="currentColor"
+                  d="M0,192L48,176C96,160,192,128,288,133.3C384,139,480,181,576,197.3C672,213,768,203,864,181.3C960,160,1056,128,1152,128C1248,128,1344,160,1392,176L1440,192L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"
+                />
+              </svg>
+            </div>
+          </div>
+
           {/* Top Center: Turn Step Acknowledgment Banner */}
           <div className="w-full max-w-sm z-10 shrink-0">
             <TurnStepAcknowledgment

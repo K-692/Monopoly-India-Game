@@ -254,7 +254,7 @@ export const PlayerStrip: React.FC<PlayerStripProps> = ({
       {/* Requirement 2: Permanent Compact Keyboard Shortcut Reference Below Left Panel */}
       <div
         data-testid="keyboard-shortcuts-reference"
-        className="mt-auto pt-1.5 border-t border-indian-parchment-300 dark:border-indian-navy-700/80 flex flex-col gap-1 text-[8px] sm:text-[8.5px] select-none text-indian-navy-800 dark:text-indian-parchment-200 shrink-0"
+        className="mt-auto pt-1.5 mb-2 sm:mb-2.5 pb-0.5 border-t border-indian-parchment-300 dark:border-indian-navy-700/80 flex flex-col gap-1 text-[8px] sm:text-[8.5px] select-none text-indian-navy-800 dark:text-indian-parchment-200 shrink-0"
       >
         <span className="text-[7.5px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400 px-0.5">
           Keyboard Shortcuts

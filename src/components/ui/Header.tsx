@@ -4,11 +4,13 @@ import { Volume2, VolumeX, Dices, Settings as SettingsIcon, Edit3, HelpCircle } 
 import { useAuthStore } from '@/features/auth/use-auth-store';
 import { useSettingsStore } from '@/features/settings/use-settings-store';
 import { RulesModal } from '@/components/rules/RulesModal';
+import { SettingsModal } from '@/components/settings/SettingsModal';
 
 export const Header: React.FC = () => {
   const { player, openNamePrompt } = useAuthStore();
   const { soundMuted, toggleSound } = useSettingsStore();
   const [isRulesModalOpen, setIsRulesModalOpen] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const location = useLocation();
 
   const isCurrent = (path: string) => {
@@ -56,17 +58,20 @@ export const Header: React.FC = () => {
                 <span>Play</span>
               </Link>
 
-              <Link
-                to="/settings"
-                className={`px-2.5 sm:px-4 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors min-h-[36px] ${
-                  isCurrent('/settings')
+              <button
+                type="button"
+                onClick={() => setIsSettingsModalOpen(true)}
+                aria-label="Open Settings"
+                data-testid="header-settings-button"
+                className={`px-2.5 sm:px-4 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors min-h-[36px] cursor-pointer ${
+                  isSettingsModalOpen
                     ? 'bg-white dark:bg-indian-navy-700 text-indian-terracotta-600 shadow-sm'
                     : 'text-indian-navy-700 dark:text-indian-parchment-300 hover:text-indian-terracotta-600'
                 }`}
               >
                 <SettingsIcon className="w-3.5 h-3.5 shrink-0" />
                 <span>Settings</span>
-              </Link>
+              </button>
             </nav>
           </div>
 
@@ -77,6 +82,7 @@ export const Header: React.FC = () => {
               onClick={() => setIsRulesModalOpen(true)}
               aria-label="View Game Rules"
               title="Official Game Rules & Guide"
+              data-testid="header-rules-button"
               className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-lg border border-indian-parchment-300 dark:border-indian-navy-700 bg-white dark:bg-indian-navy-800 text-indian-navy-800 dark:text-indian-parchment-200 hover:bg-indian-parchment-200 transition-colors cursor-pointer shrink-0"
             >
               <HelpCircle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
@@ -112,8 +118,11 @@ export const Header: React.FC = () => {
         </div>
       </header>
 
-    {/* Rules Pop Up Window Modal */}
-    <RulesModal isOpen={isRulesModalOpen} onClose={() => setIsRulesModalOpen(false)} />
-  </>
+      {/* Rules Pop Up Window Modal */}
+      <RulesModal isOpen={isRulesModalOpen} onClose={() => setIsRulesModalOpen(false)} />
+
+      {/* Global Settings Pop Up Window Modal */}
+      <SettingsModal isOpen={isSettingsModalOpen} onClose={() => setIsSettingsModalOpen(false)} />
+    </>
   );
 };

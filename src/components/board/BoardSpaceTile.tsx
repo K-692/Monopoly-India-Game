@@ -57,6 +57,8 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
   const isCity = space.type === 'PROPERTY';
   const isJail = space.spaceIndex === 10;
   const isStart = space.spaceIndex === 0;
+  const isRest = space.spaceIndex === 20;
+  const isGoToJail = space.spaceIndex === 30;
   const isNonCity = !isCity && !isJail && !isStart && !isCorner;
   const isBlocked = propertyState?.ownershipState === 'BLOCKED';
 
@@ -184,8 +186,10 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
         // City grid styling
         isCity && !ownerColor && 'border-2 shadow-2xs',
         isCity && ownerColor && 'border-3 shadow-xs',
-        // Corners fallback
-        isStart && 'bg-indian-parchment-100 dark:bg-indian-navy-950 border-indian-parchment-400 text-indian-navy-950 dark:text-white',
+        // Corners: START, REST, and GO TO JAIL share unified background token matching START (Requirement 5)
+        (isStart || isRest || isGoToJail) && 'bg-indian-parchment-100 dark:bg-indian-navy-950 border-indian-parchment-400 text-indian-navy-950 dark:text-white',
+        // START subtle ambient continuous glow (Requirement 6)
+        isStart && 'animate-start-glow',
         isSelected && 'ring-2 ring-indian-terracotta-500 z-20',
         isHighlighted && 'ring-4 ring-amber-400 dark:ring-amber-300 scale-105 z-30 shadow-[0_0_20px_rgba(251,191,36,0.9)] animate-pulse',
         propertyState?.isMortgaged && !isBlocked && 'opacity-65 bg-gray-100/90 dark:bg-gray-900/80',
@@ -208,9 +212,9 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
           <div className="relative z-10 flex-1 flex flex-col items-center justify-center text-center w-full">
             {/* START Corner */}
             {space.spaceIndex === 0 && (
-              <div className="flex flex-col items-center justify-center text-indian-terracotta-600 gap-0.5">
+              <div className="flex flex-col items-center justify-center text-indian-terracotta-600 dark:text-indian-terracotta-400 gap-0.5">
                 <span className="font-serif text-xs sm:text-sm md:text-base font-black tracking-wider whitespace-nowrap">START</span>
-                <ArrowLeft className="w-3.5 h-3.5 text-indian-terracotta-500 animate-pulse-subtle" />
+                <ArrowLeft className="w-3.5 h-3.5 text-indian-terracotta-500 dark:text-indian-terracotta-400 animate-start-arrow" />
               </div>
             )}
 
@@ -227,14 +231,14 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
             )}
 
             {space.spaceIndex === 20 && (
-              <div className="text-center text-amber-700">
+              <div className="text-center text-amber-700 dark:text-amber-400">
                 <span className="block text-xs sm:text-sm md:text-base font-black whitespace-nowrap">REST</span>
-                <span className="text-[9px] sm:text-[10px] text-gray-500 font-bold whitespace-nowrap">House</span>
+                <span className="text-[9px] sm:text-[10px] text-gray-500 dark:text-gray-400 font-bold whitespace-nowrap">House</span>
               </div>
             )}
 
             {space.spaceIndex === 30 && (
-              <div className="text-center text-red-600">
+              <div className="text-center text-red-600 dark:text-red-400">
                 <span className="block text-xs sm:text-sm md:text-base font-black whitespace-nowrap">GO TO</span>
                 <span className="text-[9px] sm:text-[10px] font-extrabold whitespace-nowrap">JAIL</span>
               </div>

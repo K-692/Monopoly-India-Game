@@ -136,6 +136,7 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
       role="dialog"
       aria-modal="true"
       aria-labelledby="rules-modal-title"
+      data-testid="rules-modal-overlay"
       className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();

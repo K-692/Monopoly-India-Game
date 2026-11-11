@@ -515,17 +515,17 @@ export class RoomManager {
       }
       finalName = rawName;
     } else {
-      // Find lowest available CPU number (CPU 1, CPU 2, CPU 3...)
+      // Find lowest available CPU number (CPU1, CPU2, CPU3...)
       for (let i = 1; i <= 6; i++) {
-        const candidate = `CPU ${i}`;
-        const altCandidate = `CPU${i}`;
+        const candidate = `CPU${i}`;
+        const altCandidate = `CPU ${i}`;
         if (!existingNames.has(candidate.toLowerCase()) && !existingNames.has(altCandidate.toLowerCase())) {
           finalName = candidate;
           break;
         }
       }
       if (!finalName) {
-        finalName = `CPU ${currentCount + 1}`;
+        finalName = `CPU${currentCount + 1}`;
       }
     }
 

@@ -3,7 +3,7 @@
 > **Document Type:** Formal System Architecture & Research Implementation Record  
 > **Repository:** `https://github.com/K-692/Monopoly-India-Game`  
 > **Target Audience:** Systems Researchers, Distributed Systems Engineers, Game Theory & Multi-Agent Researchers  
-> **Status:** Current State Production Implementation (Simplified Room Creation, 6-Slot Waiting Lobby & Host-Controlled Multi-Agent Seating)  
+> **Status:** Current State Production Implementation (Settings Popup Modal, Subtle Board Animations, Corner Tile Harmonization & CPU1 Formatting)  
 
 ---
 
@@ -233,6 +233,7 @@ flowchart TD
     M13["13. Contextual Shortcuts, Dynamic Net Worth Rankings & Continuity Safeguards<br>• Contextual shortcuts: Spacebar (Roll dice / Try Double / End turn), S (Sell to Bank), Enter (Accept / Bail), N (Decline)<br>• Permanent compact keycap shortcut reference below left player panel<br>• Section 12 Keyboard Shortcuts in centralized rules guide & rules modal<br>• Dynamic live NET WORTH competition rankings (#1, #2, #3) with highlighted #1 badge<br>• Card money formatting: green +₹ for rewards, red -₹ for costs, neutral for utility cards<br>• Audited card content: cleaned nonexistent auction references in market_4<br>• Robust CPU fallback decision generator & server stuck-turn recovery safeguards<br>• 220 Tests Passing (100%) across 19 test suites"]
     M14["14. Building Shortcut, Rules Navigation & NET WORTH Tie-Breaking<br>• Spacebar context extended: Roll Dice, Try Double, Build House/Tower, End Turn<br>• Permanent left panel shortcut reference & Section 12 updated with Build House/Tower<br>• Rules popup categorized into 9 structured navigation categories with desktop sidebar & mobile bar<br>• Strict room-join sequence tie-breaking: unique sequential ranks #1..#N across human and CPU players<br>• Monotonic roomJoinSequence lifecycle persisted across reconnection and player rotations<br>• 235 Tests Passing (100%) across 20 test suites"]
     M15["15. Build House/Tower Shortcut Remapped to Enter<br>• Enter context extended: Accept / Bail / Build House/Tower (top priority on landed developable city)<br>• Spacebar refined to pure turn progression: Roll Dice, Try Double, End Turn<br>• Left panel shortcut reference updated: SPACE (Roll/Try Double/End Turn) & ENTER (Accept/Bail/Build House/Tower)<br>• Rules guide Section 12 & Buildings detail updated with new keyboard controls<br>• 238 Tests Passing (100%) across 20 test suites"]
+    M16["16. Global Settings Popup, Subtle Board Waves, Corner Harmonization & UI Polish<br>• Settings converted to global non-blocking popup dialog accessible across landing, lobby, and gameplay screens<br>• Active gameplay protected: match continues in background without timer/turn pause or component unmounting<br>• Default CPU naming updated to CPU1, CPU2, CPU3 (without space) while retaining custom names<br>• Central board flowing SVG wave animation (animate-board-wave-1/2, pointer-events-none, <6% opacity)<br>• Corner spaces REST and GO TO JAIL background styled identical to START (bg-indian-parchment-100)<br>• START tile subtle ambient pulse (animate-start-glow) and directional arrow movement (animate-start-arrow)<br>• Landing page (?) Rules button added opening authoritative RulesModal<br>• Spacing refined on left player panel keyboard shortcut reference (mb-2 sm:mb-2.5 pb-0.5)<br>• 245 Tests Passing (100%) across 21 test suites"]
 
     M1 --> M2
     M2 --> M3
@@ -248,6 +249,7 @@ flowchart TD
     M12 --> M13
     M13 --> M14
     M14 --> M15
+    M15 --> M16
 ```
 
 ---
@@ -293,6 +295,12 @@ flowchart TD
 | **Sequential Rank Tie-Break**| $\text{NetWorth}(p_i) = \text{NetWorth}(p_j) \implies (\text{Rank}(p_i) < \text{Rank}(p_j) \iff \text{joinSeq}(p_i) < \text{joinSeq}(p_j))$ | `PlayerStrip.tsx` | ✅ Verified (`building-shortcut-rules-nav-and-rankings.test.tsx`) |
 | **Join Sequence Immutability**| $\forall p, \text{joinSeq}(p) = \text{const} \land \forall t, \text{Rotate}(\text{playerOrder}) \implies \Delta(\text{joinSeq}) = 0$ | `room-manager.ts` & `create-initial-game.ts` | ✅ Verified (`building-shortcut-rules-nav-and-rankings.test.tsx`) |
 | **Categorized Rules Navigation**| $|\text{Categories}| = 9 \land \text{Filter}(\text{cat}) \to \text{Sections}(\text{cat}) \land \text{NonMutating} = \text{true}$ | `game-rules-guide.ts` & `RulesModal.tsx` | ✅ Verified (`building-shortcut-rules-nav-and-rankings.test.tsx`) |
+| **Global Settings Modal Overlay**| $\text{OpenSettings}() \implies \text{Unmount}(\text{CurrentScreen}) = \text{false} \land \text{Pause}(\text{Match}) = \text{false}$ | `Header.tsx` & `SettingsModal.tsx` | ✅ Verified (`settings-popup-visuals-and-cpu.test.tsx`) |
+| **Continuous Board Wave Layer** | $\text{WaveLayer} \in \text{pointer-events-none} \land \text{Opacity} \le 0.06 \land \text{ZIndex} = 0$ | `GameBoard.tsx` | ✅ Verified (`settings-popup-visuals-and-cpu.test.tsx`) |
+| **Corner Space Background Harmonization** | $\text{Bg}(\text{REST}) = \text{Bg}(\text{GO\_TO\_JAIL}) = \text{Bg}(\text{START}) \equiv \text{bg-indian-parchment-100}$ | `BoardSpaceTile.tsx` | ✅ Verified (`settings-popup-visuals-and-cpu.test.tsx`) |
+| **START Glow & Arrow Movement** | $\text{Tile}(\text{START}) \in \text{animate-start-glow} \land \text{Arrow}(\text{START}) \in \text{animate-start-arrow}$ | `BoardSpaceTile.tsx` & `index.css` | ✅ Verified (`settings-popup-visuals-and-cpu.test.tsx`) |
+| **Landing Rules (?) Accessibility** | $\text{Exists}(\text{landing-rules-button}) \land \text{Opens}(\text{RulesModal})$ | `PlayPage.tsx` | ✅ Verified (`settings-popup-visuals-and-cpu.test.tsx`) |
+| **Default CPU Compact Format** | $\text{Name}(\text{CPU}_k) = \text{"CPU"} + k \quad (k \in \{1, 2, 3, 4, 5\})$ | `room-manager.ts` | ✅ Verified (`settings-popup-visuals-and-cpu.test.tsx`) |
 
 ---
 

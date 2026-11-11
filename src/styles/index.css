@@ -226,4 +226,76 @@
   animation: slideOutLeft 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+/* Subtle Dynamic Wave Animations for Central Board Background */
+@keyframes boardWave1 {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(-33.333%, 3%, 0);
+  }
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes boardWave2 {
+  0% {
+    transform: translate3d(-33.333%, 2%, 0);
+  }
+  50% {
+    transform: translate3d(0, -2%, 0);
+  }
+  100% {
+    transform: translate3d(-33.333%, 2%, 0);
+  }
+}
+
+.animate-board-wave-1 {
+  animation: boardWave1 24s ease-in-out infinite;
+}
+
+.animate-board-wave-2 {
+  animation: boardWave2 32s ease-in-out infinite;
+}
+
+/* START Grid & Directional Arrow Animations */
+@keyframes startGlow {
+  0%, 100% {
+    box-shadow: inset 0 0 6px rgba(200, 90, 50, 0.08), 0 0 4px rgba(200, 90, 50, 0.05);
+  }
+  50% {
+    box-shadow: inset 0 0 14px rgba(200, 90, 50, 0.22), 0 0 10px rgba(200, 90, 50, 0.14);
+  }
+}
+
+.animate-start-glow {
+  animation: startGlow 3s ease-in-out infinite;
+}
+
+@keyframes startArrowGlide {
+  0%, 100% {
+    transform: translateX(0);
+    opacity: 0.85;
+  }
+  50% {
+    transform: translateX(-3.5px);
+    opacity: 1;
+  }
+}
+
+.animate-start-arrow {
+  animation: startArrowGlide 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-board-wave-1,
+  .animate-board-wave-2,
+  .animate-start-glow,
+  .animate-start-arrow {
+    animation: none !important;
+  }
+}
+
+
 

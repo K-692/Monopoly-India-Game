@@ -160,7 +160,7 @@ For complete mathematical definitions, state machine proofs, and research citati
 | `npm run build:server` | Bundles the standalone server into `dist-server/index.cjs` using `esbuild`. |
 | `npm run build:desktop` | Builds both the React LAN frontend (`dist/`) and the server bundle (`dist-server/index.cjs`). |
 | `npm run desktop` | Builds desktop assets and launches the application inside native Electron. |
-| `npm test` | Runs the full Vitest test suite (235 tests across 20 test files). |
+| `npm test` | Runs the full Vitest test suite (245 tests across 21 test files). |
 | `npm run test:watch` | Runs Vitest in interactive watch mode for test-driven development. |
 | `npm run test:coverage`| Generates detailed test code coverage reports. |
 | `npm run typecheck` | Strict TypeScript compiler validation across client, server, and tests (`tsc -b --noEmit`). |
@@ -191,6 +191,11 @@ For complete mathematical definitions, state machine proofs, and research citati
 | **120s Debt Timer & Board Preview** | If cash balance drops into deficit after fees/rent, a 120-second countdown begins. The player can Adjust Payouts to sell to bank or inspect the unblurred board via an accessible centered card positioned directly on top of the dices at the board center without covering the perimeter grid, featuring live countdown and 1-click return. |
 | **Turn Sync & Timers** | Timers pause during token movement animations across all connected clients. Resets to full duration upon entering new actionable phases (e.g. `PROPERTY_DECISION`). Mandatory 2-second pacing handoff delay before CPU turns. |
 | **Audio Feedback** | Client-side procedural Web Audio chimes: personalized turn notification sound, pleasant rising chime (G5→C6) for purchase prompts, and subtle descending tone (F4→Db4) on decline actions. |
+| **Global Settings Modal** | Accessible from any view (landing page, waiting lobby, ongoing match) via the header navigation. Non-blocking overlay ensures live games continue uninterrupted without pausing timers, unmounting game boards, or stalling CPU turns. Configures player display names, token avatar colors, master volume, mute toggles with audio chime preview, dark/light theme, and reduced-motion accessibility. |
+| **Landing Rules Access** | Direct `?` Rules button provided on the landing page header and action strip, opening the comprehensive 12-section rulebook and category navigator prior to entering matches. |
+| **Default CPU Compact Format** | Standardized default computer player naming to `CPU1`, `CPU2`, `CPU3` (without space) across lobby seating and server room management, while fully preserving host custom naming capabilities. |
+| **Board Visual Enhancements** | Continuous fluid dual-layer SVG wave animation across the central board layer (`pointer-events-none`, non-distracting <6% opacity). Harmonized corner space backgrounds (`REST` and `GO TO JAIL` share the `bg-indian-parchment-100` styling of `START`). Ambient subtle glow and directional arrow glide animation on the `START` tile. |
+| **Shortcut Reference Spacing** | Polished bottom margin and padding (`mb-2 sm:mb-2.5 pb-0.5`) on the permanent left-side keyboard shortcut reference to ensure clean clearance above the viewport edge across all screen resolutions. |
 
 ---
 

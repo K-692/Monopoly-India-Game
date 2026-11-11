@@ -6,7 +6,6 @@ import { LobbyPage } from '@/features/rooms/LobbyPage';
 import { JoinPage } from '@/features/rooms/JoinPage';
 import { GamePage } from '@/features/game/GamePage';
 import { RulesPage } from '@/features/rules/RulesPage';
-import { SettingsPage } from '@/features/settings/SettingsPage';
 
 export const AppRouter: React.FC = () => {
   return (
@@ -25,8 +24,8 @@ export const AppRouter: React.FC = () => {
           <Route path="join/:inviteCode" element={<JoinPage />} />
           <Route path="game/:gameId" element={<GamePage />} />
 
-          {/* Settings Tab */}
-          <Route path="settings" element={<SettingsPage />} />
+          {/* Settings Tab redirected to home (Settings is now a global modal) */}
+          <Route path="settings" element={<Navigate to="/" replace />} />
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />

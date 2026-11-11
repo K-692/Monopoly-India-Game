@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore, PLAYER_COLORS } from '@/features/auth/use-auth-store';
 import { useRoomStore } from '@/features/rooms/use-room-store';
 import { CreateRoomRulesModal } from '@/components/rooms/CreateRoomRulesModal';
+import { RulesModal } from '@/components/rules/RulesModal';
 import { HostCustomRules } from '@/domain/ruleset';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -18,6 +19,7 @@ import {
   Lock,
   Check,
   AlertCircle,
+  HelpCircle,
 } from 'lucide-react';
 import { getSocket } from '@/lib/socket/socket-client';
 
@@ -27,6 +29,7 @@ export const PlayPage: React.FC = () => {
   const { createRoom, joinRoom, error: roomError, setError, lanInfo, fetchLanInfo } = useRoomStore();
 
   const [isRulesModalOpen, setIsRulesModalOpen] = useState(false);
+  const [isGlobalRulesOpen, setIsGlobalRulesOpen] = useState(false);
   const [joinCodeInput, setJoinCodeInput] = useState('');
   const [isJoining, setIsJoining] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -188,8 +191,8 @@ export const PlayPage: React.FC = () => {
           </p>
         </div>
 
-        {/* LAN Server Connection Status Indicator */}
-        <div className="mb-5 flex items-center justify-center">
+        {/* LAN Server Connection Status Indicator & Rules Quick Access */}
+        <div className="mb-5 flex flex-wrap items-center justify-center gap-2">
           {isSocketConnected ? (
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs font-semibold shadow-xs">
               <span className="relative flex h-2 w-2">
@@ -215,6 +218,16 @@ export const PlayPage: React.FC = () => {
               </span>
             </div>
           )}
+
+          <button
+            type="button"
+            onClick={() => setIsGlobalRulesOpen(true)}
+            data-testid="landing-rules-button"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-700/80 text-amber-900 dark:text-amber-200 text-xs font-bold shadow-2xs hover:bg-amber-100 dark:hover:bg-amber-900/80 transition-all cursor-pointer"
+          >
+            <HelpCircle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+            <span>Game Rules (?)</span>
+          </button>
         </div>
 
         {/* USERNAME SETUP & TYCOON IDENTITY PROMPT (Requirement 6) */}
@@ -440,6 +453,12 @@ export const PlayPage: React.FC = () => {
           onClose={() => setIsRulesModalOpen(false)}
           onCreate={handleCreateWithRules}
           isLoading={isCreating}
+        />
+
+        {/* Official Rules & Strategy Guide Modal */}
+        <RulesModal
+          isOpen={isGlobalRulesOpen}
+          onClose={() => setIsGlobalRulesOpen(false)}
         />
       </div>
     </div>
