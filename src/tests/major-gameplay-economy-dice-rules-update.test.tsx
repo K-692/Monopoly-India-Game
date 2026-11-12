@@ -139,7 +139,7 @@ describe('Major Gameplay, Economy, Dice, UI and Rules Update — Regression Suit
       }, 'user_1');
 
       expect(res.nextState.properties[1].buildings).toBe(1);
-      expect(res.nextState.players[0].cash).toBe(4500); // 500 building cost deducted
+      expect(res.nextState.players[0].cash).toBe(4800); // 200 (rentHouse1) building cost deducted
     });
 
     it('1.5 Done explicitly resolves the build decision and allows turn completion', () => {
@@ -276,12 +276,12 @@ describe('Major Gameplay, Economy, Dice, UI and Rules Update — Regression Suit
       const jaipurDef = BOARD_SPACES[1] as PropertyDefinition;
 
       const levels = [
-        { buildings: 0, tariff: 40, expectedSale: 20, expectedReacq: 4 },
-        { buildings: 1, tariff: 200, expectedSale: 100, expectedReacq: 20 },
-        { buildings: 2, tariff: 600, expectedSale: 300, expectedReacq: 60 },
-        { buildings: 3, tariff: 1800, expectedSale: 900, expectedReacq: 180 },
-        { buildings: 4, tariff: 3200, expectedSale: 1600, expectedReacq: 320 },
-        { buildings: 5, tariff: 4500, expectedSale: 2250, expectedReacq: 450 },
+        { buildings: 0, tariff: 40, expectedSale: 620, expectedReacq: 604 },
+        { buildings: 1, tariff: 200, expectedSale: 700, expectedReacq: 620 },
+        { buildings: 2, tariff: 600, expectedSale: 900, expectedReacq: 660 },
+        { buildings: 3, tariff: 1800, expectedSale: 1500, expectedReacq: 780 },
+        { buildings: 4, tariff: 3200, expectedSale: 2200, expectedReacq: 920 },
+        { buildings: 5, tariff: 4500, expectedSale: 2850, expectedReacq: 1050 },
       ];
 
       for (const lvl of levels) {
@@ -346,16 +346,16 @@ describe('Major Gameplay, Economy, Dice, UI and Rules Update — Regression Suit
       expect(prop.ownershipState).toBe('UNOWNED');
       expect(prop.ownerUid).toBeNull();
       expect(prop.buildings).toBe(3); // Buildings preserved!
-      expect(prop.soldToBankPayout).toBe(900);
-      expect(prop.soldToBankReacquisitionCost).toBe(180);
+      expect(prop.soldToBankPayout).toBe(1500);
+      expect(prop.soldToBankReacquisitionCost).toBe(780);
     });
   });
 
   // =========================================================================
-  // 4. CENTRAL JAIL NOTIFICATION ON THE LEFT
+  // 4. CENTRAL JAIL NOTIFICATION OVER DICE
   // =========================================================================
-  describe('4. Central Jail Left Notification Banner & Toast', () => {
-    it('4.1 renders jail notification banner on left when player transitions to jail', () => {
+  describe('4. Central Jail Center Notification Banner & Toast', () => {
+    it('4.1 renders jail notification modal over dice when player transitions to jail', () => {
       const state = createInitialGame('room_1', 'game_1', mockMembers, undefined, 'user_1');
       // Initially not in jail
       const { rerender } = render(
@@ -371,7 +371,7 @@ describe('Major Gameplay, Economy, Dice, UI and Rules Update — Regression Suit
       );
 
       // No jail banner initially
-      expect(screen.queryByTestId('jail-left-notification')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('jail-center-notification')).not.toBeInTheDocument();
 
       // Transition player 1 into jail
       const jailedState: GameState = {
@@ -391,8 +391,8 @@ describe('Major Gameplay, Economy, Dice, UI and Rules Update — Regression Suit
         />
       );
 
-      // Dedicated left notification banner appears with player name
-      const banner = screen.getByTestId('jail-left-notification');
+      // Dedicated center notification banner appears over dice with player name
+      const banner = screen.getByTestId('jail-center-notification');
       expect(banner).toBeInTheDocument();
       expect(banner).toHaveTextContent('Player 1');
       expect(banner).toHaveTextContent('sent to Central Jail');

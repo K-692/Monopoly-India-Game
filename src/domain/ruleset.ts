@@ -258,7 +258,8 @@ export function getCurrentPropertyTariff(
 
 /**
  * Calculates authoritative Sell-to-Bank mortgage value of a property.
- * - Developable Cities (PROPERTY): 50% of current tariff at existing development level.
+ * - Developable Cities (PROPERTY): Original city price + 50% of current tariff at existing development level.
+ *   Formula: space.price + Math.floor(tariff * 0.50)
  * - Non-city assets (Railways, Airports, Utilities): Original deed purchase price (space.price).
  */
 export function calculateMortgageValue(
@@ -273,7 +274,7 @@ export function calculateMortgageValue(
       space as PropertyDefinition,
       propState?.buildings ?? 0
     );
-    return Math.floor(tariff * 0.5);
+    return space.price + Math.floor(tariff * 0.5);
   }
 
   // Non-city assets: Railways, Airports, Utilities -> 100% of original deed purchase price
@@ -283,7 +284,8 @@ export function calculateMortgageValue(
 /**
  * Calculates authoritative Reacquisition cost of a bank-owned property.
  * - If explicitly recorded on propState (soldToBankReacquisitionCost), returns that stored amount.
- * - Developable Cities (PROPERTY): 10% of current tariff based on preserved development level.
+ * - Developable Cities (PROPERTY): Original city price + 10% of current tariff based on preserved development level.
+ *   Formula: space.price + Math.floor(tariff * 0.10)
  * - Non-city assets (Railways, Airports, Utilities): Original deed purchase price (space.price).
  */
 export function calculateReacquisitionCost(
@@ -305,11 +307,39 @@ export function calculateReacquisitionCost(
       space as PropertyDefinition,
       propState?.buildings ?? 0
     );
-    return Math.floor(tariff * 0.1);
+    return space.price + Math.floor(tariff * 0.1);
   }
 
   // Non-city assets: Railways, Airports, Utilities -> Original deed purchase price
   return space.price;
+}
+
+/**
+ * Calculates authoritative construction cost for the next house or commercial tower on a city.
+ * The cost strictly equals the tariff associated with the resulting development level of that city:
+ * - Existing 0 houses -> House #1: rentHouse1
+ * - Existing 1 house  -> House #2: rentHouse2
+ * - Existing 2 houses -> House #3: rentHouse3
+ * - Existing 3 houses -> House #4: rentHouse4
+ * - Existing 4 houses -> Commercial Tower: rentTower
+ * - Existing 5 (or already at maximum): returns 0 (rejects construction)
+ */
+export function calculateBuildingCost(
+  spaceIndex: number,
+  currentBuildings: number = 0
+): number {
+  const space = BOARD_SPACES[spaceIndex];
+  if (!space || space.type !== 'PROPERTY') return 0;
+  if (currentBuildings >= GAME_CONSTANTS.TOWER_BUILDING_LEVEL) return 0;
+
+  const p = space as PropertyDefinition;
+  const nextLevel = currentBuildings + 1;
+  if (nextLevel === 1) return p.rentHouse1;
+  if (nextLevel === 2) return p.rentHouse2;
+  if (nextLevel === 3) return p.rentHouse3;
+  if (nextLevel === 4) return p.rentHouse4;
+  if (nextLevel === 5) return p.rentTower;
+  return 0;
 }
 
 /**
@@ -360,8 +390,13 @@ export function canBuildOnProperty(
     return { allowed: false, reason: 'Maximum development (Commercial Tower) already reached' };
   }
 
-  if (playerCash < space.buildingCost) {
-    return { allowed: false, reason: `Insufficient cash (needs ₹${space.buildingCost.toLocaleString('en-IN')})` };
+  const cost = calculateBuildingCost(spaceIndex, propState.buildings);
+  if (cost <= 0) {
+    return { allowed: false, reason: 'Cannot construct further on this property' };
+  }
+
+  if (playerCash < cost) {
+    return { allowed: false, reason: `Insufficient cash (needs ₹${cost.toLocaleString('en-IN')})` };
   }
 
   return { allowed: true };
@@ -376,7 +411,7 @@ export function canBuildOnProperty(
  * - Total Owned Asset Value:
  *   - Unmortgaged properties / transit / utilities: base deed price.
  *   - Mortgaged properties / transit / utilities: mortgage payout value.
- *   - Houses / commercial towers: count * buildingCost.
+ *   - Houses / commercial towers: cumulative invested development tariffs.
  *   - Bank-owned / unowned properties: ₹0 (not owned).
  * - Outstanding Liabilities:
  *   - Unfulfilled remaining amount due from pending financial obligation.
@@ -400,7 +435,14 @@ export function calculateNetWorth(
         }
       }
       if (space.type === 'PROPERTY' && propState.buildings > 0) {
-        assetVal += propState.buildings * (space as PropertyDefinition).buildingCost;
+        const p = space as PropertyDefinition;
+        let cumulativeBuildingInvestment = 0;
+        if (propState.buildings >= 1) cumulativeBuildingInvestment += p.rentHouse1;
+        if (propState.buildings >= 2) cumulativeBuildingInvestment += p.rentHouse2;
+        if (propState.buildings >= 3) cumulativeBuildingInvestment += p.rentHouse3;
+        if (propState.buildings >= 4) cumulativeBuildingInvestment += p.rentHouse4;
+        if (propState.buildings >= 5) cumulativeBuildingInvestment += p.rentTower;
+        assetVal += cumulativeBuildingInvestment;
       }
     }
   }

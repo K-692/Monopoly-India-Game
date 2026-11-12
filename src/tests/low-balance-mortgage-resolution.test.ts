@@ -82,10 +82,10 @@ describe('120-Second Low-Balance Mortgage Resolution & Disqualification', () => 
     // Property state updated to UNOWNED / sold to bank
     expect(state.properties[1].ownershipState).toBe('UNOWNED');
     expect(state.properties[1].ownerUid).toBeNull();
-    expect(state.properties[1].soldToBankPayout).toBe(300);
+    expect(state.properties[1].soldToBankPayout).toBe(900);
 
-    // Original payment completed automatically: 400 - 400 = 0
-    expect(state.players[0].cash).toBe(0);
+    // Original payment completed automatically: 100 + 900 - 400 = 600
+    expect(state.players[0].cash).toBe(600);
     expect(state.players[1].cash).toBe(user2InitialCash + 400);
 
     // Obligation cleared and normal gameplay resumed
@@ -95,7 +95,7 @@ describe('120-Second Low-Balance Mortgage Resolution & Disqualification', () => 
     // Transactions recorded in ledger
     const mortgageTx = state.transactions?.find((t) => t.type === 'MORTGAGE_PROCEEDS');
     expect(mortgageTx).toBeDefined();
-    expect(mortgageTx?.amount).toBe(300);
+    expect(mortgageTx?.amount).toBe(900);
 
     const rentDebitTx = state.transactions?.find((t) => t.type === 'RENT_PAID');
     expect(rentDebitTx).toBeDefined();
@@ -164,13 +164,13 @@ describe('120-Second Low-Balance Mortgage Resolution & Disqualification', () => 
     // Both properties sold to bank
     expect(state.properties[1].ownershipState).toBe('UNOWNED');
     expect(state.properties[1].ownerUid).toBeNull();
-    expect(state.properties[1].soldToBankPayout).toBe(300);
+    expect(state.properties[1].soldToBankPayout).toBe(900);
     expect(state.properties[3].ownershipState).toBe('UNOWNED');
     expect(state.properties[3].ownerUid).toBeNull();
-    expect(state.properties[3].soldToBankPayout).toBe(300);
+    expect(state.properties[3].soldToBankPayout).toBe(900);
 
-    // Total raised = 300 + 300 = 600 >= 400. Remaining cash = 600 - 400 = 200
-    expect(state.players[0].cash).toBe(200);
+    // Total raised = 900 + 900 = 1800 >= 400. Remaining cash = 1800 - 400 = 1400
+    expect(state.players[0].cash).toBe(1400);
     expect(state.pendingFinancialObligation).toBeNull();
     expect(state.phase).toBe('MANAGEMENT');
   });
@@ -200,11 +200,11 @@ describe('120-Second Low-Balance Mortgage Resolution & Disqualification', () => 
     const state = gm.getGame(gameId)!;
     state.currentPlayerUid = 'user_1';
 
-    // Setup big rent obligation: ₹1,500
+    // Setup big rent obligation: ₹2,500
     state.properties[39].ownerUid = 'user_2';
     state.properties[39].ownershipState = 'OWNED';
 
-    // user_1 owns 2 properties with 2 houses each: Space 1 and Space 3 (each yielding ₹300 mortgage)
+    // user_1 owns 2 properties with 2 houses each: Space 1 and Space 3 (each yielding ₹900 mortgage)
     state.properties[1].ownerUid = 'user_1';
     state.properties[1].ownershipState = 'OWNED';
     state.properties[1].buildings = 2;
@@ -232,11 +232,11 @@ describe('120-Second Low-Balance Mortgage Resolution & Disqualification', () => 
     expect(state.phase).toBe('ACTION_REQUIRED');
     const originalExpiresAt = state.pendingFinancialObligation?.expiresAt;
 
-    // Set debt to 1500
-    state.pendingFinancialObligation!.amountDue = 1500;
-    state.pendingFinancialObligation!.remainingAmountDue = 1400;
+    // Set debt to 2500
+    state.pendingFinancialObligation!.amountDue = 2500;
+    state.pendingFinancialObligation!.remainingAmountDue = 2400;
 
-    // Player manually mortgages only space 1 -> gets ₹300
+    // Player manually mortgages only space 1 -> gets ₹900
     const mortRes = applyGameCommand(
       state,
       {
@@ -251,18 +251,18 @@ describe('120-Second Low-Balance Mortgage Resolution & Disqualification', () => 
     );
     Object.assign(state, mortRes.nextState);
 
-    // Balance is 100 + 300 = 400 < 1500. Still insufficient!
-    expect(state.players[0].cash).toBe(400);
+    // Balance is 100 + 900 = 1000 < 2500. Still insufficient!
+    expect(state.players[0].cash).toBe(1000);
     expect(state.phase).toBe('ACTION_REQUIRED');
     expect(state.pendingFinancialObligation).toBeDefined();
-    expect(state.pendingFinancialObligation?.remainingAmountDue).toBe(1100);
+    expect(state.pendingFinancialObligation?.remainingAmountDue).toBe(1500);
     expect(state.pendingFinancialObligation?.expiresAt).toBe(originalExpiresAt);
 
     // Property 3 is still eligible and owned by debtor!
     expect(state.properties[3].ownershipState).toBe('OWNED');
 
     // At 120s timeout: server does NOT immediately disqualify; it first liquidates property 3!
-    // Since 400 + 300 = 700 is still < 1500, and all assets are now exhausted, it surrenders!
+    // Since 1000 + 900 = 1900 is still < 2500, and all assets are now exhausted, it surrenders!
     const u2CashBefore = state.players[1].cash;
     await gm.handleTimeout(state);
 
@@ -279,9 +279,9 @@ describe('120-Second Low-Balance Mortgage Resolution & Disqualification', () => 
     // Obligation cleared
     expect(afterState.pendingFinancialObligation).toBeNull();
 
-    // Remaining cash transferred to creditor on surrender adjustment (700 = 100 + 300 + 300)
+    // Remaining cash transferred to creditor on surrender adjustment (1900 = 100 + 900 + 900)
     expect(afterState.players[0].cash).toBe(0);
-    expect(afterState.players[1].cash).toBe(u2CashBefore + 700);
+    expect(afterState.players[1].cash).toBe(u2CashBefore + 1900);
 
     // Immediate game termination
     expect(afterState.status).toBe('COMPLETED');

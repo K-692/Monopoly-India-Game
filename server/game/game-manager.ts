@@ -236,6 +236,17 @@ export class GameManager {
       throw new GameEngineError('INVALID_PHASE', 'Player token is currently moving');
     }
 
+    // Guard 3: Voluntary Sell-to-Bank is only permitted during the active player's turn (or for debt resolution)
+    if (command.type === 'MORTGAGE') {
+      const isObligationDebtor = currentState.pendingFinancialObligation?.debtorUid === actorUid;
+      if (actorUid !== currentState.currentPlayerUid && !isObligationDebtor) {
+        throw new GameEngineError(
+          'NOT_YOUR_TURN',
+          'Selling properties to the bank voluntarily is only permitted during your active turn'
+        );
+      }
+    }
+
     let injectedDice: [number, number] | undefined = undefined;
 
     // Generate cryptographic unbiased dice on the server for ROLL_DICE and TRY_DOUBLES

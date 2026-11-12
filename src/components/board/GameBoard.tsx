@@ -1,18 +1,18 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { BOARD_SPACES, CIVIC_FUND_CARDS, MARKET_BUZZ_CARDS, getCardFinancialEffect } from '@/domain/board-config';
-import { CardAction, GameActionType, GameEvent, GameState, PropertyDefinition, WalkingAnimationState } from '@/domain/game-types';
+import { CardAction, GameActionType, GameEvent, GameState, WalkingAnimationState } from '@/domain/game-types';
 import { BoardSpaceTile } from './BoardSpaceTile';
 import { CityDeedModal } from './CityDeedModal';
 import { FinancialResolutionModal } from './FinancialResolutionModal';
 import { usePopupPosition } from './use-popup-position';
 import { getSpaceGridCoord } from './board-layout-utils';
-import { calculateMortgageValue, calculateReacquisitionCost, canBuildOnProperty, getAuthoritativeBailAmount, getPropertyNoun, getSortedEligibleSellToBankProperties } from '@/domain/ruleset';
+import { calculateBuildingCost, calculateMortgageValue, calculateReacquisitionCost, canBuildOnProperty, getAuthoritativeBailAmount, getPropertyNoun, getSortedEligibleSellToBankProperties } from '@/domain/ruleset';
 import { TurnStepAcknowledgment } from '@/components/feedback/TurnStepAcknowledgment';
 import { PopupTurnTimer } from '@/components/feedback/PopupTurnTimer';
 import { useToastStore } from '@/components/feedback/toast-store';
 import { sound } from '@/lib/audio/sound-engine';
-import { Dices, X, Gift, Flame, Check, ArrowRight, KeyRound, Landmark, Building2, Home, Clock, Bot } from 'lucide-react';
+import { Dices, X, Gift, Flame, Check, ArrowRight, KeyRound, Landmark, Building2, Home, Clock, Bot, ShieldAlert } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 
 interface GameBoardProps {
@@ -327,15 +327,16 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     gameState.phase === 'PROPERTY_DECISION' &&
     !walkingAnimation;
 
-  // Build checks (Section 2.2)
+  // Build checks (Section 2)
   const isDevelopableCity =
     playerSpace?.type === 'PROPERTY' &&
     playerPropState?.ownerUid === activePlayer?.uid &&
     !playerPropState?.isMortgaged &&
     playerPropState.buildings < 5;
 
-  const buildingCost = playerSpace?.type === 'PROPERTY' ? (playerSpace as PropertyDefinition).buildingCost : 0;
-  const canAffordBuild = (activePlayer?.cash ?? 0) >= buildingCost;
+  const currentBuildingsOnSpace = playerPropState?.buildings ?? 0;
+  const buildingCost = playerSpace?.type === 'PROPERTY' ? calculateBuildingCost(playerSpace.spaceIndex, currentBuildingsOnSpace) : 0;
+  const canAffordBuild = (activePlayer?.cash ?? 0) >= buildingCost && buildingCost > 0;
 
   const canBuildHere =
     Boolean(
@@ -978,12 +979,41 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                   {renderDiceFace(displayDice[1], 1)}
                 </div>
 
-                {/* Explicit Positioning Anchor for Board Inspection Mode */}
+                {/* Explicit Positioning Anchor for Board Inspection Mode & Central Jail Notification */}
                 <div
                   id="board-inspection-dice-anchor"
                   data-testid="board-inspection-dice-anchor"
                   className="absolute inset-0 flex items-center justify-center pointer-events-none z-[130]"
-                />
+                >
+                  {jailNotification && !isBoardInspecting && (
+                    <div className="pointer-events-auto shrink-0 select-none z-[135]">
+                      <div
+                        data-testid="jail-center-notification"
+                        className="animate-scale-in min-w-[240px] sm:min-w-[270px] max-w-[320px] p-3 sm:p-3.5 rounded-2xl bg-[#090D1A] border-2 border-red-500 shadow-[0_16px_40px_rgba(0,0,0,0.95)] text-white flex items-center gap-3"
+                      >
+                        <div className="w-9 h-9 rounded-xl bg-red-600/30 border border-red-500/60 flex items-center justify-center text-red-400 shrink-0">
+                          <ShieldAlert className="w-5 h-5 animate-pulse" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <span className="text-[9.5px] uppercase font-black tracking-wider text-red-400 block leading-tight">
+                            CENTRAL JAIL
+                          </span>
+                          <p className="text-[11.5px] sm:text-xs font-bold text-gray-100 leading-tight truncate mt-0.5">
+                            {jailNotification.playerName} sent to Central Jail
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setJailNotification(null)}
+                          className="w-5 h-5 rounded-md hover:bg-white/20 flex items-center justify-center text-gray-400 hover:text-white cursor-pointer shrink-0"
+                          aria-label="Dismiss jail notification"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Dice Outcome Total Indicator — ONLY Combined Result */}
@@ -1265,7 +1295,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                       🔨 Build Development?
                     </span>
                     <span className="font-black text-emerald-400 text-xs">
-                      ₹{(playerSpace as PropertyDefinition).buildingCost.toLocaleString('en-IN')}
+                      ₹{buildingCost.toLocaleString('en-IN')}
                     </span>
                   </div>
                   <p className="text-[11px] text-gray-200 leading-tight">
@@ -1333,32 +1363,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                   </div>
                 </>
               )}
-          </div>
-        )}
-
-        {/* Left Side: Go-To-Jail Notification below popup area */}
-        {jailNotification && (
-          <div
-            data-testid="jail-left-notification"
-            className="absolute left-2.5 sm:left-4 bottom-3 sm:bottom-4 z-[90] max-w-[260px] sm:max-w-xs p-2.5 rounded-xl bg-gradient-to-r from-red-950/95 via-stone-900/95 to-[#1a0808]/95 border-2 border-red-500/80 shadow-[0_8px_24px_rgba(0,0,0,0.85)] backdrop-blur-md text-white flex items-center gap-2 animate-slide-in-left pointer-events-auto"
-          >
-            <span className="text-base shrink-0">🚨</span>
-            <div className="min-w-0 flex-1">
-              <span className="text-[9.5px] uppercase font-black tracking-wider text-red-400 block leading-tight">
-                Central Jail
-              </span>
-              <p className="text-[11px] font-bold text-gray-100 leading-tight truncate">
-                {jailNotification.playerName} sent to Central Jail
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setJailNotification(null)}
-              className="w-5 h-5 rounded-md hover:bg-white/20 flex items-center justify-center text-gray-300 hover:text-white cursor-pointer shrink-0"
-              aria-label="Dismiss jail notification"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
           </div>
         )}
       </div>

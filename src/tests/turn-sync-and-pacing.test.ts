@@ -360,7 +360,7 @@ describe('Turn Synchronization, CPU Pacing & Player Timers', () => {
         obligationId: 'ob_test_1',
         debtorUid: 'player_debtor',
         creditorUid: null,
-        amountDue: 500,
+        amountDue: 1500, // Debtor has 100 + 620 payout = 720 < 1500, so remains in resolution
         paymentType: 'TAX',
         status: 'PENDING',
         idempotencyKey: 'idem_test_1',
@@ -1676,12 +1676,12 @@ describe('Turn Synchronization, CPU Pacing & Player Timers', () => {
       const afterState = gm.getGame(gameId)!;
       // Building count increased by exactly 1
       expect(afterState.properties[1].buildings).toBe(1);
-      // Cost of Jaipur house (₹500) deducted
-      expect(afterState.players[0].cash).toBe(1500);
+      // Cost of Jaipur house 1 (₹200) deducted
+      expect(afterState.players[0].cash).toBe(1800);
       // Transaction recorded
       const tx = afterState.transactions?.find((t) => t.type === 'HOUSE_PURCHASE');
       expect(tx).toBeDefined();
-      expect(tx?.amount).toBe(500);
+      expect(tx?.amount).toBe(200);
       // Player remains active player in MANAGEMENT
       expect(afterState.currentPlayerUid).toBe('player_h1');
       expect(afterState.phase).toBe('MANAGEMENT');
@@ -1704,7 +1704,7 @@ describe('Turn Synchronization, CPU Pacing & Player Timers', () => {
       state.currentPlayerUid = 'player_h1';
       state.turnNumber = 2;
       state.players[0].position = 1;
-      state.players[0].cash = 500; // Exactly ₹500
+      state.players[0].cash = 200; // Exactly ₹200 (rentHouse1)
       state.properties[1] = {
         spaceIndex: 1,
         propertyId: 'jaipur',
@@ -1741,7 +1741,7 @@ describe('Turn Synchronization, CPU Pacing & Player Timers', () => {
       state.currentPlayerUid = 'player_h1';
       state.turnNumber = 2;
       state.players[0].position = 1;
-      state.players[0].cash = 3000;
+      state.players[0].cash = 5000; // Tower cost is ₹4500 (rentTower)
       state.properties[1] = {
         spaceIndex: 1,
         propertyId: 'jaipur',
@@ -1757,7 +1757,7 @@ describe('Turn Synchronization, CPU Pacing & Player Timers', () => {
 
       const afterState = gm.getGame(gameId)!;
       expect(afterState.properties[1].buildings).toBe(5); // Commercial Tower
-      expect(afterState.players[0].cash).toBe(2500);
+      expect(afterState.players[0].cash).toBe(500); // 5000 - 4500 = 500
 
       const tx = afterState.transactions?.find((t) => t.type === 'BUILDING_PURCHASE');
       expect(tx).toBeDefined();
@@ -1793,21 +1793,21 @@ describe('Turn Synchronization, CPU Pacing & Player Timers', () => {
       };
       state.phase = 'MANAGEMENT';
 
-      // Timeout 1: constructs House #2
+      // Timeout 1: constructs House #2 (cost = rentHouse2 = 600)
       await gm.triggerTimeout(gameId);
 
       const state1 = gm.getGame(gameId)!;
       expect(state1.properties[1].buildings).toBe(2);
-      expect(state1.players[0].cash).toBe(4500);
+      expect(state1.players[0].cash).toBe(4400); // 5000 - 600 = 4400
       expect(state1.phase).toBe('MANAGEMENT');
       expect(state1.turnTimeRemaining).toBe(30);
 
-      // Timeout 2: constructs House #3
+      // Timeout 2: constructs House #3 (cost = rentHouse3 = 1800)
       await gm.triggerTimeout(gameId);
 
       const state2 = gm.getGame(gameId)!;
       expect(state2.properties[1].buildings).toBe(3);
-      expect(state2.players[0].cash).toBe(4000);
+      expect(state2.players[0].cash).toBe(2600); // 4400 - 1800 = 2600
       expect(state2.phase).toBe('MANAGEMENT');
 
       gm.stopTurnTimer(gameId);
@@ -1828,7 +1828,7 @@ describe('Turn Synchronization, CPU Pacing & Player Timers', () => {
       state.currentPlayerUid = 'player_h1';
       state.turnNumber = 2;
       state.players[0].position = 1;
-      state.players[0].cash = 300; // < 500
+      state.players[0].cash = 100; // < 200 (rentHouse1)
       state.properties[1] = {
         spaceIndex: 1,
         propertyId: 'jaipur',
@@ -1844,7 +1844,7 @@ describe('Turn Synchronization, CPU Pacing & Player Timers', () => {
 
       const afterState = gm.getGame(gameId)!;
       expect(afterState.properties[1].buildings).toBe(0);
-      expect(afterState.players[0].cash).toBe(300);
+      expect(afterState.players[0].cash).toBe(100);
       // Turn ended and passed to next player
       expect(afterState.currentPlayerUid).toBe('player_h2');
 
@@ -2110,7 +2110,7 @@ describe('Turn Synchronization, CPU Pacing & Player Timers', () => {
 
       const stateAfterManual = gm.getGame(gameId)!;
       expect(stateAfterManual.properties[1].buildings).toBe(1);
-      expect(stateAfterManual.players[0].cash).toBe(2500);
+      expect(stateAfterManual.players[0].cash).toBe(2800); // 3000 - 200 = 2800
 
       // Now attempt to run a stale timeout command that was queued with initialVersion
       const staleCmd: GameCommand = {
@@ -2129,7 +2129,7 @@ describe('Turn Synchronization, CPU Pacing & Player Timers', () => {
       // Buildings must remain exactly 1, no duplicate building
       const finalState = gm.getGame(gameId)!;
       expect(finalState.properties[1].buildings).toBe(1);
-      expect(finalState.players[0].cash).toBe(2500);
+      expect(finalState.players[0].cash).toBe(2800); // 3000 - 200 = 2800
 
       gm.stopTurnTimer(gameId);
     });

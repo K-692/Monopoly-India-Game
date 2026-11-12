@@ -87,8 +87,8 @@ describe('Player Cards: Separate Balance, Gold Net Worth & Active Turn Timer', (
     const p1NetWorth = screen.getByTestId('player-networth-player_human');
     expect(p1NetWorth).toBeInTheDocument();
     expect(p1NetWorth.textContent).toContain('NET WORTH');
-    // Cash 18,500 + Agra Price 1,000 + 2 Houses (2 * 500 = 1,000) = 20,500
-    expect(p1NetWorth.textContent).toContain('20,500');
+    // Cash 18,500 + Agra Price 1,000 + 2 Houses (rentHouse1 300 + rentHouse2 900 = 1,200) = 20,700
+    expect(p1NetWorth.textContent).toContain('20,700');
 
     // Player 2 Balance
     const p2Balance = screen.getByTestId('player-balance-player_cpu1');
@@ -118,8 +118,8 @@ describe('Player Cards: Separate Balance, Gold Net Worth & Active Turn Timer', (
 
     // Calculate net worth directly with the centralized function
     const directNW = calculateNetWorth('player_human', 18500, mockProperties, pendingObligation);
-    // 18,500 + 2,000 asset - 3,500 liability = 17,000
-    expect(directNW).toBe(17000);
+    // 18,500 + 2,200 asset - 3,500 liability = 17,200
+    expect(directNW).toBe(17200);
 
     render(
       <PlayerStrip
@@ -133,7 +133,7 @@ describe('Player Cards: Separate Balance, Gold Net Worth & Active Turn Timer', (
     );
 
     const p1NetWorth = screen.getByTestId('player-networth-player_human');
-    expect(p1NetWorth.textContent).toContain('17,000');
+    expect(p1NetWorth.textContent).toContain('17,200');
   });
 
   it('Requirement 2: displays turn countdown timer ONLY on the active player card and moves on turn change', () => {

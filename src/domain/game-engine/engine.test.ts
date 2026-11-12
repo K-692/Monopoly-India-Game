@@ -936,7 +936,7 @@ describe('Pure Game Engine', () => {
       state.properties[1].boughtOnTurn = 1;
       state.turnNumber = 3;
       state.players[0].position = 1;
-      state.players[0].cash = 200; // Building cost is ₹500
+      state.players[0].cash = 100; // First house cost is ₹200 (rentHouse1)
 
       expect(() => {
         applyGameCommand(
@@ -953,7 +953,7 @@ describe('Pure Game Engine', () => {
         );
       }).toThrow(/Insufficient balance to build on this property/i);
 
-      expect(state.players[0].cash).toBe(200); // Zero money deducted
+      expect(state.players[0].cash).toBe(100); // Zero money deducted
     });
   });
 
@@ -963,17 +963,17 @@ describe('Pure Game Engine', () => {
   describe('Mortgage System & Financial Obligations', () => {
     it('calculates mortgage values based on 50% of current tariff for cities and deed price for infrastructure', () => {
       const state = createInitialGame('room_1', 'game_1', mockMembers);
-      // Jaipur: baseRent 40, rentHouse1 200, rentHouse2 600
-      // 0 houses: 0.5 * 40 = 20
-      expect(calculateMortgageValue(1, state.properties[1])).toBe(20);
+      // Jaipur (price 600): baseRent 40, rentHouse1 200, rentHouse2 600
+      // 0 houses: 600 + 0.5 * 40 = 620
+      expect(calculateMortgageValue(1, state.properties[1])).toBe(620);
 
-      // 1 house: 0.5 * 200 = 100
+      // 1 house: 600 + 0.5 * 200 = 700
       state.properties[1].buildings = 1;
-      expect(calculateMortgageValue(1, state.properties[1])).toBe(100);
+      expect(calculateMortgageValue(1, state.properties[1])).toBe(700);
 
-      // 2 houses: 0.5 * 600 = 300
+      // 2 houses: 600 + 0.5 * 600 = 900
       state.properties[1].buildings = 2;
-      expect(calculateMortgageValue(1, state.properties[1])).toBe(300);
+      expect(calculateMortgageValue(1, state.properties[1])).toBe(900);
 
       // Non-city asset (CST Mumbai, space 5): deed price 2000
       expect(calculateMortgageValue(5, state.properties[5])).toBe(2000);
@@ -1037,13 +1037,13 @@ describe('Pure Game Engine', () => {
       expect(state.properties[1].ownerUid).toBeNull();
       expect(state.properties[1].ownershipState).toBe('UNOWNED');
       expect(state.properties[1].isMortgaged).toBe(false);
-      expect(state.properties[1].soldToBankPayout).toBe(300);
-      expect(state.properties[1].soldToBankReacquisitionCost).toBe(60);
+      expect(state.properties[1].soldToBankPayout).toBe(900);
+      expect(state.properties[1].soldToBankReacquisitionCost).toBe(660);
 
       // Payment was automatically resumed & settled!
       expect(state.pendingFinancialObligation).toBeNull();
       expect(state.phase).toBe('MANAGEMENT');
-      expect(state.players[0].cash).toBe(50); // 100 + 300 - 350 = 50
+      expect(state.players[0].cash).toBe(650); // 100 + 900 - 350 = 650
       expect(state.players[1].cash).toBe(u2CashBefore + 350);
     });
 

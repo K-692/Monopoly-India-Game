@@ -223,6 +223,7 @@ export const GAME_RULES_SECTIONS: RuleSection[] = [
         points: [
           'Once a player holds a complete color group monopoly, they may construct houses on those cities.',
           'Construction is permitted starting from subsequent rounds when revisiting your owned property.',
+          'Dynamic Construction Cost: The cost to build each house or commercial tower strictly equals the tariff of that resulting tier (House #1 = 1-house tariff, House #2 = 2-house tariff, House #3 = 3-house tariff, House #4 = 4-house tariff, Commercial Tower = tower tariff).',
           'Up to 4 Houses may be built per city; the 5th tier upgrade crowns the property with a Commercial Sky Tower.',
         ],
       },
@@ -282,7 +283,7 @@ export const GAME_RULES_SECTIONS: RuleSection[] = [
         subtitle: 'Central Jail & Police Checkpoint (Spaces #10 & #30)',
         points: [
           'Landing on Police Checkpoint (Space #30), drawing a Go-to-Jail card, or rolling 3 consecutive doubles sends the player directly to Central Jail (Space #10).',
-          'Central Jail Notification: Whenever any human or CPU player is sent to Central Jail, a real-time notification alert is displayed on the left side of the board for all participants.',
+          'Central Jail Notification: Whenever any human or CPU player is sent to Central Jail, a real-time notification alert is displayed at the geometric center of the game board, directly covering both dice, for all participants.',
           'While in jail, players cannot collect rent from opponents or claim cash rewards.',
           'Escape Option 1: Pay statutory bail of ₹500 on any eligible jail turn.',
           'Escape Option 2: Use an active "Get Out of Jail Free" card if held.',
@@ -299,14 +300,22 @@ export const GAME_RULES_SECTIONS: RuleSection[] = [
     badge: 'Liquidation Mechanics',
     icon: 'Landmark',
     summary:
-      'Sell developable cities for 50% tariff (reacquire for 10% tariff) or non-cities at deed price, preserving all built structures.',
+      'Sell developable cities for Original Price + 50% tariff (reacquire for Original Price + 10% tariff) or non-cities at deed price, preserving all built structures.',
     items: [
       {
         subtitle: 'Sale and Reacquisition Pricing Formulas',
         points: [
-          'Developable Cities (PROPERTY): The Reserve Bank pays 50% of the current tariff at the existing development level (0 houses: 50% base rent; 1-4 houses: 50% house rent; Commercial Tower: 50% tower rent).',
-          'City Reacquisition: When an eligible player lands on a bank-owned city, reacquisition costs only 10% of the current tariff based on the preserved development level.',
-          'Non-City Assets (Railways, Airports, Utilities): Sell-to-Bank payout equals 100% of the original deed purchase price; reacquisition cost also equals 100% of the deed purchase price.',
+          'City Sale Price = Original City Purchase Price + 50% of Current Tariff: The Reserve Bank pays the full deed purchase price plus 50% of the current tariff based on the existing development level (0 houses: base rent; 1-4 houses: corresponding house rent; Commercial Tower: tower rent).',
+          'City Reacquisition Price = Original City Purchase Price + 10% of Current Tariff: When an eligible player lands on a bank-owned city, reacquisition costs the original deed purchase price plus only 10% of the current tariff based on preserved developments.',
+          'Non-City Assets (Railways, Airports, Utilities): Both selling to the Bank and reacquiring from the Bank cost exactly 100% of the original deed purchase price (space.price). Tariff percentages are not applied to non-city assets.',
+        ],
+      },
+      {
+        subtitle: 'Turn Restrictions & Dedicated Interface',
+        points: [
+          'Voluntary Sell to Bank is permitted ONLY during the active owner\'s turn through the dedicated Sell Properties to Bank interface or the S keyboard shortcut.',
+          'Sell-to-Bank actions are never embedded directly on individual board grid tiles or property cards.',
+          'Financial Resolution Exception: When a debtor enters debt resolution for an outstanding financial obligation, they may liquidate eligible properties via the emergency resolution interface even outside normal turn actions.',
         ],
       },
       {
@@ -491,9 +500,9 @@ export const BUILDINGS_RULE_SECTION: GameRulesSection = {
     {
       subtitle: 'Development Costs & Bank Preservation',
       points: [
-        'Cost per Tier: Statutory construction cost varies by color group (from ₹500 for Brown cities up to ₹4,000 for Dark Blue cities).',
-        'Selling to Bank: If mortgaged or sold to the Bank, you receive 50% of the current tariff at the existing development level.',
-        'Development Preservation: Reacquiring a mortgaged property from the Bank costs only 10% of the current tariff and preserves all existing houses and towers intact.',
+        'Dynamic Construction Cost Equals Resulting Tariff: Construction cost is not fixed. A new House or Commercial Tower costs the tariff of that resulting development level (1st house = one-house tariff; 2nd house = two-house tariff; 3rd house = three-house tariff; 4th house = four-house tariff; Commercial Tower = tower tariff).',
+        'Selling to Bank: If sold to the Bank, you receive the original deed price plus 50% of the current tariff at the existing development level.',
+        'Development Preservation: Reacquiring a mortgaged property from the Bank costs the original deed price plus 10% of the current tariff and preserves all existing houses and towers intact.',
       ],
     },
     {

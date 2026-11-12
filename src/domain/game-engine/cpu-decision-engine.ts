@@ -20,6 +20,7 @@ import {
   UtilityDefinition,
 } from '../game-types';
 import {
+  calculateBuildingCost,
   calculateMortgageValue,
   calculateReacquisitionCost,
   canBuildOnProperty,
@@ -207,8 +208,8 @@ export function decideBuildingAction(
   const space = BOARD_SPACES[currentPos];
   if (!space || space.type !== 'PROPERTY') return null;
 
-  const propDef = space as PropertyDefinition;
-  const cost = propDef.buildingCost;
+  const cost = calculateBuildingCost(currentPos, prop.buildings);
+  if (cost <= 0) return null;
 
   // Check cash reserve requirement
   if (cpuPlayer.cash - cost < LIQUIDITY_RESERVE) return null;

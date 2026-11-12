@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { BoardSpaceDefinition, GameActionType, PlayerState, PropertyDefinition, PropertyState } from '@/domain/game-types';
 import { X, Landmark, Home, Building2, ShieldAlert } from 'lucide-react';
 import { PopupTurnTimer } from '@/components/feedback/PopupTurnTimer';
-import { calculateMortgageValue, calculateReacquisitionCost, getPropertyNoun } from '@/domain/ruleset';
+import { calculateBuildingCost, calculateMortgageValue, calculateReacquisitionCost, getPropertyNoun } from '@/domain/ruleset';
 import { cn } from '@/lib/utils/cn';
 
 interface CityDeedModalProps {
@@ -26,14 +26,14 @@ export const CityDeedModal: React.FC<CityDeedModalProps> = ({
   propertyState,
   players,
   isMyTurn = false,
-  currentUserUid,
+  currentUserUid: _currentUserUid,
   turnNumber: _turnNumber,
   onClose,
-  onDispatch,
+  onDispatch: _onDispatch,
   activePlayerName,
   activePlayerColor,
   turnTimeRemaining = 30,
-  readOnly = false,
+  readOnly: _readOnly = false,
 }) => {
   if (!space) return null;
 
@@ -41,7 +41,6 @@ export const CityDeedModal: React.FC<CityDeedModalProps> = ({
     ? players.find((p) => p.uid === propertyState.ownerUid)
     : null;
 
-  const isOwner = currentUserUid && propertyState?.ownerUid === currentUserUid;
   const isProperty = space.type === 'PROPERTY';
   const isTransit = space.type === 'TRANSIT';
   const isUtility = space.type === 'UTILITY';
@@ -201,7 +200,11 @@ export const CityDeedModal: React.FC<CityDeedModalProps> = ({
               </div>
               <div className="bg-indian-parchment-100 dark:bg-indian-navy-950 px-3 py-1.5 text-[10px] text-gray-500 flex justify-between">
                 <span>Construction Cost:</span>
-                <span className="font-bold text-indian-navy-950 dark:text-white">₹{(space as PropertyDefinition).buildingCost.toLocaleString('en-IN')} per unit</span>
+                <span className="font-bold text-indian-navy-950 dark:text-white">
+                  {(propertyState?.buildings ?? 0) < 5
+                    ? `₹${calculateBuildingCost(space.spaceIndex, propertyState?.buildings ?? 0).toLocaleString('en-IN')} (Next Tier)`
+                    : 'Max Tier Reached'}
+                </span>
               </div>
             </div>
           )}
@@ -310,22 +313,6 @@ export const CityDeedModal: React.FC<CityDeedModalProps> = ({
               <p className="text-gray-600 dark:text-gray-300">
                 Draw a dynamic Market Buzz card with commercial shifts, startup grants, or travel opportunities.
               </p>
-            </div>
-          )}
-
-          {/* Sell to Bank Action Button for Owner */}
-          {!readOnly && isOwner && onDispatch && propertyState?.ownershipState !== 'BLOCKED' && (
-            <div className="pt-2">
-              <button
-                type="button"
-                onClick={() => {
-                  onDispatch('MORTGAGE', { spaceIndex: space.spaceIndex });
-                  onClose();
-                }}
-                className="w-full py-2.5 rounded-xl font-bold text-xs bg-amber-500 hover:bg-amber-600 text-white shadow-md active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-1.5"
-              >
-                <span>Sell {noun} to Bank (Receive ₹{mortgageVal.toLocaleString('en-IN')})</span>
-              </button>
             </div>
           )}
         </div>

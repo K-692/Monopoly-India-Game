@@ -185,9 +185,9 @@ describe('Game Economy, Turn Notifications, Sell-to-Bank & Winner Determination'
       properties[1].ownershipState = 'OWNED';
       properties[1].buildings = 2;
 
-      // Cash: 5,000 + Asset: 600 + (2 * 500) = 6,600
+      // Cash: 5,000 + Asset: 600 + (200 + 600) = 6,400
       const nw = calculateNetWorth('user_1', 5000, properties);
-      expect(nw).toBe(6600);
+      expect(nw).toBe(6400);
     });
 
     it('deducts outstanding liabilities from player net worth', () => {

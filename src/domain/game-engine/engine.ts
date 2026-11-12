@@ -23,6 +23,7 @@ import {
   UtilityDefinition,
 } from '../game-types';
 import {
+  calculateBuildingCost,
   calculateMortgageValue,
   calculateReacquisitionCost,
   calculateNetWorth,
@@ -535,9 +536,15 @@ export function applyGameCommand(
       if (!player) throw new GameEngineError('INVALID_ACTION', 'Player not found');
 
       const space = BOARD_SPACES[spaceIdx] as PropertyDefinition;
-      // Requirement 2.2 & 2.3: Validate cash before construction
-      if (player.cash < space.buildingCost) {
-        throw new GameEngineError('INSUFFICIENT_FUNDS', 'Insufficient balance to build on this property.');
+      const currentBuildings = state.properties[spaceIdx]?.buildings ?? 0;
+      const buildCost = calculateBuildingCost(spaceIdx, currentBuildings);
+      if (buildCost <= 0) {
+        throw new GameEngineError('INVALID_ACTION', 'Cannot construct further on this property');
+      }
+
+      // Validate cash before construction
+      if (player.cash < buildCost) {
+        throw new GameEngineError('INSUFFICIENT_FUNDS', `Insufficient balance to build on this property (needs ₹${buildCost.toLocaleString('en-IN')}).`);
       }
 
       const check = canBuildOnProperty(
@@ -553,7 +560,7 @@ export function applyGameCommand(
       }
 
       const prevCash = player.cash;
-      player.cash -= space.buildingCost;
+      player.cash -= buildCost;
       state.properties[spaceIdx].buildings += 1;
 
       const level = state.properties[spaceIdx].buildings;
@@ -565,10 +572,10 @@ export function applyGameCommand(
         player.uid,
         txType,
         'DEBIT',
-        space.buildingCost,
+        buildCost,
         prevCash,
         player.cash,
-        `${player.displayName} constructed ${buildingName} on ${space.name} for ₹${space.buildingCost.toLocaleString('en-IN')}.`,
+        `${player.displayName} constructed ${buildingName} on ${space.name} for ₹${buildCost.toLocaleString('en-IN')}.`,
         { spaceIndex: spaceIdx, propertyName: space.name }
       );
 
@@ -579,8 +586,8 @@ export function applyGameCommand(
         payerUid: player.uid,
         recipientName: 'Bank',
         recipientUid: 'BANK',
-        amount: space.buildingCost,
-        description: `${player.displayName} constructed ${buildingName} on ${space.name} for ₹${space.buildingCost.toLocaleString('en-IN')}.`,
+        amount: buildCost,
+        description: `${player.displayName} constructed ${buildingName} on ${space.name} for ₹${buildCost.toLocaleString('en-IN')}.`,
       };
       summary = `${player.displayName} built a ${buildingName} on ${space.name}`;
       eventPayload = { spaceIndex: spaceIdx, level };
