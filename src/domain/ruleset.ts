@@ -258,8 +258,8 @@ export function getCurrentPropertyTariff(
 
 /**
  * Calculates authoritative Sell-to-Bank mortgage value of a property.
- * - Developable Cities (PROPERTY): Original city price + 50% of current tariff at existing development level.
- *   Formula: space.price + Math.floor(tariff * 0.50)
+ * - Developable Cities (PROPERTY): Original city price + 80% of current tariff at existing development level.
+ *   Formula: space.price + Math.floor(tariff * 0.80)
  * - Non-city assets (Railways, Airports, Utilities): Original deed purchase price (space.price).
  */
 export function calculateMortgageValue(
@@ -274,7 +274,7 @@ export function calculateMortgageValue(
       space as PropertyDefinition,
       propState?.buildings ?? 0
     );
-    return space.price + Math.floor(tariff * 0.5);
+    return space.price + Math.floor(tariff * 0.8);
   }
 
   // Non-city assets: Railways, Airports, Utilities -> 100% of original deed purchase price
@@ -284,8 +284,8 @@ export function calculateMortgageValue(
 /**
  * Calculates authoritative Reacquisition cost of a bank-owned property.
  * - If explicitly recorded on propState (soldToBankReacquisitionCost), returns that stored amount.
- * - Developable Cities (PROPERTY): Original city price + 10% of current tariff based on preserved development level.
- *   Formula: space.price + Math.floor(tariff * 0.10)
+ * - Developable Cities (PROPERTY): Original city price + 50% of current tariff based on preserved development level.
+ *   Formula: space.price + Math.floor(tariff * 0.50)
  * - Non-city assets (Railways, Airports, Utilities): Original deed purchase price (space.price).
  */
 export function calculateReacquisitionCost(
@@ -307,7 +307,7 @@ export function calculateReacquisitionCost(
       space as PropertyDefinition,
       propState?.buildings ?? 0
     );
-    return space.price + Math.floor(tariff * 0.1);
+    return space.price + Math.floor(tariff * 0.5);
   }
 
   // Non-city assets: Railways, Airports, Utilities -> Original deed purchase price

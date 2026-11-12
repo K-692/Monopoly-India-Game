@@ -300,13 +300,13 @@ export const GAME_RULES_SECTIONS: RuleSection[] = [
     badge: 'Liquidation Mechanics',
     icon: 'Landmark',
     summary:
-      'Sell developable cities for Original Price + 50% tariff (reacquire for Original Price + 10% tariff) or non-cities at deed price, preserving all built structures.',
+      'Sell developable cities for Original Price + 80% tariff (reacquire for Original Price + 50% tariff) or non-cities at deed price, preserving all built structures.',
     items: [
       {
         subtitle: 'Sale and Reacquisition Pricing Formulas',
         points: [
-          'City Sale Price = Original City Purchase Price + 50% of Current Tariff: The Reserve Bank pays the full deed purchase price plus 50% of the current tariff based on the existing development level (0 houses: base rent; 1-4 houses: corresponding house rent; Commercial Tower: tower rent).',
-          'City Reacquisition Price = Original City Purchase Price + 10% of Current Tariff: When an eligible player lands on a bank-owned city, reacquisition costs the original deed purchase price plus only 10% of the current tariff based on preserved developments.',
+          'City Sale Price = Original City Purchase Price + 80% of Current Tariff: The Reserve Bank pays the full deed purchase price plus 80% of the current tariff based on the existing development level (0 houses: base rent; 1-4 houses: corresponding house rent; Commercial Tower: tower rent).',
+          'City Reacquisition Price = Original City Purchase Price + 50% of Current Tariff: When an eligible player lands on a bank-owned city, reacquisition costs the original deed purchase price plus 50% of the current tariff based on preserved developments.',
           'Non-City Assets (Railways, Airports, Utilities): Both selling to the Bank and reacquiring from the Bank cost exactly 100% of the original deed purchase price (space.price). Tariff percentages are not applied to non-city assets.',
         ],
       },
@@ -316,6 +316,7 @@ export const GAME_RULES_SECTIONS: RuleSection[] = [
           'Voluntary Sell to Bank is permitted ONLY during the active owner\'s turn through the dedicated Sell Properties to Bank interface or the S keyboard shortcut.',
           'Sell-to-Bank actions are never embedded directly on individual board grid tiles or property cards.',
           'Financial Resolution Exception: When a debtor enters debt resolution for an outstanding financial obligation, they may liquidate eligible properties via the emergency resolution interface even outside normal turn actions.',
+          'Give Up & Surrender Restriction: A player may surrender and give up only during their own active turn. Surrendering is strictly prohibited during another player\'s turn or during a computer player\'s (CPU) turn. Outside your active turn, the Give Up button is completely unavailable.',
         ],
       },
       {
@@ -361,7 +362,8 @@ export const GAME_RULES_SECTIONS: RuleSection[] = [
       {
         subtitle: 'Bankruptcy & Elimination',
         points: [
-          'If the 120-second timer reaches 0 or the debtor clicks "Give Up", the player is eliminated immediately.',
+          'Give Up During Active Turn: A player may voluntarily give up only during their own active turn. Players cannot surrender during another human player\'s turn or during a computer player\'s (CPU) turn.',
+          'If the 120-second timer reaches 0 or the debtor clicks "Give Up" during their active turn, the player is eliminated immediately.',
           'The match terminates instantly, and the winner is decided by Net Worth among remaining players.',
         ],
       },
@@ -501,8 +503,8 @@ export const BUILDINGS_RULE_SECTION: GameRulesSection = {
       subtitle: 'Development Costs & Bank Preservation',
       points: [
         'Dynamic Construction Cost Equals Resulting Tariff: Construction cost is not fixed. A new House or Commercial Tower costs the tariff of that resulting development level (1st house = one-house tariff; 2nd house = two-house tariff; 3rd house = three-house tariff; 4th house = four-house tariff; Commercial Tower = tower tariff).',
-        'Selling to Bank: If sold to the Bank, you receive the original deed price plus 50% of the current tariff at the existing development level.',
-        'Development Preservation: Reacquiring a mortgaged property from the Bank costs the original deed price plus 10% of the current tariff and preserves all existing houses and towers intact.',
+        'Selling to Bank: If sold to the Bank, you receive the original deed price plus 80% of the current tariff at the existing development level.',
+        'Development Preservation: Reacquiring a mortgaged property from the Bank costs the original deed price plus 50% of the current tariff and preserves all existing houses and towers intact.',
       ],
     },
     {

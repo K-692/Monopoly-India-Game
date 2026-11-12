@@ -347,10 +347,10 @@ describe('Feature: Human Timeout Auto-Resolution & Build Shortcut Refinement', (
       await gm.handleTimeout(state);
 
       const afterState = gm.getGame(gameId)!;
-      // Sale 1: Space 1 -> +300 (total cash = 800 < 2000)
-      // Sale 2: Space 3 -> +300 (total cash = 1100 < 2000)
-      // Sale 3: Space 15 -> +1000 (total cash = 2100 >= 2000)
-      // Settled ₹2,000! Remaining cash = 100.
+      // Sale 1: Space 1 -> +632 (total cash = 1132 < 2000)
+      // Sale 2: Space 3 -> +632 (total cash = 1764 < 2000)
+      // Sale 3: Space 15 -> +2000 (total cash = 3764 >= 2000)
+      // Settled ₹2,000! Remaining cash = 1764.
       // Space 39 must NOT be sold!
       expect(afterState.properties[1].ownershipState).toBe('UNOWNED');
       expect(afterState.properties[3].ownershipState).toBe('UNOWNED');
@@ -358,7 +358,7 @@ describe('Feature: Human Timeout Auto-Resolution & Build Shortcut Refinement', (
       expect(afterState.properties[39].ownershipState).toBe('OWNED'); // Untouched!
       expect(afterState.properties[39].ownerUid).toBe('h1');
 
-      expect(afterState.players[0].cash).toBe(1740); // 500 + 620 + 620 + 2000 - 2000 = 1740
+      expect(afterState.players[0].cash).toBe(1764); // 500 + 632 + 632 + 2000 - 2000 = 1764
       expect(afterState.players[1].cash).toBe(12000);
       expect(afterState.pendingFinancialObligation).toBeNull();
       expect(afterState.players[0].isDisqualified).toBeFalsy();
@@ -404,9 +404,9 @@ describe('Feature: Human Timeout Auto-Resolution & Build Shortcut Refinement', (
       // All properties exhausted and cash (500) < 5000 -> Surrendered
       expect(afterState.players[0].isBankrupt).toBe(true);
       expect(afterState.players[0].isDisqualified).toBe(true);
-      // Creditor received remaining cash (₹820: 200 initial + 620 sale payout)
+      // Creditor received remaining cash (₹832: 200 initial + 632 sale payout)
       expect(afterState.players[0].cash).toBe(0);
-      expect(afterState.players[1].cash).toBe(1820);
+      expect(afterState.players[1].cash).toBe(1832);
       expect(afterState.status).toBe('COMPLETED');
       expect(afterState.winnerUid).toBe('h2');
     });

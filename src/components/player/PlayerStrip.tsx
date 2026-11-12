@@ -43,6 +43,22 @@ export const PlayerStrip: React.FC<PlayerStripProps> = ({
   const effectiveUid = userUid || authPlayer?.uid || 'player_1';
   const viewerPlayer = players.find((p) => p.uid === effectiveUid) || players[0];
 
+  const activePlayer = players.find((p) => p.uid === currentPlayerUid);
+  const isActivePlayerCpu = Boolean(activePlayer && (activePlayer.isCpu || activePlayer.playerType === 'COMPUTER'));
+  const canGiveUp = Boolean(
+    viewerPlayer &&
+    !viewerPlayer.isBankrupt &&
+    !viewerPlayer.isDisqualified &&
+    viewerPlayer.uid === currentPlayerUid &&
+    !isActivePlayerCpu
+  );
+
+  useEffect(() => {
+    if (showGiveUpConfirm && !canGiveUp) {
+      setShowGiveUpConfirm(false);
+    }
+  }, [showGiveUpConfirm, canGiveUp]);
+
   // Track cash updates for animated glowing effect
   const prevCashRef = useRef<Record<string, number>>({});
   const [cashFlash, setCashFlash] = useState<Record<string, 'up' | 'down'>>({});
@@ -236,8 +252,8 @@ export const PlayerStrip: React.FC<PlayerStripProps> = ({
         })}
       </div>
 
-      {/* Requirement 7: Give Up Button Below Player Cards in Left Panel */}
-      {viewerPlayer && !viewerPlayer.isBankrupt && !viewerPlayer.isDisqualified && (
+      {/* Requirement 7: Give Up Button Below Player Cards in Left Panel (Active Player Turn Only) */}
+      {canGiveUp && (
         <button
           type="button"
           onClick={() => setShowGiveUpConfirm(true)}
@@ -334,7 +350,9 @@ export const PlayerStrip: React.FC<PlayerStripProps> = ({
                 type="button"
                 onClick={() => {
                   setShowGiveUpConfirm(false);
-                  onGiveUp?.();
+                  if (canGiveUp) {
+                    onGiveUp?.();
+                  }
                 }}
                 className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-red-600 hover:bg-red-700 shadow-md active:scale-95 cursor-pointer transition-all flex items-center gap-1.5"
               >

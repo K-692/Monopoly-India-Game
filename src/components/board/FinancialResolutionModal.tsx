@@ -10,6 +10,7 @@ interface FinancialResolutionModalProps {
   players: PlayerState[];
   properties: Record<number, PropertyState>;
   currentUserUid: string;
+  currentPlayerUid?: string;
   turnTimeRemaining?: number;
   onDispatch?: (type: GameActionType, payload?: Record<string, unknown>) => void;
   onInspectionModeChange?: (isInspecting: boolean) => void;
@@ -20,6 +21,7 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
   players,
   properties,
   currentUserUid,
+  currentPlayerUid,
   turnTimeRemaining,
   onDispatch,
   onInspectionModeChange,
@@ -33,6 +35,8 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
   const creditor = players.find((p) => p.uid === obligation.creditorUid);
 
   const isDebtor = currentUserUid === obligation.debtorUid;
+  const isDebtorTurn = currentPlayerUid ? obligation.debtorUid === currentPlayerUid : true;
+  const canSurrender = isDebtor && isDebtorTurn;
   const currentCash = debtor?.cash ?? 0;
   const amountDue = obligation.amountDue;
   const remainingNeeded = Math.max(0, amountDue - currentCash);
@@ -522,7 +526,9 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
                 </button>
                 <button
                   type="button"
-                  onClick={() => onDispatch?.('GIVE_UP')}
+                  onClick={() => {
+                    if (canSurrender) onDispatch?.('GIVE_UP');
+                  }}
                   className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-black shadow-lg transition-all active:scale-95 cursor-pointer min-h-[44px]"
                 >
                   Confirm Surrender
@@ -535,15 +541,17 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
         {/* Section 2: Three Primary Action Buttons (Surrender, Adjust Payouts, and Check Board) */}
         {!showConfirmSurrender && !isAdjustingPayouts && (
           <div className="p-3.5 bg-black/40 border-t border-white/10 flex items-center justify-between gap-2.5">
-            {/* Button 1: Surrender */}
-            <button
-              type="button"
-              onClick={() => setShowConfirmSurrender(true)}
-              className="flex-1 py-2.5 px-2.5 rounded-xl font-bold text-xs bg-red-950/80 hover:bg-red-900 text-red-300 border border-red-800 transition-colors cursor-pointer min-h-[44px] flex items-center justify-center gap-1.5"
-            >
-              <ShieldAlert className="w-3.5 h-3.5" />
-              <span>Surrender</span>
-            </button>
+            {/* Button 1: Surrender (Available only during debtor's active turn) */}
+            {canSurrender && (
+              <button
+                type="button"
+                onClick={() => setShowConfirmSurrender(true)}
+                className="flex-1 py-2.5 px-2.5 rounded-xl font-bold text-xs bg-red-950/80 hover:bg-red-900 text-red-300 border border-red-800 transition-colors cursor-pointer min-h-[44px] flex items-center justify-center gap-1.5"
+              >
+                <ShieldAlert className="w-3.5 h-3.5" />
+                <span>Surrender</span>
+              </button>
+            )}
 
             {/* Button 2: Adjust Payouts */}
             <button

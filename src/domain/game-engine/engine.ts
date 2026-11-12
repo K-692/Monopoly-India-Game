@@ -939,6 +939,11 @@ export function applyGameCommand(
         throw new GameEngineError('INVALID_ACTION', 'Player has already surrendered or left');
       }
 
+      // Requirement 3: Give Up is strictly permitted only during the player's own active turn
+      if (actorUid !== state.currentPlayerUid && !options?.isServerTimeout) {
+        throw new GameEngineError('NOT_YOUR_TURN', 'You can only give up during your own turn');
+      }
+
       // Transfer any remaining cash to creditor if surrender happens during an active financial obligation
       if (obligation && obligation.debtorUid === actorUid && obligation.creditorUid) {
         const creditor = state.players.find((p) => p.uid === obligation.creditorUid);

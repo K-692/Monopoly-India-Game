@@ -271,17 +271,17 @@ describe('Major Gameplay, Economy, Dice, UI and Rules Update — Regression Suit
   // 3. REVISED SELL-TO-BANK & REACQUISITION PRICING
   // =========================================================================
   describe('3. Sell-to-Bank and Reacquisition Pricing', () => {
-    it('3.1 calculates developable city bank sale at 50% tariff and reacquisition at 10% tariff across all 6 tiers', () => {
+    it('3.1 calculates developable city bank sale at 80% tariff and reacquisition at 50% tariff across all 6 tiers', () => {
       // Jaipur (Space 1): baseRent: 40, rentHouse1: 200, rentHouse2: 600, rentHouse3: 1800, rentHouse4: 3200, rentTower: 4500
       const jaipurDef = BOARD_SPACES[1] as PropertyDefinition;
 
       const levels = [
-        { buildings: 0, tariff: 40, expectedSale: 620, expectedReacq: 604 },
-        { buildings: 1, tariff: 200, expectedSale: 700, expectedReacq: 620 },
-        { buildings: 2, tariff: 600, expectedSale: 900, expectedReacq: 660 },
-        { buildings: 3, tariff: 1800, expectedSale: 1500, expectedReacq: 780 },
-        { buildings: 4, tariff: 3200, expectedSale: 2200, expectedReacq: 920 },
-        { buildings: 5, tariff: 4500, expectedSale: 2850, expectedReacq: 1050 },
+        { buildings: 0, tariff: 40, expectedSale: 632, expectedReacq: 620 },
+        { buildings: 1, tariff: 200, expectedSale: 760, expectedReacq: 700 },
+        { buildings: 2, tariff: 600, expectedSale: 1080, expectedReacq: 900 },
+        { buildings: 3, tariff: 1800, expectedSale: 2040, expectedReacq: 1500 },
+        { buildings: 4, tariff: 3200, expectedSale: 3160, expectedReacq: 2200 },
+        { buildings: 5, tariff: 4500, expectedSale: 4200, expectedReacq: 2850 },
       ];
 
       for (const lvl of levels) {
@@ -346,8 +346,8 @@ describe('Major Gameplay, Economy, Dice, UI and Rules Update — Regression Suit
       expect(prop.ownershipState).toBe('UNOWNED');
       expect(prop.ownerUid).toBeNull();
       expect(prop.buildings).toBe(3); // Buildings preserved!
-      expect(prop.soldToBankPayout).toBe(1500);
-      expect(prop.soldToBankReacquisitionCost).toBe(780);
+      expect(prop.soldToBankPayout).toBe(2040);
+      expect(prop.soldToBankReacquisitionCost).toBe(1500);
     });
   });
 

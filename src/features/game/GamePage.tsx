@@ -307,7 +307,11 @@ export const GamePage: React.FC = () => {
             onSelectPlayer={() => {}}
             onSelectSpace={selectSpace}
             userUid={player?.uid || 'player_1'}
-            onGiveUp={() => dispatchAction('GIVE_UP')}
+            onGiveUp={() => {
+              if (gameState.currentPlayerUid === (player?.uid || 'player_1')) {
+                dispatchAction('GIVE_UP');
+              }
+            }}
           />
         </div>
 

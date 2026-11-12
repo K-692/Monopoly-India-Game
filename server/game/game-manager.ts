@@ -247,6 +247,16 @@ export class GameManager {
       }
     }
 
+    // Guard 4: Give Up is only permitted during the active player's turn
+    if (command.type === 'GIVE_UP') {
+      if (actorUid !== currentState.currentPlayerUid && !options?.isServerTimeout) {
+        throw new GameEngineError(
+          'NOT_YOUR_TURN',
+          'You can only give up during your active turn'
+        );
+      }
+    }
+
     let injectedDice: [number, number] | undefined = undefined;
 
     // Generate cryptographic unbiased dice on the server for ROLL_DICE and TRY_DOUBLES

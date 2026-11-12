@@ -280,7 +280,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     if (!jailNotification) return;
     const timer = setTimeout(() => {
       setJailNotification(null);
-    }, 4500);
+    }, 2000);
     return () => clearTimeout(timer);
   }, [jailNotification]);
 
@@ -1374,6 +1374,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
           players={gameState.players}
           properties={gameState.properties}
           currentUserUid={userUid || 'player_1'}
+          currentPlayerUid={gameState.currentPlayerUid}
           turnTimeRemaining={gameState.turnTimeRemaining}
           onDispatch={onDispatch}
           onInspectionModeChange={setIsBoardInspecting}

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, act } from '@testing-library/react';
 import { BOARD_SPACES } from '../domain/board-config';
 import { PropertyState, GameState, RoomMember, PropertyDefinition } from '../domain/game-types';
 import {
@@ -16,6 +16,7 @@ import { GameManager } from '../../server/game/game-manager';
 import { ServerRoom } from '../../server/types/server-types';
 import { GameBoard } from '../components/board/GameBoard';
 import { CityDeedModal } from '../components/board/CityDeedModal';
+import { PlayerStrip } from '../components/player/PlayerStrip';
 import { GAME_RULES_SECTIONS, BUILDINGS_RULE_SECTION } from '../domain/game-rules-guide';
 
 const mockMembers: Record<string, RoomMember> = {
@@ -25,19 +26,19 @@ const mockMembers: Record<string, RoomMember> = {
 
 describe('Feature Update: Revised Property Economy, Central Jail Notification, and Sell-to-Bank Restrictions', () => {
   describe('1. Revised Sell-to-Bank & Reacquisition Pricing', () => {
-    it('calculates developable city bank sale at P + floor(T * 0.50) and reacquisition at P + floor(T * 0.10) for all tiers', () => {
+    it('calculates developable city bank sale at P + floor(T * 0.80) and reacquisition at P + floor(T * 0.50) for all tiers', () => {
       // Jaipur (Space 1): deed price P = 600
       // Tariffs: 0 houses: 40, 1 house: 200, 2 houses: 600, 3 houses: 1800, 4 houses: 3200, Tower: 4500
       const jaipurDef = BOARD_SPACES[1] as PropertyDefinition;
       expect(jaipurDef.price).toBe(600);
 
       const expectedTiers = [
-        { buildings: 0, tariff: 40, sale: 600 + Math.floor(40 * 0.5), reacq: 600 + Math.floor(40 * 0.1) }, // 620, 604
-        { buildings: 1, tariff: 200, sale: 600 + Math.floor(200 * 0.5), reacq: 600 + Math.floor(200 * 0.1) }, // 700, 620
-        { buildings: 2, tariff: 600, sale: 600 + Math.floor(600 * 0.5), reacq: 600 + Math.floor(600 * 0.1) }, // 900, 660
-        { buildings: 3, tariff: 1800, sale: 600 + Math.floor(1800 * 0.5), reacq: 600 + Math.floor(1800 * 0.1) }, // 1500, 780
-        { buildings: 4, tariff: 3200, sale: 600 + Math.floor(3200 * 0.5), reacq: 600 + Math.floor(3200 * 0.1) }, // 2200, 920
-        { buildings: 5, tariff: 4500, sale: 600 + Math.floor(4500 * 0.5), reacq: 600 + Math.floor(4500 * 0.1) }, // 2850, 1050
+        { buildings: 0, tariff: 40, sale: 600 + Math.floor(40 * 0.8), reacq: 600 + Math.floor(40 * 0.5) }, // 632, 620
+        { buildings: 1, tariff: 200, sale: 600 + Math.floor(200 * 0.8), reacq: 600 + Math.floor(200 * 0.5) }, // 760, 700
+        { buildings: 2, tariff: 600, sale: 600 + Math.floor(600 * 0.8), reacq: 600 + Math.floor(600 * 0.5) }, // 1080, 900
+        { buildings: 3, tariff: 1800, sale: 600 + Math.floor(1800 * 0.8), reacq: 600 + Math.floor(1800 * 0.5) }, // 2040, 1500
+        { buildings: 4, tariff: 3200, sale: 600 + Math.floor(3200 * 0.8), reacq: 600 + Math.floor(3200 * 0.5) }, // 3160, 2200
+        { buildings: 5, tariff: 4500, sale: 600 + Math.floor(4500 * 0.8), reacq: 600 + Math.floor(4500 * 0.5) }, // 4200, 2850
       ];
 
       for (const tier of expectedTiers) {
@@ -217,6 +218,57 @@ describe('Feature Update: Revised Property Economy, Central Jail Notification, a
       const diceAnchor = modal.closest('#board-inspection-dice-anchor');
       expect(diceAnchor).not.toBeNull();
     });
+
+    it('auto-dismisses central jail notification after exactly 2000ms', () => {
+      vi.useFakeTimers();
+      try {
+        const state = createInitialGame('room_1', 'game_1', mockMembers, undefined, 'user_1');
+        const { rerender } = render(
+          <GameBoard
+            gameState={state}
+            selectedSpaceIndex={null}
+            onSelectSpace={vi.fn()}
+            isRolling={false}
+            onDispatch={vi.fn()}
+            isMyTurn={true}
+            userUid="user_1"
+          />
+        );
+
+        const jailedState: GameState = {
+          ...state,
+          players: state.players.map((p) => (p.uid === 'user_1' ? { ...p, inJail: true, position: 10 } : p)),
+        };
+
+        rerender(
+          <GameBoard
+            gameState={jailedState}
+            selectedSpaceIndex={null}
+            onSelectSpace={vi.fn()}
+            isRolling={false}
+            onDispatch={vi.fn()}
+            isMyTurn={true}
+            userUid="user_1"
+          />
+        );
+
+        expect(screen.getByTestId('jail-center-notification')).toBeInTheDocument();
+
+        // At 1900ms, it is still visible
+        act(() => {
+          vi.advanceTimersByTime(1900);
+        });
+        expect(screen.getByTestId('jail-center-notification')).toBeInTheDocument();
+
+        // At 2000ms (+150ms), it auto-dismisses
+        act(() => {
+          vi.advanceTimersByTime(150);
+        });
+        expect(screen.queryByTestId('jail-center-notification')).not.toBeInTheDocument();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 
   describe('4. Sell-to-Bank Restrictions & Grid Tile Decoupling', () => {
@@ -307,7 +359,7 @@ describe('Feature Update: Revised Property Economy, Central Jail Notification, a
       }, 'user_2');
 
       expect(res.nextState.properties[1].ownershipState).toBe('UNOWNED');
-      expect(res.nextState.properties[1].soldToBankPayout).toBe(620);
+      expect(res.nextState.properties[1].soldToBankPayout).toBe(632);
     });
 
     it('server GameManager rejects voluntary MORTGAGE when actor is not current turn player', async () => {
@@ -348,12 +400,12 @@ describe('Feature Update: Revised Property Economy, Central Jail Notification, a
   });
 
   describe('5. Game Rules Guide Documentation Verification', () => {
-    it('documents P + 50% tariff bank sale and P + 10% tariff reacquisition', () => {
+    it('documents P + 80% tariff bank sale and P + 50% tariff reacquisition', () => {
       const sec8 = GAME_RULES_SECTIONS.find((s) => s.id === 'sell-to-bank');
       expect(sec8).toBeDefined();
       const text = sec8!.items.flatMap((i) => i.points).join(' ');
+      expect(text).toContain('80% of Current Tariff');
       expect(text).toContain('50% of Current Tariff');
-      expect(text).toContain('10% of Current Tariff');
       expect(text).toContain('100% of the original deed purchase price');
       expect(text).toContain('ONLY during the active owner\'s turn');
     });
@@ -370,6 +422,111 @@ describe('Feature Update: Revised Property Economy, Central Jail Notification, a
       expect(sec7).toBeDefined();
       const text = sec7!.items.flatMap((i) => i.points).join(' ');
       expect(text).toContain('geometric center of the game board, directly covering both dice');
+    });
+  });
+
+  describe('6. Give Up Authorization & Active Turn Restrictions', () => {
+    it('allows active player to give up during their own turn', () => {
+      const state = createInitialGame('room_1', 'game_1', mockMembers, undefined, 'user_1');
+      state.currentPlayerUid = 'user_1';
+      const res = applyGameCommand(state, {
+        commandId: 'cmd_giveup_valid',
+        roomId: 'room_1',
+        gameId: 'game_1',
+        expectedVersion: state.version,
+        type: 'GIVE_UP',
+        payload: {},
+      }, 'user_1');
+
+      expect(res.nextState.players[0].isBankrupt).toBe(true);
+      expect(res.nextState.players[0].isDisqualified).toBe(true);
+    });
+
+    it('rejects GIVE_UP command with NOT_YOUR_TURN when actor is not current turn player in engine', () => {
+      const state = createInitialGame('room_1', 'game_1', mockMembers, undefined, 'user_1');
+      state.currentPlayerUid = 'user_1';
+      expect(() => applyGameCommand(state, {
+        commandId: 'cmd_giveup_invalid',
+        roomId: 'room_1',
+        gameId: 'game_1',
+        expectedVersion: state.version,
+        type: 'GIVE_UP',
+        payload: {},
+      }, 'user_2')).toThrow(/You can only give up during your own turn/);
+    });
+
+    it('server GameManager rejects GIVE_UP when actor is not current turn player', async () => {
+      const gm = new GameManager();
+      const room: ServerRoom = {
+        roomId: 'room_svr_giveup',
+        inviteCode: 'GIV01',
+        inviteCodeHash: 'hash_giveup',
+        hostUid: 'user_1',
+        status: 'LOBBY',
+        maxPlayers: 2,
+        turnTimerSeconds: 30,
+        gameMode: 'STANDARD',
+        memberUids: ['user_1', 'user_2'],
+        members: mockMembers,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        expiresAt: Date.now() + 3600000,
+      };
+      const startRes = gm.startGame(room, 'user_1', { forcedPlayerOrder: ['user_1', 'user_2'] });
+      const gameId = startRes.gameId!;
+      const state = gm.getGame(gameId)!;
+      state.currentPlayerUid = 'user_1';
+
+      await expect(gm.processCommand(gameId, {
+        commandId: 'cmd_svr_giveup_out_of_turn',
+        roomId: 'room_svr_giveup',
+        gameId,
+        expectedVersion: state.version,
+        type: 'GIVE_UP',
+        payload: {},
+      }, 'user_2')).rejects.toThrow(/You can only give up during your active turn/);
+    });
+
+    it('PlayerStrip only displays Give Up button when viewer is the active human player', () => {
+      const state = createInitialGame('room_1', 'game_1', mockMembers, undefined, 'user_1');
+      state.currentPlayerUid = 'user_1';
+
+      // Viewer is user_1 (active player) -> button rendered
+      const { rerender } = render(
+        <PlayerStrip
+          players={state.players}
+          currentPlayerUid="user_1"
+          properties={state.properties}
+          userUid="user_1"
+          onGiveUp={vi.fn()}
+        />
+      );
+      expect(screen.getByRole('button', { name: /give up/i })).toBeInTheDocument();
+
+      // Viewer is user_2 (inactive player) -> button hidden
+      rerender(
+        <PlayerStrip
+          players={state.players}
+          currentPlayerUid="user_1"
+          properties={state.properties}
+          userUid="user_2"
+          onGiveUp={vi.fn()}
+        />
+      );
+      expect(screen.queryByRole('button', { name: /give up/i })).not.toBeInTheDocument();
+
+      // Active player is CPU -> button hidden for all human viewers
+      const cpuPlayers = state.players.map((p) => (p.uid === 'user_1' ? { ...p, isCpu: true, playerType: 'COMPUTER' as const } : p));
+      rerender(
+        <PlayerStrip
+          players={cpuPlayers}
+          currentPlayerUid="user_1"
+          properties={state.properties}
+          userUid="user_2"
+          onGiveUp={vi.fn()}
+        />
+      );
+      expect(screen.queryByRole('button', { name: /give up/i })).not.toBeInTheDocument();
     });
   });
 });
