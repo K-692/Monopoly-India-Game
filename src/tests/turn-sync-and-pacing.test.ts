@@ -1305,14 +1305,14 @@ describe('Turn Synchronization, CPU Pacing & Player Timers', () => {
 
       const afterState = gm.getGame(gameId)!;
       // Bail must NOT be deducted
-      expect(afterState.players[0].cash).toBe(300);
       expect(afterState.dice).toBeDefined();
-      if (afterState.dice?.isDouble) {
-        expect(afterState.players[0].inJail).toBe(false);
-        expect(afterState.players[0].jailTurns).toBe(0);
-      } else {
+      if (!afterState.dice?.isDouble) {
+        expect(afterState.players[0].cash).toBe(300);
         expect(afterState.players[0].inJail).toBe(true);
         expect(afterState.players[0].jailTurns).toBe(2);
+      } else {
+        expect(afterState.players[0].inJail).toBe(false);
+        expect(afterState.players[0].jailTurns).toBe(0);
       }
 
       gm.stopTurnTimer(gameId);

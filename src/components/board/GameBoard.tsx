@@ -236,7 +236,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     }
   }, [gameState.activeCardPopup, gameState.turnNumber, walkingAnimation]);
 
-  // Requirement 4: Central Jail Transition Detection & Left-Side Notification
+  // Central Jail Transition Detection & Center Board Notification
   const prevJailStatusRef = useRef<Record<string, boolean> | null>(null);
   const [jailNotification, setJailNotification] = useState<{
     id: string;
@@ -257,17 +257,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({
       const nowJailed = Boolean(p.inJail);
 
       if (!wasJailed && nowJailed) {
-        // Genuine transition into Central Jail!
+        // Genuine transition into Central Jail — displayed exclusively at board center over dice
         const notifId = `jail_${p.uid}_${gameState.turnNumber}_${Date.now()}`;
         setJailNotification({ id: notifId, playerName: p.displayName });
-
-        // Trigger floating toast notification on bottom-left
-        useToastStore.getState().addToast({
-          eventId: notifId,
-          type: 'warning',
-          title: 'Central Jail',
-          message: `${p.displayName} sent to Central Jail.`,
-        });
       }
 
       if (prevJailStatusRef.current) {

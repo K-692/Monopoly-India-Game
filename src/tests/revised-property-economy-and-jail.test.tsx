@@ -17,6 +17,7 @@ import { ServerRoom } from '../../server/types/server-types';
 import { GameBoard } from '../components/board/GameBoard';
 import { CityDeedModal } from '../components/board/CityDeedModal';
 import { PlayerStrip } from '../components/player/PlayerStrip';
+import { useToastStore } from '../components/feedback/toast-store';
 import { GAME_RULES_SECTIONS, BUILDINGS_RULE_SECTION } from '../domain/game-rules-guide';
 
 const mockMembers: Record<string, RoomMember> = {
@@ -214,9 +215,13 @@ describe('Feature Update: Revised Property Economy, Central Jail Notification, a
       expect(modal).toHaveTextContent('CENTRAL JAIL');
       expect(modal).toHaveTextContent('Player 1 sent to Central Jail');
 
-      // Verify it is placed inside dice anchor container
+      // Verify it is placed inside dice anchor container at the middle of the game board
       const diceAnchor = modal.closest('#board-inspection-dice-anchor');
       expect(diceAnchor).not.toBeNull();
+
+      // Verify no toast notification was generated at the bottom-left of the screen
+      const jailToasts = useToastStore.getState().toasts.filter((t) => t.title === 'Central Jail');
+      expect(jailToasts).toHaveLength(0);
     });
 
     it('auto-dismisses central jail notification after exactly 2000ms', () => {
