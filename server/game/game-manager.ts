@@ -226,20 +226,20 @@ export class GameManager {
       );
     }
 
-    // Guard 1: Block actions during active turn handoff
-    if (currentState.handoff?.isActive) {
+    // Guard 1: Block actions during active turn handoff (unless server timeout)
+    if (!options?.isServerTimeout && currentState.handoff?.isActive) {
       throw new GameEngineError('INVALID_PHASE', 'Turn handoff in progress');
     }
 
-    // Guard 2: Block actions during active token movement animation
-    if (currentState.movement && !currentState.movement.isComplete) {
+    // Guard 2: Block actions during active token movement animation (unless server timeout)
+    if (!options?.isServerTimeout && currentState.movement && !currentState.movement.isComplete) {
       throw new GameEngineError('INVALID_PHASE', 'Player token is currently moving');
     }
 
     // Guard 3: Voluntary Sell-to-Bank is only permitted during the active player's turn (or for debt resolution)
     if (command.type === 'MORTGAGE') {
       const isObligationDebtor = currentState.pendingFinancialObligation?.debtorUid === actorUid;
-      if (actorUid !== currentState.currentPlayerUid && !isObligationDebtor) {
+      if (actorUid !== currentState.currentPlayerUid && !isObligationDebtor && !options?.isServerTimeout) {
         throw new GameEngineError(
           'NOT_YOUR_TURN',
           'Selling properties to the bank voluntarily is only permitted during your active turn'
@@ -358,6 +358,9 @@ export class GameManager {
       // Action occurred within current turn without movement (e.g. BUY_PROPERTY, BUILD, SELL_TO_BANK)
       if (result.nextState.phase === 'ACTION_REQUIRED' && result.nextState.pendingFinancialObligation) {
         // Dedicated 120-second financial resolution timer continues unaffected
+        const remaining = Math.max(0, Math.ceil((result.nextState.pendingFinancialObligation.expiresAt - Date.now()) / 1000));
+        result.nextState.turnTimeRemaining = remaining;
+        this.startTurnTimer(result.nextState);
         this.cpuController.onGameStateChanged(result.nextState);
       } else {
         this.resetTurnTimer(result.nextState);
@@ -413,18 +416,26 @@ export class GameManager {
       this.startTurnTimer(state);
     } else if (state.phase === 'ACTION_REQUIRED' && state.pendingFinancialObligation) {
       // Debt resolution retains dedicated 120-second countdown
+      const remaining = Math.max(0, Math.ceil((state.pendingFinancialObligation.expiresAt - Date.now()) / 1000));
+      state.turnTimeRemaining = remaining;
+      this.startTurnTimer(state);
     } else if (state.phase === 'MANAGEMENT' || state.phase === 'TURN_END') {
       const turnDuration = state.rules?.turnTimerSeconds ?? 30;
       state.turnTimeRemaining = turnDuration;
       this.startTurnTimer(state);
     }
 
+    const timerActiveUid =
+      state.phase === 'ACTION_REQUIRED' && state.pendingFinancialObligation
+        ? state.pendingFinancialObligation.debtorUid
+        : state.currentPlayerUid;
+
     // Broadcast state and timer resumption to all clients
     if (this.broadcastCallback) {
       this.broadcastCallback(state.roomId, 'game:state', state);
       this.broadcastCallback(state.roomId, 'game:timer', {
         remaining: state.turnTimeRemaining,
-        activeUid: state.currentPlayerUid,
+        activeUid: timerActiveUid,
         isPaused: false,
         phase: state.phase,
       });
@@ -554,6 +565,7 @@ export class GameManager {
   private resetTurnTimer(gameState: GameState): void {
     // If in ACTION_REQUIRED with a financial obligation, preserve the 120-second deadline
     if (gameState.phase === 'ACTION_REQUIRED' && gameState.pendingFinancialObligation) {
+      this.startTurnTimer(gameState);
       return;
     }
 
@@ -604,13 +616,26 @@ export class GameManager {
       return;
     }
 
-    // Do not execute timeout while paused (during movement or handoff)
+    const isFinancialTimeout =
+      freshState.phase === 'ACTION_REQUIRED' && Boolean(freshState.pendingFinancialObligation);
+
+    // Do not execute timeout while paused (during movement or handoff) EXCEPT for financial timeouts,
+    // which have an authoritative 120-second deadline that must execute regardless of stale pause flags.
     if (
-      freshState.isTimerPaused ||
-      (freshState.movement && !freshState.movement.isComplete) ||
-      freshState.handoff?.isActive
+      !isFinancialTimeout &&
+      (freshState.isTimerPaused ||
+        (freshState.movement && !freshState.movement.isComplete) ||
+        freshState.handoff?.isActive)
     ) {
+      this.startTurnTimer(freshState);
       return;
+    }
+
+    if (isFinancialTimeout) {
+      freshState.isTimerPaused = false;
+      if (freshState.movement) {
+        freshState.movement.isComplete = true;
+      }
     }
 
     const activeUid = freshState.currentPlayerUid;
@@ -911,19 +936,23 @@ export class GameManager {
     if (!debtor) return;
 
     if (debtor.cash >= state.pendingFinancialObligation.amountDue) {
-      await this.processCommand(
-        gameId,
-        {
-          commandId: 'timeout_resolve_' + Date.now() + '_' + crypto.randomUUID().slice(0, 6),
-          roomId: state.roomId,
+      try {
+        await this.processCommand(
           gameId,
-          expectedVersion: state.version,
-          type: 'RESOLVE_OBLIGATION',
-          payload: {},
-        },
-        debtorUid,
-        { isServerTimeout: true }
-      );
+          {
+            commandId: 'timeout_resolve_' + Date.now() + '_' + crypto.randomUUID().slice(0, 6),
+            roomId: state.roomId,
+            gameId,
+            expectedVersion: state.version,
+            type: 'RESOLVE_OBLIGATION',
+            payload: {},
+          },
+          debtorUid,
+          { isServerTimeout: true }
+        );
+      } catch (err) {
+        console.warn('timeout_resolve error:', err);
+      }
       await this.autoEndTurnIfManagement(gameId, debtorUid);
       return;
     }
@@ -944,19 +973,23 @@ export class GameManager {
 
       // Check if cash has become sufficient
       if (debtor.cash >= state.pendingFinancialObligation.amountDue) {
-        await this.processCommand(
-          gameId,
-          {
-            commandId: 'timeout_resolve_' + Date.now() + '_' + crypto.randomUUID().slice(0, 6),
-            roomId: state.roomId,
+        try {
+          await this.processCommand(
             gameId,
-            expectedVersion: state.version,
-            type: 'RESOLVE_OBLIGATION',
-            payload: {},
-          },
-          debtorUid,
-          { isServerTimeout: true }
-        );
+            {
+              commandId: 'timeout_resolve_' + Date.now() + '_' + crypto.randomUUID().slice(0, 6),
+              roomId: state.roomId,
+              gameId,
+              expectedVersion: state.version,
+              type: 'RESOLVE_OBLIGATION',
+              payload: {},
+            },
+            debtorUid,
+            { isServerTimeout: true }
+          );
+        } catch (err) {
+          console.warn('timeout_resolve error in loop:', err);
+        }
         break;
       }
 
@@ -969,19 +1002,24 @@ export class GameManager {
 
       // Select and sell the first asset in the sorted list
       const nextToSell = eligibleProps[0];
-      await this.processCommand(
-        gameId,
-        {
-          commandId: 'timeout_mortgage_' + Date.now() + '_' + nextToSell.spaceIndex + '_' + crypto.randomUUID().slice(0, 6),
-          roomId: state.roomId,
+      try {
+        await this.processCommand(
           gameId,
-          expectedVersion: state.version,
-          type: 'MORTGAGE',
-          payload: { spaceIndex: nextToSell.spaceIndex },
-        },
-        debtorUid,
-        { isServerTimeout: true }
-      );
+          {
+            commandId: 'timeout_mortgage_' + Date.now() + '_' + nextToSell.spaceIndex + '_' + crypto.randomUUID().slice(0, 6),
+            roomId: state.roomId,
+            gameId,
+            expectedVersion: state.version,
+            type: 'MORTGAGE',
+            payload: { spaceIndex: nextToSell.spaceIndex },
+          },
+          debtorUid,
+          { isServerTimeout: true }
+        );
+      } catch (err) {
+        console.warn(`timeout_mortgage error for space ${nextToSell.spaceIndex}:`, err);
+        break;
+      }
     }
 
     // Step 5: Surrender only after all eligible assets are exhausted
@@ -998,19 +1036,23 @@ export class GameManager {
         const remainingProps = getSortedEligibleSellToBankProperties(debtorUid, state.properties);
         if (remainingProps.length === 0) {
           // No eligible assets remain AND available cash < outstanding amount due -> Surrender!
-          await this.processCommand(
-            gameId,
-            {
-              commandId: 'timeout_give_up_' + Date.now() + '_' + crypto.randomUUID().slice(0, 6),
-              roomId: state.roomId,
+          try {
+            await this.processCommand(
               gameId,
-              expectedVersion: state.version,
-              type: 'GIVE_UP',
-              payload: { reason: 'TIMEOUT' },
-            },
-            debtorUid,
-            { isServerTimeout: true }
-          );
+              {
+                commandId: 'timeout_give_up_' + Date.now() + '_' + crypto.randomUUID().slice(0, 6),
+                roomId: state.roomId,
+                gameId,
+                expectedVersion: state.version,
+                type: 'GIVE_UP',
+                payload: { reason: 'TIMEOUT' },
+              },
+              debtorUid,
+              { isServerTimeout: true }
+            );
+          } catch (err) {
+            console.warn('timeout_give_up error:', err);
+          }
           return;
         }
       }

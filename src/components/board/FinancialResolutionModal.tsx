@@ -319,7 +319,7 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
               </span>
             ) : (
               <span>
-                You have insufficient available balance. You have an additional <strong>120-second window</strong> to <strong>Adjust Payouts</strong> by selling eligible properties to the bank or <strong>Surrender</strong>. At 0 seconds, unresolved debt triggers automatic disqualification and immediate game end.
+                When the 120-second countdown expires, the game automatically sells your eligible cities and properties to the bank, starting with the lowest-value assets. If the proceeds are still insufficient to settle your outstanding payment after all eligible properties are exhausted, you will automatically surrender.
               </span>
             )}
           </div>

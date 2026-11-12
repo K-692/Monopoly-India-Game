@@ -472,12 +472,13 @@ export interface EligibleSellToBankProperty {
 /**
  * Returns eligible properties owned by a debtor that can be sold to the bank,
  * sorted according to authoritative liquidation priority:
- * 1. Maximum possible tariff in ascending order (lowest potential rent first, highest rent last)
- *    (using calculateRent(spaceIndex, properties, 12, undefined, false))
- * 2. spaceIndex in ascending order as stable tie-breaker.
+ * 1. Lowest actual Sell-to-Bank payout first (mortgageVal in ascending order)
+ * 2. Fewer buildings first ((a.prop.buildings ?? 0) - (b.prop.buildings ?? 0)) when payouts are equal
+ * 3. spaceIndex in ascending order as stable tie-breaker when payouts and buildings are equal.
  *
  * Excludes properties that are:
  * - Not owned by the debtor
+ * - prop.ownershipState === 'UNOWNED'
  * - Already mortgaged (isMortgaged === true or ownershipState === 'MORTGAGED')
  * - Permanently blocked (ownershipState === 'BLOCKED')
  */
@@ -490,6 +491,7 @@ export function getSortedEligibleSellToBankProperties(
       ([_, prop]) =>
         prop &&
         prop.ownerUid === debtorUid &&
+        prop.ownershipState !== 'UNOWNED' &&
         !prop.isMortgaged &&
         prop.ownershipState !== 'MORTGAGED' &&
         prop.ownershipState !== 'BLOCKED'
@@ -509,8 +511,13 @@ export function getSortedEligibleSellToBankProperties(
       };
     })
     .sort((a, b) => {
-      if (a.maxTariff !== b.maxTariff) {
-        return a.maxTariff - b.maxTariff;
+      if (a.mortgageVal !== b.mortgageVal) {
+        return a.mortgageVal - b.mortgageVal;
+      }
+      const aBuildings = a.prop.buildings ?? 0;
+      const bBuildings = b.prop.buildings ?? 0;
+      if (aBuildings !== bBuildings) {
+        return aBuildings - bBuildings;
       }
       return a.spaceIndex - b.spaceIndex;
     });
