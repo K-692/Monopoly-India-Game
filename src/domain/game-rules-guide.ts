@@ -53,7 +53,7 @@ export const GAME_RULES_SECTIONS: RuleSection[] = [
       {
         subtitle: 'Cash Balance vs. Net Worth Distinction',
         points: [
-          'Balance (Liquid Cash): The immediately available liquid currency in hand. Used for purchasing deeds, building upgrades, paying rent, and settling debts.',
+          'Balance (Liquid Cash): The immediately available liquid currency in hand. Used for purchasing deeds, building upgrades, paying rent, and settling debts. Displayed in permanent emerald green at all times.',
           'NET WORTH (Enterprise Value): The authoritative measure of total player wealth: NET WORTH = Cash Balance + Total Owned Asset Value - Outstanding Liabilities.',
           'Total Owned Asset Value includes the full face-value purchase price of all owned cities, railways, and airports, plus 100% of all invested building and tower expenditures. For properties in mortgage, their mortgage value is counted. Bank-owned or unowned properties count as ₹0.',
           'Outstanding Liabilities includes any unfulfilled remaining debt from pending financial obligations.',
@@ -82,7 +82,8 @@ export const GAME_RULES_SECTIONS: RuleSection[] = [
         subtitle: 'Room Creation & Seating',
         points: [
           'The host creates a room via Online Multiplayer or local LAN Multiplayer and distributes the unique Room ID.',
-          'Rooms support 2 to 4 players total, combining human players and autonomous computer opponents.',
+          'Rooms support 2 to 6 players total, combining human players and autonomous computer opponents.',
+          'Randomized Match Turn Order: At the start of every new match, the entire player order is randomized using a cryptographically secure, unbiased Fisher–Yates shuffle. Player order does not simply follow room join order.',
         ],
       },
       {
@@ -120,7 +121,8 @@ export const GAME_RULES_SECTIONS: RuleSection[] = [
       {
         subtitle: 'Rolling the Dice',
         points: [
-          'The active player rolls two virtual 6-sided dice generating a random total between 2 and 12.',
+          'The active player rolls two independent, cryptographically fair 6-sided dice generating an authoritative total between 2 and 12.',
+          'One Unified Dice Engine: Both humans and CPUs use the identical unbiased Web Crypto rejection-sampling algorithm. Out-of-range random bytes are rejected, eliminating modulo bias. Client animations are visual and never alter server results.',
           'Single Roll Rule: Rolling doubles does NOT grant an extra roll or turn. Exactly one roll is taken per turn.',
         ],
       },
@@ -136,6 +138,15 @@ export const GAME_RULES_SECTIONS: RuleSection[] = [
         points: [
           'Upon arriving at the destination space, the engine executes tile-specific mechanics (purchases, tariffs, draws, or fines).',
           'When reaching an actionable phase (e.g. Property Decision), the timer resets to the full 30-second duration.',
+        ],
+      },
+      {
+        subtitle: 'Mandatory Resolution of Turn Decisions',
+        points: [
+          'Unresolved mandatory gameplay popups (Buy Property, Reacquire from Bank, or Build Development) MUST be explicitly resolved before ending your turn.',
+          'Generic End Turn commands and Spacebar shortcuts are strictly rejected while a decision popup is active.',
+          'When a legal building opportunity exists, the player must either click Build or explicitly click Done (or press N) to skip construction.',
+          'Automatic timeout handling resolves decisions if the turn timer expires, but players cannot manually bypass decisions.',
         ],
       },
       {
@@ -221,25 +232,25 @@ export const GAME_RULES_SECTIONS: RuleSection[] = [
     id: 'cards-events',
     number: 6,
     title: 'Market Buzz and Special Cards',
-    badge: '24 Dynamic Cards',
+    badge: '22 Dynamic Cards',
     icon: 'Flame',
     summary:
-      '12 Civic Fund and 12 Market Buzz event cards triggered by dice rolls, affecting capital, movement, and jail keys.',
+      '11 Civic Fund and 11 Market Buzz event cards triggered by dice totals (2–12), affecting capital, navigation, and jail exemptions.',
     items: [
       {
-        subtitle: 'Civic Fund (Community Treasury - 12 Cards)',
+        subtitle: 'Civic Fund (Community Treasury - 11 Cards, Rules #2 to #12)',
         points: [
-          'Landing on Civic Fund spaces draws one of 12 community cards determined by the dice sum.',
-          'Features municipal dividends, bank interest, IT refunds, inheritances, and municipal maintenance charges.',
-          'Includes the coveted non-tradable "Get Out of Jail Free" Bail Key card.',
+          'Landing on Civic Fund spaces triggers one of 11 authentic canonical cards mapped directly to the two-dice roll total (totals 2 through 12).',
+          'Features tax refunds, educational grants, festival gatherings, municipal dividends, and legal settlements.',
+          'Includes the coveted non-tradable "Get Out of Jail Free" Bail Key card (Rule #9).',
         ],
       },
       {
-        subtitle: 'Market Buzz (Fortune & Chance - 12 Cards)',
+        subtitle: 'Market Buzz (Fortune & Chance - 11 Cards, Rules #2 to #12)',
         points: [
-          'Landing on Market Buzz spaces triggers dynamic economic events matching the dice sum.',
-          'Features festival bonuses, export incentives, startup windfalls, and traffic challans.',
-          'Contains "Festival Travel: Go to START and collect the starting money."',
+          'Landing on Market Buzz spaces triggers dynamic economic events matching the two-dice roll total (totals 2 through 12).',
+          'Features festival travels, railway expansions, successful tenders, transit dividends, and procurement expenses.',
+          'Contains "Festival Travel: Go to START and collect the starting money" (Rule #2).',
         ],
       },
     ],
@@ -251,7 +262,7 @@ export const GAME_RULES_SECTIONS: RuleSection[] = [
     badge: 'Checkposts & Rest',
     icon: 'ShieldAlert',
     summary:
-      'GST Checkpost, Infrastructure Wealth Levy, Rest House, and Police Checkpoint rules.',
+      'GST Checkpost, Infrastructure Wealth Levy, Rest House, and Central Jail rules.',
     items: [
       {
         subtitle: 'Statutory Taxes',
@@ -270,7 +281,8 @@ export const GAME_RULES_SECTIONS: RuleSection[] = [
       {
         subtitle: 'Central Jail & Police Checkpoint (Spaces #10 & #30)',
         points: [
-          'Landing on Police Checkpoint (Space #30) sends the token directly to Central Jail (Space #10).',
+          'Landing on Police Checkpoint (Space #30), drawing a Go-to-Jail card, or rolling 3 consecutive doubles sends the player directly to Central Jail (Space #10).',
+          'Central Jail Notification: Whenever any human or CPU player is sent to Central Jail, a real-time notification alert is displayed on the left side of the board for all participants.',
           'While in jail, players cannot collect rent from opponents or claim cash rewards.',
           'Escape Option 1: Pay statutory bail of ₹500 on any eligible jail turn.',
           'Escape Option 2: Use an active "Get Out of Jail Free" card if held.',
@@ -287,21 +299,22 @@ export const GAME_RULES_SECTIONS: RuleSection[] = [
     badge: 'Liquidation Mechanics',
     icon: 'Landmark',
     summary:
-      'Liquidate properties to the Reserve Bank for 50% purchase + 50% development cost, preserving built structures.',
+      'Sell developable cities for 50% tariff (reacquire for 10% tariff) or non-cities at deed price, preserving all built structures.',
     items: [
       {
-        subtitle: 'Payout Formula',
+        subtitle: 'Sale and Reacquisition Pricing Formulas',
         points: [
-          'Bank Payout = 50% of the property deed purchase price + 50% of all constructed house/tower expenditures.',
-          'Payout cash is credited instantly to the player and can be used to satisfy debts or boost liquidity.',
+          'Developable Cities (PROPERTY): The Reserve Bank pays 50% of the current tariff at the existing development level (0 houses: 50% base rent; 1-4 houses: 50% house rent; Commercial Tower: 50% tower rent).',
+          'City Reacquisition: When an eligible player lands on a bank-owned city, reacquisition costs only 10% of the current tariff based on the preserved development level.',
+          'Non-City Assets (Railways, Airports, Utilities): Sell-to-Bank payout equals 100% of the original deed purchase price; reacquisition cost also equals 100% of the deed purchase price.',
         ],
       },
       {
         subtitle: 'Building Preservation & Bank Inventory',
         points: [
           'Ownership is transferred immediately to the Reserve Bank; the property becomes unowned and generates zero rent.',
-          'Built structures (Houses and Commercial Towers) are NOT demolished—they remain preserved on the deed.',
-          'Any player who subsequently lands on the space may reacquire the property from the bank for the exact payout amount the bank paid, inheriting all existing buildings intact!',
+          'Built structures (Houses and Commercial Towers) are NOT demolished—they remain preserved on the deed during bank ownership.',
+          'Any player who subsequently lands on the space may acquire the property from the bank at the authoritative reacquisition price, inheriting all existing buildings intact!',
         ],
       },
     ],
@@ -431,10 +444,10 @@ export const GAME_RULES_SECTIONS: RuleSection[] = [
       {
         subtitle: 'Context-Sensitive Key Mapping',
         points: [
-          'SPACE: Context-sensitive primary action — rolls dice during AWAIT_ROLL, tries doubles while in Central Jail (JAIL_DECISION), or ends your turn when eligible during MANAGEMENT and TURN_END.',
+          'SPACE: Context-sensitive primary action — rolls dice during AWAIT_ROLL, tries doubles while in Central Jail (JAIL_DECISION), or ends your turn when eligible during MANAGEMENT and TURN_END. Spacebar is strictly disabled while an unresolved purchase, reacquisition, or build opportunity exists.',
           'ENTER: Context-sensitive positive confirmation — accepts property purchase prompt, unmortgages/reacquires properties from Bank, executes House/Tower development when building prompt is active, or pays Central Jail bail.',
           'S: Opens Sell to Bank interface (voluntary mortgage) to liquidate properties for cash when eligible.',
-          'N: Context-sensitive negative action — declines property purchases, declines reacquisition, skips construction using the same action as the Done button, or closes supported modals (voluntary mortgage and card popups).',
+          'N: Context-sensitive negative action — declines property purchases, declines reacquisition, explicitly skips construction using the exact same action as the Done button, or closes supported modals (voluntary mortgage and card popups).',
         ],
       },
       {
@@ -479,15 +492,15 @@ export const BUILDINGS_RULE_SECTION: GameRulesSection = {
       subtitle: 'Development Costs & Bank Preservation',
       points: [
         'Cost per Tier: Statutory construction cost varies by color group (from ₹500 for Brown cities up to ₹4,000 for Dark Blue cities).',
-        'Selling to Bank: If mortgaged or sold to the Bank, you receive 50% of the deed purchase cost plus 50% of all invested building costs.',
-        'Development Preservation: Reacquiring a mortgaged property from the Bank preserves all existing houses and towers intact.',
+        'Selling to Bank: If mortgaged or sold to the Bank, you receive 50% of the current tariff at the existing development level.',
+        'Development Preservation: Reacquiring a mortgaged property from the Bank costs only 10% of the current tariff and preserves all existing houses and towers intact.',
       ],
     },
     {
       subtitle: 'Keyboard Controls for Building',
       points: [
         'ENTER: When the Build House/Tower interface is active on your landed property, press Enter to build development immediately.',
-        'SPACE: Use Spacebar for general turn progression (Roll Dice, Try Double, End Turn).',
+        'SPACE: Spacebar will NOT skip building or end your turn while an eligible construction opportunity is pending.',
         'N: Press N or click Done to skip building and end the current turn.',
       ],
     },

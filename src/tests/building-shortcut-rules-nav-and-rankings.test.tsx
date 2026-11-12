@@ -139,7 +139,7 @@ describe('1. Enter Shortcut for Build House/Tower', () => {
     expect(onDispatch).toHaveBeenCalledWith('BUILD', { spaceIndex: 6 });
   });
 
-  it('Spacebar does NOT trigger BUILD when building interface is active; it ends turn instead', () => {
+  it('Spacebar does NOT trigger BUILD and is suppressed while building interface is active (mandatory decision)', () => {
     const onDispatch = vi.fn();
     const gameState = createBaseGameState();
 
@@ -157,9 +157,9 @@ describe('1. Enter Shortcut for Build House/Tower', () => {
 
     fireEvent.keyDown(window, { code: 'Space' });
 
-    // Should NOT call BUILD
+    // Should NOT call BUILD and should NOT end turn (decision must be resolved via Enter or N/Done)
     expect(onDispatch).not.toHaveBeenCalledWith('BUILD', { spaceIndex: 6 });
-    expect(onDispatch).toHaveBeenCalledWith('END_TURN');
+    expect(onDispatch).not.toHaveBeenCalledWith('END_TURN');
   });
 
   it('Enter does not trigger Buy Property or Bail while building prompt is active', () => {

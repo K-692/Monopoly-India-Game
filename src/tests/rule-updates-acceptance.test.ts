@@ -200,15 +200,18 @@ describe('Acceptance Criteria: Sell-to-Bank & Acquisition with House Preservatio
   it('allows another player landing on the bank-sold city to acquire it for the exact sale payout and inherit houses', () => {
     const state = createInitialGame('room_1', 'game_1', mockMembers, undefined, 'user_2');
 
-    // Jaipur (space 1) was previously sold to bank for ₹750 with 2 houses
+    // Jaipur (space 1) was previously sold to bank with 2 houses
+    // Under new rules: tariff with 2 houses = 600, reacquisition = 10% = 60
     const prop1 = state.properties[1];
     prop1.ownerUid = null;
     prop1.ownershipState = 'UNOWNED';
     prop1.buildings = 2;
-    prop1.soldToBankPayout = 750;
+    prop1.soldToBankPayout = 300;
+    prop1.soldToBankReacquisitionCost = 60;
 
     // user_2 starts at 0, rolls 1 to land on Jaipur
-    state.players[1].position = 0;
+    const u2Player = state.players.find((p) => p.uid === 'user_2')!;
+    u2Player.position = 0;
     state.phase = 'AWAIT_ROLL';
 
     const rollRes = applyGameCommand(
@@ -229,9 +232,9 @@ describe('Acceptance Criteria: Sell-to-Bank & Acquisition with House Preservatio
     expect(postRollState.phase).toBe('PROPERTY_DECISION');
     expect(postRollState.pendingAction?.type).toBe('BUY_OR_AUCTION');
 
-    const u2CashBefore = postRollState.players[1].cash;
+    const u2CashBefore = postRollState.players.find((p) => p.uid === 'user_2')!.cash;
 
-    // user_2 acquires Jaipur for ₹750
+    // user_2 acquires Jaipur for ₹60 (authoritative reacquisition price)
     const buyRes = applyGameCommand(
       postRollState,
       {
@@ -248,11 +251,12 @@ describe('Acceptance Criteria: Sell-to-Bank & Acquisition with House Preservatio
     const finalState = buyRes.nextState;
     const finalProp = finalState.properties[1];
 
-    // user_2 paid exactly ₹750 (the recorded sale payout)
-    expect(finalState.players[1].cash).toBe(u2CashBefore - 750);
+    // user_2 paid exactly ₹60
+    expect(finalState.players.find((p) => p.uid === 'user_2')!.cash).toBe(u2CashBefore - 60);
     expect(finalProp.ownerUid).toBe('user_2');
     expect(finalProp.ownershipState).toBe('OWNED');
     expect(finalProp.soldToBankPayout).toBeUndefined();
+    expect(finalProp.soldToBankReacquisitionCost).toBeUndefined();
 
     // Houses are inherited!
     expect(finalProp.buildings).toBe(2);
@@ -264,10 +268,13 @@ describe('Acceptance Criteria: Sell-to-Bank & Acquisition with House Preservatio
     const prop1 = state.properties[1];
     prop1.ownerUid = null;
     prop1.ownershipState = 'UNOWNED';
-    prop1.soldToBankPayout = 1500;
+    prop1.buildings = 2;
+    prop1.soldToBankPayout = 300;
+    prop1.soldToBankReacquisitionCost = 60;
 
-    state.players[1].position = 1;
-    state.players[1].cash = 500; // Needs 1500
+    const u2Player = state.players.find((p) => p.uid === 'user_2')!;
+    u2Player.position = 1;
+    u2Player.cash = 30; // Needs 60
 
     expect(() => {
       applyGameCommand(
@@ -291,14 +298,16 @@ describe('Acceptance Criteria: Sell-to-Bank & Acquisition with House Preservatio
   it('allows bank-sold infrastructure (e.g. CST Mumbai #5) to be acquired at recorded sale payout', () => {
     const state = createInitialGame('room_1', 'game_1', mockMembers, undefined, 'user_3');
 
-    // Space 5: CST Mumbai (Transit, base price 2000, 50% mortgage = 1000)
+    // Space 5: CST Mumbai (Transit, base price 2000, bank price 2000)
     const prop5 = state.properties[5];
     prop5.ownerUid = null;
     prop5.ownershipState = 'UNOWNED';
-    prop5.soldToBankPayout = 1000;
+    prop5.soldToBankPayout = 2000;
+    prop5.soldToBankReacquisitionCost = 2000;
 
-    state.players[2].position = 5;
-    const initialCash = state.players[2].cash;
+    const u3Player = state.players.find((p) => p.uid === 'user_3')!;
+    u3Player.position = 5;
+    const initialCash = u3Player.cash;
 
     const res = applyGameCommand(
       state,
@@ -313,9 +322,14 @@ describe('Acceptance Criteria: Sell-to-Bank & Acquisition with House Preservatio
       'user_3'
     );
 
-    expect(res.nextState.players[2].cash).toBe(initialCash - 1000);
-    expect(res.nextState.properties[5].ownerUid).toBe('user_3');
-    expect(res.nextState.properties[5].ownershipState).toBe('OWNED');
+    const next = res.nextState;
+    const updatedProp = next.properties[5];
+
+    expect(next.players.find((p) => p.uid === 'user_3')!.cash).toBe(initialCash - 2000);
+    expect(updatedProp.ownerUid).toBe('user_3');
+    expect(updatedProp.ownershipState).toBe('OWNED');
+    expect(updatedProp.soldToBankPayout).toBeUndefined();
+    expect(updatedProp.soldToBankReacquisitionCost).toBeUndefined();
   });
 
   it('preserves standard purchase price for properties that have never been sold to bank', () => {

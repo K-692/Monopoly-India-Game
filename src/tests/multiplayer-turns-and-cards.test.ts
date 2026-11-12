@@ -16,6 +16,7 @@ import { createLanServer } from '../../server/index';
 import { GameCommand, GameState, RoomState } from '../domain/game-types';
 import { applyGameCommand } from '../domain/game-engine/engine';
 import { createInitialGame } from '../domain/game-engine/create-initial-game';
+import { calculateReacquisitionCost } from '../domain/ruleset';
 import {
   ClientToServerEvents,
   GameCommandResponse,
@@ -184,7 +185,7 @@ describe('Indian Monopoly Comprehensive Hardening Suite', () => {
       prop1.ownerUid = 'user_1';
       prop1.ownershipState = 'OWNED';
       prop1.isMortgaged = true;
-      const originalMortgageVal = 300; // Jaipur mortgage value
+      const expectedReacquisitionCost = calculateReacquisitionCost(1, prop1); // Jaipur 10% base rent = 4
 
       state.phase = 'MANAGEMENT';
       state.reacquisitionOpportunity = null;
@@ -219,7 +220,7 @@ describe('Indian Monopoly Comprehensive Hardening Suite', () => {
       expect(postLandState.reacquisitionOpportunity).toBeDefined();
       expect(postLandState.reacquisitionOpportunity?.spaceIndex).toBe(1);
       expect(postLandState.reacquisitionOpportunity?.status).toBe('PENDING');
-      expect(postLandState.reacquisitionOpportunity?.cost).toBe(originalMortgageVal);
+      expect(postLandState.reacquisitionOpportunity?.cost).toBe(expectedReacquisitionCost);
 
       // 3. If player declines reacquisition, status becomes DECLINED and re-attempting in same turn fails
       const declineCmd: GameCommand = {
@@ -310,7 +311,7 @@ describe('Indian Monopoly Comprehensive Hardening Suite', () => {
       }, 'user_1');
 
       expect(reacqResult.nextState.properties[1].isMortgaged).toBe(false);
-      expect(reacqResult.nextState.players[0].cash).toBe(cashBefore - originalMortgageVal);
+      expect(reacqResult.nextState.players[0].cash).toBe(cashBefore - expectedReacquisitionCost);
       expect(reacqResult.nextState.reacquisitionOpportunity).toBeNull();
     });
   });
@@ -330,9 +331,9 @@ describe('Indian Monopoly Comprehensive Hardening Suite', () => {
         return s;
       };
 
-      // Test each rule index 1..12 on Civic Fund space 2
+      // Test each rule index 2..12 on Civic Fund space 2 (11 Rules)
       // Dice roll [1, 1] lands on space 2 (Civic Fund)
-      for (let ruleIndex = 1; ruleIndex <= 12; ruleIndex++) {
+      for (let ruleIndex = 2; ruleIndex <= 12; ruleIndex++) {
         const state = createTestState();
         const startCash = state.players[0].cash;
 
@@ -367,10 +368,7 @@ describe('Indian Monopoly Comprehensive Hardening Suite', () => {
         expect(res.nextState.activeCardPopup?.deck).toBe('CIVIC');
 
         // Verify specific card effects
-        if (ruleIndex === 1) {
-          // Bank interest: ₹500 credit
-          expect(res.nextState.players[0].cash).toBe(startCash + 500);
-        } else if (ruleIndex === 2) {
+        if (ruleIndex === 2) {
           // Tax refund: ₹700 credit
           expect(res.nextState.players[0].cash).toBe(startCash + 700);
         } else if (ruleIndex === 3) {
@@ -443,8 +441,8 @@ describe('Indian Monopoly Comprehensive Hardening Suite', () => {
         return s;
       };
 
-      // Test each rule index 1..12 on Market Buzz space 12
-      for (let ruleIndex = 1; ruleIndex <= 12; ruleIndex++) {
+      // Test each rule index 2..12 on Market Buzz space 12 (11 Rules)
+      for (let ruleIndex = 2; ruleIndex <= 12; ruleIndex++) {
         const state = createTestState();
         const startCash = state.players[0].cash;
 
@@ -471,10 +469,7 @@ describe('Indian Monopoly Comprehensive Hardening Suite', () => {
         expect(res.nextState.activeCardPopup).toBeDefined();
         expect(res.nextState.activeCardPopup?.deck).toBe('MARKET');
 
-        if (ruleIndex === 1) {
-          // Startup Grant: ₹800 credit
-          expect(res.nextState.players[0].cash).toBe(startCash + 800);
-        } else if (ruleIndex === 2) {
+        if (ruleIndex === 2) {
           // Festival Travel to Start: space 0 + ₹3,000 salary
           expect(res.nextState.players[0].position).toBe(0);
           expect(res.nextState.players[0].cash).toBe(startCash + 3000);

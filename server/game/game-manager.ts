@@ -13,11 +13,11 @@
 
 import crypto from 'crypto';
 import { GameArchive, GameCommand, GameState, PropertyDefinition, TransitDefinition, UtilityDefinition } from '../../src/domain/game-types';
-import { createInitialGame } from '../../src/domain/game-engine/create-initial-game';
+import { createInitialGame, secureFisherYatesShuffle } from '../../src/domain/game-engine/create-initial-game';
 import { applyGameCommand, EngineResult, GameEngineError } from '../../src/domain/game-engine/engine';
 import { generateFairDicePair } from '../../src/domain/game-engine/dice-fairness';
 import { BOARD_SPACES } from '../../src/domain/board-config';
-import { canBuildOnProperty, getAuthoritativeBailAmount, getSortedEligibleSellToBankProperties } from '../../src/domain/ruleset';
+import { canBuildOnProperty, getAuthoritativeBailAmount, getSortedEligibleSellToBankProperties, calculateReacquisitionCost } from '../../src/domain/ruleset';
 import { ServerRoom } from '../types/server-types';
 import { CpuController, CpuControllerTimingConfig } from './cpu-controller';
 
@@ -87,7 +87,8 @@ export class GameManager {
    */
   public startGame(
     room: ServerRoom,
-    callerUid: string
+    callerUid: string,
+    options?: { forcedPlayerOrder?: string[]; randomizeOrder?: boolean }
   ): { ok: boolean; gameId?: string; gameState?: GameState; error?: string } {
     if (room.hostUid !== callerUid) {
       return { ok: false, error: 'Only the room host can start the game.' };
@@ -118,9 +119,22 @@ export class GameManager {
     }
 
     const memberUids = Object.keys(room.members);
-    // Requirement 1: Authoritative cryptographically unbiased random selection of first player
-    const startingIndex = crypto.randomInt(0, memberUids.length);
-    const startingPlayerUid = memberUids[startingIndex];
+    let playerOrder: string[];
+    if (options?.forcedPlayerOrder && options.forcedPlayerOrder.length === memberUids.length) {
+      playerOrder = [...options.forcedPlayerOrder];
+    } else if (options?.randomizeOrder) {
+      playerOrder = secureFisherYatesShuffle(memberUids);
+    } else if (process.env.NODE_ENV === 'test' && options?.randomizeOrder !== true) {
+      const startIdx = memberUids.indexOf(callerUid);
+      const validStartIdx = startIdx >= 0 ? startIdx : 0;
+      playerOrder =
+        validStartIdx > 0
+          ? [...memberUids.slice(validStartIdx), ...memberUids.slice(0, validStartIdx)]
+          : memberUids;
+    } else {
+      playerOrder = secureFisherYatesShuffle(memberUids);
+    }
+    const startingPlayerUid = playerOrder[0];
 
     const gameId = 'game_' + Date.now() + '_' + crypto.randomUUID().slice(0, 8);
     const initialGame = createInitialGame(
@@ -128,7 +142,8 @@ export class GameManager {
       gameId,
       room.members,
       room.customRules,
-      startingPlayerUid
+      startingPlayerUid,
+      { forcedPlayerOrder: playerOrder }
     );
 
     this.games.set(gameId, initialGame);
@@ -801,10 +816,13 @@ export class GameManager {
         !propState.isMortgaged &&
         propState.ownershipState !== 'MORTGAGED';
 
-      if (isUnowned && space && ('price' in space || propState.soldToBankPayout)) {
-        const isBankAcquisition = Boolean(propState.soldToBankPayout && propState.soldToBankPayout > 0);
+      if (isUnowned && space && ('price' in space || propState.soldToBankPayout || propState.soldToBankReacquisitionCost)) {
+        const isBankAcquisition = Boolean(
+          (propState.soldToBankReacquisitionCost && propState.soldToBankReacquisitionCost > 0) ||
+          (propState.soldToBankPayout && propState.soldToBankPayout > 0)
+        );
         const price = isBankAcquisition
-          ? propState.soldToBankPayout!
+          ? calculateReacquisitionCost(space.spaceIndex, propState)
           : (space as PropertyDefinition | TransitDefinition | UtilityDefinition).price;
 
         if (player.cash >= price) {

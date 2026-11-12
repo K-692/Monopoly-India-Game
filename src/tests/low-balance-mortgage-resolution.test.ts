@@ -21,9 +21,10 @@ describe('120-Second Low-Balance Mortgage Resolution & Disqualification', () => 
     state.properties[39].ownerUid = 'user_2';
     state.properties[39].ownershipState = 'OWNED';
 
-    // user_1 owns Jaipur (space 1, base price 600, mortgage payout = 300)
+    // user_1 owns Jaipur (space 1, with 2 houses tariff 600 -> mortgage payout = 300)
     state.properties[1].ownerUid = 'user_1';
     state.properties[1].ownershipState = 'OWNED';
+    state.properties[1].buildings = 2;
 
     // user_1 has only ₹100 cash. Rent on space 39 is ₹350
     state.players[0].cash = 100;
@@ -117,11 +118,13 @@ describe('120-Second Low-Balance Mortgage Resolution & Disqualification', () => 
     state.properties[39].ownerUid = 'user_2';
     state.properties[39].ownershipState = 'OWNED';
 
-    // user_1 owns 2 small properties: space 1 (payout 300) and space 3 (payout 300)
+    // user_1 owns 2 small properties with 2 houses each (tariff 600 -> payout 300)
     state.properties[1].ownerUid = 'user_1';
     state.properties[1].ownershipState = 'OWNED';
+    state.properties[1].buildings = 2;
     state.properties[3].ownerUid = 'user_1';
     state.properties[3].ownershipState = 'OWNED';
+    state.properties[3].buildings = 2;
 
     // user_1 has ₹0 cash, owes ₹500
     state.players[0].cash = 0;
@@ -192,7 +195,7 @@ describe('120-Second Low-Balance Mortgage Resolution & Disqualification', () => 
       updatedAt: Date.now(),
       expiresAt: Date.now() + 3600000,
     };
-    const startRes = gm.startGame(room, 'user_1');
+    const startRes = gm.startGame(room, 'user_1', { forcedPlayerOrder: ['user_1', 'user_2', 'user_3'] });
     const gameId = startRes.gameId!;
     const state = gm.getGame(gameId)!;
     state.currentPlayerUid = 'user_1';
@@ -201,11 +204,13 @@ describe('120-Second Low-Balance Mortgage Resolution & Disqualification', () => 
     state.properties[39].ownerUid = 'user_2';
     state.properties[39].ownershipState = 'OWNED';
 
-    // user_1 owns 2 properties: Space 1 and Space 3 (each yielding ₹300 mortgage)
+    // user_1 owns 2 properties with 2 houses each: Space 1 and Space 3 (each yielding ₹300 mortgage)
     state.properties[1].ownerUid = 'user_1';
     state.properties[1].ownershipState = 'OWNED';
+    state.properties[1].buildings = 2;
     state.properties[3].ownerUid = 'user_1';
     state.properties[3].ownershipState = 'OWNED';
+    state.properties[3].buildings = 2;
     state.players[0].cash = 100;
     state.players[0].position = 33;
 
@@ -348,6 +353,7 @@ describe('120-Second Low-Balance Mortgage Resolution & Disqualification', () => 
 
     state.properties[1].ownerUid = 'user_1';
     state.properties[1].ownershipState = 'OWNED';
+    state.properties[1].buildings = 2;
     state.players[0].cash = 50;
 
     // Active obligation created 55 seconds ago (5 seconds left before deadline)
@@ -394,6 +400,7 @@ describe('120-Second Low-Balance Mortgage Resolution & Disqualification', () => 
 
     state.properties[1].ownerUid = 'user_1';
     state.properties[1].ownershipState = 'OWNED';
+    state.properties[1].buildings = 2;
     state.players[0].cash = 50;
 
     // Expired obligation (deadline was 5 seconds ago)

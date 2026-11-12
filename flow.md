@@ -3,7 +3,7 @@
 > **Document Type:** Formal System Architecture & Research Implementation Record  
 > **Repository:** `https://github.com/K-692/Monopoly-India-Game`  
 > **Target Audience:** Systems Researchers, Distributed Systems Engineers, Game Theory & Multi-Agent Researchers  
-> **Status:** Current State Production Implementation (Low-Balance 120s Window, Precisely Centered Dice-Anchored Inspection Overlay, Intelligent Timeouts, Auto-Jail Bail Resolution & Auto-Construction Timeout)  
+> **Status:** Current State Production Implementation (Unified Crypto Dice, 50%/10% Bank Economy, Mandatory Popup Resolution, 11-Card Decks, Shuffled Turn Order & Central Jail Left Banner)  
 
 ---
 
@@ -239,6 +239,7 @@ flowchart TD
     M19["19. Automatic Jail Decision Resolution on Turn Timeout<br>• Authoritative bail check via getAuthoritativeBailAmount(freshState)<br>• Cash >= bailAmount: auto-executes PAY_BAIL, deducts exact bail, clears jail state, transitions to AWAIT_ROLL with reset timer<br>• Cash < bailAmount: auto-executes TRY_DOUBLES with server cryptographic fair dice<br>• Zero duplicate transactions or rolls; preserves CPU natural strategy and manual user actions<br>• 274 Tests Passing (100%) across 22 test suites"]
     M20["20. Automatic Build House / Commercial Tower on Human Turn Timeout<br>• Authoritative MANAGEMENT timeout separation from TURN_END in GameManager.handleTimeout<br>• Evaluates canBuildOnProperty() on active human player's current city position<br>• Eligible human player: executes BUILD with isServerTimeout: true, constructs 1 house/tower, resets turn timer<br>• Ineligible / CPU / no funds: executes END_TURN cleanly<br>• No CPU ₹1,500 reserve imposed on humans; strict version-concurrency safety prevents duplicate/stale builds<br>• 285 Tests Passing (100%) across 22 test suites"]
     M21["21. Precisely Centered Board Inspection Popup Over Both Dice<br>• Decoupled flexbox centering from scale animation to eliminate CSS keyframe transform collisions<br>• Anchor (#board-inspection-dice-anchor) serves as full-size flex-centering container (absolute inset-0 flex items-center justify-center pointer-events-none z-[130])<br>• Inspection box rendered as normal relative centered child with shrink-0 and solid opaque background (bg-[#090D1A])<br>• Geometric center strictly matches midpoint between both dice, completely covering both dice across all screen sizes<br>• Full interactive pass-through for tile inspection and Return to Sell to Bank action<br>• 294 Tests Passing (100%) across 23 test suites"]
+    M22["22. Major Gameplay, Economy, Dice, UI and Rules Update<br>• Mandatory Decision Resolution: END_TURN blocked during purchase, reacquisition, or building opportunities; building requires BUILD or explicit Done (confirmBuildSkip: true) via Done button or N shortcut; generic End Turn & Spacebar suppressed until resolved<br>• Unified Unbiased Crypto Dice System: true rejection sampling (0..251 accept, 252..255 reject) with crypto random bytes, no Math.random fallback; single authoritative generator for human turns, CPU turns, and Try Doubles<br>• 50%/10% Bank Sale & Reacquisition Economy: developable cities sell to bank for 50% of current tariff (levels 0..5), reacquire for 10% of current tariff preserving buildings; non-cities (Railways, Airports, Utilities) sell and reacquire for original deed price; stored independently on PropertyState<br>• Central Jail Left Notification Banner & Toast: left-side notification banner rendered when any player is sent to Central Jail, with synchronized toast<br>• 11-Card Canonical Decks (#2 to #12): removed civic_1 and market_1; dice total T in [2..12] maps directly to deck[T - 2]<br>• Complete Player Turn Order Randomization: cryptographically secure Fisher-Yates shuffle at game start across all room members<br>• Permanent Green Cash Balance Display: cash balance styled permanently green (text-emerald-700 dark:text-emerald-400), never flashing red on debit<br>• Comprehensive Rules Guide & Modal: full documentation update across all 11 rules, building rules, and keyboard controls<br>• 312 Tests Passing (100%) across 24 test suites"]
 
     M1 --> M2
     M2 --> M3
@@ -260,6 +261,7 @@ flowchart TD
     M18 --> M19
     M19 --> M20
     M20 --> M21
+    M21 --> M22
 ```
 
 ---
@@ -268,6 +270,19 @@ flowchart TD
 
 | Invariant | Formal Definition | Enforcement Point | Verification Result |
 | :--- | :--- | :--- | :--- |
+| **Mandatory Purchase Resolution** | $\text{pendingAction.type} \in \{\text{BUY\_OR\_AUCTION}, \dots\} \implies \text{exec}(\text{END\_TURN}) = \bot$ | `engine.ts` (`applyGameCommand`) | ✅ Verified (`major-gameplay-economy-dice-rules-update.test.tsx`) |
+| **Mandatory Reacquisition Resolution** | $\text{reacquisitionOpportunity.status} = \text{PENDING} \implies \text{exec}(\text{END\_TURN}) = \bot$ | `engine.ts` (`applyGameCommand`) | ✅ Verified (`major-gameplay-economy-dice-rules-update.test.tsx`) |
+| **Mandatory Build Resolution** | $\text{canBuildOnProperty}(p, \text{pos}) \land \neg \text{confirmBuildSkip} \implies \text{exec}(\text{END\_TURN}) = \bot$ | `engine.ts` & `GameBoard.tsx` | ✅ Verified (`major-gameplay-economy-dice-rules-update.test.tsx`) |
+| **Unbiased Crypto Rejection Dice** | $b \in [0, 251] \to (b \bmod 6) + 1 \land b \in [252, 255] \to \text{reject} \land \neg \text{Math.random}()$ | `dice-fairness.ts` (`mapByteToDie`) | ✅ Verified (`major-gameplay-economy-dice-rules-update.test.tsx`) |
+| **Unified Server Dice Generation** | $\forall \text{Roll} \in \{\text{Human}, \text{CPU}, \text{TryDoubles}\}, \text{Dice} \sim \text{ServerCryptoFairDice}$ | `game-manager.ts` (`executeCommandInternal`) | ✅ Verified (`major-gameplay-economy-dice-rules-update.test.tsx`) |
+| **City 50% Tariff Bank Sale** | $\text{Type} = \text{CITY} \implies \text{soldToBankPayout} = \lfloor 0.50 \times \text{Tariff}(\text{level}) \rfloor$ | `ruleset.ts` (`calculateMortgageValue`) | ✅ Verified (`major-gameplay-economy-dice-rules-update.test.tsx`) |
+| **City 10% Tariff Reacquisition** | $\text{Type} = \text{CITY} \implies \text{soldToBankReacquisitionCost} = \lfloor 0.10 \times \text{Tariff}(\text{level}) \rfloor \land \Delta(\text{buildings}) = 0$ | `ruleset.ts` (`calculateReacquisitionCost`) | ✅ Verified (`major-gameplay-economy-dice-rules-update.test.tsx`) |
+| **Deed-Priced Infrastructure Sale** | $\text{Type} \in \{\text{TRANSIT}, \text{UTILITY}\} \implies \text{payout} = \text{reacqCost} = \text{deedPrice}$ | `ruleset.ts` (`calculateMortgageValue`, `calculateReacquisitionCost`) | ✅ Verified (`major-gameplay-economy-dice-rules-update.test.tsx`) |
+| **Central Jail Left Banner** | $\text{InJail}(p, t) \land \neg \text{InJail}(p, t-1) \implies \text{RenderLeftBanner}(p) \land \text{Toast}(p)$ | `GameBoard.tsx` & `ToastContainer.tsx` | ✅ Verified (`major-gameplay-economy-dice-rules-update.test.tsx`) |
+| **11-Card Canonical Decks** | $|\text{CivicFund}| = 11 \land |\text{MarketBuzz}| = 11 \land \text{Rules} \in [\#2 \dots \#12]$ | `board-config.ts` | ✅ Verified (`major-gameplay-economy-dice-rules-update.test.tsx`) |
+| **Dice Sum Deck Mapping** | $\text{CardDrawn}(T) = \text{Deck}[T - 2] \quad \forall T \in [2 \dots 12]$ | `engine.ts` (`handleLandingOnSpace`) | ✅ Verified (`major-gameplay-economy-dice-rules-update.test.tsx`) |
+| **Fisher-Yates Turn Order Randomization** | $\text{playerOrder} = \text{FisherYatesCrypto}(\text{Members}) \land \text{players} \equiv \text{order}(\text{playerOrder})$ | `create-initial-game.ts` & `game-manager.ts` | ✅ Verified (`major-gameplay-economy-dice-rules-update.test.tsx`) |
+| **Permanent Green Balance Display** | $\text{Style}(\text{CashBalance}) \in \{\text{text-emerald-700}, \text{dark:text-emerald-400}\} \land \neg \text{RedFlash}$ | `PlayerStrip.tsx` | ✅ Verified (`major-gameplay-economy-dice-rules-update.test.tsx`) |
 | **Precise Dice-Midpoint Centering** | $\text{Center}(\text{InspectionBox}) = \text{Midpoint}(\text{Die}_1, \text{Die}_2) \land \text{Covers}(\text{Box}, \{\text{Die}_1, \text{Die}_2\}) \land \neg \text{ObscuresPerimeterTiles}$ | `GameBoard.tsx` & `FinancialResolutionModal.tsx` | ✅ Verified (`board-inspection-centering.test.tsx`) |
 | **Animation-Position Decoupling** | $\text{TransformKeyframes}(\text{scaleIn}) \cap \text{Transform}(\text{translate}) = \emptyset \implies \Delta(\text{Position}) = 0$ | `FinancialResolutionModal.tsx` | ✅ Verified (`board-inspection-centering.test.tsx`) |
 | :--- | :--- | :--- | :--- |

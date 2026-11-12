@@ -13,8 +13,50 @@
  * By rejecting raw byte values >= 252 (42 * 6), each outcome 1..6 has an exact
  * probability of 42 / 252 = 1/6 (~16.6667%).
  */
+/**
+ * Maps a single 8-bit unsigned integer (0..255) to a fair die outcome (1..6)
+ * using rejection sampling.
+ * Returns null if the byte is rejected (values 252..255) to eliminate modulo bias.
+ */
+export function mapByteToDie(byte: number): number | null {
+  if (byte >= 252) {
+    return null;
+  }
+  return (byte % 6) + 1;
+}
+
+/**
+ * Generates an unbiased random integer between 1 and 6 inclusive.
+ * Uses rejection sampling on 8-bit unsigned integers to avoid any modulo bias:
+ * 256 is not evenly divisible by 6 (256 % 6 = 4).
+ * By rejecting raw byte values >= 252 (42 * 6), each outcome 1..6 has an exact
+ * probability of 42 / 252 = 1/6 (~16.6667%).
+ *
+ * Uses Web Crypto API crypto.getRandomValues() (with Node.js fallback) and
+ * strictly throws an error if cryptographically secure randomness is unavailable.
+ * Insecure Math.random fallback is completely eliminated.
+ */
 export function generateFairDie(): number {
-  // If running in Node.js environment with crypto.randomInt
+  // Web Crypto API in browser or modern Node environment
+  const cryptoObj =
+    typeof globalThis !== 'undefined' && globalThis.crypto
+      ? globalThis.crypto
+      : typeof crypto !== 'undefined'
+      ? crypto
+      : null;
+
+  if (cryptoObj && typeof cryptoObj.getRandomValues === 'function') {
+    const buffer = new Uint8Array(1);
+    while (true) {
+      cryptoObj.getRandomValues(buffer);
+      const die = mapByteToDie(buffer[0]);
+      if (die !== null) {
+        return die;
+      }
+    }
+  }
+
+  // Node.js crypto fallback with rejection sampling
   if (
     typeof process !== 'undefined' &&
     process.versions &&
@@ -22,30 +64,23 @@ export function generateFairDie(): number {
   ) {
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const crypto = require('crypto');
-      if (typeof crypto.randomInt === 'function') {
-        return crypto.randomInt(1, 7);
+      const nodeCrypto = require('crypto');
+      if (typeof nodeCrypto.randomBytes === 'function') {
+        while (true) {
+          const byte: number = nodeCrypto.randomBytes(1)[0];
+          const die = mapByteToDie(byte);
+          if (die !== null) {
+            return die;
+          }
+        }
       }
     } catch {
-      // Fallback to Web Crypto or rejection sampling below
+      // Fallback below
     }
   }
 
-  // Web Crypto API in browser or modern Node
-  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
-    const buffer = new Uint8Array(1);
-    while (true) {
-      crypto.getRandomValues(buffer);
-      const val = buffer[0];
-      // 252 is the highest multiple of 6 below 256
-      if (val < 252) {
-        return (val % 6) + 1;
-      }
-    }
-  }
-
-  // Fallback (e.g. legacy test environment without crypto)
-  return Math.floor(Math.random() * 6) + 1;
+  // If secure crypto is unavailable, fail clearly rather than using Math.random
+  throw new Error('Cryptographically secure random number generator is unavailable.');
 }
 
 /**

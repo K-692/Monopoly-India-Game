@@ -305,7 +305,7 @@ export function setupSocketHandlers(
         return;
       }
 
-      const startResult = gameManager.startGame(room, session.uid);
+      const startResult = gameManager.startGame(room, session.uid, { randomizeOrder: true });
       if (!startResult.ok || !startResult.gameId || !startResult.gameState) {
         if (typeof callback === 'function') {
           callback({ ok: false, error: startResult.error || 'Failed to start game' });

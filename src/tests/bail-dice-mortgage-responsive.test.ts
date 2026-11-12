@@ -379,7 +379,8 @@ describe('Section 3 & 4: Mortgaged City Ownership & Landing Rules', () => {
     state.properties[3].ownerUid = 'p1';
     state.properties[3].ownershipState = 'MORTGAGED';
     state.properties[3].isMortgaged = true;
-    state.properties[3].mortgagePayout = 1200;
+    state.properties[3].mortgagePayout = 20; // 50% baseRent
+    state.properties[3].soldToBankReacquisitionCost = 4; // 10% baseRent
 
     // P1 lands on Space 3 (Start at 0, roll 1 + 2 = 3)
     const cmd: GameCommand = {
@@ -395,10 +396,10 @@ describe('Section 3 & 4: Mortgaged City Ownership & Landing Rules', () => {
 
     expect(res.nextState.players[0].position).toBe(3);
 
-    // Reacquisition opportunity created with exact mortgage payout received
+    // Reacquisition opportunity created with authoritative 10% tariff cost
     expect(res.nextState.reacquisitionOpportunity).toBeDefined();
     expect(res.nextState.reacquisitionOpportunity?.spaceIndex).toBe(3);
-    expect(res.nextState.reacquisitionOpportunity?.cost).toBe(1200);
+    expect(res.nextState.reacquisitionOpportunity?.cost).toBe(4);
     expect(res.nextState.reacquisitionOpportunity?.status).toBe('PENDING');
     expect(res.nextState.phase).toBe('PROPERTY_DECISION');
   });

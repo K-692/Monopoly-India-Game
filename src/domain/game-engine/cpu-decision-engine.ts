@@ -21,6 +21,7 @@ import {
 } from '../game-types';
 import {
   calculateMortgageValue,
+  calculateReacquisitionCost,
   canBuildOnProperty,
   getAuthoritativeBailAmount,
 } from '../ruleset';
@@ -118,10 +119,11 @@ export function decidePropertyAction(
 
   // Determine acquisition price (bank-sold recorded payout or initial deed price)
   const isBankAcquisition = Boolean(
-    propState.soldToBankPayout && propState.soldToBankPayout > 0
+    (propState.soldToBankReacquisitionCost && propState.soldToBankReacquisitionCost > 0) ||
+    (propState.soldToBankPayout && propState.soldToBankPayout > 0)
   );
   const price = isBankAcquisition
-    ? propState.soldToBankPayout!
+    ? calculateReacquisitionCost(cpuPlayer.position, propState)
     : (space as PropertyDefinition | TransitDefinition | UtilityDefinition).price ?? 0;
 
   // Cannot afford
@@ -409,6 +411,7 @@ export function decideNextAction(
       // No more construction -> complete turn
       return {
         type: 'END_TURN',
+        payload: { confirmBuildSkip: true },
         reason: `${cpuPlayer.displayName} finishes turn.`,
       };
     }

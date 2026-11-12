@@ -135,7 +135,8 @@ describe('Feature: Human Timeout Auto-Resolution & Build Shortcut Refinement', (
         isMortgaged: false,
         buildings: 1,
         ownershipState: 'UNOWNED',
-        soldToBankPayout: 750,
+        soldToBankPayout: 100,
+        soldToBankReacquisitionCost: 20, // 10% of 200 tariff
       };
       state.phase = 'PROPERTY_DECISION';
 
@@ -144,7 +145,7 @@ describe('Feature: Human Timeout Auto-Resolution & Build Shortcut Refinement', (
       const afterState = gm.getGame(gameId)!;
       expect(afterState.properties[1].ownerUid).toBe('h1');
       expect(afterState.properties[1].buildings).toBe(1); // Preserves existing building
-      expect(afterState.players[0].cash).toBe(50); // 800 - 750
+      expect(afterState.players[0].cash).toBe(780); // 800 - 20
       expect(afterState.currentPlayerUid).toBe('h2');
     });
 
@@ -168,6 +169,7 @@ describe('Feature: Human Timeout Auto-Resolution & Build Shortcut Refinement', (
         ownerUid: 'h1',
         isMortgaged: true,
         mortgagePayout: 500,
+        soldToBankReacquisitionCost: 500,
         buildings: 0,
         ownershipState: 'MORTGAGED',
       };
@@ -211,6 +213,7 @@ describe('Feature: Human Timeout Auto-Resolution & Build Shortcut Refinement', (
         ownerUid: 'h1',
         isMortgaged: true,
         mortgagePayout: 500,
+        soldToBankReacquisitionCost: 500,
         buildings: 0,
         ownershipState: 'MORTGAGED',
       };
@@ -355,7 +358,7 @@ describe('Feature: Human Timeout Auto-Resolution & Build Shortcut Refinement', (
       expect(afterState.properties[39].ownershipState).toBe('OWNED'); // Untouched!
       expect(afterState.properties[39].ownerUid).toBe('h1');
 
-      expect(afterState.players[0].cash).toBe(100); // 2100 - 2000
+      expect(afterState.players[0].cash).toBe(540); // 500 + 20 + 20 + 2000 - 2000 = 540
       expect(afterState.players[1].cash).toBe(12000);
       expect(afterState.pendingFinancialObligation).toBeNull();
       expect(afterState.players[0].isDisqualified).toBeFalsy();
@@ -401,9 +404,9 @@ describe('Feature: Human Timeout Auto-Resolution & Build Shortcut Refinement', (
       // All properties exhausted and cash (500) < 5000 -> Surrendered
       expect(afterState.players[0].isBankrupt).toBe(true);
       expect(afterState.players[0].isDisqualified).toBe(true);
-      // Creditor received remaining cash (₹500: 200 initial + 300 sale)
+      // Creditor received remaining cash (₹220: 200 initial + 20 sale payout)
       expect(afterState.players[0].cash).toBe(0);
-      expect(afterState.players[1].cash).toBe(1500);
+      expect(afterState.players[1].cash).toBe(1220);
       expect(afterState.status).toBe('COMPLETED');
       expect(afterState.winnerUid).toBe('h2');
     });
@@ -570,7 +573,7 @@ describe('Feature: Human Timeout Auto-Resolution & Build Shortcut Refinement', (
       fireEvent.keyDown(window, { key: 'n' });
 
       expect(onDispatch).toHaveBeenCalledTimes(1);
-      expect(onDispatch).toHaveBeenCalledWith('END_TURN');
+      expect(onDispatch).toHaveBeenCalledWith('END_TURN', { confirmBuildSkip: true });
       expect(onDispatch).not.toHaveBeenCalledWith('BUILD', expect.anything());
     });
 
@@ -595,7 +598,7 @@ describe('Feature: Human Timeout Auto-Resolution & Build Shortcut Refinement', (
       fireEvent.click(doneBtn);
 
       expect(onDispatch).toHaveBeenCalledTimes(1);
-      expect(onDispatch).toHaveBeenCalledWith('END_TURN');
+      expect(onDispatch).toHaveBeenCalledWith('END_TURN', { confirmBuildSkip: true });
     });
 
     it('ignores N key presses during CPU turns or when not player turn', () => {

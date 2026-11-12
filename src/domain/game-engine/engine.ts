@@ -24,6 +24,7 @@ import {
 } from '../game-types';
 import {
   calculateMortgageValue,
+  calculateReacquisitionCost,
   calculateNetWorth,
   calculateRent,
   canBuildOnProperty,
@@ -296,9 +297,12 @@ export function applyGameCommand(
       }
 
       // Check whether property was previously sold to bank
-      const isBankAcquisition = Boolean(propState.soldToBankPayout && propState.soldToBankPayout > 0);
+      const isBankAcquisition = Boolean(
+        (propState.soldToBankReacquisitionCost && propState.soldToBankReacquisitionCost > 0) ||
+        (propState.soldToBankPayout && propState.soldToBankPayout > 0)
+      );
       const price = isBankAcquisition
-        ? propState.soldToBankPayout!
+        ? calculateReacquisitionCost(space.spaceIndex, propState)
         : (space as PropertyDefinition | TransitDefinition | UtilityDefinition).price;
 
       // Authoritative validation before processing acquisition
@@ -315,6 +319,7 @@ export function applyGameCommand(
       propState.ownershipState = 'OWNED';
       propState.boughtOnTurn = state.turnNumber;
       propState.soldToBankPayout = undefined;
+      propState.soldToBankReacquisitionCost = undefined;
       propState.mortgagePayout = undefined;
       // All existing developments (houses/tower) remain intact and are inherited!
       state.pendingAction = null;
@@ -639,6 +644,7 @@ export function applyGameCommand(
         const propState = state.properties[spaceIdx];
         const space = BOARD_SPACES[spaceIdx];
         const mortgageAmount = calculateMortgageValue(spaceIdx, propState);
+        const reacquisitionAmount = calculateReacquisitionCost(spaceIdx, propState);
 
         const prevCash = player.cash;
         player.cash += mortgageAmount;
@@ -649,6 +655,7 @@ export function applyGameCommand(
         propState.ownershipState = 'UNOWNED';
         propState.isMortgaged = false;
         propState.soldToBankPayout = mortgageAmount;
+        propState.soldToBankReacquisitionCost = reacquisitionAmount;
         propState.mortgagePayout = mortgageAmount;
         propState.boughtOnTurn = undefined;
         // Existing houses/tower remain preserved! (propState.buildings is intact)
@@ -784,7 +791,10 @@ export function applyGameCommand(
       }
 
       // Check if property is sold to bank (unowned) or legacy mortgaged
-      const isBankSold = !propState.ownerUid && Boolean(propState.soldToBankPayout && propState.soldToBankPayout > 0);
+      const isBankSold = !propState.ownerUid && Boolean(
+        (propState.soldToBankReacquisitionCost && propState.soldToBankReacquisitionCost > 0) ||
+        (propState.soldToBankPayout && propState.soldToBankPayout > 0)
+      );
       const isLegacyMortgaged = propState.ownerUid === actorUid && (propState.isMortgaged || propState.ownershipState === 'MORTGAGED');
 
       if (!isBankSold && !isLegacyMortgaged) {
@@ -803,19 +813,8 @@ export function applyGameCommand(
         );
       }
 
-      // Reacquisition cost equals the exact sale/mortgage amount originally recorded
-      let fallbackMortgage = 0;
-      if ('mortgageValue' in space) {
-        fallbackMortgage = (space as unknown as { mortgageValue: number }).mortgageValue;
-      } else if ('price' in space) {
-        fallbackMortgage = Math.floor((space as unknown as { price: number }).price / 2);
-      }
-      const reacquisitionCost =
-        propState.soldToBankPayout && propState.soldToBankPayout > 0
-          ? propState.soldToBankPayout
-          : (propState.mortgagePayout && propState.mortgagePayout > 0
-              ? propState.mortgagePayout
-              : fallbackMortgage);
+      // Authoritative reacquisition cost
+      const reacquisitionCost = calculateReacquisitionCost(spaceIdx, propState);
 
       if (player.cash < reacquisitionCost) {
         throw new GameEngineError(
@@ -831,6 +830,7 @@ export function applyGameCommand(
       propState.ownershipState = 'OWNED';
       propState.mortgagePayout = undefined;
       propState.soldToBankPayout = undefined;
+      propState.soldToBankReacquisitionCost = undefined;
       propState.boughtOnTurn = state.turnNumber;
       // All existing development (houses/tower) remains intact!
 
@@ -1059,14 +1059,45 @@ export function applyGameCommand(
       if (actorUid !== state.currentPlayerUid) {
         throw new GameEngineError('NOT_YOUR_TURN', 'Only active player can end turn');
       }
-      if (state.pendingAction) {
-        throw new GameEngineError('INVALID_ACTION', 'Must resolve pending action before ending turn');
+      if (state.phase === 'PROPERTY_DECISION' || state.pendingAction) {
+        throw new GameEngineError(
+          'INVALID_ACTION',
+          'Must resolve property purchase or reacquisition decision before ending turn'
+        );
       }
       if (state.pendingFinancialObligation) {
-        throw new GameEngineError('INVALID_ACTION', 'Must resolve financial obligation or Give Up before ending turn');
+        throw new GameEngineError(
+          'INVALID_ACTION',
+          'Must resolve financial obligation or Give Up before ending turn'
+        );
+      }
+      if (state.reacquisitionOpportunity && state.reacquisitionOpportunity.status === 'PENDING') {
+        throw new GameEngineError(
+          'INVALID_ACTION',
+          'Must resolve reacquisition decision before ending turn'
+        );
       }
 
       const currentActive = state.players.find((p) => p.uid === actorUid);
+      if (!currentActive) throw new GameEngineError('INVALID_ACTION', 'Player not found');
+
+      // Requirement 1.B: Check if active player currently has a valid building opportunity
+      const buildCheck = canBuildOnProperty(
+        currentActive.position,
+        currentActive.uid,
+        state.properties,
+        currentActive.cash,
+        currentActive.position,
+        state.turnNumber
+      );
+      if (buildCheck.allowed && !options?.isServerTimeout && !currentActive.isCpu) {
+        if (command.payload?.confirmBuildSkip !== true) {
+          throw new GameEngineError(
+            'INVALID_ACTION',
+            'Must build or explicitly select Done to skip construction before ending turn'
+          );
+        }
+      }
 
       // Single roll invariant: rolling doubles never grants an additional roll or turn. Only one time rolling is allowed.
       if (currentActive?.escapedJailThisTurn) {
@@ -1177,9 +1208,12 @@ function resolveLandingSpace(
     case 'UTILITY': {
       const propState = state.properties[spaceIndex];
       if (!propState.ownerUid && !propState.isMortgaged && propState.ownershipState === 'UNOWNED') {
-        const isBankAcquisition = Boolean(propState.soldToBankPayout && propState.soldToBankPayout > 0);
+        const isBankAcquisition = Boolean(
+          (propState.soldToBankReacquisitionCost && propState.soldToBankReacquisitionCost > 0) ||
+          (propState.soldToBankPayout && propState.soldToBankPayout > 0)
+        );
         const price = isBankAcquisition
-          ? propState.soldToBankPayout!
+          ? calculateReacquisitionCost(spaceIndex, propState)
           : (space as PropertyDefinition | TransitDefinition | UtilityDefinition).price;
 
         // Acquisition price check
@@ -1314,11 +1348,8 @@ function resolveLandingSpace(
         (propState.isMortgaged || propState.ownershipState === 'MORTGAGED') &&
         propState.ownershipState !== 'BLOCKED'
       ) {
-        // Legacy mortgaged reacquisition fallback
-        const reacquisitionCost =
-          propState.mortgagePayout && propState.mortgagePayout > 0
-            ? propState.mortgagePayout
-            : calculateMortgageValue(spaceIndex, propState);
+        // Mortgaged reacquisition
+        const reacquisitionCost = calculateReacquisitionCost(spaceIndex, propState);
 
         const landingId = `reacquire_${state.turnNumber}_${spaceIndex}_${Date.now()}`;
         state.reacquisitionOpportunity = {
@@ -1403,15 +1434,15 @@ function resolveLandingSpace(
     }
 
     case 'CARD': {
-      // If a player reaches Civic Fund or Market Buzz with a total number from the dice,
-      // that index rule (1..12) gets applied.
+      // Both decks contain 11 cards, matching dice totals 2 through 12.
+      // Selected using deck[diceTotal - 2]
       const deck = space.deck === 'CIVIC' ? CIVIC_FUND_CARDS : MARKET_BUZZ_CARDS;
+      const targetTotal = options?.cardRuleIndex ?? diceTotal;
       const ruleIndex =
-        options?.cardRuleIndex ??
-        (diceTotal >= 1 && diceTotal <= deck.length
-          ? diceTotal
-          : ((state.turnNumber % deck.length) + 1));
-      const card = deck[ruleIndex - 1];
+        targetTotal >= 2 && targetTotal <= 12
+          ? targetTotal
+          : 2;
+      const card = deck[ruleIndex - 2];
       state.activeCardPopup = {
         deck: space.deck,
         card,

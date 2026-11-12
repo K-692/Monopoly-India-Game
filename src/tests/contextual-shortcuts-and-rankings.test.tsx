@@ -696,15 +696,15 @@ describe('4. Civic Fund & Market Buzz Money Formatting (Requirements 19-24)', ()
   });
 
   it('20. Reward cards return GAIN and display positive green amounts', () => {
-    // civic_1: Bank interest (Receive ₹500)
-    const interestCard = CIVIC_FUND_CARDS.find((c) => c.id === 'civic_1')!;
-    expect(interestCard).toBeDefined();
-    expect(getCardFinancialEffect(interestCard)).toBe('GAIN');
+    // civic_2: Tax refund (Receive ₹700)
+    const taxRefundCard = CIVIC_FUND_CARDS.find((c) => c.id === 'civic_2')!;
+    expect(taxRefundCard).toBeDefined();
+    expect(getCardFinancialEffect(taxRefundCard)).toBe('GAIN');
 
-    // market_1: Startup grant (Receive ₹800)
-    const grantCard = MARKET_BUZZ_CARDS.find((c) => c.id === 'market_1')!;
-    expect(grantCard).toBeDefined();
-    expect(getCardFinancialEffect(grantCard)).toBe('GAIN');
+    // market_8: Successful tender (Receive ₹1,200)
+    const tenderCard = MARKET_BUZZ_CARDS.find((c) => c.id === 'market_8')!;
+    expect(tenderCard).toBeDefined();
+    expect(getCardFinancialEffect(tenderCard)).toBe('GAIN');
   });
 
   it('21. Non-monetary cards return NEUTRAL and do not show misleading financial symbols', () => {

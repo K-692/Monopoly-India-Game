@@ -961,30 +961,34 @@ describe('Pure Game Engine', () => {
   // SECTION 3 & 6: MORTGAGE SYSTEM & BLOCKED PROPERTIES
   // ==========================================
   describe('Mortgage System & Financial Obligations', () => {
-    it('calculates mortgage values accounting for development investment and caps at purchase price', () => {
+    it('calculates mortgage values based on 50% of current tariff for cities and deed price for infrastructure', () => {
       const state = createInitialGame('room_1', 'game_1', mockMembers);
-      // Jaipur: price 600, buildingCost 500
-      // 0 houses: 0.5 * 600 = 300
+      // Jaipur: baseRent 40, rentHouse1 200, rentHouse2 600
+      // 0 houses: 0.5 * 40 = 20
+      expect(calculateMortgageValue(1, state.properties[1])).toBe(20);
+
+      // 1 house: 0.5 * 200 = 100
+      state.properties[1].buildings = 1;
+      expect(calculateMortgageValue(1, state.properties[1])).toBe(100);
+
+      // 2 houses: 0.5 * 600 = 300
+      state.properties[1].buildings = 2;
       expect(calculateMortgageValue(1, state.properties[1])).toBe(300);
 
-      // 1 house: 300 + 0.5 * 500 = 550
-      state.properties[1].buildings = 1;
-      expect(calculateMortgageValue(1, state.properties[1])).toBe(550);
-
-      // 2 houses: 300 + 0.5 * 1000 = 800, capped at price 600!
-      state.properties[1].buildings = 2;
-      expect(calculateMortgageValue(1, state.properties[1])).toBe(600);
+      // Non-city asset (CST Mumbai, space 5): deed price 2000
+      expect(calculateMortgageValue(5, state.properties[5])).toBe(2000);
     });
 
     it('pauses financial transaction on insufficient rent, allows mortgaging, and completes obligation', () => {
       let state = createInitialGame('room_1', 'game_1', mockMembers);
-      // user_2 owns Navi Mumbai (Space 36, rent 380)
+      // user_2 owns Navi Mumbai (Space 36, rent 350)
       state.properties[36].ownerUid = 'user_2';
       state.properties[36].ownershipState = 'OWNED';
 
-      // user_1 owns Jaipur (Space 1) and has only ₹100 cash
+      // user_1 owns Jaipur (Space 1) with 2 houses (tariff 600 -> mortgage 300) and has only ₹100 cash
       state.properties[1].ownerUid = 'user_1';
       state.properties[1].ownershipState = 'OWNED';
+      state.properties[1].buildings = 2;
       state.players[0].cash = 100;
 
       // user_1 rolls and lands on space 36
@@ -1014,7 +1018,7 @@ describe('Pure Game Engine', () => {
       expect(state.players[0].cash).toBe(100);
 
       const u2CashBefore = state.players[1].cash;
-      // user_1 mortgages Jaipur (space 1) -> receives ₹300, total becomes ₹400 >= ₹350
+      // user_1 mortgages Jaipur (space 1, 2 houses) -> receives ₹300, total becomes ₹400 >= ₹350
       // Requirement 4: Automatic payment resumption completes payment immediately!
       state = applyGameCommand(
         state,
@@ -1034,6 +1038,7 @@ describe('Pure Game Engine', () => {
       expect(state.properties[1].ownershipState).toBe('UNOWNED');
       expect(state.properties[1].isMortgaged).toBe(false);
       expect(state.properties[1].soldToBankPayout).toBe(300);
+      expect(state.properties[1].soldToBankReacquisitionCost).toBe(60);
 
       // Payment was automatically resumed & settled!
       expect(state.pendingFinancialObligation).toBeNull();
@@ -1092,12 +1097,14 @@ describe('Pure Game Engine', () => {
       expect(calculateRent(1, state.properties)).toBe(0);
     });
 
-    it('allows reacquiring mortgaged property for the exact original mortgage payout', () => {
+    it('allows reacquiring mortgaged property for the authoritative 10% tariff reacquisition cost', () => {
       let state = createInitialGame('room_1', 'game_1', mockMembers);
       state.properties[1].ownerUid = 'user_1';
       state.properties[1].ownershipState = 'MORTGAGED';
       state.properties[1].isMortgaged = true;
-      state.properties[1].mortgagePayout = 300;
+      state.properties[1].mortgagePayout = 100;
+      state.properties[1].soldToBankPayout = 100;
+      state.properties[1].soldToBankReacquisitionCost = 20; // 10% of 200 tariff
       state.properties[1].buildings = 1; // Preserve development!
       state.players[0].cash = 1000;
       state.players[0].position = 1; // Landed on space 1
@@ -1108,7 +1115,7 @@ describe('Pure Game Engine', () => {
         turnNumber: state.turnNumber,
         playerUid: 'user_1',
         spaceIndex: 1,
-        cost: 300,
+        cost: 20,
         status: 'PENDING',
       };
 
@@ -1126,7 +1133,7 @@ describe('Pure Game Engine', () => {
         'user_1'
       ).nextState;
 
-      expect(state.players[0].cash).toBe(1000 - 300); // 700
+      expect(state.players[0].cash).toBe(1000 - 20); // 980
       expect(state.properties[1].isMortgaged).toBe(false);
       expect(state.properties[1].ownershipState).toBe('OWNED');
       expect(state.properties[1].buildings).toBe(1); // Buildings intact!

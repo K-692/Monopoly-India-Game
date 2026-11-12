@@ -155,6 +155,7 @@ export interface PropertyState {
   isMortgaged: boolean;
   mortgagePayout?: number;
   soldToBankPayout?: number;
+  soldToBankReacquisitionCost?: number;
   buildings: number; // 0..4 = houses, 5 = tower
   boughtOnTurn?: number;
 }

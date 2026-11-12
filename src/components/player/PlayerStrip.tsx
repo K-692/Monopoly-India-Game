@@ -200,19 +200,17 @@ export const PlayerStrip: React.FC<PlayerStripProps> = ({
                     )}
                   </div>
 
-                  {/* Requirement 1.A: Prominent Bold Liquid Cash Balance */}
+                  {/* Requirement 1.A: Prominent Bold Liquid Cash Balance - Permanently Green */}
                   <div className="flex items-center justify-between gap-1 mt-0.5">
                     <div
                       data-testid={`player-balance-${player.uid}`}
                       className={cn(
-                        'flex items-center text-[11px] sm:text-[12px] font-black transition-all rounded leading-tight',
-                        flash === 'up' && 'text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/50 scale-105',
-                        flash === 'down' && 'text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-950/50 scale-105',
-                        !flash && 'text-emerald-700 dark:text-emerald-400'
+                        'flex items-center text-[11px] sm:text-[12px] font-black transition-all rounded leading-tight text-emerald-700 dark:text-emerald-400',
+                        flash && 'scale-105 bg-emerald-100/60 dark:bg-emerald-950/40'
                       )}
                     >
-                      <IndianRupee className="w-2.5 h-2.5 -mr-0.5 shrink-0" />
-                      <span>{player.cash.toLocaleString('en-IN')}</span>
+                      <IndianRupee className="w-2.5 h-2.5 -mr-0.5 shrink-0 text-emerald-700 dark:text-emerald-400" />
+                      <span className="text-emerald-700 dark:text-emerald-400">{player.cash.toLocaleString('en-IN')}</span>
                     </div>
                   </div>
 

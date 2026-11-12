@@ -30,7 +30,7 @@ export const RulesPage: React.FC = () => {
             Indian Monopoly Rules & Guide
           </h1>
           <p className="text-amber-100/90 text-sm max-w-xl mt-1">
-            Complete rulebook covering property acquisition, 12 Civic Fund rules, 12 Market Buzz cards, jail regulations, Sell to Bank mechanics, and game termination rules.
+            Complete rulebook covering property acquisition, 11 Civic Fund rules, 11 Market Buzz cards, jail regulations, Sell to Bank mechanics, and game termination rules.
           </p>
         </div>
 
@@ -66,7 +66,7 @@ export const RulesPage: React.FC = () => {
           }`}
         >
           <Gift className="w-4 h-4" />
-          <span>Civic Fund (12 Rules)</span>
+          <span>Civic Fund (11 Rules)</span>
         </button>
 
         <button
@@ -78,7 +78,7 @@ export const RulesPage: React.FC = () => {
           }`}
         >
           <Flame className="w-4 h-4" />
-          <span>Market Buzz (12 Rules)</span>
+          <span>Market Buzz (11 Rules)</span>
         </button>
 
         <button
@@ -169,8 +169,8 @@ export const RulesPage: React.FC = () => {
             <div className="flex items-center gap-2 text-amber-800 dark:text-amber-300">
               <Gift className="w-6 h-6 text-amber-600" />
               <div>
-                <h3 className="font-serif font-black text-lg">Civic Fund — 12 Official Rules</h3>
-                <span className="text-xs text-gray-500">The total rolled on the two dice determines the active rule index</span>
+                <h3 className="font-serif font-black text-lg">Civic Fund — 11 Official Rules</h3>
+                <span className="text-xs text-gray-500">The total rolled on the two dice determines the active rule index (Rules #2 to #12)</span>
               </div>
             </div>
             <span className="text-xs font-bold bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 px-3 py-1 rounded-full border border-amber-300">
@@ -186,7 +186,7 @@ export const RulesPage: React.FC = () => {
               >
                 <div className="flex items-center justify-between">
                   <span className="w-5 h-5 rounded-full bg-amber-700 text-white text-[10px] font-black flex items-center justify-center">
-                    {idx + 1}
+                    {idx + 2}
                   </span>
                   {card.amount && card.actionType !== 'MOVE_RELATIVE' && (() => {
                     const effect = getCardFinancialEffect(card);
@@ -223,15 +223,15 @@ export const RulesPage: React.FC = () => {
         </div>
       )}
 
-      {/* Tab 3: Market Buzz (12 Rules) */}
+      {/* Tab 3: Market Buzz (11 Rules) */}
       {activeTab === 'market' && (
         <div className="bg-white dark:bg-indian-navy-900 p-5 rounded-2xl border border-indian-parchment-300 dark:border-indian-navy-700 shadow-sm space-y-4">
           <div className="flex items-center justify-between border-b border-indian-parchment-300 dark:border-indian-navy-700 pb-3">
             <div className="flex items-center gap-2 text-teal-800 dark:text-teal-300">
               <Flame className="w-6 h-6 text-teal-600" />
               <div>
-                <h3 className="font-serif font-black text-lg">Market Buzz — 12 Official Rules</h3>
-                <span className="text-xs text-gray-500">Triggered dynamically via dice sum upon landing on Market Buzz</span>
+                <h3 className="font-serif font-black text-lg">Market Buzz — 11 Official Rules</h3>
+                <span className="text-xs text-gray-500">Triggered dynamically via dice sum upon landing on Market Buzz (Rules #2 to #12)</span>
               </div>
             </div>
             <span className="text-xs font-bold bg-teal-100 dark:bg-teal-950 text-teal-800 dark:text-teal-300 px-3 py-1 rounded-full border border-teal-300">
@@ -247,7 +247,7 @@ export const RulesPage: React.FC = () => {
               >
                 <div className="flex items-center justify-between">
                   <span className="w-5 h-5 rounded-full bg-teal-700 text-white text-[10px] font-black flex items-center justify-center">
-                    {idx + 1}
+                    {idx + 2}
                   </span>
                   {card.amount && card.actionType !== 'MOVE_RELATIVE' && (() => {
                     const effect = getCardFinancialEffect(card);

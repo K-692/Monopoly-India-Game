@@ -622,17 +622,10 @@ export const RAILWAY_SPACES = [5, 15];
 export const UTILITY_SPACES = [17, 28];
 
 /**
- * Civic Fund Card Deck (12 Authentic Canonical Cards)
+ * Civic Fund Card Deck (11 Authentic Canonical Cards, Rules #2 through #12)
+ * Mapped directly to two-dice totals (sum = 2..12, selected via deck[diceTotal - 2]).
  */
 export const CIVIC_FUND_CARDS: CardAction[] = [
-  {
-    id: 'civic_1',
-    deck: 'CIVIC',
-    title: 'Bank interest',
-    description: 'Receive ₹500 from the bank.',
-    actionType: 'CASH_BANK',
-    amount: 500,
-  },
   {
     id: 'civic_2',
     deck: 'CIVIC',
@@ -723,17 +716,10 @@ export const CIVIC_FUND_CARDS: CardAction[] = [
 ];
 
 /**
- * Market Buzz Card Deck (12 Authentic Canonical Cards)
+ * Market Buzz Card Deck (11 Authentic Canonical Cards, Rules #2 through #12)
+ * Mapped directly to two-dice totals (sum = 2..12, selected via deck[diceTotal - 2]).
  */
 export const MARKET_BUZZ_CARDS: CardAction[] = [
-  {
-    id: 'market_1',
-    deck: 'MARKET',
-    title: 'Startup grant',
-    description: 'Receive ₹800 from the bank.',
-    actionType: 'CASH_BANK',
-    amount: 800,
-  },
   {
     id: 'market_2',
     deck: 'MARKET',

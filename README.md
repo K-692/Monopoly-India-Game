@@ -161,7 +161,7 @@ For complete mathematical definitions, state machine proofs, and research citati
 | `npm run build:server` | Bundles the standalone server into `dist-server/index.cjs` using `esbuild`. |
 | `npm run build:desktop` | Builds both the React LAN frontend (`dist/`) and the server bundle (`dist-server/index.cjs`). |
 | `npm run desktop` | Builds desktop assets and launches the application inside native Electron. |
-| `npm test` | Runs the full Vitest test suite (294 tests across 23 test files). |
+| `npm test` | Runs the full Vitest test suite (312 tests across 24 test files). |
 | `npm run test:watch` | Runs Vitest in interactive watch mode for test-driven development. |
 | `npm run test:coverage`| Generates detailed test code coverage reports. |
 | `npm run typecheck` | Strict TypeScript compiler validation across client, server, and tests (`tsc -b --noEmit`). |
@@ -174,6 +174,13 @@ For complete mathematical definitions, state machine proofs, and research citati
 
 | Feature | Mechanics & Rule Specification |
 | :--- | :--- |
+| **Mandatory Decision Resolution** | **Strict Turn Decision Enforcement**: A player cannot end their turn while an unresolved mandatory gameplay popup is active (Buy City/Property, Reacquire City/Property, or Build House/Tower). When a build opportunity is available, the player must either execute **Build House/Tower** (or press <kbd>Enter</kbd>) or explicitly select **Done** (or press <kbd>N</kbd>). Generic End Turn and Spacebar are suppressed until resolved. |
+| **Unified Fair Crypto Dice** | **Unbiased Rejection Sampling**: Authoritative dice rolls use cryptographic random bytes with rejection sampling (bytes 0–251 accepted, 252–255 rejected and re-sampled) to eliminate modulo bias. Zero `Math.random()` fallback. The exact same generator governs human rolls, autonomous CPU moves, and Try Doubles rolls. |
+| **50% Tariff Sale & 10% Reacquisition** | **Revised Bank Economy**: Developable cities sell to the bank for **50% of current tariff** across all building tiers (Levels 0–5) and are reacquired from the bank for **10% of current tariff**, fully preserving all existing houses and towers. Infrastructure properties (Railways, Airports, Utilities) sell and reacquire at **100% of original deed price**. Separate payout and reacquisition fields are stored authoritatively on `PropertyState`. |
+| **11-Card Canonical Decks** | **Exact Dice-Sum Mapping (#2 to #12)**: Both Civic Fund and Market Buzz decks contain exactly 11 canonical cards indexed to dice rolls 2 through 12 (`deck[T - 2]`). Outdated rules #1 (Bank interest and Startup grant) have been decommissioned. |
+| **Shuffled Turn Order** | **Complete Player Randomization**: When a match starts, the entire participant list is shuffled using cryptographically secure Fisher-Yates randomization. The resulting order determines turn sequencing (`playerOrder`), starting active player, and initial seating. |
+| **Permanent Green Cash Balances** | **Consistent Visual Design**: Liquid cash balances in the left player cards (`PlayerStrip`) are rendered permanently in emerald green (`text-emerald-700 dark:text-emerald-400`), remaining distinct and readable without ever flashing red during debits or fee deductions. |
+| **Central Jail Left Notification Banner** | **Real-Time Arrest Alert**: When any player is sent to Central Jail (via Go to Jail tile, triple doubles, or card instruction), a dedicated left-side notification banner renders below the popup area alongside a synchronized toast alert. |
 | **6-Slot Waiting Lobby** | **Fixed 6-Player Capacity**: Open slots can be filled by any mix of humans and CPUs (e.g. 1 human + 1 CPU, 2 humans + 4 CPUs, etc.). Never allows exceeding 6 players. |
 | **Host CPU Management** | **Lobby-Centric Controls**: Host can add autonomous CPUs to open slots, rename CPUs with unique custom names, or remove CPUs to free slots with real-time Socket.IO synchronization. |
 | **Human Readiness** | **Universal Ready Requirement**: All human players (including the host) must explicitly mark themselves ready before the game can start. CPUs are automatically ready. |

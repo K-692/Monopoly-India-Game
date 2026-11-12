@@ -27,9 +27,12 @@ export const ToastContainer: React.FC = () => {
         const isError = toast.type === 'error';
         const isWarning = toast.type === 'warning' && !isCivic && !isMarket;
 
+        const isJail = toast.title === 'Central Jail';
+
         return (
           <div
             key={toast.id}
+            data-testid={isJail ? 'jail-notification' : `toast-${toast.id}`}
             className={cn(
               'pointer-events-auto relative overflow-hidden flex flex-col p-3 rounded-xl border shadow-2xl backdrop-blur-md text-xs transition-all duration-200',
               toast.isExiting ? 'animate-slide-out-left' : 'animate-slide-in-left',

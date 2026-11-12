@@ -242,7 +242,7 @@ describe('In-Game Rules Guide & RulesModal (?) Requirements', () => {
   it('Requirement 3.A & 3.D: accurately documents Sell to Bank and 120-second emergency window', () => {
     const sellSec = GAME_RULES_SECTIONS.find((s) => s.id === 'sell-to-bank');
     expect(sellSec?.items.some((item) =>
-      item.points.some((p) => p.includes('50% of the property deed purchase price + 50% of all constructed house/tower expenditures'))
+      item.points.some((p) => p.includes('50% of the current tariff'))
     )).toBe(true);
     expect(sellSec?.items.some((item) =>
       item.points.some((p) => p.includes('remain preserved on the deed'))

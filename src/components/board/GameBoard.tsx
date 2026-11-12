@@ -7,7 +7,7 @@ import { CityDeedModal } from './CityDeedModal';
 import { FinancialResolutionModal } from './FinancialResolutionModal';
 import { usePopupPosition } from './use-popup-position';
 import { getSpaceGridCoord } from './board-layout-utils';
-import { calculateMortgageValue, canBuildOnProperty, getAuthoritativeBailAmount, getPropertyNoun, getSortedEligibleSellToBankProperties } from '@/domain/ruleset';
+import { calculateMortgageValue, calculateReacquisitionCost, canBuildOnProperty, getAuthoritativeBailAmount, getPropertyNoun, getSortedEligibleSellToBankProperties } from '@/domain/ruleset';
 import { TurnStepAcknowledgment } from '@/components/feedback/TurnStepAcknowledgment';
 import { PopupTurnTimer } from '@/components/feedback/PopupTurnTimer';
 import { useToastStore } from '@/components/feedback/toast-store';
@@ -236,6 +236,54 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     }
   }, [gameState.activeCardPopup, gameState.turnNumber, walkingAnimation]);
 
+  // Requirement 4: Central Jail Transition Detection & Left-Side Notification
+  const prevJailStatusRef = useRef<Record<string, boolean> | null>(null);
+  const [jailNotification, setJailNotification] = useState<{
+    id: string;
+    playerName: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!prevJailStatusRef.current) {
+      // First mount or initial reconnect: initialize without triggering notification
+      prevJailStatusRef.current = Object.fromEntries(
+        gameState.players.map((p) => [p.uid, Boolean(p.inJail)])
+      );
+      return;
+    }
+
+    gameState.players.forEach((p) => {
+      const wasJailed = Boolean(prevJailStatusRef.current?.[p.uid]);
+      const nowJailed = Boolean(p.inJail);
+
+      if (!wasJailed && nowJailed) {
+        // Genuine transition into Central Jail!
+        const notifId = `jail_${p.uid}_${gameState.turnNumber}_${Date.now()}`;
+        setJailNotification({ id: notifId, playerName: p.displayName });
+
+        // Trigger floating toast notification on bottom-left
+        useToastStore.getState().addToast({
+          eventId: notifId,
+          type: 'warning',
+          title: 'Central Jail',
+          message: `${p.displayName} sent to Central Jail.`,
+        });
+      }
+
+      if (prevJailStatusRef.current) {
+        prevJailStatusRef.current[p.uid] = nowJailed;
+      }
+    });
+  }, [gameState.players, gameState.turnNumber]);
+
+  useEffect(() => {
+    if (!jailNotification) return;
+    const timer = setTimeout(() => {
+      setJailNotification(null);
+    }, 4500);
+    return () => clearTimeout(timer);
+  }, [jailNotification]);
+
   // Determine which space should have the glowing / zoomed in state-update effect
   const highlightedSpaceIndex =
     walkingAnimation ? walkingAnimation.currentPos : (activePlayer?.position ?? null);
@@ -255,8 +303,14 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   const propertyNoun = getPropertyNoun(playerSpace);
 
   // Property purchase affordability & unowned eligibility (Requirement 4 & 5)
-  const spacePrice = playerSpace && 'price' in playerSpace ? (playerSpace as { price: number }).price : 0;
-  const canAffordCity = (activePlayer?.cash ?? 0) >= spacePrice;
+  const isBankAcquisition = Boolean(
+    (playerPropState?.soldToBankReacquisitionCost && playerPropState.soldToBankReacquisitionCost > 0) ||
+    (playerPropState?.soldToBankPayout && playerPropState.soldToBankPayout > 0)
+  );
+  const acquisitionPrice = isBankAcquisition
+    ? calculateReacquisitionCost(playerPos, playerPropState)
+    : (playerSpace && 'price' in playerSpace ? (playerSpace as { price: number }).price : 0);
+  const canAffordCity = (activePlayer?.cash ?? 0) >= acquisitionPrice;
 
   // Mortgaged property is NEVER treated as unowned
   const isUnownedPurchasable = Boolean(
@@ -317,9 +371,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
 
   const reacquisitionCost =
     gameState.reacquisitionOpportunity?.cost ??
-    (playerPropState?.mortgagePayout && playerPropState.mortgagePayout > 0
-      ? playerPropState.mortgagePayout
-      : calculateMortgageValue(playerPos, playerPropState));
+    calculateReacquisitionCost(playerPos, playerPropState);
 
   const canAffordReacquire = (activePlayer?.cash ?? 0) >= reacquisitionCost;
 
@@ -512,8 +564,11 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             return;
           }
 
-          // Context 3: End turn when eligible
+          // Context 3: End turn when eligible (cannot bypass unresolved mandatory decision popup or build opportunity)
           if (gameState.phase === 'MANAGEMENT' || gameState.phase === 'TURN_END') {
+            if (canBuildHere || isShowingPurchasePrompt || (isOwnMortgagedCity && canAffordReacquire)) {
+              return;
+            }
             onDispatch?.('END_TURN');
             return;
           }
@@ -593,7 +648,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
           // C. Skip Building (Done building for this turn) - performs exact same action as clicking Done
           if (canBuildHere && playerSpace?.type === 'PROPERTY') {
             e.preventDefault();
-            onDispatch?.('END_TURN');
+            onDispatch?.('END_TURN', { confirmBuildSkip: true });
             return;
           }
         }
@@ -798,7 +853,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
 
           {/* Middle Row: Civic Fund Indexed List, 3D Dice Rolling Arena, and Market Buzz Indexed List */}
           <div className="w-full flex-1 flex items-stretch justify-between gap-1.5 sm:gap-3 my-auto z-10 px-1 sm:px-2 min-h-0">
-            {/* Panel 1: Civic Fund (All 12 Community Treasury Rules Indexed 1..12 — Desktop: visible; Mobile: compact drawer) */}
+            {/* Panel 1: Civic Fund (All 11 Community Treasury Rules Indexed 2..12 — Desktop: visible; Mobile: compact drawer) */}
             <div className="hidden md:flex md:w-[37%] max-w-[280px] min-w-[160px] h-full rounded-xl bg-gradient-to-br from-indian-terracotta-800 via-amber-950 to-stone-900 text-white p-1.5 border-2 border-amber-400/80 shadow-xl flex-col justify-between overflow-hidden shrink-0">
               <div className="flex items-center justify-between border-b border-amber-300/40 pb-0.5 shrink-0">
                 <div className="flex items-center gap-1.5">
@@ -808,14 +863,14 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                   </span>
                 </div>
                 <span className="text-[7.5px] sm:text-[8.5px] font-black text-amber-300 bg-amber-900/80 px-1.5 py-0.2 rounded border border-amber-400/40 shadow-2xs">
-                  12 Rules
+                  11 Rules
                 </span>
               </div>
 
-              {/* All 12 Rules Listed Simultaneously (No Scrollbar, Increased Font Size) */}
+              {/* All 11 Rules Listed Simultaneously (No Scrollbar, Increased Font Size) */}
               <div className="flex-1 flex flex-col justify-between py-0.5 select-none overflow-hidden min-h-0">
                 {CIVIC_FUND_CARDS.map((card, idx) => {
-                  const ruleNum = idx + 1;
+                  const ruleNum = idx + 2;
                   const isApplied =
                     gameState.activeCardPopup?.deck === 'CIVIC' &&
                     gameState.activeCardPopup.ruleIndex === ruleNum;
@@ -893,7 +948,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                   className="px-2 py-0.5 rounded-full text-[9px] font-bold text-amber-200 bg-amber-950/80 border border-amber-500/50 flex items-center gap-1 shadow-xs cursor-pointer"
                 >
                   <Gift className="w-2.5 h-2.5 text-amber-300" />
-                  <span>Civic Fund (12)</span>
+                  <span>Civic Fund (11)</span>
                 </button>
                 <button
                   type="button"
@@ -901,7 +956,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                   className="px-2 py-0.5 rounded-full text-[9px] font-bold text-emerald-200 bg-emerald-950/80 border border-emerald-500/50 flex items-center gap-1 shadow-xs cursor-pointer"
                 >
                   <Flame className="w-2.5 h-2.5 text-emerald-300" />
-                  <span>Market Buzz (12)</span>
+                  <span>Market Buzz (11)</span>
                 </button>
               </div>
 
@@ -961,14 +1016,16 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                       <span>Sell to Bank</span>
                     </button>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => onDispatch?.('END_TURN')}
-                    className="px-4 py-2 rounded-full font-bold text-xs text-white bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 shadow-md active:scale-95 transition-all flex items-center gap-1.5 border border-emerald-400 cursor-pointer min-h-[44px]"
-                  >
-                    <span>END TURN</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
+                  {!(canBuildHere || isShowingPurchasePrompt || (isOwnMortgagedCity && canAffordReacquire)) && (
+                    <button
+                      type="button"
+                      onClick={() => onDispatch?.('END_TURN')}
+                      className="px-4 py-2 rounded-full font-bold text-xs text-white bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 shadow-md active:scale-95 transition-all flex items-center gap-1.5 border border-emerald-400 cursor-pointer min-h-[44px]"
+                    >
+                      <span>END TURN</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
               ) : isMyTurn && gameState.phase === 'JAIL_DECISION' && !walkingAnimation && !gameState.handoff?.isActive && (!gameState.movement || gameState.movement.isComplete) ? (
                 <div className="flex items-center gap-1.5 flex-wrap justify-center">
@@ -1025,7 +1082,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
               )}
             </div>
 
-            {/* Panel 2: Market Buzz (All 12 Fortune & Chance Rules Indexed 1..12 — Desktop: visible; Mobile: compact drawer) */}
+            {/* Panel 2: Market Buzz (All 11 Fortune & Chance Rules Indexed 2..12 — Desktop: visible; Mobile: compact drawer) */}
             <div className="hidden md:flex md:w-[37%] max-w-[280px] min-w-[160px] h-full rounded-xl bg-gradient-to-br from-teal-900 via-emerald-950 to-stone-900 text-white p-1.5 border-2 border-emerald-400/80 shadow-xl flex-col justify-between overflow-hidden shrink-0">
               <div className="flex items-center justify-between border-b border-emerald-300/40 pb-0.5 shrink-0">
                 <div className="flex items-center gap-1.5">
@@ -1035,14 +1092,14 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                   </span>
                 </div>
                 <span className="text-[7.5px] sm:text-[8.5px] font-black text-emerald-300 bg-emerald-900/80 px-1.5 py-0.2 rounded border border-emerald-400/40 shadow-2xs">
-                  12 Rules
+                  11 Rules
                 </span>
               </div>
 
-              {/* All 12 Rules Listed Simultaneously (No Scrollbar, Increased Font Size) */}
+              {/* All 11 Rules Listed Simultaneously (No Scrollbar, Increased Font Size) */}
               <div className="flex-1 flex flex-col justify-between py-0.5 select-none overflow-hidden min-h-0">
                 {MARKET_BUZZ_CARDS.map((card, idx) => {
-                  const ruleNum = idx + 1;
+                  const ruleNum = idx + 2;
                   const isApplied =
                     gameState.activeCardPopup?.deck === 'MARKET' &&
                     gameState.activeCardPopup.ruleIndex === ruleNum;
@@ -1140,14 +1197,14 @@ export const GameBoard: React.FC<GameBoardProps> = ({
               <>
                 <div className="flex items-center justify-between border-b border-white/20 pb-1.5">
                   <span className="font-serif font-black text-xs text-amber-200">
-                    {playerPropState?.soldToBankPayout ? `🏛️ Acquire ${propertyNoun}?` : `🏙️ Buy ${propertyNoun}?`}
+                    {isBankAcquisition ? `🏛️ Acquire ${propertyNoun}?` : `🏙️ Buy ${propertyNoun}?`}
                   </span>
                   <span className="font-black text-emerald-400 text-xs">
-                    ₹{(playerPropState?.soldToBankPayout || playerSpace.price).toLocaleString('en-IN')}
+                    ₹{acquisitionPrice.toLocaleString('en-IN')}
                   </span>
                 </div>
                 <p className="text-[11px] text-gray-200 leading-tight">
-                  <strong className="text-white">{activePlayer?.displayName} (CPU)</strong> is evaluating {playerPropState?.soldToBankPayout ? 'acquisition of' : 'purchasing'} <strong className="text-white">{playerSpace.name}</strong> for ₹{(playerPropState?.soldToBankPayout || playerSpace.price).toLocaleString('en-IN')}.
+                  <strong className="text-white">{activePlayer?.displayName} (CPU)</strong> is evaluating {isBankAcquisition ? 'acquisition of' : 'purchasing'} <strong className="text-white">{playerSpace.name}</strong> for ₹{acquisitionPrice.toLocaleString('en-IN')}.
                 </p>
                 <div className="p-2 rounded-xl bg-blue-500/20 border border-blue-500/40 flex items-center justify-center gap-1.5 text-blue-300 font-bold text-[11px]">
                   <Bot className="w-3.5 h-3.5 animate-pulse" />
@@ -1161,20 +1218,20 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                 <>
                   <div className="flex items-center justify-between border-b border-white/20 pb-1.5">
                     <span className="font-serif font-black text-xs text-amber-200">
-                      {playerPropState?.soldToBankPayout ? `🏛️ Acquire ${propertyNoun}?` : `🏙️ Buy ${propertyNoun}?`}
+                      {isBankAcquisition ? `🏛️ Acquire ${propertyNoun}?` : `🏙️ Buy ${propertyNoun}?`}
                     </span>
                     <span className="font-black text-emerald-400 text-xs">
-                      ₹{(playerPropState?.soldToBankPayout || playerSpace.price).toLocaleString('en-IN')}
+                      ₹{acquisitionPrice.toLocaleString('en-IN')}
                     </span>
                   </div>
                   <p className="text-[11px] text-gray-200 leading-tight">
-                    {playerPropState?.soldToBankPayout ? (
+                    {isBankAcquisition ? (
                       <>
-                        Acquire <strong className="text-white">{playerSpace.name}</strong> from bank for ₹{playerPropState.soldToBankPayout.toLocaleString('en-IN')}? All existing developments are preserved!
+                        Acquire <strong className="text-white">{playerSpace.name}</strong> from bank for ₹{acquisitionPrice.toLocaleString('en-IN')}? All existing developments are preserved!
                       </>
                     ) : (
                       <>
-                        Acquire <strong className="text-white">{playerSpace.name}</strong> for ₹{playerSpace.price.toLocaleString('en-IN')}? (Bank Sale Payout: ₹{('mortgageValue' in playerSpace ? playerSpace.mortgageValue : Math.floor((playerSpace as { price: number }).price / 2)).toLocaleString('en-IN')})
+                        Acquire <strong className="text-white">{playerSpace.name}</strong> for ₹{playerSpace.price.toLocaleString('en-IN')}? (Bank Sale Payout: ₹{calculateMortgageValue(playerPos, playerPropState).toLocaleString('en-IN')})
                       </>
                     )}
                   </p>
@@ -1186,7 +1243,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                       className="flex-1 py-2 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-500 text-white shadow-md active:scale-95 transition-all flex items-center justify-center gap-1 cursor-pointer min-h-[44px]"
                     >
                       <Check className="w-3.5 h-3.5" />
-                      <span>{playerPropState?.soldToBankPayout ? `Acquire ${propertyNoun}` : `Buy ${propertyNoun}`}</span>
+                      <span>{isBankAcquisition ? `Acquire ${propertyNoun}` : `Buy ${propertyNoun}`}</span>
                     </button>
                     <button
                       type="button"
@@ -1227,7 +1284,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                       type="button"
                       data-testid="build-done-btn"
                       title="Skip building and end turn (Shortcut: N)"
-                      onClick={() => onDispatch?.('END_TURN')}
+                      onClick={() => onDispatch?.('END_TURN', { confirmBuildSkip: true })}
                       className="px-3.5 py-2 rounded-xl font-bold text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 active:scale-95 transition-all cursor-pointer min-h-[44px]"
                     >
                       Done
@@ -1276,6 +1333,32 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                   </div>
                 </>
               )}
+          </div>
+        )}
+
+        {/* Left Side: Go-To-Jail Notification below popup area */}
+        {jailNotification && (
+          <div
+            data-testid="jail-left-notification"
+            className="absolute left-2.5 sm:left-4 bottom-3 sm:bottom-4 z-[90] max-w-[260px] sm:max-w-xs p-2.5 rounded-xl bg-gradient-to-r from-red-950/95 via-stone-900/95 to-[#1a0808]/95 border-2 border-red-500/80 shadow-[0_8px_24px_rgba(0,0,0,0.85)] backdrop-blur-md text-white flex items-center gap-2 animate-slide-in-left pointer-events-auto"
+          >
+            <span className="text-base shrink-0">🚨</span>
+            <div className="min-w-0 flex-1">
+              <span className="text-[9.5px] uppercase font-black tracking-wider text-red-400 block leading-tight">
+                Central Jail
+              </span>
+              <p className="text-[11px] font-bold text-gray-100 leading-tight truncate">
+                {jailNotification.playerName} sent to Central Jail
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setJailNotification(null)}
+              className="w-5 h-5 rounded-md hover:bg-white/20 flex items-center justify-center text-gray-300 hover:text-white cursor-pointer shrink-0"
+              aria-label="Dismiss jail notification"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
           </div>
         )}
       </div>

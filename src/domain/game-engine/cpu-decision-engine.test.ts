@@ -185,8 +185,8 @@ describe('CPU Decision Engine', () => {
       state.properties[3].ownershipState = 'OWNED';
       state.properties[3].buildings = 3; // Built city
 
-      // Debt is small enough to be covered by selling space 1
-      const plan = decideSellToBankProperties(state, cpu, 200);
+      // Debt is small enough to be covered by selling space 1 (tariff 40 -> 50% = 20)
+      const plan = decideSellToBankProperties(state, cpu, 20);
       expect(plan.selectedIndices).toContain(1);
       expect(plan.selectedIndices).not.toContain(3);
     });
@@ -218,14 +218,14 @@ describe('CPU Decision Engine', () => {
 
       state.properties[1].ownerUid = cpu.uid;
       state.properties[1].ownershipState = 'OWNED';
-      state.properties[1].buildings = 0; // Value: ₹300
+      state.properties[1].buildings = 0; // Value: ₹20 (50% of 40)
 
       state.properties[3].ownerUid = cpu.uid;
       state.properties[3].ownershipState = 'OWNED';
-      state.properties[3].buildings = 0; // Value: ₹300
+      state.properties[3].buildings = 0; // Value: ₹20 (50% of 40)
 
-      // Debt is ₹350 (needed is ₹250). Selling 1 property (₹300) covers it!
-      const plan = decideSellToBankProperties(state, cpu, 350);
+      // Debt is ₹115 (needed is ₹15). Selling 1 property (₹20) covers it!
+      const plan = decideSellToBankProperties(state, cpu, 115);
       expect(plan.selectedIndices.length).toBe(1);
       expect(plan.canCover).toBe(true);
     });

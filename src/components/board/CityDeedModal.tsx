@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { BoardSpaceDefinition, GameActionType, PlayerState, PropertyDefinition, PropertyState } from '@/domain/game-types';
 import { X, Landmark, Home, Building2, ShieldAlert } from 'lucide-react';
 import { PopupTurnTimer } from '@/components/feedback/PopupTurnTimer';
-import { calculateMortgageValue, getPropertyNoun } from '@/domain/ruleset';
+import { calculateMortgageValue, calculateReacquisitionCost, getPropertyNoun } from '@/domain/ruleset';
 import { cn } from '@/lib/utils/cn';
 
 interface CityDeedModalProps {
@@ -48,14 +48,13 @@ export const CityDeedModal: React.FC<CityDeedModalProps> = ({
   const isTax = space.type === 'TAX';
   const isAirport = space.spaceIndex === 25 || space.spaceIndex === 35;
   const noun = getPropertyNoun(space);
+  const isBankSold = !owner && Boolean(
+    (propertyState?.soldToBankReacquisitionCost && propertyState.soldToBankReacquisitionCost > 0) ||
+    (propertyState?.soldToBankPayout && propertyState.soldToBankPayout > 0)
+  );
 
   const mortgageVal = calculateMortgageValue(space.spaceIndex, propertyState || undefined);
-  const reacquisitionCost =
-    propertyState?.soldToBankPayout && propertyState.soldToBankPayout > 0
-      ? propertyState.soldToBankPayout
-      : propertyState?.mortgagePayout && propertyState.mortgagePayout > 0
-      ? propertyState.mortgagePayout
-      : mortgageVal;
+  const reacquisitionCost = calculateReacquisitionCost(space.spaceIndex, propertyState || undefined);
 
   return createPortal(
     <div
@@ -112,9 +111,9 @@ export const CityDeedModal: React.FC<CityDeedModalProps> = ({
                     />
                     <span className="font-bold text-xs">{owner.displayName}</span>
                   </div>
-                ) : propertyState?.soldToBankPayout && propertyState.soldToBankPayout > 0 ? (
+                ) : isBankSold ? (
                   <span className="font-bold text-xs text-amber-600 dark:text-amber-400">
-                    Available for Acquisition (₹{propertyState.soldToBankPayout.toLocaleString('en-IN')})
+                    Available for Acquisition (₹{reacquisitionCost.toLocaleString('en-IN')})
                   </span>
                 ) : 'price' in space ? (
                   <span className="font-bold text-xs text-emerald-600 dark:text-emerald-400">
@@ -126,7 +125,7 @@ export const CityDeedModal: React.FC<CityDeedModalProps> = ({
               </div>
             </div>
 
-            {propertyState?.soldToBankPayout && propertyState.soldToBankPayout > 0 && !owner ? (
+            {isBankSold ? (
               <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 font-black text-[10px] border border-amber-300">
                 AVAILABLE FOR ACQUISITION
               </span>
@@ -146,10 +145,10 @@ export const CityDeedModal: React.FC<CityDeedModalProps> = ({
             <div className="grid grid-cols-3 gap-2 text-center">
               <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800">
                 <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-medium block">
-                  {propertyState?.soldToBankPayout && propertyState.soldToBankPayout > 0 ? 'Acquisition Price' : 'Price'}
+                  {isBankSold ? 'Acquisition Price' : 'Price'}
                 </span>
                 <span className="font-black text-sm text-emerald-800 dark:text-emerald-300">
-                  ₹{(propertyState?.soldToBankPayout && propertyState.soldToBankPayout > 0 ? propertyState.soldToBankPayout : space.price).toLocaleString('en-IN')}
+                  ₹{(isBankSold ? reacquisitionCost : space.price).toLocaleString('en-IN')}
                 </span>
               </div>
               <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">

@@ -241,10 +241,25 @@ export function calculateRent(
 }
 
 /**
- * Calculates authoritative mortgage value of a property.
- * Baseline: 50% of original property purchase price.
- * Accounts for development investment (50% of house/building expenditure),
- * capped so the payout never exceeds original property purchase price.
+ * Determines current property tariff according to existing development level (0..5).
+ * 0: baseRent, 1: rentHouse1, 2: rentHouse2, 3: rentHouse3, 4: rentHouse4, 5: rentTower.
+ */
+export function getCurrentPropertyTariff(
+  space: PropertyDefinition,
+  buildings: number = 0
+): number {
+  if (buildings === 1) return space.rentHouse1;
+  if (buildings === 2) return space.rentHouse2;
+  if (buildings === 3) return space.rentHouse3;
+  if (buildings === 4) return space.rentHouse4;
+  if (buildings === 5) return space.rentTower;
+  return space.baseRent;
+}
+
+/**
+ * Calculates authoritative Sell-to-Bank mortgage value of a property.
+ * - Developable Cities (PROPERTY): 50% of current tariff at existing development level.
+ * - Non-city assets (Railways, Airports, Utilities): Original deed purchase price (space.price).
  */
 export function calculateMortgageValue(
   spaceIndex: number,
@@ -253,19 +268,48 @@ export function calculateMortgageValue(
   const space = BOARD_SPACES[spaceIndex];
   if (!space || !('price' in space)) return 0;
 
-  const basePrice = space.price;
-  const baseMortgage = Math.floor(basePrice * GAME_CONSTANTS.MORTGAGE_RATE);
-
   if (space.type === 'PROPERTY') {
-    const p = space as PropertyDefinition;
-    const buildings = propState?.buildings ?? 0;
-    const buildingInvestment = buildings * p.buildingCost;
-    const devMortgage = Math.floor(buildingInvestment * GAME_CONSTANTS.MORTGAGE_RATE);
-    // Payout must never exceed original property purchase price
-    return Math.min(basePrice, baseMortgage + devMortgage);
+    const tariff = getCurrentPropertyTariff(
+      space as PropertyDefinition,
+      propState?.buildings ?? 0
+    );
+    return Math.floor(tariff * 0.5);
   }
 
-  return baseMortgage;
+  // Non-city assets: Railways, Airports, Utilities -> 100% of original deed purchase price
+  return space.price;
+}
+
+/**
+ * Calculates authoritative Reacquisition cost of a bank-owned property.
+ * - If explicitly recorded on propState (soldToBankReacquisitionCost), returns that stored amount.
+ * - Developable Cities (PROPERTY): 10% of current tariff based on preserved development level.
+ * - Non-city assets (Railways, Airports, Utilities): Original deed purchase price (space.price).
+ */
+export function calculateReacquisitionCost(
+  spaceIndex: number,
+  propState?: PropertyState
+): number {
+  if (
+    propState?.soldToBankReacquisitionCost != null &&
+    propState.soldToBankReacquisitionCost > 0
+  ) {
+    return propState.soldToBankReacquisitionCost;
+  }
+
+  const space = BOARD_SPACES[spaceIndex];
+  if (!space || !('price' in space)) return 0;
+
+  if (space.type === 'PROPERTY') {
+    const tariff = getCurrentPropertyTariff(
+      space as PropertyDefinition,
+      propState?.buildings ?? 0
+    );
+    return Math.floor(tariff * 0.1);
+  }
+
+  // Non-city assets: Railways, Airports, Utilities -> Original deed purchase price
+  return space.price;
 }
 
 /**
