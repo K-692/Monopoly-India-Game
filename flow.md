@@ -446,4 +446,33 @@ Preventing loading screen hangs.
 | **Expired Room Notice** | $\text{RoomExpired} \lor \text{Restarted} \implies \text{error} = \text{"The game server restarted..."}$ | `socket-handlers.ts` & `LobbyPage.tsx` & `GamePage.tsx` | ✅ Verified (`server-cors-and-health.test.ts`) |
 | **GitHub Pages Base Path** | $\text{basePath} = \text{"/Monopoly-India-Game/"} \land \text{Router} = \text{HashRouter}$ | `vite.config.ts` & `router.tsx` | ✅ Verified (`build` output) |
 | **Render Blueprint Spec** | $\text{Plan} = \text{free} \land \text{Branch} = \text{"feature/render-public-hosting"} \land \text{Services} = 1$ | `render.yaml` | ✅ Verified (`render.yaml`) |
+| **Open Graph & Twitter Meta** | $\text{og:image} = \text{game\_logo.png} \land \text{twitter:card} = \text{summary} \land \text{initial\_HTML} = \text{true}$ | `index.html` & `public/404.html` | ✅ Verified (`hosting-connection-config.test.ts`) |
+
+### 9.6 Social Sharing & Open Graph Preview Architecture
+
+For rich link previews when sharing `https://k-692.github.io/Monopoly-India-Game/` across messaging and social platforms (WhatsApp, Telegram, Facebook, LinkedIn, Twitter/X), static HTML metadata must be present directly in the `<head>` of the initial response payload before client-side JavaScript execution.
+
+#### 1. Ingestion Requirements by Social Crawlers
+Social platform crawlers (e.g., `facebookexternalhit`, `Twitterbot`, `WhatsApp/2.x`, `TelegramBot`) do not execute dynamic DOM manipulations or client-side JavaScript routers. Therefore:
+$$\text{MetadataAvailable}(\text{Crawler}) \iff \text{Tags} \subset \text{InitialHTMLDocument}$$
+
+Both `index.html` and SPA fallback `public/404.html` embed identical canonical Open Graph and Twitter card specifications:
+- `og:type`: `"website"`
+- `og:site_name`: `"Indian Monopoly"`
+- `og:title`: `"Indian Monopoly — Online Multiplayer Board Game"`
+- `og:description`: `"Indian-Themed Real-Time Online Multiplayer Property Trading Board Game. Buy Indian properties, roll dice, and out-trade rivals worldwide or across your Wi-Fi LAN."`
+- `og:url`: `"https://k-692.github.io/Monopoly-India-Game/"`
+- `og:image`: `"https://k-692.github.io/Monopoly-India-Game/assets/game_logo.png"`
+- `og:image:secure_url`: `"https://k-692.github.io/Monopoly-India-Game/assets/game_logo.png"`
+- `og:image:type`: `"image/png"`
+- `og:image:width`: `800`
+- `og:image:height`: `800`
+- `og:image:alt`: `"Indian Monopoly Game Logo"`
+- `twitter:card`: `"summary"`
+- `twitter:title`, `twitter:description`, `twitter:image`, `twitter:image:alt`
+
+#### 2. Asset Pipeline Invariance
+The asset `public/assets/game_logo.png` is preserved untouched at its original resolution ($800 \times 800\text{ px}$, 1:1 aspect ratio). Vite copies `public/*` directly to `dist/*` at build time without content hashing, ensuring persistent canonical URLs across build deployments:
+$$\text{BuildPath}(\text{public/assets/game\_logo.png}) \to \text{dist/assets/game\_logo.png}$$
+
 

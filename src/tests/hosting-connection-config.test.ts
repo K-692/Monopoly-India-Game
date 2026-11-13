@@ -172,7 +172,35 @@ describe('Multiplayer Hosting Connection Configuration', () => {
       expect(isPrivateNetworkHost('k-692.github.io')).toBe(false);
       expect(isPrivateNetworkHost('monopoly-india.onrender.com')).toBe(false);
       expect(isPrivateNetworkHost('8.8.8.8')).toBe(false);
-      expect(isPrivateNetworkHost('172.32.0.1')).toBe(false); // Out of 172.16-31 range
+      expect(isPrivateNetworkHost('172.32.0.1')).toBe(false);
+    });
+  });
+
+  describe('Social Sharing & Open Graph Metadata', () => {
+    it('verifies index.html contains all required Open Graph and Twitter metadata tags', async () => {
+      const fs = await import('fs');
+      const path = await import('path');
+      const htmlPath = path.resolve(process.cwd(), 'index.html');
+      const html = fs.readFileSync(htmlPath, 'utf8');
+
+      // Open Graph Tags
+      expect(html).toContain('property="og:type" content="website"');
+      expect(html).toContain('property="og:title"');
+      expect(html).toContain('property="og:description"');
+      expect(html).toContain('property="og:url" content="https://k-692.github.io/Monopoly-India-Game/"');
+      expect(html).toContain('property="og:image" content="https://k-692.github.io/Monopoly-India-Game/assets/game_logo.png"');
+      expect(html).toContain('property="og:image:type" content="image/png"');
+      expect(html).toContain('property="og:image:alt"');
+
+      // Twitter / X Tags
+      expect(html).toContain('name="twitter:card" content="summary"');
+      expect(html).toContain('name="twitter:title"');
+      expect(html).toContain('name="twitter:description"');
+      expect(html).toContain('name="twitter:image" content="https://k-692.github.io/Monopoly-India-Game/assets/game_logo.png"');
+
+      // Existing asset verification
+      const logoPath = path.resolve(process.cwd(), 'public/assets/game_logo.png');
+      expect(fs.existsSync(logoPath)).toBe(true);
     });
   });
 });
