@@ -41,7 +41,7 @@ export const MIGRATIONS: Migration[] = [
         created_at BIGINT NOT NULL,
         updated_at BIGINT NOT NULL,
         last_seen_at BIGINT NOT NULL,
-        expires_at BIGINT NOT NULL
+        expires_at BIGINT NOT NULL DEFAULT (((EXTRACT(epoch FROM now()) * 1000) + 2592000000)::bigint)
       );
 
       CREATE INDEX IF NOT EXISTS idx_player_sessions_token_hash ON game.player_sessions(token_hash);
@@ -63,7 +63,7 @@ export const MIGRATIONS: Migration[] = [
         next_join_sequence INT NOT NULL DEFAULT 2,
         created_at BIGINT NOT NULL,
         updated_at BIGINT NOT NULL,
-        expires_at BIGINT NOT NULL
+        expires_at BIGINT NOT NULL DEFAULT (((EXTRACT(epoch FROM now()) * 1000) + 86400000)::bigint)
       );
 
       CREATE INDEX IF NOT EXISTS idx_rooms_invite_code ON game.rooms(invite_code);
@@ -83,7 +83,7 @@ export const MIGRATIONS: Migration[] = [
         connection_status VARCHAR(32) NOT NULL DEFAULT 'CONNECTED',
         reconnection_token_hash VARCHAR(64),
         room_join_sequence INT NOT NULL DEFAULT 1,
-        last_activity_at BIGINT NOT NULL,
+        last_activity_at BIGINT NOT NULL DEFAULT ((EXTRACT(epoch FROM now()) * 1000)::bigint),
         PRIMARY KEY (room_id, uid)
       );
 
@@ -155,6 +155,22 @@ export const MIGRATIONS: Migration[] = [
       );
 
       CREATE INDEX IF NOT EXISTS idx_game_archives_room ON game.game_archives(room_id);
+    `,
+  },
+  {
+    version: 2,
+    name: '002_add_column_defaults',
+    sql: `
+      SET search_path TO game, public;
+
+      ALTER TABLE game.player_sessions
+        ALTER COLUMN expires_at SET DEFAULT (((EXTRACT(epoch FROM now()) * 1000) + 2592000000)::bigint);
+
+      ALTER TABLE game.room_members
+        ALTER COLUMN last_activity_at SET DEFAULT ((EXTRACT(epoch FROM now()) * 1000)::bigint);
+
+      ALTER TABLE game.rooms
+        ALTER COLUMN expires_at SET DEFAULT (((EXTRACT(epoch FROM now()) * 1000) + 86400000)::bigint);
     `,
   },
 ];

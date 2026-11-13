@@ -132,6 +132,24 @@ describe('Authoritative Room and Game Persistence Invariants', () => {
     expect(activeRooms).toHaveLength(0);
   });
 
+  it('1.3 Host session and room member persistence fields: verifies expiresAt and lastActivityAt are present', async () => {
+    const store = new MemoryStore();
+    const rm = new RoomManager(store);
+    const host = rm.registerPlayer('FieldHost');
+
+    const createRes = await rm.createRoom(host.uid, DEFAULT_HOST_RULES);
+    expect(createRes.ok).toBe(true);
+    const room = createRes.room!;
+
+    const storedSession = await store.getSessionByUid(host.uid);
+    expect(storedSession?.expiresAt).toBeDefined();
+    expect(storedSession!.expiresAt!).toBeGreaterThan(Date.now());
+
+    const storedRoom = await store.getRoom(room.roomId);
+    expect(storedRoom?.members[host.uid].lastActivityAt).toBeDefined();
+    expect(storedRoom!.members[host.uid].lastActivityAt!).toBeGreaterThan(0);
+  });
+
   // =========================================================================
   // 2. GAME PERSISTENCE ORDERING
   // =========================================================================

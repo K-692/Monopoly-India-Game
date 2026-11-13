@@ -233,6 +233,7 @@ Indian Monopoly uses **Supabase PostgreSQL 17** for persistent ACID multiplayer 
        `postgresql://postgres.omelbzqsmqsjazaliqvo:[YOUR-PASSWORD]@aws-0-ap-south-1.pooler.supabase.com:5432/postgres?sslmode=require`
      - **Direct Connection (Port 5432):**
        `postgresql://postgres:[YOUR-PASSWORD]@db.omelbzqsmqsjazaliqvo.supabase.co:5432/postgres?sslmode=require`
+     - *> **Tip**: If your database password contains special characters (such as `@`, `#`, or `/`), URL-encode them in the connection string (for example, replace `@` with `%40`) so PostgreSQL connection string parsers parse the username and host accurately.*
 - **Local Development / Testing**:
   Add `DATABASE_URL` to your local `.env` file or leave it unset to use the zero-dependency in-memory fallback (`MemoryStore`).
 

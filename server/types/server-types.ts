@@ -18,6 +18,7 @@ export interface PlayerSession {
   lastSeenAt: number;
   ipAddress?: string;
   sessionGeneration?: number;
+  expiresAt?: number;
 }
 
 export interface PlayerSessionPublic {

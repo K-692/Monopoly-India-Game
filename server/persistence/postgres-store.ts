@@ -82,13 +82,15 @@ export class PostgresStore implements PersistenceStore {
   // ==========================================
   public async saveSession(session: PlayerSession): Promise<void> {
     const now = Date.now();
+    const expiresAt = session.expiresAt || (now + 30 * 24 * 60 * 60 * 1000);
     await this.pool.query(
       `
       INSERT INTO game.player_sessions (
         uid, token_hash, display_name, avatar_color, socket_id, room_id,
-        connected, last_seen_at, ip_address, session_generation, created_at, updated_at
+        connected, last_seen_at, ip_address, session_generation, created_at, updated_at,
+        expires_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       ON CONFLICT (uid) DO UPDATE SET
         display_name = EXCLUDED.display_name,
         avatar_color = EXCLUDED.avatar_color,
@@ -98,7 +100,8 @@ export class PostgresStore implements PersistenceStore {
         last_seen_at = EXCLUDED.last_seen_at,
         ip_address = EXCLUDED.ip_address,
         session_generation = EXCLUDED.session_generation,
-        updated_at = EXCLUDED.updated_at
+        updated_at = EXCLUDED.updated_at,
+        expires_at = EXCLUDED.expires_at
       `,
       [
         session.uid,
@@ -113,13 +116,14 @@ export class PostgresStore implements PersistenceStore {
         session.sessionGeneration || 1,
         now,
         now,
+        expiresAt,
       ]
     );
   }
 
   public async getSessionByUid(uid: string): Promise<PlayerSession | null> {
     const res = await this.pool.query(
-      `SELECT uid, token_hash, display_name, avatar_color, socket_id, room_id, connected, last_seen_at, ip_address, session_generation
+      `SELECT uid, token_hash, display_name, avatar_color, socket_id, room_id, connected, last_seen_at, ip_address, session_generation, expires_at
        FROM game.player_sessions WHERE uid = $1`,
       [uid]
     );
@@ -137,12 +141,13 @@ export class PostgresStore implements PersistenceStore {
       lastSeenAt: Number(r.last_seen_at),
       ipAddress: r.ip_address,
       sessionGeneration: r.session_generation,
+      expiresAt: Number(r.expires_at),
     };
   }
 
   public async getSessionByTokenHash(tokenHash: string): Promise<PlayerSession | null> {
     const res = await this.pool.query(
-      `SELECT uid, token_hash, display_name, avatar_color, socket_id, room_id, connected, last_seen_at, ip_address, session_generation
+      `SELECT uid, token_hash, display_name, avatar_color, socket_id, room_id, connected, last_seen_at, ip_address, session_generation, expires_at
        FROM game.player_sessions WHERE token_hash = $1`,
       [tokenHash]
     );
@@ -160,12 +165,13 @@ export class PostgresStore implements PersistenceStore {
       lastSeenAt: Number(r.last_seen_at),
       ipAddress: r.ip_address,
       sessionGeneration: r.session_generation,
+      expiresAt: Number(r.expires_at),
     };
   }
 
   public async getSessionBySocketId(socketId: string): Promise<PlayerSession | null> {
     const res = await this.pool.query(
-      `SELECT uid, token_hash, display_name, avatar_color, socket_id, room_id, connected, last_seen_at, ip_address, session_generation
+      `SELECT uid, token_hash, display_name, avatar_color, socket_id, room_id, connected, last_seen_at, ip_address, session_generation, expires_at
        FROM game.player_sessions WHERE socket_id = $1`,
       [socketId]
     );
@@ -183,6 +189,7 @@ export class PostgresStore implements PersistenceStore {
       lastSeenAt: Number(r.last_seen_at),
       ipAddress: r.ip_address,
       sessionGeneration: r.session_generation,
+      expiresAt: Number(r.expires_at),
     };
   }
 
@@ -231,9 +238,9 @@ export class PostgresStore implements PersistenceStore {
           `
           INSERT INTO game.room_members (
             room_id, uid, display_name, photo_url, is_ready, joined_at,
-            color_token, is_cpu, player_type, room_join_sequence
+            color_token, is_cpu, player_type, room_join_sequence, last_activity_at
           )
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
           ON CONFLICT (room_id, uid) DO UPDATE SET
             display_name = EXCLUDED.display_name,
             photo_url = EXCLUDED.photo_url,
@@ -241,7 +248,8 @@ export class PostgresStore implements PersistenceStore {
             color_token = EXCLUDED.color_token,
             is_cpu = EXCLUDED.is_cpu,
             player_type = EXCLUDED.player_type,
-            room_join_sequence = EXCLUDED.room_join_sequence
+            room_join_sequence = EXCLUDED.room_join_sequence,
+            last_activity_at = EXCLUDED.last_activity_at
           `,
           [
             room.roomId,
@@ -254,6 +262,7 @@ export class PostgresStore implements PersistenceStore {
             Boolean(member.isCpu),
             member.playerType || (member.isCpu ? 'COMPUTER' : 'HUMAN'),
             member.roomJoinSequence || 1,
+            member.lastActivityAt || member.joinedAt || Date.now(),
           ]
         );
       }
@@ -318,9 +327,9 @@ export class PostgresStore implements PersistenceStore {
             `
             INSERT INTO game.room_members (
               room_id, uid, display_name, photo_url, is_ready, joined_at,
-              color_token, is_cpu, player_type, room_join_sequence
+              color_token, is_cpu, player_type, room_join_sequence, last_activity_at
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
             ON CONFLICT (room_id, uid) DO UPDATE SET
               display_name = EXCLUDED.display_name,
               photo_url = EXCLUDED.photo_url,
@@ -328,7 +337,8 @@ export class PostgresStore implements PersistenceStore {
               color_token = EXCLUDED.color_token,
               is_cpu = EXCLUDED.is_cpu,
               player_type = EXCLUDED.player_type,
-              room_join_sequence = EXCLUDED.room_join_sequence
+              room_join_sequence = EXCLUDED.room_join_sequence,
+              last_activity_at = EXCLUDED.last_activity_at
             `,
             [
               room.roomId,
@@ -341,6 +351,7 @@ export class PostgresStore implements PersistenceStore {
               Boolean(member.isCpu),
               member.playerType || (member.isCpu ? 'COMPUTER' : 'HUMAN'),
               member.roomJoinSequence || 1,
+              member.lastActivityAt || member.joinedAt || Date.now(),
             ]
           );
         }
@@ -377,6 +388,7 @@ export class PostgresStore implements PersistenceStore {
         isCpu: m.is_cpu,
         playerType: m.player_type,
         roomJoinSequence: m.room_join_sequence,
+        lastActivityAt: Number(m.last_activity_at || m.joined_at),
       };
       memberUids.push(m.uid);
     }
@@ -436,9 +448,9 @@ export class PostgresStore implements PersistenceStore {
       `
       INSERT INTO game.room_members (
         room_id, uid, display_name, photo_url, is_ready, joined_at,
-        color_token, is_cpu, player_type, room_join_sequence
+        color_token, is_cpu, player_type, room_join_sequence, last_activity_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       ON CONFLICT (room_id, uid) DO UPDATE SET
         display_name = EXCLUDED.display_name,
         photo_url = EXCLUDED.photo_url,
@@ -446,7 +458,8 @@ export class PostgresStore implements PersistenceStore {
         color_token = EXCLUDED.color_token,
         is_cpu = EXCLUDED.is_cpu,
         player_type = EXCLUDED.player_type,
-        room_join_sequence = EXCLUDED.room_join_sequence
+        room_join_sequence = EXCLUDED.room_join_sequence,
+        last_activity_at = EXCLUDED.last_activity_at
       `,
       [
         roomId,
@@ -459,6 +472,7 @@ export class PostgresStore implements PersistenceStore {
         Boolean(member.isCpu),
         member.playerType || (member.isCpu ? 'COMPUTER' : 'HUMAN'),
         member.roomJoinSequence || 1,
+        member.lastActivityAt || member.joinedAt || Date.now(),
       ]
     );
   }

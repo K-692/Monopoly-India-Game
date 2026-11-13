@@ -434,6 +434,7 @@ export interface RoomMember {
   isCpu?: boolean;
   playerType?: PlayerType;
   roomJoinSequence?: number;
+  lastActivityAt?: number;
 }
 
 export interface RoomState {

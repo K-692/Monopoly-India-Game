@@ -108,6 +108,7 @@ export class RoomManager {
         existing.displayName = cleanName;
         existing.avatarColor = chosenColor;
         existing.lastSeenAt = Date.now();
+        existing.expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
         if (ipAddress) existing.ipAddress = ipAddress;
         this.store.saveSession(existing).catch((err) => {
           console.warn('[RoomManager] Failed to persist updated session:', err);
@@ -138,6 +139,7 @@ export class RoomManager {
       lastSeenAt: Date.now(),
       ipAddress,
       sessionGeneration: 1,
+      expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000,
     };
 
     this.sessionsByToken.set(token, session);
@@ -174,6 +176,7 @@ export class RoomManager {
     }
     session.connected = true;
     session.lastSeenAt = Date.now();
+    session.expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
     if (ipAddress) session.ipAddress = ipAddress;
 
     this.store.saveSession(session).catch((err) => {
@@ -210,6 +213,7 @@ export class RoomManager {
     session.socketId = socketId;
     session.connected = true;
     session.lastSeenAt = Date.now();
+    session.expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
     if (ipAddress) session.ipAddress = ipAddress;
 
     this.socketToUid.set(socketId, uid);
@@ -311,6 +315,7 @@ export class RoomManager {
       isCpu: false,
       playerType: 'HUMAN',
       roomJoinSequence: 1,
+      lastActivityAt: Date.now(),
     };
 
     // Validate computer players configuration if provided
@@ -372,6 +377,7 @@ export class RoomManager {
           isCpu: true,
           playerType: 'COMPUTER',
           roomJoinSequence: 2 + i,
+          lastActivityAt: Date.now() + i + 1,
         };
 
         configuredCpuMembers.push(cpuMember);
@@ -530,6 +536,7 @@ export class RoomManager {
       isCpu: false,
       playerType: 'HUMAN',
       roomJoinSequence: nextSeq,
+      lastActivityAt: Date.now(),
     };
 
     room.members[playerUid] = newMember;
@@ -658,6 +665,7 @@ export class RoomManager {
       isCpu: true,
       playerType: 'COMPUTER',
       roomJoinSequence: nextSeq,
+      lastActivityAt: Date.now(),
     };
 
     room.members[cpuUid] = cpuMember;
