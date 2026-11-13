@@ -32,7 +32,17 @@ export class PostgresStore implements PersistenceStore {
         config.connectionString.includes('pooler') ||
         config.connectionString.includes('amazonaws.com'));
 
-    if ((isProduction || isCloudHost) && config.connectionString && !config.ssl) {
+    if ((isProduction || isCloudHost) && config.connectionString) {
+      // Strip sslmode parameter so pg-connection-string doesn't overwrite rejectUnauthorized with true
+      try {
+        const u = new URL(config.connectionString);
+        u.searchParams.delete('sslmode');
+        config.connectionString = u.toString();
+      } catch {
+        config.connectionString = config.connectionString
+          .replace(/([?&])sslmode=[^&]+(&|$)/, '$1')
+          .replace(/[?&]$/, '');
+      }
       config.ssl = { rejectUnauthorized: false };
     }
 
