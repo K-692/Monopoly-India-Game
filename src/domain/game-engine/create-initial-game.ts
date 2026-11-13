@@ -205,5 +205,6 @@ export function createInitialGame(
     startedAt: now,
     updatedAt: now,
     completedAt: null,
+    totalGameTimeSeconds: 0,
   };
 }

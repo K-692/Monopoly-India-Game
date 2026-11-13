@@ -28,7 +28,7 @@ export function setupSocketHandlers(
     } else if (event === 'game:event') {
       io.to(roomId).emit('game:event', data as GameEvent);
     } else if (event === 'game:timer') {
-      io.to(roomId).emit('game:timer', data as { remaining: number; activeUid: string });
+      io.to(roomId).emit('game:timer', data as Parameters<ServerToClientEvents['game:timer']>[0]);
     } else if (event === 'game:started') {
       io.to(roomId).emit('game:started', data as { gameId: string; gameState: GameState });
     }

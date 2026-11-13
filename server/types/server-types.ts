@@ -163,6 +163,7 @@ export interface ServerToClientEvents {
     isPaused?: boolean;
     phase?: string;
     handoff?: boolean;
+    elapsedSeconds?: number;
   }) => void;
   'reaction:received': (reaction: {
     id: string;

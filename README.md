@@ -161,7 +161,7 @@ For complete mathematical definitions, state machine proofs, and research citati
 | `npm run build:server` | Bundles the standalone server into `dist-server/index.cjs` using `esbuild`. |
 | `npm run build:desktop` | Builds both the React LAN frontend (`dist/`) and the server bundle (`dist-server/index.cjs`). |
 | `npm run desktop` | Builds desktop assets and launches the application inside native Electron. |
-| `npm test` | Runs the full Vitest test suite (342 tests across 26 test files). |
+| `npm test` | Runs the full Vitest test suite (353 tests across 27 test files). |
 | `npm run test:watch` | Runs Vitest in interactive watch mode for test-driven development. |
 | `npm run test:coverage`| Generates detailed test code coverage reports. |
 | `npm run typecheck` | Strict TypeScript compiler validation across client, server, and tests (`tsc -b --noEmit`). |
@@ -207,6 +207,7 @@ For complete mathematical definitions, state machine proofs, and research citati
 | **Default CPU Compact Format** | Standardized default computer player naming to `CPU1`, `CPU2`, `CPU3` (without space) across lobby seating and server room management, while fully preserving host custom naming capabilities. |
 | **Board Visual Enhancements & Clean Dice Arena** | Clean, distraction-free central board arena focusing attention on the dice and dynamic prompts. Harmonized corner space backgrounds (`REST` and `GO TO JAIL` share the `bg-indian-parchment-100` styling of `START`). Ambient subtle glow and directional arrow glide animation on the `START` tile. |
 | **Shortcut Reference Spacing** | Polished bottom margin and padding (`mb-2 sm:mb-2.5 pb-0.5`) on the permanent left-side keyboard shortcut reference to ensure clean clearance above the viewport edge across all screen resolutions. |
+| **Synchronized Entire Game Timer (MM:SS)** | **Authoritative Match Duration**: Centered directly in the top header bar between **Exit Room** and **Room #...**, a synchronized match timer tracks total gameplay duration in `MM:SS` format starting from `00:00`. Synchronized across all connected clients via authoritative server broadcasts on `game:timer` (`elapsedSeconds`), maintaining identical time displays and freezing automatically at final match completion duration. |
 
 ---
 

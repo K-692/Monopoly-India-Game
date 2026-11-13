@@ -432,12 +432,15 @@ export class GameManager {
 
     // Broadcast state and timer resumption to all clients
     if (this.broadcastCallback) {
+      const elapsedSeconds = Math.max(0, Math.floor(((state.completedAt || Date.now()) - state.startedAt) / 1000));
+      state.totalGameTimeSeconds = elapsedSeconds;
       this.broadcastCallback(state.roomId, 'game:state', state);
       this.broadcastCallback(state.roomId, 'game:timer', {
         remaining: state.turnTimeRemaining,
         activeUid: timerActiveUid,
         isPaused: false,
         phase: state.phase,
+        elapsedSeconds,
       });
     }
 
@@ -476,6 +479,8 @@ export class GameManager {
     this.startTurnTimer(state);
 
     if (this.broadcastCallback) {
+      const elapsedSeconds = Math.max(0, Math.floor(((state.completedAt || Date.now()) - state.startedAt) / 1000));
+      state.totalGameTimeSeconds = elapsedSeconds;
       this.broadcastCallback(state.roomId, 'game:state', state);
       this.broadcastCallback(state.roomId, 'game:timer', {
         remaining: turnDuration,
@@ -483,6 +488,7 @@ export class GameManager {
         isPaused: false,
         phase: state.phase,
         handoff: false,
+        elapsedSeconds,
       });
     }
 
@@ -516,12 +522,15 @@ export class GameManager {
         current.handoff?.isActive
       ) {
         if (this.broadcastCallback) {
+          const elapsedSeconds = Math.max(0, Math.floor(((current.completedAt || Date.now()) - current.startedAt) / 1000));
+          current.totalGameTimeSeconds = elapsedSeconds;
           this.broadcastCallback(current.roomId, 'game:timer', {
             remaining: current.turnTimeRemaining,
             activeUid: current.currentPlayerUid,
             isPaused: true,
             phase: current.phase,
             handoff: Boolean(current.handoff?.isActive),
+            elapsedSeconds,
           });
         }
         return;
@@ -549,11 +558,14 @@ export class GameManager {
       } else {
         current.turnTimeRemaining = nextRemaining;
         if (this.broadcastCallback) {
+          const elapsedSeconds = Math.max(0, Math.floor(((current.completedAt || Date.now()) - current.startedAt) / 1000));
+          current.totalGameTimeSeconds = elapsedSeconds;
           this.broadcastCallback(current.roomId, 'game:timer', {
             remaining: nextRemaining,
             activeUid: timerActiveUid,
             isPaused: false,
             phase: current.phase,
+            elapsedSeconds,
           });
         }
       }

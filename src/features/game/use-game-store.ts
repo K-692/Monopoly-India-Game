@@ -300,6 +300,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       isPaused?: boolean;
       phase?: string;
       handoff?: boolean;
+      elapsedSeconds?: number;
     }) => {
       set((s) => {
         if (!s.gameState) return s;
@@ -308,6 +309,9 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
             ...s.gameState,
             turnTimeRemaining: data.remaining,
             isTimerPaused: data.isPaused ?? s.gameState.isTimerPaused,
+            ...(typeof data.elapsedSeconds === 'number'
+              ? { totalGameTimeSeconds: data.elapsedSeconds }
+              : {}),
           },
         };
       });

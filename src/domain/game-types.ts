@@ -350,6 +350,7 @@ export interface GameState {
   startedAt: number;
   updatedAt: number;
   completedAt: number | null;
+  totalGameTimeSeconds?: number;
 }
 
 export type GameActionType =

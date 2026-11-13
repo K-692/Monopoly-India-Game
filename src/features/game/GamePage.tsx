@@ -8,10 +8,10 @@ import { PlayerStrip } from '@/components/player/PlayerStrip';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import { Trophy, ArrowLeft, AlertCircle, Users, Loader2, Flag } from 'lucide-react';
+import { Trophy, ArrowLeft, AlertCircle, Users, Loader2, Flag, Clock } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { getSocket } from '@/lib/socket/socket-client';
-import { calculateNetWorth } from '@/domain/ruleset';
+import { calculateNetWorth, formatGameTimer } from '@/domain/ruleset';
 
 export const GamePage: React.FC = () => {
   const { gameId } = useParams<{ gameId: string }>();
@@ -33,6 +33,41 @@ export const GamePage: React.FC = () => {
   } = useGameStore();
 
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+
+  // Synchronized entire game elapsed time (starts at 00:00 and increments actual seconds)
+  const [elapsedSeconds, setElapsedSeconds] = useState<number>(() => {
+    if (!gameState?.startedAt) return 0;
+    if (typeof gameState.totalGameTimeSeconds === 'number') {
+      return gameState.totalGameTimeSeconds;
+    }
+    const end = gameState.completedAt || Date.now();
+    return Math.max(0, Math.floor((end - gameState.startedAt) / 1000));
+  });
+
+  useEffect(() => {
+    if (!gameState?.startedAt) return;
+
+    // If game has concluded, freeze the timer at final completion duration
+    if (gameState.status === 'COMPLETED') {
+      const end = gameState.completedAt || Date.now();
+      setElapsedSeconds(Math.max(0, Math.floor((end - gameState.startedAt) / 1000)));
+      return;
+    }
+
+    // Sync from server-provided totalGameTimeSeconds if present
+    if (typeof gameState.totalGameTimeSeconds === 'number') {
+      setElapsedSeconds(gameState.totalGameTimeSeconds);
+    }
+
+    // Tick every second to track actual elapsed gameplay time smoothly across all clients
+    const timer = setInterval(() => {
+      const end = gameState.completedAt || Date.now();
+      const current = Math.max(0, Math.floor((end - gameState.startedAt) / 1000));
+      setElapsedSeconds(current);
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [gameState?.startedAt, gameState?.completedAt, gameState?.status, gameState?.totalGameTimeSeconds]);
 
   // Turn Countdown Timer ticker
   useEffect(() => {
@@ -113,13 +148,23 @@ export const GamePage: React.FC = () => {
   return (
     <div className="h-[calc(100dvh-50px)] max-h-screen overflow-hidden flex flex-col justify-between w-full max-w-none px-2 sm:px-3 py-1 gap-1 select-none pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)]">
       {/* Top Header Bar */}
-      <div className="flex items-center justify-between pb-1 border-b border-indian-parchment-300 dark:border-indian-navy-700 shrink-0">
+      <div className="relative flex items-center justify-between pb-1 border-b border-indian-parchment-300 dark:border-indian-navy-700 shrink-0">
         <button
           onClick={() => navigate('/')}
           className="flex items-center gap-1.5 text-xs font-bold text-indian-navy-700 dark:text-indian-parchment-300 hover:text-indian-terracotta-600 transition-colors cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" /> Exit Room
         </button>
+
+        {/* Synchronized Total Game Duration Timer (centered in header bar) */}
+        <div
+          data-testid="game-timer"
+          className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1.5 font-mono text-xs sm:text-sm font-bold text-indian-navy-900 dark:text-indian-parchment-100 bg-indian-parchment-200/80 dark:bg-indian-navy-800/80 px-2.5 py-0.5 rounded-lg border border-indian-parchment-300 dark:border-indian-navy-700 shadow-sm pointer-events-none select-none"
+          title="Total gameplay duration"
+        >
+          <Clock className="w-3.5 h-3.5 text-indian-terracotta-600 dark:text-indian-gold-400 shrink-0" />
+          <span>{formatGameTimer(elapsedSeconds)}</span>
+        </div>
 
         <div className="flex items-center gap-2">
           <Badge variant="navy" className="text-xs font-bold flex items-center gap-1">

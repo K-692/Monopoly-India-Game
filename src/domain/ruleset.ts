@@ -523,3 +523,16 @@ export function getSortedEligibleSellToBankProperties(
     });
 }
 
+/**
+ * Formats total gameplay elapsed time into authoritative MM:SS format.
+ * - Always starts from "00:00".
+ * - Correctly counts actual elapsed seconds.
+ * - Examples: 0 -> "00:00", 5 -> "00:05", 65 -> "01:05", 3600 -> "60:00".
+ */
+export function formatGameTimer(totalSeconds: number): string {
+  const safeSeconds = Math.max(0, Math.floor(Number.isFinite(totalSeconds) ? totalSeconds : 0));
+  const minutes = Math.floor(safeSeconds / 60);
+  const seconds = safeSeconds % 60;
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
