@@ -120,6 +120,7 @@ export interface CardAction {
 }
 
 export type PlayerType = 'HUMAN' | 'COMPUTER';
+export type ControllerType = 'HUMAN' | 'BOT';
 
 export interface CpuPlayerConfig {
   name: string;
@@ -143,6 +144,9 @@ export interface PlayerState {
   isCpu?: boolean;
   playerType?: PlayerType;
   roomJoinSequence?: number;
+  controllerType?: ControllerType;
+  isBotControlled?: boolean;
+  disconnectedAt?: number | null;
 }
 
 export type PropertyOwnershipState = 'UNOWNED' | 'OWNED' | 'MORTGAGED' | 'BLOCKED';

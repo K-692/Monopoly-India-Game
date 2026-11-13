@@ -147,14 +147,18 @@ export class CpuController {
   }
 
   /**
-   * Identifies whether the current turn or financial debt belongs to a computer player.
+   * Identifies whether the current turn or financial debt belongs to a computer player
+   * or a temporarily bot-controlled human player.
    */
   private getActiveCpuPlayer(gameState: GameState): PlayerState | null {
+    const isPlayerEligible = (p: PlayerState) =>
+      Boolean(p.isCpu || p.playerType === 'COMPUTER' || p.isBotControlled || p.controllerType === 'BOT');
+
     // Check 1: Mandatory financial obligation has highest priority
     if (gameState.phase === 'ACTION_REQUIRED' && gameState.pendingFinancialObligation) {
       const debtorUid = gameState.pendingFinancialObligation.debtorUid;
       const debtor = gameState.players.find((p) => p.uid === debtorUid);
-      if (debtor && (debtor.isCpu || debtor.playerType === 'COMPUTER') && !debtor.isBankrupt && !debtor.isDisqualified) {
+      if (debtor && isPlayerEligible(debtor) && !debtor.isBankrupt && !debtor.isDisqualified) {
         return debtor;
       }
       return null;
@@ -162,7 +166,7 @@ export class CpuController {
 
     // Check 2: Active turn player
     const active = gameState.players.find((p) => p.uid === gameState.currentPlayerUid);
-    if (active && (active.isCpu || active.playerType === 'COMPUTER') && !active.isBankrupt && !active.isDisqualified) {
+    if (active && isPlayerEligible(active) && !active.isBankrupt && !active.isDisqualified) {
       return active;
     }
 
@@ -491,6 +495,16 @@ export class CpuController {
     if (session && session.activeTimer) {
       clearTimeout(session.activeTimer);
       session.activeTimer = null;
+    }
+  }
+
+  public cancelPlayerAction(gameId: string, playerUid: string): void {
+    const session = this.sessions.get(gameId);
+    if (session && session.lockedPlayerUid === playerUid) {
+      this.clearGameTimer(gameId);
+      session.status = 'IDLE';
+      session.lockedPlayerUid = null;
+      session.lockedTurnId = null;
     }
   }
 

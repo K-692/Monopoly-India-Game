@@ -2,28 +2,34 @@
  * Indian Monopoly - Authoritative Server Game Manager
  * Executes authoritative game commands using the core Monopoly engine,
  * guarantees cryptographic dice randomness, enforces serialized command queues,
- * and manages server-authoritative turn countdown timers and timeouts.
+ * and manages server-authoritative turn countdown timers, timeouts, durable persistence,
+ * and automatic Human-to-CPU takeover for disconnected players.
  *
  * Implements strict turn synchronization and pacing invariants:
  * - Movement animations pause the player timer until token arrives at destination.
  * - Enforces minimum 2-second handoff delay between consecutive CPU turns and after human turns.
  * - Dedicated 120-second financial resolution timer remains strictly independent.
  * - Genuinely new actionable phases reset the timer to its full configured duration.
+ * - Atomic persistence commits state and events before socket broadcast.
+ * - Human-to-CPU takeover activates after configurable grace period and recovers seamlessly.
  */
 
 import crypto from 'crypto';
-import { GameArchive, GameCommand, GameState, PropertyDefinition, TransitDefinition, UtilityDefinition } from '../../src/domain/game-types';
-import { createInitialGame, secureFisherYatesShuffle } from '../../src/domain/game-engine/create-initial-game';
-import { applyGameCommand, EngineResult, GameEngineError } from '../../src/domain/game-engine/engine';
-import { generateFairDicePair } from '../../src/domain/game-engine/dice-fairness';
 import { BOARD_SPACES } from '../../src/domain/board-config';
-import { canBuildOnProperty, getAuthoritativeBailAmount, getSortedEligibleSellToBankProperties, calculateReacquisitionCost } from '../../src/domain/ruleset';
+import { createInitialGame, secureFisherYatesShuffle } from '../../src/domain/game-engine/create-initial-game';
+import { generateFairDicePair } from '../../src/domain/game-engine/dice-fairness';
+import { applyGameCommand, EngineResult, GameEngineError } from '../../src/domain/game-engine/engine';
+import { GameArchive, GameCommand, GameState, PropertyDefinition, TransitDefinition, UtilityDefinition } from '../../src/domain/game-types';
+import { calculateReacquisitionCost, canBuildOnProperty, getAuthoritativeBailAmount, getSortedEligibleSellToBankProperties } from '../../src/domain/ruleset';
+import { MemoryStore } from '../persistence/memory-store';
+import { PersistenceStore } from '../persistence/types';
 import { ServerRoom } from '../types/server-types';
 import { CpuController, CpuControllerTimingConfig } from './cpu-controller';
 
 export type GameBroadcastCallback = (
+  gameId: string,
   roomId: string,
-  event: 'game:state' | 'game:event' | 'game:timer' | 'game:started',
+  event: 'game:state' | 'game:event' | 'game:timer' | 'game:started' | 'player:controller_changed',
   data: unknown
 ) => void;
 
@@ -33,22 +39,43 @@ interface ProcessedCommandRecord {
 }
 
 export class GameManager {
+  private store: PersistenceStore;
   private games: Map<string, GameState> = new Map();
+  private activeGameByRoom: Map<string, string> = new Map();
   private archives: Map<string, GameArchive> = new Map();
   private gameTimers: Map<string, NodeJS.Timeout> = new Map();
   private movementTimers: Map<string, NodeJS.Timeout> = new Map();
   private handoffTimers: Map<string, NodeJS.Timeout> = new Map();
+  private disconnectGraceTimers: Map<string, NodeJS.Timeout> = new Map(); // `${gameId}:${playerUid}` -> timer
   private commandQueues: Map<string, Promise<unknown>> = new Map();
   private processedCommands: Map<string, ProcessedCommandRecord> = new Map();
   private broadcastCallback: GameBroadcastCallback | null = null;
   private cpuController: CpuController;
 
-  constructor(cpuTiming?: Partial<CpuControllerTimingConfig>) {
-    this.cpuController = new CpuController(
-      (gameId) => this.getGame(gameId),
-      (gameId, command, actorUid) => this.processCommand(gameId, command, actorUid),
-      cpuTiming
-    );
+  constructor(
+    storeOrCpuTiming?: PersistenceStore | Partial<CpuControllerTimingConfig>,
+    cpuTiming?: Partial<CpuControllerTimingConfig>
+  ) {
+    if (storeOrCpuTiming && 'init' in storeOrCpuTiming && typeof storeOrCpuTiming.init === 'function') {
+      this.store = storeOrCpuTiming as PersistenceStore;
+      this.cpuController = new CpuController(
+        (gameId) => this.getGame(gameId),
+        (gameId, command, actorUid) => this.processCommand(gameId, command, actorUid),
+        cpuTiming
+      );
+    } else {
+      this.store = new MemoryStore();
+      const timing = (storeOrCpuTiming as Partial<CpuControllerTimingConfig>) || cpuTiming;
+      this.cpuController = new CpuController(
+        (gameId) => this.getGame(gameId),
+        (gameId, command, actorUid) => this.processCommand(gameId, command, actorUid),
+        timing
+      );
+    }
+  }
+
+  public getStore(): PersistenceStore {
+    return this.store;
   }
 
   public getCpuController(): CpuController {
@@ -57,6 +84,21 @@ export class GameManager {
 
   public setBroadcastCallback(cb: GameBroadcastCallback) {
     this.broadcastCallback = cb;
+  }
+
+  private emitBroadcast(
+    gameId: string,
+    roomId: string,
+    event: 'game:state' | 'game:event' | 'game:timer' | 'game:started' | 'player:controller_changed',
+    data: unknown
+  ): void {
+    if (!this.broadcastCallback) return;
+    if (this.broadcastCallback.length === 3) {
+      // Legacy 3-parameter adapter (roomId, event, data)
+      (this.broadcastCallback as unknown as (roomId: string, event: string, data: unknown) => void)(roomId, event, data);
+    } else {
+      this.broadcastCallback(gameId, roomId, event, data);
+    }
   }
 
   /**
@@ -78,12 +120,49 @@ export class GameManager {
     return isTest ? 100 : 2000;
   }
 
+  public getBotTakeoverGraceMs(): number {
+    const isTest = process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
+    if (isTest) return 200;
+    return parseInt(process.env.BOT_TAKEOVER_GRACE_MS || '10000', 10);
+  }
+
+  /**
+   * Recovers active games from durable persistence on server restart.
+   */
+  public async recoverActiveGames(): Promise<void> {
+    try {
+      const activeGames = await this.store.listActiveGames();
+      for (const game of activeGames) {
+        this.games.set(game.gameId, game);
+        this.activeGameByRoom.set(game.roomId, game.gameId);
+
+        // Reconstruct active movement or handoff pacing if in flight
+        if (game.movement && !game.movement.isComplete) {
+          const remaining = Math.max(0, game.movement.endsAt - Date.now());
+          this.scheduleMovementCompletion(game.gameId, remaining);
+        } else if (game.handoff?.isActive) {
+          const remaining = Math.max(0, game.handoff.endsAt - Date.now());
+          this.scheduleHandoffCompletion(game.gameId, remaining);
+        } else {
+          this.startTurnTimer(game);
+        }
+
+        // Trigger autonomous CPU player if it is currently their turn
+        this.cpuController.onGameStateChanged(game);
+      }
+      console.log(`[GameManager] Recovered ${activeGames.length} active match(es) from persistence store.`);
+    } catch (err) {
+      console.warn('[GameManager] Error recovering active games from store:', err);
+    }
+  }
+
   // ==========================================
-  // GAME INITIALIZATION
+  // GAME INITIALIZATION (ATOMIC ROOM ISOLATION)
   // ==========================================
 
   /**
    * Starts an authoritative multiplayer match for a ready room.
+   * Atomic isolation: prevents duplicate concurrent games in the same room.
    */
   public startGame(
     room: ServerRoom,
@@ -94,12 +173,32 @@ export class GameManager {
       return { ok: false, error: 'Only the room host can start the game.' };
     }
 
+    // Invariant: check if room already has an active game
+    if (room.status === 'IN_PROGRESS' && room.gameId) {
+      const existing = this.games.get(room.gameId);
+      if (existing && existing.status !== 'COMPLETED') {
+        return { ok: true, gameId: existing.gameId, gameState: existing };
+      }
+    }
+
+    if (room.status === 'COMPLETED' || room.status === 'ARCHIVED') {
+      return { ok: false, error: 'Cannot start game: this room match has already concluded.' };
+    }
+
+    const existingActiveGameId = this.activeGameByRoom.get(room.roomId);
+    if (existingActiveGameId) {
+      const existing = this.games.get(existingActiveGameId);
+      if (existing && existing.status !== 'COMPLETED') {
+        return { ok: true, gameId: existing.gameId, gameState: existing };
+      }
+    }
+
     const members = Object.values(room.members);
     if (members.length < 2) {
       return { ok: false, error: 'At least 2 total players are required to start a match.' };
     }
 
-    // Requirement 5: Every human player (including the host) must be explicitly READY. CPUs are automatically ready.
+    // Every human player (including the host) must be explicitly READY. CPUs are automatically ready.
     const unreadyHumans = members.filter(
       (m) => !m.isCpu && m.playerType !== 'COMPUTER' && !m.isReady
     );
@@ -147,8 +246,14 @@ export class GameManager {
     );
 
     this.games.set(gameId, initialGame);
+    this.activeGameByRoom.set(room.roomId, gameId);
     room.status = 'IN_PROGRESS';
     room.gameId = gameId;
+
+    // Persist in background store
+    this.store.createGame(initialGame).catch((err) => {
+      console.warn('[GameManager] Failed to persist initial game:', err);
+    });
 
     // Start turn timer ticker for this game
     this.startTurnTimer(initialGame);
@@ -165,6 +270,7 @@ export class GameManager {
 
   /**
    * Executes a game command sequentially per game to eliminate race conditions.
+   * Atomically commits state and event to persistence before broadcast.
    */
   public async processCommand(
     gameId: string,
@@ -172,6 +278,21 @@ export class GameManager {
     actorUid: string,
     options?: { cardRuleIndex?: number; isServerTimeout?: boolean }
   ): Promise<EngineResult> {
+    // Check durable deduplication
+    if (command.commandId) {
+      const dedupeKey = `${gameId}:${command.commandId}`;
+      const memoryCached = this.processedCommands.get(dedupeKey);
+      if (memoryCached) {
+        return memoryCached.result;
+      }
+
+      const storeCached = await this.store.getProcessedCommand(gameId, command.commandId);
+      if (storeCached) {
+        this.processedCommands.set(dedupeKey, { result: storeCached, timestamp: Date.now() });
+        return storeCached;
+      }
+    }
+
     // Serialize commands using a per-game promise queue
     const currentQueue = this.commandQueues.get(gameId) || Promise.resolve();
     let resolveCommand!: (res: EngineResult) => void;
@@ -186,9 +307,9 @@ export class GameManager {
       gameId,
       currentQueue
         .catch(() => {}) // Continue queue even if previous command rejected
-        .then(() => {
+        .then(async () => {
           try {
-            const result = this.executeCommandInternal(gameId, command, actorUid, options);
+            const result = await this.executeCommandInternal(gameId, command, actorUid, options);
             resolveCommand(result);
           } catch (err) {
             rejectCommand(err);
@@ -202,20 +323,21 @@ export class GameManager {
   /**
    * Internal deterministic execution with cryptographic dice, movement pacing, and deduplication.
    */
-  private executeCommandInternal(
+  private async executeCommandInternal(
     gameId: string,
     command: GameCommand,
     actorUid: string,
     options?: { cardRuleIndex?: number; isServerTimeout?: boolean }
-  ): EngineResult {
+  ): Promise<EngineResult> {
     const currentState = this.games.get(gameId);
     if (!currentState) {
       throw new GameEngineError('GAME_NOT_FOUND', 'Active game state not found');
     }
 
     // Check duplicate command prevention (idempotent retry handling)
-    if (command.commandId && this.processedCommands.has(command.commandId)) {
-      return this.processedCommands.get(command.commandId)!.result;
+    const dedupeKey = `${gameId}:${command.commandId}`;
+    if (command.commandId && this.processedCommands.has(dedupeKey)) {
+      return this.processedCommands.get(dedupeKey)!.result;
     }
 
     // Validate expected version before phase and movement guards
@@ -266,10 +388,19 @@ export class GameManager {
 
     const result = applyGameCommand(currentState, command, actorUid, injectedDice, options);
 
-    // Save updated state and cache command for deduplication
+    // Atomically persist state, event, and processed command record before broadcast
+    await this.store.commitCommandExecution({
+      gameId,
+      commandId: command.commandId,
+      actorUid,
+      result,
+      nextState: result.nextState,
+    });
+
+    // Save updated state and cache command for in-memory deduplication
     this.games.set(gameId, result.nextState);
     if (command.commandId) {
-      this.processedCommands.set(command.commandId, {
+      this.processedCommands.set(dedupeKey, {
         result,
         timestamp: Date.now(),
       });
@@ -278,12 +409,11 @@ export class GameManager {
     // Handle Completed Game
     if (result.nextState.status === 'COMPLETED') {
       this.stopTurnTimer(gameId);
+      this.activeGameByRoom.delete(result.nextState.roomId);
       this.archiveGameSession(result.nextState);
 
-      if (this.broadcastCallback) {
-        this.broadcastCallback(result.nextState.roomId, 'game:event', result.event);
-        this.broadcastCallback(result.nextState.roomId, 'game:state', result.nextState);
-      }
+      this.emitBroadcast(gameId, result.nextState.roomId, 'game:event', result.event);
+      this.emitBroadcast(gameId, result.nextState.roomId, 'game:state', result.nextState);
       return result;
     }
 
@@ -324,18 +454,16 @@ export class GameManager {
 
     if (isTurnAdvanced) {
       const prevPlayer = currentState.players.find((p) => p.uid === actorUid);
-      const isPrevCpu = Boolean(prevPlayer && (prevPlayer.isCpu || prevPlayer.playerType === 'COMPUTER'));
+      const isPrevCpu = Boolean(prevPlayer && (prevPlayer.isCpu || prevPlayer.playerType === 'COMPUTER' || prevPlayer.isBotControlled));
 
       const nextUid = result.nextState.currentPlayerUid;
       const nextPlayer = result.nextState.players.find((p) => p.uid === nextUid);
-      const isNextCpu = Boolean(nextPlayer && (nextPlayer.isCpu || nextPlayer.playerType === 'COMPUTER'));
+      const isNextCpu = Boolean(nextPlayer && (nextPlayer.isCpu || nextPlayer.playerType === 'COMPUTER' || nextPlayer.isBotControlled));
 
-      // Section 5: 2-second handoff applies whenever CPU is involved (CPU->CPU, CPU->Human, Human->CPU)
-      // Ordinary Human-to-Human turns start immediately without extra handoff delay.
+      // 2-second handoff applies whenever CPU or bot-controlled slot is involved
       const needsHandoff = isPrevCpu || isNextCpu;
 
       if (needsHandoff) {
-        // Enforce the 2-second minimum handoff delay before the next turn can begin
         const handoffDelay = this.getHandoffDelay();
         result.nextState.handoff = {
           fromPlayerUid: actorUid,
@@ -349,15 +477,12 @@ export class GameManager {
         result.nextState.turnTimeRemaining = result.nextState.rules?.turnTimerSeconds ?? 30;
         this.scheduleHandoffCompletion(gameId, handoffDelay);
       } else {
-        // Human player is next: start immediately after previous turn is fully completed
         result.nextState.handoff = null;
         result.nextState.isTimerPaused = false;
         this.resetTurnTimer(result.nextState);
       }
     } else if (!hasMovement) {
-      // Action occurred within current turn without movement (e.g. BUY_PROPERTY, BUILD, SELL_TO_BANK)
       if (result.nextState.phase === 'ACTION_REQUIRED' && result.nextState.pendingFinancialObligation) {
-        // Dedicated 120-second financial resolution timer continues unaffected
         const remaining = Math.max(0, Math.ceil((result.nextState.pendingFinancialObligation.expiresAt - Date.now()) / 1000));
         result.nextState.turnTimeRemaining = remaining;
         this.startTurnTimer(result.nextState);
@@ -368,22 +493,118 @@ export class GameManager {
       }
     }
 
-    // Broadcast updated event and state to room members
-    if (this.broadcastCallback) {
-      this.broadcastCallback(result.nextState.roomId, 'game:event', result.event);
-      this.broadcastCallback(result.nextState.roomId, 'game:state', result.nextState);
-    }
+    // Broadcast updated event and state to game channel
+    this.emitBroadcast(gameId, result.nextState.roomId, 'game:event', result.event);
+    this.emitBroadcast(gameId, result.nextState.roomId, 'game:state', result.nextState);
 
     return result;
+  }
+
+  // ==========================================
+  // DISCONNECTION & AUTOMATIC CPU TAKEOVER
+  // ==========================================
+
+  /**
+   * Called when a player's network socket disconnects.
+   * If player is in an active match and is human, starts the grace period timer for bot takeover.
+   */
+  public handlePlayerDisconnected(playerUid: string): void {
+    const graceMs = this.getBotTakeoverGraceMs();
+
+    for (const [gameId, state] of this.games.entries()) {
+      if (state.status === 'COMPLETED') continue;
+      const player = state.players.find((p) => p.uid === playerUid);
+      if (!player || player.isCpu || player.playerType === 'COMPUTER') continue;
+
+      player.disconnectedAt = Date.now();
+      const timerKey = `${gameId}:${playerUid}`;
+
+      if (this.disconnectGraceTimers.has(timerKey)) {
+        clearTimeout(this.disconnectGraceTimers.get(timerKey)!);
+      }
+
+      const timer = setTimeout(async () => {
+        this.disconnectGraceTimers.delete(timerKey);
+        await this.activateBotTakeover(gameId, playerUid);
+      }, graceMs);
+
+      this.disconnectGraceTimers.set(timerKey, timer);
+    }
+  }
+
+  /**
+   * Activates autonomous bot control for a disconnected human player after grace period expires.
+   */
+  public async activateBotTakeover(gameId: string, playerUid: string): Promise<void> {
+    const state = this.games.get(gameId);
+    if (!state || state.status === 'COMPLETED') return;
+
+    const player = state.players.find((p) => p.uid === playerUid);
+    if (!player || player.isCpu || player.playerType === 'COMPUTER') return;
+
+    // Only activate if player has not reconnected
+    if (!player.disconnectedAt) return;
+
+    player.controllerType = 'BOT';
+    player.isBotControlled = true;
+
+    await this.store.updateGame(state).catch(() => {});
+
+    this.emitBroadcast(gameId, state.roomId, 'player:controller_changed', {
+      uid: playerUid,
+      controllerType: 'BOT',
+      isBotControlled: true,
+    });
+    this.emitBroadcast(gameId, state.roomId, 'game:state', state);
+
+    // If active turn or debt belongs to this player, trigger CPU controller to play on their behalf
+    if (state.currentPlayerUid === playerUid || state.pendingFinancialObligation?.debtorUid === playerUid) {
+      this.cpuController.onGameStateChanged(state);
+    }
+  }
+
+  /**
+   * Called when an authenticated human player reconnects with their original token.
+   * Restores human control and cancels future bot actions for their slot.
+   */
+  public handlePlayerReconnected(playerUid: string): void {
+    for (const [gameId, state] of this.games.entries()) {
+      if (state.status === 'COMPLETED') continue;
+      const player = state.players.find((p) => p.uid === playerUid);
+      if (!player) continue;
+
+      const timerKey = `${gameId}:${playerUid}`;
+      const existingTimer = this.disconnectGraceTimers.get(timerKey);
+      if (existingTimer) {
+        clearTimeout(existingTimer);
+        this.disconnectGraceTimers.delete(timerKey);
+      }
+
+      player.disconnectedAt = null;
+
+      if (player.isBotControlled || player.controllerType === 'BOT') {
+        player.controllerType = 'HUMAN';
+        player.isBotControlled = false;
+
+        // Cancel scheduled CPU decision for this player
+        this.cpuController.cancelPlayerAction(gameId, playerUid);
+
+        this.store.updateGame(state).catch(() => {});
+
+        this.emitBroadcast(gameId, state.roomId, 'player:controller_changed', {
+          uid: playerUid,
+          controllerType: 'HUMAN',
+          isBotControlled: false,
+        });
+        this.emitBroadcast(gameId, state.roomId, 'game:state', state);
+      }
+    }
   }
 
   // ==========================================
   // MOVEMENT & TURN HANDOFF ORCHESTRATION
   // ==========================================
 
-  /**
-   * Schedules authoritative movement completion after animation duration.
-   */
   private scheduleMovementCompletion(gameId: string, durationMs: number): void {
     const existing = this.movementTimers.get(gameId);
     if (existing) clearTimeout(existing);
@@ -395,9 +616,6 @@ export class GameManager {
     this.movementTimers.set(gameId, timer);
   }
 
-  /**
-   * Authoritatively concludes token movement, resolves landing phase, and resumes timer.
-   */
   private onMovementCompleted(gameId: string): void {
     this.movementTimers.delete(gameId);
     const state = this.games.get(gameId);
@@ -410,12 +628,10 @@ export class GameManager {
 
     // Phase-aware timer reset when transitioning into a new actionable step:
     if (state.phase === 'PROPERTY_DECISION') {
-      // Reset timer to full configured duration for the decision phase
       const turnDuration = state.rules?.turnTimerSeconds ?? 30;
       state.turnTimeRemaining = turnDuration;
       this.startTurnTimer(state);
     } else if (state.phase === 'ACTION_REQUIRED' && state.pendingFinancialObligation) {
-      // Debt resolution retains dedicated 120-second countdown
       const remaining = Math.max(0, Math.ceil((state.pendingFinancialObligation.expiresAt - Date.now()) / 1000));
       state.turnTimeRemaining = remaining;
       this.startTurnTimer(state);
@@ -430,27 +646,21 @@ export class GameManager {
         ? state.pendingFinancialObligation.debtorUid
         : state.currentPlayerUid;
 
-    // Broadcast state and timer resumption to all clients
-    if (this.broadcastCallback) {
-      const elapsedSeconds = Math.max(0, Math.floor(((state.completedAt || Date.now()) - state.startedAt) / 1000));
-      state.totalGameTimeSeconds = elapsedSeconds;
-      this.broadcastCallback(state.roomId, 'game:state', state);
-      this.broadcastCallback(state.roomId, 'game:timer', {
-        remaining: state.turnTimeRemaining,
-        activeUid: timerActiveUid,
-        isPaused: false,
-        phase: state.phase,
-        elapsedSeconds,
-      });
-    }
+    const elapsedSeconds = Math.max(0, Math.floor(((state.completedAt || Date.now()) - state.startedAt) / 1000));
+    state.totalGameTimeSeconds = elapsedSeconds;
 
-    // Trigger CPU controller to execute decision now that token has landed
+    this.emitBroadcast(gameId, state.roomId, 'game:state', state);
+    this.emitBroadcast(gameId, state.roomId, 'game:timer', {
+      remaining: state.turnTimeRemaining,
+      activeUid: timerActiveUid,
+      isPaused: false,
+      phase: state.phase,
+      elapsedSeconds,
+    });
+
     this.cpuController.onGameStateChanged(state);
   }
 
-  /**
-   * Schedules authoritative handoff completion after 2-second delay.
-   */
   private scheduleHandoffCompletion(gameId: string, delayMs: number): void {
     const existing = this.handoffTimers.get(gameId);
     if (existing) clearTimeout(existing);
@@ -462,9 +672,6 @@ export class GameManager {
     this.handoffTimers.set(gameId, timer);
   }
 
-  /**
-   * Authoritatively activates the next CPU player's turn after the 2-second handoff delay.
-   */
   private onHandoffCompleted(gameId: string): void {
     this.handoffTimers.delete(gameId);
     const state = this.games.get(gameId);
@@ -473,26 +680,23 @@ export class GameManager {
     state.handoff = null;
     state.isTimerPaused = false;
 
-    // Start next player's timer fresh with full configured duration
     const turnDuration = state.rules?.turnTimerSeconds ?? 30;
     state.turnTimeRemaining = turnDuration;
     this.startTurnTimer(state);
 
-    if (this.broadcastCallback) {
-      const elapsedSeconds = Math.max(0, Math.floor(((state.completedAt || Date.now()) - state.startedAt) / 1000));
-      state.totalGameTimeSeconds = elapsedSeconds;
-      this.broadcastCallback(state.roomId, 'game:state', state);
-      this.broadcastCallback(state.roomId, 'game:timer', {
-        remaining: turnDuration,
-        activeUid: state.currentPlayerUid,
-        isPaused: false,
-        phase: state.phase,
-        handoff: false,
-        elapsedSeconds,
-      });
-    }
+    const elapsedSeconds = Math.max(0, Math.floor(((state.completedAt || Date.now()) - state.startedAt) / 1000));
+    state.totalGameTimeSeconds = elapsedSeconds;
 
-    // Officially trigger CPU action now that handoff delay has elapsed
+    this.emitBroadcast(gameId, state.roomId, 'game:state', state);
+    this.emitBroadcast(gameId, state.roomId, 'game:timer', {
+      remaining: turnDuration,
+      activeUid: state.currentPlayerUid,
+      isPaused: false,
+      phase: state.phase,
+      handoff: false,
+      elapsedSeconds,
+    });
+
     this.cpuController.onGameStateChanged(state);
   }
 
@@ -515,28 +719,24 @@ export class GameManager {
         return;
       }
 
-      // If timer is paused (movement active or 2-second handoff in progress), do NOT decrement
       if (
         current.isTimerPaused ||
         (current.movement && !current.movement.isComplete) ||
         current.handoff?.isActive
       ) {
-        if (this.broadcastCallback) {
-          const elapsedSeconds = Math.max(0, Math.floor(((current.completedAt || Date.now()) - current.startedAt) / 1000));
-          current.totalGameTimeSeconds = elapsedSeconds;
-          this.broadcastCallback(current.roomId, 'game:timer', {
-            remaining: current.turnTimeRemaining,
-            activeUid: current.currentPlayerUid,
-            isPaused: true,
-            phase: current.phase,
-            handoff: Boolean(current.handoff?.isActive),
-            elapsedSeconds,
-          });
-        }
+        const elapsedSeconds = Math.max(0, Math.floor(((current.completedAt || Date.now()) - current.startedAt) / 1000));
+        current.totalGameTimeSeconds = elapsedSeconds;
+        this.emitBroadcast(gameId, current.roomId, 'game:timer', {
+          remaining: current.turnTimeRemaining,
+          activeUid: current.currentPlayerUid,
+          isPaused: true,
+          phase: current.phase,
+          handoff: Boolean(current.handoff?.isActive),
+          elapsedSeconds,
+        });
         return;
       }
 
-      // Derive remaining time: if in ACTION_REQUIRED with pending obligation deadline, use authoritative expiresAt
       let nextRemaining: number;
       let timerActiveUid = current.currentPlayerUid;
 
@@ -549,7 +749,6 @@ export class GameManager {
       }
 
       if (nextRemaining <= 0) {
-        // Authoritative server timeout action: stop the ticking timer first to prevent duplicate firings
         this.stopTurnTimer(gameId);
         current.turnTimeRemaining = 0;
         this.handleTimeout(current).catch((err) => {
@@ -557,17 +756,15 @@ export class GameManager {
         });
       } else {
         current.turnTimeRemaining = nextRemaining;
-        if (this.broadcastCallback) {
-          const elapsedSeconds = Math.max(0, Math.floor(((current.completedAt || Date.now()) - current.startedAt) / 1000));
-          current.totalGameTimeSeconds = elapsedSeconds;
-          this.broadcastCallback(current.roomId, 'game:timer', {
-            remaining: nextRemaining,
-            activeUid: timerActiveUid,
-            isPaused: false,
-            phase: current.phase,
-            elapsedSeconds,
-          });
-        }
+        const elapsedSeconds = Math.max(0, Math.floor(((current.completedAt || Date.now()) - current.startedAt) / 1000));
+        current.totalGameTimeSeconds = elapsedSeconds;
+        this.emitBroadcast(gameId, current.roomId, 'game:timer', {
+          remaining: nextRemaining,
+          activeUid: timerActiveUid,
+          isPaused: false,
+          phase: current.phase,
+          elapsedSeconds,
+        });
       }
     }, 1000);
 
@@ -575,7 +772,6 @@ export class GameManager {
   }
 
   private resetTurnTimer(gameState: GameState): void {
-    // If in ACTION_REQUIRED with a financial obligation, preserve the 120-second deadline
     if (gameState.phase === 'ACTION_REQUIRED' && gameState.pendingFinancialObligation) {
       this.startTurnTimer(gameState);
       return;
@@ -607,9 +803,6 @@ export class GameManager {
     }
   }
 
-  /**
-   * Public test and runtime trigger to invoke authoritative server timeout action.
-   */
   public async triggerTimeout(gameId: string): Promise<void> {
     const state = this.games.get(gameId);
     if (!state) return;
@@ -618,9 +811,6 @@ export class GameManager {
     await this.handleTimeout(state);
   }
 
-  /**
-   * Executes an authoritative server timeout action when turn countdown hits zero.
-   */
   public async handleTimeout(gameState: GameState): Promise<void> {
     const freshState = this.games.get(gameState.gameId) || gameState;
     if (freshState.status === 'COMPLETED') {
@@ -631,8 +821,6 @@ export class GameManager {
     const isFinancialTimeout =
       freshState.phase === 'ACTION_REQUIRED' && Boolean(freshState.pendingFinancialObligation);
 
-    // Do not execute timeout while paused (during movement or handoff) EXCEPT for financial timeouts,
-    // which have an authoritative 120-second deadline that must execute regardless of stale pause flags.
     if (
       !isFinancialTimeout &&
       (freshState.isTimerPaused ||
@@ -695,7 +883,6 @@ export class GameManager {
         const isCpu = Boolean(activePlayer && (activePlayer.isCpu || activePlayer.playerType === 'COMPUTER'));
 
         let executedBuild = false;
-        // Feature: Automatically build house/tower when a human player times out on an eligible city
         if (!isCpu && activePlayer && !activePlayer.isBankrupt && !activePlayer.isDisqualified) {
           const buildCheck = canBuildOnProperty(
             activePlayer.position,
@@ -716,9 +903,7 @@ export class GameManager {
               payload: { spaceIndex: activePlayer.position },
             };
             await this.processCommand(freshState.gameId, cmd, activeUid, { isServerTimeout: true }).catch((e) => {
-              if (e instanceof GameEngineError && e.code === 'STALE_VERSION') {
-                return;
-              }
+              if (e instanceof GameEngineError && e.code === 'STALE_VERSION') return;
               console.warn('Timeout BUILD failed:', e);
               this.recoverStuckTurn(freshState.gameId);
             });
@@ -736,9 +921,7 @@ export class GameManager {
             payload: {},
           };
           await this.processCommand(freshState.gameId, cmd, activeUid, { isServerTimeout: true }).catch((e) => {
-            if (e instanceof GameEngineError && e.code === 'STALE_VERSION') {
-              return;
-            }
+            if (e instanceof GameEngineError && e.code === 'STALE_VERSION') return;
             console.warn('Timeout END_TURN failed:', e);
             this.recoverStuckTurn(freshState.gameId);
           });
@@ -753,9 +936,7 @@ export class GameManager {
           payload: {},
         };
         await this.processCommand(freshState.gameId, cmd, activeUid, { isServerTimeout: true }).catch((e) => {
-          if (e instanceof GameEngineError && e.code === 'STALE_VERSION') {
-            return;
-          }
+          if (e instanceof GameEngineError && e.code === 'STALE_VERSION') return;
           console.warn('Timeout END_TURN failed:', e);
           this.recoverStuckTurn(freshState.gameId);
         });
@@ -812,10 +993,6 @@ export class GameManager {
     }
   }
 
-  /**
-   * Intelligently auto-resolves property/city purchase and reacquisition decisions
-   * when a human player times out during PROPERTY_DECISION phase.
-   */
   private async handleHumanPropertyDecisionTimeout(gameId: string, playerUid: string): Promise<void> {
     const state = this.games.get(gameId);
     if (!state || state.status === 'COMPLETED') return;
@@ -824,7 +1001,6 @@ export class GameManager {
     const player = state.players.find((p) => p.uid === playerUid);
     if (!player || player.isBankrupt || player.isDisqualified) return;
 
-    // Check Scenario B: Reacquisition of a mortgaged or bank-owned property
     if (
       state.reacquisitionOpportunity &&
       state.reacquisitionOpportunity.status === 'PENDING' &&
@@ -863,7 +1039,6 @@ export class GameManager {
         );
       }
     } else {
-      // Scenario A: Normal property / city purchase
       const space = BOARD_SPACES[player.position];
       const propState = state.properties[player.position];
 
@@ -929,16 +1104,10 @@ export class GameManager {
       }
     }
 
-    // Turn progression: automatically complete turn if no further mandatory actions
     await this.autoEndTurnIfManagement(gameId, playerUid);
   }
 
-  /**
-   * Intelligently auto-liquidates eligible assets when a human debtor times out
-   * on the 120-second financial resolution countdown.
-   */
   private async handleHumanFinancialTimeout(gameId: string, debtorUid: string): Promise<void> {
-    // Step 1: Check existing balance
     let state = this.games.get(gameId);
     if (!state || state.status === 'COMPLETED') return;
     if (state.phase !== 'ACTION_REQUIRED' || !state.pendingFinancialObligation) return;
@@ -969,12 +1138,10 @@ export class GameManager {
       return;
     }
 
-    // Step 2 & 3: Sell assets one at a time following exact UI sorted order
     while (true) {
       state = this.games.get(gameId);
       if (!state || state.status === 'COMPLETED') return;
 
-      // Stop immediately if obligation has already been resolved or cancelled
       if (state.phase !== 'ACTION_REQUIRED' || !state.pendingFinancialObligation) {
         break;
       }
@@ -983,7 +1150,6 @@ export class GameManager {
       debtor = state.players.find((p) => p.uid === debtorUid);
       if (!debtor) return;
 
-      // Check if cash has become sufficient
       if (debtor.cash >= state.pendingFinancialObligation.amountDue) {
         try {
           await this.processCommand(
@@ -1005,14 +1171,11 @@ export class GameManager {
         break;
       }
 
-      // Retrieve exact Sell-to-Bank priority list
       const eligibleProps = getSortedEligibleSellToBankProperties(debtorUid, state.properties);
       if (eligibleProps.length === 0) {
-        // No more eligible properties remain to sell
         break;
       }
 
-      // Select and sell the first asset in the sorted list
       const nextToSell = eligibleProps[0];
       try {
         await this.processCommand(
@@ -1034,7 +1197,6 @@ export class GameManager {
       }
     }
 
-    // Step 5: Surrender only after all eligible assets are exhausted
     state = this.games.get(gameId);
     if (!state || state.status === 'COMPLETED') return;
 
@@ -1047,7 +1209,6 @@ export class GameManager {
       if (debtor && debtor.cash < state.pendingFinancialObligation.amountDue) {
         const remainingProps = getSortedEligibleSellToBankProperties(debtorUid, state.properties);
         if (remainingProps.length === 0) {
-          // No eligible assets remain AND available cash < outstanding amount due -> Surrender!
           try {
             await this.processCommand(
               gameId,
@@ -1070,14 +1231,9 @@ export class GameManager {
       }
     }
 
-    // Step 6: Continue the turn after successful settlement
     await this.autoEndTurnIfManagement(gameId, debtorUid);
   }
 
-  /**
-   * Helper: If the given player is the active player and in MANAGEMENT/TURN_END phase
-   * with no pending actions or debt, completes their turn automatically.
-   */
   private async autoEndTurnIfManagement(gameId: string, playerUid: string): Promise<void> {
     const state = this.games.get(gameId);
     if (
@@ -1104,10 +1260,6 @@ export class GameManager {
     }
   }
 
-  /**
-   * Fail-safe recovery if a turn action threw an error or rejected,
-   * applying a safe phase-specific fallback to prevent game freeze.
-   */
   private recoverStuckTurn(gameId: string): void {
     const state = this.games.get(gameId);
     if (!state || state.status === 'COMPLETED') return;
@@ -1119,8 +1271,7 @@ export class GameManager {
     const activePlayer = state.players.find((p) => p.uid === state.currentPlayerUid);
     const commandId = 'recovery_' + Date.now() + '_' + crypto.randomUUID().slice(0, 6);
 
-    // If active player is a CPU, trigger CPU controller directly to take safe action
-    if (activePlayer && (activePlayer.isCpu || activePlayer.playerType === 'COMPUTER')) {
+    if (activePlayer && (activePlayer.isCpu || activePlayer.playerType === 'COMPUTER' || activePlayer.isBotControlled)) {
       const fallback = this.cpuController.getSafeFallbackDecision(state, activePlayer);
       if (fallback) {
         this.processCommand(gameId, {
@@ -1158,11 +1309,8 @@ export class GameManager {
     return this.games.get(gameId) || null;
   }
 
-  /**
-   * Persists final completed match results and player snapshots to the session archive.
-   */
   private archiveGameSession(gameState: GameState): void {
-    if (this.archives.has(gameState.gameId)) return; // Deduplicated: archive once
+    if (this.archives.has(gameState.gameId)) return;
 
     const winner = gameState.players.find((p) => p.uid === gameState.winnerUid);
     const sorted = [...gameState.players].sort((a, b) => {
@@ -1198,6 +1346,9 @@ export class GameManager {
     };
 
     this.archives.set(gameState.gameId, archive);
+    this.store.saveArchive(archive).catch((err) => {
+      console.warn('[GameManager] Failed to persist archive:', err);
+    });
   }
 
   public getArchive(gameId: string): GameArchive | null {

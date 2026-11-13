@@ -9,6 +9,7 @@ import { HostCustomRules } from '../../src/domain/ruleset';
 export interface PlayerSession {
   uid: string;
   token: string;
+  tokenHash?: string;
   displayName: string;
   avatarColor: string;
   socketId: string | null;
@@ -16,6 +17,7 @@ export interface PlayerSession {
   connected: boolean;
   lastSeenAt: number;
   ipAddress?: string;
+  sessionGeneration?: number;
 }
 
 export interface PlayerSessionPublic {
@@ -180,6 +182,7 @@ export interface ServerToClientEvents {
   }) => void;
   'server:error': (data: { code: string; message: string }) => void;
   'player:presence': (data: { uid: string; connected: boolean }) => void;
+  'player:controller_changed': (data: { uid: string; controllerType: 'HUMAN' | 'BOT'; isBotControlled: boolean }) => void;
 }
 
 export interface InterServerEvents {

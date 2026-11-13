@@ -162,6 +162,9 @@ export function createInitialGame(
       isCpu: Boolean(m.isCpu),
       playerType: m.playerType || (m.isCpu ? 'COMPUTER' : 'HUMAN'),
       roomJoinSequence: m.roomJoinSequence ?? (index + 1),
+      controllerType: (m.isCpu || m.playerType === 'COMPUTER') ? 'BOT' : 'HUMAN',
+      isBotControlled: Boolean(m.isCpu || m.playerType === 'COMPUTER'),
+      disconnectedAt: null,
     };
   });
 

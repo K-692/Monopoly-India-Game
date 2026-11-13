@@ -17,7 +17,7 @@ export const GamePage: React.FC = () => {
   const { gameId } = useParams<{ gameId: string }>();
   const navigate = useNavigate();
   const { player } = useAuthStore();
-  const { currentRoom, subscribeToRoom } = useRoomStore();
+  const { currentRoom } = useRoomStore();
   const {
     gameState,
     events,
@@ -87,6 +87,8 @@ export const GamePage: React.FC = () => {
 
     const socket = getSocket();
 
+    let cleanupRoom: (() => void) | undefined;
+
     const joinGameSession = () => {
       // Authoritatively join game room on the server to retrieve active state and attach presence
       socket.emit('game:join', { gameId }, (response) => {
@@ -97,6 +99,14 @@ export const GamePage: React.FC = () => {
           }
           if (response.room) {
             useRoomStore.setState({ currentRoom: response.room, activeRoomId: response.room.roomId });
+            if (!cleanupRoom && response.room.members && Object.keys(response.room.members).length >= 1) {
+              cleanupRoom = initializeGameFromRoom(
+                response.room.roomId,
+                gameId,
+                response.room.members,
+                response.room.customRules
+              );
+            }
           }
         } else {
           const errMsg =
@@ -116,8 +126,6 @@ export const GamePage: React.FC = () => {
 
     socket.on('connect', joinGameSession);
 
-    let cleanupRoom: (() => void) | undefined;
-
     if (currentRoom && currentRoom.members && Object.keys(currentRoom.members).length >= 1) {
       cleanupRoom = initializeGameFromRoom(
         currentRoom.roomId,
@@ -125,10 +133,6 @@ export const GamePage: React.FC = () => {
         currentRoom.members,
         currentRoom.customRules
       );
-    } else if (!currentRoom) {
-      // Rehydrate room from gameId if user refreshed or arrived directly
-      const derivedRoomId = 'room_' + gameId.replace('game_', '');
-      cleanupRoom = subscribeToRoom(derivedRoomId);
     }
 
     return () => {

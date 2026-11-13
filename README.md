@@ -20,6 +20,7 @@
   [![Socket.IO](https://img.shields.io/badge/Socket.IO-4.8-010101.svg?logo=socketdotio&logoColor=white)](https://socket.io/)
   [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38B2AC.svg?logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
   [![Vitest](https://img.shields.io/badge/Vitest-3.2-FCC72B.svg?logo=vitest&logoColor=black)](https://vitest.dev/)
+  [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1.svg?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
   [![Render](https://img.shields.io/badge/Render-Live%20Deployment-46E3B7.svg?logo=render&logoColor=black)](https://monopoly-india-game.onrender.com/)
   [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -124,7 +125,7 @@ Waiting for players...
 ## 🏗️ Architecture & Multi-Agent Flow
 
 ```
-                                  INDIAN MONOPOLY SYSTEM ARCHITECTURE
+                                  INDIAN MONOPOLY PRODUCTION ARCHITECTURE
                                
       +──────────────────────────────────────────────────────────────────────────+
       │                         HOST SYSTEM (Node.js 20+)                        │
@@ -132,28 +133,28 @@ Waiting for players...
       │   +──────────────────────────+        +──────────────────────────────+   │
       │   │   Express HTTP Server    │        │      Socket.IO Engine        │   │
       │   │     Port: 0.0.0.0:4173   │        │     Port: 0.0.0.0:4173       │   │
-      │   │  Serves: dist/ (SPA app) │        │  Channel: ws://<LAN_IP>:4173 │   │
+      │   │  Serves: dist/ (SPA app) │        │  Handshake Auth & Fencing    │   │
       │   +────────────┬─────────────+        +──────────────┬───────────────+   │
       │                │                                     │                   │
+      │                │                      Channels:      │                   │
+      │                │                      - room:<roomId> (Lobby & Presence) │
+      │                │                      - game:<gameId> (Authoritative)    │
+      │                │                                     │                   │
       │   +────────────▼─────────────────────────────────────▼───────────────+   │
-      │   │             Authoritative In-Memory Game Manager                 │   │
-      │   │  - Unbiased Random First Player Selection                        │   │
+      │   │             Authoritative GameManager & Pipeline                 │   │
+      │   │  - Atomic Game Creation (One Active Match Per Room Invariant)    │   │
+      │   │  - Durable Command Deduplication (game_id, command_id)           │   │
+      │   │  - Monotonic Versioning & Pre-Broadcast ACID Persistence Commit  │   │
       │   │  - Cryptographic Fair Dice (Rejection Sampling, Zero Modulo Bias)│   │
-      │   │  - Serialized Action Queue (Zero Race Conditions)                │   │
-      │   │  - 120s Debt Resolution Timer & Monotonic State Sync             │   │
-      │   │  - Intelligent Turn & Jail Timeout Auto-Resolution & Liquidation   │   │
+      │   │  - Disconnection Grace Timers & Automatic Human-to-Bot Takeover  │   │
       │   +────────────┬─────────────────────────────────────────────────────+   │
       │                │                                                         │
-      │   +────────────▼───────────────────────────────────+                     │
-      │   │         Autonomous CPU Controller Layer        │                     │
-      │   │  - Event-driven state machine lifecycle        │                     │
-      │   │  - Token walking animation delay pacing        │                     │
-      │   │  - Pure deterministic heuristics               │                     │
-      │   │    * In-jail bailout & key utilization         │                     │
-      │   │    * Smart property acquisition & inheritance  │                     │
-      │   │    * Visiting-city house construction          │                     │
-      │   │    * Tiered Sell-to-Bank debt liquidation      │                     │
-      │   +────────────┬───────────────────────────────────+                     │
+      │   +────────────▼───────────────────────+  +──────────────────────────+   │
+      │   │   Autonomous CPU Controller Layer  │  │    Persistence Engine    │   │
+      │   │  - Active & Disconnected Human Bots│  │  - PostgreSQL (Render)   │   │
+      │   │  - Pacing & Movement Gates         │  │  - MemoryStore (LAN)     │   │
+      │   │  - Pure Deterministic Heuristics   │  │  - Auto-Schema Migrations│   │
+      │   +────────────┬───────────────────────+  +──────────────────────────+   │
       │                │                                                         │
       │   +────────────▼─────────────────────────────────────────────────────+   │
       │   │                 Core Game Engine (applyGameCommand)              │   │
@@ -168,12 +169,41 @@ Waiting for players...
      │       LAN GUEST (Phone)       │     │     WORLDWIDE GUEST (Browser)    │
      │  Safari / Chrome on Android   │     │        Render Web Client         │
      │  http://192.168.1.8:4173      │     │  https://monopoly-india-game...  │
-     │  Joined via QR Code / Link    │     │  Connected to Render Free Backend│
+     │  Joined via QR Code / Link    │     │  Connected to Render Starter DB  │
      +───────────────────────────────+     +──────────────────────────────────+
 ```
 
 For complete deployment specifications, setup procedures, and troubleshooting, see [`docs/PUBLIC-HOSTING-SETUP.md`](docs/PUBLIC-HOSTING-SETUP.md).
 For formal mathematical definitions, state machine proofs, and research citation details, see [`flow.md`](flow.md).
+
+---
+
+## 🛡️ Production-Grade Multiplayer Synchronization & Resilience
+
+Indian Monopoly includes an enterprise-grade multiplayer synchronization engine engineered specifically to withstand distributed cloud hosting, transient mobile packet drops, browser refreshes, and host container restarts:
+
+1. **Strict Room and Game Isolation:**
+   - Database partial unique index (`idx_one_active_game_per_room`) guarantees a room cannot spawn multiple active games under concurrent requests or double-clicks.
+   - Channel decoupling separates room membership (`room:<roomId>`) from active gameplay events (`game:<gameId>`), preventing cross-match state leakage.
+
+2. **Durable Command Deduplication & Versioning:**
+   - Every gameplay command is tagged with a unique `commandId` and validated against `(game_id, command_id)` uniqueness.
+   - Retransmitted commands return original results without re-executing transactions.
+   - Monotonically increasing state versions reject stale commands and keep all connected clients synchronized.
+
+3. **Handshake Reconnection & Single-Active-Socket Fencing:**
+   - Persistent reconnect tokens are authenticated during the Socket.IO handshake (`auth.token`), completely eliminating query-param or URL token leakage.
+   - Sessions maintain a monotonically incrementing generation number: when a player connects a new socket (e.g. tab refresh), older sockets receive a `SESSION_REPLACED` event and are fenced off immediately.
+
+4. **Automatic Human-to-CPU Takeover & Seamless Recovery:**
+   - If a human player disconnects during their turn, the server starts an authoritative 10-second grace timer (`BOT_TAKEOVER_GRACE_MS=10000`).
+   - Upon timer expiry, the autonomous `CpuController` takes over the player slot without forfeiting their seat, assets, or balance.
+   - When the human returns, the server cancels pending bot actions, returns control to the player (`isBotControlled = false`), broadcasts `player:controller_changed`, and delivers the latest authoritative state snapshot.
+
+5. **Durable Persistence & Server Restart Recovery:**
+   - Render production environments utilize PostgreSQL with connection pooling (`pg.Pool`) and versioned SQL migrations.
+   - Offline local Wi-Fi LAN mode runs on a zero-dependency in-memory store (`MemoryStore`).
+   - On server restart, active matches and pending turn timers are recovered dynamically from persistence, preventing match loss.
 
 ---
 
@@ -185,11 +215,12 @@ For formal mathematical definitions, state machine proofs, and research citation
 | **Styling & Design** | **Tailwind CSS 3.4**, **Lucide React** | Indian-heritage aesthetic palette (Terracotta, Parchment, Royal Navy, Gold), icon system. |
 | **State Management** | **Zustand 5**, **TanStack Query 5** | Lightweight client state, decoupled toast store, room and game state synchronizers. |
 | **Client UI Primitives**| **Radix UI**, **Canvas Confetti** | Accessible dialogs, range sliders, tooltips, tabs, and celebratory victory animations. |
-| **Backend & Server** | **Node.js 20+**, **Express 5**, **tsx** | High-performance HTTP server serving static client assets and LAN discovery APIs. |
-| **Real-Time Transport** | **Socket.IO 4.8** | Authoritative bidirectional WebSocket transport with room multiplexing and reconnect handling. |
-| **Autonomous AI** | Pure Modular TypeScript Engine | Deterministic heuristic multi-agent decision models with natural animation synchronization. |
+| **Backend & Server** | **Node.js 20+**, **Express 5**, **tsx** | High-performance HTTP server serving static client assets, health probes, and API routes. |
+| **Persistence Layer** | **PostgreSQL 16**, **pg**, In-Memory | ACID transaction persistence, row-level locking, versioned schema migrations, zero-dependency LAN fallback. |
+| **Real-Time Transport** | **Socket.IO 4.8** | Authoritative bidirectional WebSocket transport with handshake auth, channel isolation, and socket fencing. |
+| **Autonomous AI** | Pure Modular TypeScript Engine | Deterministic heuristic multi-agent decision models with automatic human takeover and animation synchronization. |
 | **Desktop Runtime** | **Electron 45** | Native desktop wrapper with integrated background Node.js server for macOS and Windows. |
-| **Testing & Quality** | **Vitest 3**, **Playwright**, **ESLint 9** | Unit, acceptance, integration, multi-agent pacing, and end-to-end verification. |
+| **Testing & Quality** | **Vitest 3**, **Playwright**, **ESLint 9** | Unit, acceptance, integration, multi-agent pacing, hardening, and end-to-end verification. |
 
 ---
 
@@ -206,7 +237,7 @@ For formal mathematical definitions, state machine proofs, and research citation
 | `npm run build:server` | Bundles the standalone server into `dist-server/index.cjs` using `esbuild`. |
 | `npm run build:desktop` | Builds both the React LAN frontend (`dist/`) and the server bundle (`dist-server/index.cjs`). |
 | `npm run desktop` | Builds desktop assets and launches the application inside native Electron. |
-| `npm test` | Runs the full Vitest test suite (353 tests across 27 test files). |
+| `npm test` | Runs the full Vitest test suite (399 tests across 30 test files including hardening suite). |
 | `npm run test:watch` | Runs Vitest in interactive watch mode for test-driven development. |
 | `npm run test:coverage`| Generates detailed test code coverage reports. |
 | `npm run typecheck` | Strict TypeScript compiler validation across client, server, and tests (`tsc -b --noEmit`). |

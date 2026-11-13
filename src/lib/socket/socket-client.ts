@@ -242,6 +242,14 @@ export function getSocket(): MonopolySocket {
     }, 4000);
   }
 
+  // Helper to retrieve saved token for handshake authentication
+  const getStoredToken = () => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('monopoly_reconnect_token') || undefined;
+    }
+    return undefined;
+  };
+
   // Initialize Socket.IO client with bounded backoff and dual WebSocket/polling transports
   socketInstance = io(config.url, {
     transports: ['websocket', 'polling'],
@@ -251,6 +259,9 @@ export function getSocket(): MonopolySocket {
     reconnectionDelay: 1500,
     reconnectionDelayMax: 8000,
     timeout: 20000, // 20s connection timeout accommodating cold starts
+    auth: (cb) => {
+      cb({ token: getStoredToken() });
+    },
   }) as MonopolySocket;
 
   // Lifecycle listeners

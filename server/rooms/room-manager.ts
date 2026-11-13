@@ -1,7 +1,7 @@
 /**
- * Indian Monopoly - In-Memory Room & Session Manager
+ * Indian Monopoly - Room & Session Manager with Durable Persistence
  * Provides authoritative management of player sessions, room lifecycles,
- * member readiness, and invitation codes without external databases.
+ * member readiness, and invitation codes with backing persistence.
  */
 
 import crypto from 'crypto';
@@ -12,6 +12,9 @@ import {
   isValidStartingCash,
   PASS_START_REWARD_OPTIONS,
 } from '../../src/domain/ruleset';
+import { hashToken } from '../persistence';
+import { MemoryStore } from '../persistence/memory-store';
+import { PersistenceStore } from '../persistence/types';
 import { PlayerSession, PlayerSessionPublic, ServerRoom } from '../types/server-types';
 
 export const PLAYER_PALETTE = [
@@ -27,11 +30,37 @@ export const PLAYER_PALETTE = [
 const INVITE_CODE_ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
 
 export class RoomManager {
+  private store: PersistenceStore;
   private rooms: Map<string, ServerRoom> = new Map();
   private codeToRoomId: Map<string, string> = new Map();
   private sessionsByToken: Map<string, PlayerSession> = new Map();
+  private sessionsByTokenHash: Map<string, PlayerSession> = new Map();
   private sessionsByUid: Map<string, PlayerSession> = new Map();
   private socketToUid: Map<string, string> = new Map();
+
+  constructor(store?: PersistenceStore) {
+    this.store = store || new MemoryStore();
+  }
+
+  public getStore(): PersistenceStore {
+    return this.store;
+  }
+
+  /**
+   * Loads persisted active rooms and player sessions on server startup.
+   */
+  public async loadActiveState(): Promise<void> {
+    try {
+      const activeRooms = await this.store.listActiveRooms();
+      for (const room of activeRooms) {
+        this.rooms.set(room.roomId, room);
+        this.codeToRoomId.set(room.inviteCode.toUpperCase(), room.roomId);
+      }
+      console.log(`[RoomManager] Recovered ${activeRooms.length} active room(s) from persistence store.`);
+    } catch (err) {
+      console.warn('[RoomManager] Failed to load active state from store:', err);
+    }
+  }
 
   /**
    * Generates a cryptographically secure, unambiguous 6-character invitation code.
@@ -70,27 +99,37 @@ export class RoomManager {
     const chosenColor = avatarColor || PLAYER_PALETTE[0];
 
     // Check if valid token was provided
-    if (existingToken && this.sessionsByToken.has(existingToken)) {
-      const existing = this.sessionsByToken.get(existingToken)!;
-      existing.displayName = cleanName;
-      existing.avatarColor = chosenColor;
-      existing.lastSeenAt = Date.now();
-      if (ipAddress) existing.ipAddress = ipAddress;
-      return {
-        uid: existing.uid,
-        token: existing.token,
-        displayName: existing.displayName,
-        avatarColor: existing.avatarColor,
-      };
+    if (existingToken) {
+      const existing =
+        this.sessionsByToken.get(existingToken) ||
+        this.sessionsByTokenHash.get(hashToken(existingToken));
+
+      if (existing) {
+        existing.displayName = cleanName;
+        existing.avatarColor = chosenColor;
+        existing.lastSeenAt = Date.now();
+        if (ipAddress) existing.ipAddress = ipAddress;
+        this.store.saveSession(existing).catch((err) => {
+          console.warn('[RoomManager] Failed to persist updated session:', err);
+        });
+        return {
+          uid: existing.uid,
+          token: existing.token,
+          displayName: existing.displayName,
+          avatarColor: existing.avatarColor,
+        };
+      }
     }
 
     // Generate new unique UID and cryptographically secure token
     const uid = 'usr_' + crypto.randomUUID().replace(/-/g, '').slice(0, 12);
     const token = crypto.randomBytes(32).toString('hex');
+    const tokenHash = hashToken(token);
 
     const session: PlayerSession = {
       uid,
       token,
+      tokenHash,
       displayName: cleanName,
       avatarColor: chosenColor,
       socketId: null,
@@ -98,10 +137,16 @@ export class RoomManager {
       connected: false,
       lastSeenAt: Date.now(),
       ipAddress,
+      sessionGeneration: 1,
     };
 
     this.sessionsByToken.set(token, session);
+    this.sessionsByTokenHash.set(tokenHash, session);
     this.sessionsByUid.set(uid, session);
+
+    this.store.saveSession(session).catch((err) => {
+      console.warn('[RoomManager] Failed to persist new session:', err);
+    });
 
     return {
       uid: session.uid,
@@ -115,17 +160,25 @@ export class RoomManager {
    * Resumes an existing player session via reconnection token after page refresh.
    */
   public resumePlayer(token: string, displayName?: string, ipAddress?: string): PlayerSessionPublic | null {
-    if (!token || !this.sessionsByToken.has(token)) {
+    if (!token) return null;
+
+    const tokenHash = hashToken(token);
+    const session = this.sessionsByToken.get(token) || this.sessionsByTokenHash.get(tokenHash);
+
+    if (!session) {
       return null;
     }
 
-    const session = this.sessionsByToken.get(token)!;
     if (displayName && displayName.trim()) {
       session.displayName = displayName.trim().slice(0, 30);
     }
     session.connected = true;
     session.lastSeenAt = Date.now();
     if (ipAddress) session.ipAddress = ipAddress;
+
+    this.store.saveSession(session).catch((err) => {
+      console.warn('[RoomManager] Failed to persist resumed session:', err);
+    });
 
     return {
       uid: session.uid,
@@ -137,18 +190,35 @@ export class RoomManager {
 
   /**
    * Associates a live Socket.IO connection with an authenticated player session.
+   * Manages single active session policy with generation fencing.
    */
-  public bindSocket(socketId: string, uid: string, ipAddress?: string): PlayerSession | null {
+  public bindSocket(
+    socketId: string,
+    uid: string,
+    ipAddress?: string
+  ): { session: PlayerSession | null; previousSocketId: string | null } {
     const session = this.sessionsByUid.get(uid);
-    if (!session) return null;
+    if (!session) return { session: null, previousSocketId: null };
 
+    const previousSocketId = session.socketId && session.socketId !== socketId ? session.socketId : null;
+
+    if (previousSocketId) {
+      this.socketToUid.delete(previousSocketId);
+    }
+
+    session.sessionGeneration = (session.sessionGeneration || 1) + 1;
     session.socketId = socketId;
     session.connected = true;
     session.lastSeenAt = Date.now();
     if (ipAddress) session.ipAddress = ipAddress;
 
     this.socketToUid.set(socketId, uid);
-    return session;
+
+    this.store.saveSession(session).catch((err) => {
+      console.warn('[RoomManager] Failed to persist bound socket:', err);
+    });
+
+    return { session, previousSocketId };
   }
 
   /**
@@ -164,6 +234,9 @@ export class RoomManager {
       session.connected = false;
       session.socketId = null;
       session.lastSeenAt = Date.now();
+      this.store.saveSession(session).catch((err) => {
+        console.warn('[RoomManager] Failed to persist unbound socket:', err);
+      });
       return session;
     }
     return null;
@@ -232,7 +305,7 @@ export class RoomManager {
       uid: hostUid,
       displayName: hostSession.displayName,
       photoURL: null,
-      isReady: false, // Requirement 4: The host is also a human player and must mark themselves ready
+      isReady: false,
       joinedAt: Date.now(),
       colorToken: hostSession.avatarColor || PLAYER_PALETTE[0],
       isCpu: false,
@@ -293,7 +366,7 @@ export class RoomManager {
           uid: cpuUid,
           displayName: rawName,
           photoURL: null,
-          isReady: true, // Computer players are always ready in lobby
+          isReady: true,
           joinedAt: Date.now() + i + 1,
           colorToken: assignedColor,
           isCpu: true,
@@ -332,12 +405,19 @@ export class RoomManager {
       nextJoinSequence: 2 + configuredCpuMembers.length,
       createdAt: Date.now(),
       updatedAt: Date.now(),
-      expiresAt: Date.now() + 24 * 60 * 60 * 1000, // 24-hour lifetime
+      expiresAt: Date.now() + 24 * 60 * 60 * 1000,
     };
 
     this.rooms.set(roomId, room);
     this.codeToRoomId.set(inviteCode, roomId);
     hostSession.roomId = roomId;
+
+    this.store.createRoom(room).catch((err) => {
+      console.warn('[RoomManager] Failed to persist new room:', err);
+    });
+    this.store.saveSession(hostSession).catch((err) => {
+      console.warn('[RoomManager] Failed to persist host room binding:', err);
+    });
 
     return { ok: true, room };
   }
@@ -368,18 +448,20 @@ export class RoomManager {
       // Allow rejoining if the player is already an existing member of the match
       if (room.members[playerUid]) {
         playerSession.roomId = roomId;
+        this.store.saveSession(playerSession).catch(() => {});
         return { ok: true, room };
       }
       return { ok: false, error: 'Match is already in progress. New players cannot join.' };
     }
 
-    if (room.status === 'COMPLETED') {
+    if (room.status === 'COMPLETED' || room.status === 'ARCHIVED') {
       return { ok: false, error: 'This room match has already concluded.' };
     }
 
     // Already a member in the lobby
     if (room.members[playerUid]) {
       playerSession.roomId = roomId;
+      this.store.saveSession(playerSession).catch(() => {});
       return { ok: true, room };
     }
 
@@ -431,6 +513,9 @@ export class RoomManager {
     room.updatedAt = Date.now();
     playerSession.roomId = roomId;
 
+    this.store.updateRoom(room).catch(() => {});
+    this.store.saveSession(playerSession).catch(() => {});
+
     return { ok: true, room };
   }
 
@@ -460,12 +545,12 @@ export class RoomManager {
 
     member.isReady = isReady;
     room.updatedAt = Date.now();
+    this.store.updateRoom(room).catch(() => {});
     return { ok: true, room };
   }
 
   /**
    * Adds an autonomous computer player (CPU) to an open slot in the room.
-   * Host-only operation; maximum 6 total players in room.
    */
   public addCpu(
     roomId: string,
@@ -515,7 +600,6 @@ export class RoomManager {
       }
       finalName = rawName;
     } else {
-      // Find lowest available CPU number (CPU1, CPU2, CPU3...)
       for (let i = 1; i <= 6; i++) {
         const candidate = `CPU${i}`;
         const altCandidate = `CPU ${i}`;
@@ -544,7 +628,7 @@ export class RoomManager {
       uid: cpuUid,
       displayName: finalName,
       photoURL: null,
-      isReady: true, // Computer players are always ready
+      isReady: true,
       joinedAt: Date.now(),
       colorToken: assignedColor,
       isCpu: true,
@@ -559,12 +643,13 @@ export class RoomManager {
       .map((m) => ({ name: m.displayName }));
     room.updatedAt = Date.now();
 
+    this.store.updateRoom(room).catch(() => {});
+
     return { ok: true, room, cpuMember };
   }
 
   /**
    * Removes an autonomous computer player (CPU) from the room before the match starts.
-   * Host-only operation; cannot remove human players.
    */
   public removeCpu(
     roomId: string,
@@ -599,12 +684,13 @@ export class RoomManager {
     room.cpuPlayers = remainingCpus.length > 0 ? remainingCpus : undefined;
     room.updatedAt = Date.now();
 
+    this.store.updateRoom(room).catch(() => {});
+
     return { ok: true, room };
   }
 
   /**
    * Renames an autonomous computer player (CPU) in the lobby.
-   * Host-only operation; cannot rename human players; enforces length & uniqueness.
    */
   public renameCpu(
     roomId: string,
@@ -669,6 +755,8 @@ export class RoomManager {
       .map((m) => ({ name: m.displayName }));
     room.updatedAt = Date.now();
 
+    this.store.updateRoom(room).catch(() => {});
+
     return { ok: true, room };
   }
 
@@ -684,6 +772,7 @@ export class RoomManager {
     const roomId = session.roomId;
     const room = this.rooms.get(roomId);
     session.roomId = null;
+    this.store.saveSession(session).catch(() => {});
 
     if (!room) return { ok: true };
 
@@ -697,6 +786,7 @@ export class RoomManager {
     if (remainingMembers.length === 0) {
       this.rooms.delete(roomId);
       this.codeToRoomId.delete(room.inviteCode);
+      this.store.deleteRoom(roomId).catch(() => {});
       return { ok: true, roomDeleted: true };
     }
 
@@ -707,6 +797,8 @@ export class RoomManager {
         room.hostUid = nextHost.uid;
       }
     }
+
+    this.store.updateRoom(room).catch(() => {});
 
     return { ok: true, room };
   }
@@ -724,6 +816,7 @@ export class RoomManager {
   public updateRoom(room: ServerRoom): void {
     room.updatedAt = Date.now();
     this.rooms.set(room.roomId, room);
+    this.store.updateRoom(room).catch(() => {});
   }
 
   /**
@@ -735,6 +828,7 @@ export class RoomManager {
       if (now > room.expiresAt || (Object.keys(room.members).length === 0 && now - room.updatedAt > 30 * 60 * 1000)) {
         this.rooms.delete(roomId);
         this.codeToRoomId.delete(room.inviteCode);
+        this.store.deleteRoom(roomId).catch(() => {});
       }
     }
   }

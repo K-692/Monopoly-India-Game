@@ -1,18 +1,20 @@
 /**
- * Indian Monopoly - LAN Authoritative Server
+ * Indian Monopoly - Production & LAN Authoritative Server
  * Express + Socket.IO server hosting the production-built React app
- * and providing authoritative real-time multiplayer gameplay across the local network.
+ * and providing authoritative real-time multiplayer gameplay across
+ * local Wi-Fi networks and public cloud deployments (Render).
  */
 
 import express from 'express';
+import fs from 'fs';
 import http from 'http';
 import path from 'path';
-import fs from 'fs';
 import { Server } from 'socket.io';
-import { getLanAddresses, getLanServerInfo } from './network/get-lan-addresses';
-import { isOriginAllowed, corsMiddleware } from './network/cors-config';
-import { RoomManager } from './rooms/room-manager';
 import { GameManager } from './game/game-manager';
+import { corsMiddleware, isOriginAllowed } from './network/cors-config';
+import { getLanAddresses, getLanServerInfo } from './network/get-lan-addresses';
+import { createPersistenceStore, PersistenceStore } from './persistence';
+import { RoomManager } from './rooms/room-manager';
 import { setupSocketHandlers } from './socket/socket-handlers';
 import {
   ClientToServerEvents,
@@ -29,12 +31,21 @@ export interface LanServerOptions {
   distPath?: string;
   clientOrigin?: string;
   nodeEnv?: string;
+  store?: PersistenceStore;
 }
 
 export function createLanServer(options?: LanServerOptions) {
   const PORT = options?.port ?? DEFAULT_PORT;
   const app = express();
   const httpServer = http.createServer(app);
+
+  // Persistence Store initialization (PostgreSQL in production, In-Memory in LAN/tests)
+  const store =
+    options?.store ??
+    createPersistenceStore({
+      databaseUrl: process.env.DATABASE_URL,
+      nodeEnv: options?.nodeEnv,
+    });
 
   // Initialize Socket.IO with environment-aware CORS (strict in production, permissive in LAN/dev)
   const io = new Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>(
@@ -57,11 +68,19 @@ export function createLanServer(options?: LanServerOptions) {
     }
   );
 
-  const roomManager = new RoomManager();
-  const gameManager = new GameManager();
+  const roomManager = new RoomManager(store);
+  const gameManager = new GameManager(store);
 
   // Setup Socket.IO Event Handlers
   setupSocketHandlers(io, roomManager, gameManager);
+
+  // Initialize store and recover active matches
+  store
+    .init()
+    .then(() => Promise.all([roomManager.loadActiveState(), gameManager.recoverActiveGames()]))
+    .catch((err) => {
+      console.error('[Server] Critical persistence store initialization failure:', err);
+    });
 
   // Setup periodic cleanup of abandoned rooms
   const cleanupInterval = setInterval(() => {
@@ -74,12 +93,17 @@ export function createLanServer(options?: LanServerOptions) {
   // Express middleware
   app.use(express.json());
 
-  // API Endpoints
-  app.get('/api/health', (_req, res) => {
-    res.json({
-      status: 'ok',
+  // API Health & Readiness Endpoint
+  app.get('/api/health', async (_req, res) => {
+    const health = await store.isHealthy();
+    const statusCode = health.ok ? 200 : 503;
+    res.status(statusCode).json({
+      status: health.ok ? 'ok' : 'degraded',
       uptime: process.uptime(),
       timestamp: Date.now(),
+      database: health.ok ? 'connected' : 'error',
+      dbError: health.error,
+      connectedClients: io.sockets.sockets.size,
     });
   });
 
@@ -103,12 +127,12 @@ export function createLanServer(options?: LanServerOptions) {
   } else {
     app.get('/', (_req, res) => {
       res.send(
-        '<h1>Indian Monopoly LAN Server</h1><p>Frontend dist directory not found. Run <code>npm run build:lan</code> first.</p>'
+        '<h1>Indian Monopoly Server</h1><p>Frontend dist directory not found. Run <code>npm run build</code> first.</p>'
       );
     });
   }
 
-  return { app, httpServer, io, roomManager, gameManager, cleanupInterval };
+  return { app, httpServer, io, roomManager, gameManager, store, cleanupInterval };
 }
 
 // Start server directly when executed as main module
@@ -123,7 +147,7 @@ const isMain =
 
 if (isMain) {
   const PORT = DEFAULT_PORT;
-  const { httpServer } = createLanServer({
+  const { httpServer, store, cleanupInterval, io } = createLanServer({
     port: PORT,
     clientOrigin: process.env.CLIENT_ORIGIN,
     nodeEnv: process.env.NODE_ENV,
@@ -149,7 +173,7 @@ Allowed Client Origin: ${allowedOriginsDisplay}
 
 Multiplayer Backend: READY
 Transport: Socket.IO (WebSocket + Polling)
-State Engine: In-Memory (Single Instance)
+State Engine: Persistent Store (PostgreSQL / ACID)
 
 Waiting for worldwide players...
 ========================================
@@ -184,9 +208,12 @@ Waiting for players...
   });
 
   const handleShutdown = () => {
-    console.log('\nStopping LAN server and clearing in-memory rooms...');
-    httpServer.close(() => {
-      console.log('LAN Server stopped cleanly.');
+    console.log('\nStopping server gracefully...');
+    clearInterval(cleanupInterval);
+    io.close();
+    httpServer.close(async () => {
+      await store.close().catch(() => {});
+      console.log('Server stopped cleanly.');
       process.exit(0);
     });
   };
