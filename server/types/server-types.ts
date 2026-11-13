@@ -101,6 +101,11 @@ export interface ClientToServerEvents {
     callback: (res: RoomJoinResponse) => void
   ) => void;
 
+  'room:get': (
+    data: { roomId: string },
+    callback: (res: { ok: boolean; room?: RoomState; error?: string }) => void
+  ) => void;
+
   'room:leave': (
     callback?: (res: { ok: boolean }) => void
   ) => void;

@@ -1,0 +1,21 @@
+# Render Blueprint Specification for Indian Monopoly Game Server
+# Free Web Service running Node.js + Socket.IO Authoritative Backend
+# Docs: https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: monopoly-india-server
+    runtime: node
+    branch: feature/render-public-hosting
+    plan: free
+    region: oregon
+    buildCommand: npm ci --include=dev && npm run build:server
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: CLIENT_ORIGIN
+        value: https://k-692.github.io
+

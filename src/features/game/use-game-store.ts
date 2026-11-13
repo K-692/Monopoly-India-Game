@@ -43,6 +43,7 @@ interface GameStoreState {
   dispatchAction: (commandType: GameCommand['type'], payload?: Record<string, unknown>) => void;
   sendEmote: (emote: string, senderName: string) => void;
   tickTurnTimer: () => void;
+  setError: (error: string | null) => void;
   dismissError: () => void;
 }
 
@@ -418,6 +419,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   tickTurnTimer: () => {
     // Authoritative server manages turn countdown via synchronized 'game:timer' broadcasts
   },
+
+  setError: (error: string | null) => set({ error }),
 
   dismissError: () => set({ error: null }),
 }));

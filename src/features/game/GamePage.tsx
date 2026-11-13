@@ -87,20 +87,39 @@ export const GamePage: React.FC = () => {
 
     const socket = getSocket();
 
-    // Authoritatively join game room on the server to retrieve active state and attach presence
-    socket.emit('game:join', { gameId }, (response) => {
-      if (response && response.ok) {
-        if (response.gameState) {
-          useGameStore.getState().setLiveGameState(response.gameState);
+    const joinGameSession = () => {
+      // Authoritatively join game room on the server to retrieve active state and attach presence
+      socket.emit('game:join', { gameId }, (response) => {
+        if (response && response.ok) {
+          if (response.gameState) {
+            useGameStore.getState().setLiveGameState(response.gameState);
+            useGameStore.getState().setError(null);
+          }
+          if (response.room) {
+            useRoomStore.setState({ currentRoom: response.room, activeRoomId: response.room.roomId });
+          }
+        } else {
+          const errMsg =
+            response?.error === 'Game not found'
+              ? 'The game server restarted or the room expired. Please create or join a new room.'
+              : response?.error || 'Game session unavailable. Please return to Play Hub.';
+          useGameStore.getState().setError(errMsg);
         }
-        if (response.room) {
-          useRoomStore.setState({ currentRoom: response.room, activeRoomId: response.room.roomId });
-        }
-      }
-    });
+      });
+    };
+
+    if (socket.connected) {
+      joinGameSession();
+    } else {
+      socket.once('connect', joinGameSession);
+    }
+
+    socket.on('connect', joinGameSession);
+
+    let cleanupRoom: (() => void) | undefined;
 
     if (currentRoom && currentRoom.members && Object.keys(currentRoom.members).length >= 1) {
-      return initializeGameFromRoom(
+      cleanupRoom = initializeGameFromRoom(
         currentRoom.roomId,
         gameId,
         currentRoom.members,
@@ -109,11 +128,13 @@ export const GamePage: React.FC = () => {
     } else if (!currentRoom) {
       // Rehydrate room from gameId if user refreshed or arrived directly
       const derivedRoomId = 'room_' + gameId.replace('game_', '');
-      const unsubscribe = subscribeToRoom(derivedRoomId);
-      return () => {
-        unsubscribe();
-      };
+      cleanupRoom = subscribeToRoom(derivedRoomId);
     }
+
+    return () => {
+      socket.off('connect', joinGameSession);
+      if (cleanupRoom) cleanupRoom();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameId, currentRoom?.roomId]);
 
@@ -127,6 +148,27 @@ export const GamePage: React.FC = () => {
       });
     }
   }, [gameState?.status, gameState?.winnerUid]);
+
+  if (error && !gameState) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+        <Card className="max-w-md w-full p-6 border-red-300 dark:border-red-900 shadow-xl space-y-4">
+          <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-950/60 text-red-600 mx-auto flex items-center justify-center">
+            <AlertCircle className="w-6 h-6" />
+          </div>
+          <h2 className="font-serif font-black text-xl text-red-700 dark:text-red-400">
+            Game Unavailable
+          </h2>
+          <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
+            {error}
+          </p>
+          <Button onClick={() => navigate('/')} variant="primary" className="w-full font-bold">
+            <ArrowLeft className="w-4 h-4 mr-1.5" /> Return to Play Hub
+          </Button>
+        </Card>
+      </div>
+    );
+  }
 
   if (!gameState) {
     return (

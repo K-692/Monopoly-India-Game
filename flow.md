@@ -375,3 +375,75 @@ This implementation serves as a formal reference for:
 - **Server-Authoritative Multi-Agent Turn Coordination:** Managing hybrid human-AI participants under identical authoritative pipelines without leaking unfair latency or state advantages.
 - **Visual Pacing Synchronization in Distributed Board Games:** Bridging the gap between instantaneous server state transitions and physical board-game presentation aesthetics.
 - **Idempotent Fault-Tolerant Action Pipelines:** Safeguarding multiplayer game loops against packet retransmissions, network drops, and race conditions.
+
+---
+
+## 9. Worldwide Public Hosting Architecture (GitHub Pages + Render Free)
+
+### 9.1 High-Level Dual-Hosting Paradigm
+
+To enable global real-time multiplayer over the public internet while preserving 100% offline local Wi-Fi LAN capability, the system establishes two strictly separated operational configurations over the identical authoritative engine:
+
+```
++----------------------------------------------------------------------------------------------------+
+|                                 DUAL DEPLOYMENT TOPOLOGY                                           |
+|                                                                                                    |
+|  [ MODE A: Offline Local Wi-Fi (LAN) ]                   [ MODE B: Worldwide Public Hosting ]      |
+|  - Host: Local Machine (`npm run lan:host`)              - Host: Render Free Web Service            |
+|  - Client: Local Browser / Mobile Hotspot                - Client: GitHub Pages (Global CDN)        |
+|  - Network Boundary: RFC 1918 Private Subnet            - Network Boundary: Public Internet HTTPS  |
+|  - Origin Policy: Permissive LAN Wildcard                - Origin Policy: Strict Whitelist CORS     |
+|  - Dependencies: Zero External Cloud                     - Dependencies: Render (Node) + GitHub     |
++----------------------------------------------------------------------------------------------------+
+```
+
+### 9.2 Asymmetric Origin Verification & Production CORS
+
+In production mode (`NODE_ENV=production`), the Node.js backend discards wildcard origin matching and enforces deterministic origin verification:
+
+$$\text{isOriginAllowed}(\text{Origin}) = \begin{cases} 
+\text{true} & \text{if } \text{Origin} = \emptyset \quad (\text{Health Check, Curl, Internal}) \\
+\text{true} & \text{if } \text{clean}(\text{Origin}) \in \text{CLIENT\_ORIGIN} \lor \text{clean}(\text{Origin}) = \text{"https://k-692.github.io"} \\
+\text{false} & \text{otherwise} \implies \text{HTTP 403 Forbidden}
+\end{cases}$$
+
+### 9.3 Client Connection Resolution & Fail-Closed Guard
+
+To prevent silent fallback to `localhost` in deployed public environments, the client implements a strict configuration classifier:
+
+$$\text{resolveServerConfig}() = \begin{cases}
+(\text{clean}(VITE\_SERVER\_URL), \text{public}) & \text{if } VITE\_SERVER\_URL \neq \emptyset \\
+(\emptyset, \text{unconfigured}) & \text{if } \neg \text{isPrivateHost}(\text{hostname}) \land VITE\_SERVER\_URL = \emptyset \\
+(\text{origin}, \text{lan}) & \text{if } \text{isPrivateHost}(\text{hostname}) \land \text{port} \neq 5173 \\
+(\text{hostname}:4173, \text{dev}) & \text{if } \text{port} = 5173
+\end{cases}$$
+
+Where $\text{isPrivateHost}(h)$ strictly identifies RFC 1918 subnets (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`), `localhost`, `127.0.0.1`, and `.local`.
+
+### 9.4 Bounded Cold-Start Wakeup & State Loss Invariant
+
+Render Free services sleep after 15 minutes of inactivity. When awoken, instances exhibit cold starts lasting $T_{\text{wake}} \approx 50\text{--}70\text{ seconds}$. 
+
+The client employs a bounded exponential backoff with a maximum delay of 8000 ms:
+$$\Delta t_k = \min(8000, 1500 \times 1.5^{k}) \quad (k \le 20)$$
+
+Because all room state is held in-memory within a single Render instance:
+$$\text{ServerRestart}() \implies \text{Rooms} = \emptyset \land \text{Sessions} = \emptyset$$
+
+A rejoining client querying $\text{room:get}(\text{roomId})$ where $\text{roomId} \notin \text{Rooms}$ receives:
+$$\text{response.error} = \text{"The game server restarted or the room expired. Please create or join a new room."}$$
+Preventing loading screen hangs.
+
+### 9.5 Formal Verification Table
+
+| Invariant / Mechanism | Formal Invariant Definition | Implementation Module | Verification Status |
+|---|---|---|---|
+| **Production CORS Whitelist** | $\text{Origin} \notin \{\text{CLIENT\_ORIGIN}\} \implies \text{HTTP 403}$ | `server/network/cors-config.ts` | ✅ Verified (`server-cors-and-health.test.ts`) |
+| **Health Check Non-Leaking** | $\text{GET } /api/health \implies \text{HTTP 200 } \{"status":"ok"\} \land \text{Tokens} = \emptyset$ | `server/index.ts` | ✅ Verified (`server-cors-and-health.test.ts`) |
+| **Compiled Start Command** | $\text{npm start} \implies \text{node dist-server/index.cjs}$ | `package.json` | ✅ Verified (`server-cors-and-health.test.ts`) |
+| **Fail-Closed Public Guard** | $\text{isPublic}(h) \land \neg VITE\_SERVER\_URL \implies \text{status} = \text{'unconfigured'} \land \neg \text{connect}(\text{localhost})$ | `socket-client.ts` | ✅ Verified (`hosting-connection-config.test.ts`) |
+| **LAN Host Selection** | $\text{isPrivate}(h) \implies \text{url} = \text{window.location.origin}$ | `socket-client.ts` | ✅ Verified (`hosting-connection-config.test.ts`) |
+| **Expired Room Notice** | $\text{RoomExpired} \lor \text{Restarted} \implies \text{error} = \text{"The game server restarted..."}$ | `socket-handlers.ts` & `LobbyPage.tsx` & `GamePage.tsx` | ✅ Verified (`server-cors-and-health.test.ts`) |
+| **GitHub Pages Base Path** | $\text{basePath} = \text{"/Monopoly-India-Game/"} \land \text{Router} = \text{HashRouter}$ | `vite.config.ts` & `router.tsx` | ✅ Verified (`build` output) |
+| **Render Blueprint Spec** | $\text{Plan} = \text{free} \land \text{Branch} = \text{"feature/render-public-hosting"} \land \text{Services} = 1$ | `render.yaml` | ✅ Verified (`render.yaml`) |
+

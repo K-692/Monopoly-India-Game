@@ -10,6 +10,7 @@ import path from 'path';
 import fs from 'fs';
 import { Server } from 'socket.io';
 import { getLanAddresses, getLanServerInfo } from './network/get-lan-addresses';
+import { isOriginAllowed, corsMiddleware } from './network/cors-config';
 import { RoomManager } from './rooms/room-manager';
 import { GameManager } from './game/game-manager';
 import { setupSocketHandlers } from './socket/socket-handlers';
@@ -26,6 +27,8 @@ const HOST = '0.0.0.0';
 export interface LanServerOptions {
   port?: number;
   distPath?: string;
+  clientOrigin?: string;
+  nodeEnv?: string;
 }
 
 export function createLanServer(options?: LanServerOptions) {
@@ -33,13 +36,20 @@ export function createLanServer(options?: LanServerOptions) {
   const app = express();
   const httpServer = http.createServer(app);
 
-  // Initialize Socket.IO with CORS open for local LAN origins
+  // Initialize Socket.IO with environment-aware CORS (strict in production, permissive in LAN/dev)
   const io = new Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>(
     httpServer,
     {
       cors: {
-        origin: '*',
+        origin: (requestOrigin, callback) => {
+          if (isOriginAllowed(requestOrigin, { nodeEnv: options?.nodeEnv, clientOrigin: options?.clientOrigin })) {
+            callback(null, true);
+          } else {
+            callback(new Error(`CORS origin not allowed: ${requestOrigin}`));
+          }
+        },
         methods: ['GET', 'POST'],
+        credentials: true,
       },
       pingTimeout: 10000,
       pingInterval: 5000,
@@ -58,13 +68,8 @@ export function createLanServer(options?: LanServerOptions) {
     roomManager.cleanupExpiredRooms();
   }, 15 * 60 * 1000);
 
-  // Enable CORS for LAN and local development origins
-  app.use((_req, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
-    next();
-  });
+  // Apply environment-aware CORS middleware enforcing allowed origin in production, open on LAN
+  app.use(corsMiddleware({ nodeEnv: options?.nodeEnv, clientOrigin: options?.clientOrigin }));
 
   // Express middleware
   app.use(express.json());
@@ -107,19 +112,49 @@ export function createLanServer(options?: LanServerOptions) {
 }
 
 // Start server directly when executed as main module
-const isMain = process.argv[1] && (process.argv[1].endsWith('index.ts') || process.argv[1].endsWith('index.js'));
+const isMain =
+  (typeof require !== 'undefined' && require.main === module) ||
+  Boolean(
+    process.argv[1] &&
+      (process.argv[1].endsWith('index.ts') ||
+        process.argv[1].endsWith('index.js') ||
+        process.argv[1].endsWith('index.cjs'))
+  );
+
 if (isMain) {
   const PORT = DEFAULT_PORT;
   const { httpServer } = createLanServer({ port: PORT });
 
   httpServer.listen(PORT, HOST, () => {
-    const detected = getLanAddresses();
-    const lanLines =
-      detected.length > 0
-        ? detected.map((d) => `http://${d.address}:${PORT}`).join('\n')
-        : 'No external Wi-Fi / LAN interface detected (Local Only)';
+    const isProduction = process.env.NODE_ENV === 'production';
+    if (isProduction) {
+      console.log(`
+========================================
+     INDIAN MONOPOLY HOSTED SERVER
+========================================
 
-    console.log(`
+Server Status: RUNNING
+Environment: production
+Port: ${PORT}
+Host: ${HOST}
+Health Check: http://localhost:${PORT}/api/health
+Allowed Client Origin: ${process.env.CLIENT_ORIGIN || 'https://k-692.github.io'}
+
+Multiplayer Backend: READY
+Transport: Socket.IO (WebSocket + Polling)
+State Engine: In-Memory (Single Instance)
+
+Waiting for worldwide players...
+========================================
+`);
+    } else {
+      const detected = getLanAddresses();
+      const lanLines =
+        detected.length > 0
+          ? detected.map((d) => `http://${d.address}:${PORT}`).join('\n')
+          : 'No external Wi-Fi / LAN interface detected (Local Only)';
+
+      console.log(`
 ========================================
        INDIAN MONOPOLY LAN SERVER
 ========================================
@@ -138,6 +173,7 @@ Transport: Socket.IO
 Waiting for players...
 ========================================
 `);
+    }
   });
 
   const handleShutdown = () => {

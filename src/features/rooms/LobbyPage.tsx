@@ -29,6 +29,7 @@ import {
 import QRCode from 'qrcode';
 import { copyToClipboard } from '@/lib/utils/clipboard';
 import { useToastStore } from '@/components/feedback/toast-store';
+import { isPublicHostingMode, isPrivateNetworkHost } from '@/lib/socket/socket-client';
 
 const TOTAL_ROOM_SLOTS = 6;
 
@@ -87,9 +88,18 @@ export const LobbyPage: React.FC = () => {
     }
   }, [currentRoom?.status, currentRoom?.gameId, navigate]);
 
-  // Determine authoritative shareable LAN URL (never localhost for other devices)
+  // Determine authoritative shareable URL (GitHub Pages in public hosted mode, Wi-Fi LAN IP in LAN mode)
   const getShareableUrl = (): string => {
     if (!currentRoom) return '';
+
+    // If running in public hosted mode (or external HTTPS domain like GitHub Pages)
+    if (isPublicHostingMode() || (typeof window !== 'undefined' && !isPrivateNetworkHost(window.location.hostname))) {
+      const origin = typeof window !== 'undefined' ? window.location.origin : '';
+      const pathname = typeof window !== 'undefined' ? window.location.pathname : '/';
+      const cleanPath = pathname.endsWith('/') ? pathname : `${pathname}/`;
+      return `${origin}${cleanPath}#/join/${currentRoom.inviteCode}`;
+    }
+
     const port = lanInfo?.port || (typeof window !== 'undefined' ? window.location.port || '4173' : '4173');
     const targetIp =
       selectedLanAddress ||

@@ -186,6 +186,30 @@ export function setupSocketHandlers(
       }
     });
 
+    socket.on('room:get', ({ roomId }, callback) => {
+      const room = roomManager.getRoom(roomId);
+      if (!room) {
+        if (typeof callback === 'function') {
+          callback({
+            ok: false,
+            error: 'The game server restarted or the room expired. Please create or join a new room.',
+          });
+        }
+        return;
+      }
+
+      socket.join(roomId);
+      const session = socket.data.session;
+      if (session) {
+        session.roomId = roomId;
+      }
+
+      socket.emit('room:state', room);
+      if (typeof callback === 'function') {
+        callback({ ok: true, room });
+      }
+    });
+
     socket.on('room:set-ready', ({ isReady }, callback) => {
       if (!requireSession(socket, roomManager)) return;
       const session = socket.data.session!;

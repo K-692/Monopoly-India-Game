@@ -9,7 +9,7 @@ import { create } from 'zustand';
 import { RoomState } from '@/domain/game-types';
 import { sound } from '@/lib/audio/sound-engine';
 import { HostCustomRules } from '@/domain/ruleset';
-import { getSocket } from '@/lib/socket/socket-client';
+import { getSocket, isPublicHostingMode } from '@/lib/socket/socket-client';
 import { useAuthStore } from '@/features/auth/use-auth-store';
 import { LanServerInfo } from '../../../server/types/server-types';
 
@@ -51,6 +51,11 @@ export const useRoomStore = create<RoomStoreState>((set, get) => ({
   selectedLanAddress: null,
 
   fetchLanInfo: async () => {
+    // In public hosted mode, LAN interface discovery is not required for remote players
+    if (isPublicHostingMode()) {
+      return;
+    }
+
     try {
       let baseUrl = '';
       if (typeof window !== 'undefined') {
@@ -163,9 +168,28 @@ export const useRoomStore = create<RoomStoreState>((set, get) => ({
   subscribeToRoom: (roomId: string) => {
     const socket = getSocket();
 
+    const queryRoom = () => {
+      socket.emit('room:get', { roomId }, (res) => {
+        if (!res.ok) {
+          set({
+            error: res.error || 'The game server restarted or the room expired. Please create or join a new room.',
+            currentRoom: null,
+            isLoading: false,
+          });
+        } else if (res.room) {
+          set({
+            currentRoom: res.room,
+            activeRoomId: roomId,
+            error: null,
+            isLoading: false,
+          });
+        }
+      });
+    };
+
     const handleRoomState = (room: RoomState) => {
       if (room.roomId === roomId) {
-        set({ currentRoom: room, activeRoomId: roomId });
+        set({ currentRoom: room, activeRoomId: roomId, error: null });
       }
     };
 
@@ -174,20 +198,28 @@ export const useRoomStore = create<RoomStoreState>((set, get) => ({
         if (!state.currentRoom || state.currentRoom.roomId !== roomId) return state;
         const member = state.currentRoom.members[presence.uid];
         if (!member) return state;
-        // Presence update
         return state;
       });
     };
 
     socket.on('room:state', handleRoomState);
     socket.on('player:presence', handlePresence);
+    socket.on('connect', queryRoom);
 
-    // Initial fetch of LAN info for invite link display
+    // Initial query for room state
+    if (socket.connected) {
+      queryRoom();
+    } else {
+      socket.once('connect', queryRoom);
+    }
+
+    // Initial fetch of LAN info for invite link display (LAN mode only)
     get().fetchLanInfo();
 
     return () => {
       socket.off('room:state', handleRoomState);
       socket.off('player:presence', handlePresence);
+      socket.off('connect', queryRoom);
     };
   },
 

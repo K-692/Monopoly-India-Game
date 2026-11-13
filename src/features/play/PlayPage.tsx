@@ -20,8 +20,11 @@ import {
   Check,
   AlertCircle,
   HelpCircle,
+  Globe,
+  RotateCcw,
+  Loader2,
 } from 'lucide-react';
-import { getSocket } from '@/lib/socket/socket-client';
+import { getSocket, useConnectionStore } from '@/lib/socket/socket-client';
 
 export const PlayPage: React.FC = () => {
   const navigate = useNavigate();
@@ -34,6 +37,12 @@ export const PlayPage: React.FC = () => {
   const [isJoining, setIsJoining] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [isSocketConnected, setIsSocketConnected] = useState(false);
+  const {
+    status: connectionStatus,
+    isPublicHosting,
+    isWakingUp,
+    retryConnection,
+  } = useConnectionStore();
 
   // Requirement 6: Inline Username Setup State & Validation
   const isValidUsername = (name?: string | null): boolean => {
@@ -191,31 +200,66 @@ export const PlayPage: React.FC = () => {
           </p>
         </div>
 
-        {/* LAN Server Connection Status Indicator & Rules Quick Access */}
-        <div className="mb-5 flex flex-wrap items-center justify-center gap-2">
-          {isSocketConnected ? (
+        {/* Server Connection Status Indicator & Rules Quick Access */}
+        <div className="mb-4 flex flex-wrap items-center justify-center gap-2">
+          {connectionStatus === 'unconfigured' ? (
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-red-50 dark:bg-red-950/60 border border-red-300 dark:border-red-800 text-red-800 dark:text-red-300 text-xs font-semibold shadow-xs">
+              <AlertCircle className="w-3.5 h-3.5 text-red-600 dark:text-red-400" />
+              <span>Configuration Required: VITE_SERVER_URL missing</span>
+            </div>
+          ) : isSocketConnected || connectionStatus === 'connected' ? (
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs font-semibold shadow-xs">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
               </span>
-              <Wifi className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span>LAN Multiplayer Server: Online</span>
-              {lanInfo?.primaryLanAddress && (
-                <span className="text-[11px] font-mono bg-emerald-100 dark:bg-emerald-900/60 px-2 py-0.5 rounded text-emerald-900 dark:text-emerald-200">
-                  {lanInfo.primaryLanAddress}:{lanInfo.port}
-                </span>
+              {isPublicHosting ? (
+                <>
+                  <Globe className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>Hosted Multiplayer Server: Online</span>
+                </>
+              ) : (
+                <>
+                  <Wifi className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>LAN Multiplayer Server: Online</span>
+                  {lanInfo?.primaryLanAddress && (
+                    <span className="text-[11px] font-mono bg-emerald-100 dark:bg-emerald-900/60 px-2 py-0.5 rounded text-emerald-900 dark:text-emerald-200">
+                      {lanInfo.primaryLanAddress}:{lanInfo.port}
+                    </span>
+                  )}
+                </>
               )}
             </div>
           ) : (
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-50 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs font-medium">
-              <WifiOff className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+              {connectionStatus === 'connecting' ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-600 dark:text-amber-400" />
+              ) : (
+                <WifiOff className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+              )}
               <span>
-                LAN Server: Offline or Connecting. Launch with{' '}
-                <code className="font-mono bg-amber-100 dark:bg-amber-900/60 px-1.5 py-0.5 rounded">
-                  npm run lan:host
-                </code>
+                {isPublicHosting ? (
+                  isWakingUp
+                    ? 'Free Game Server is waking up (~1 min)...'
+                    : 'Connecting to Hosted Game Server...'
+                ) : (
+                  <>
+                    LAN Server: Offline or Connecting. Launch with{' '}
+                    <code className="font-mono bg-amber-100 dark:bg-amber-900/60 px-1.5 py-0.5 rounded">
+                      npm run lan:host
+                    </code>
+                  </>
+                )}
               </span>
+              <button
+                type="button"
+                onClick={retryConnection}
+                title="Retry connecting to game server"
+                className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-900 dark:text-amber-100 bg-amber-200/80 dark:bg-amber-900/80 px-2 py-0.5 rounded hover:bg-amber-300 transition-colors cursor-pointer ml-1"
+              >
+                <RotateCcw className="w-3 h-3" />
+                <span>Retry</span>
+              </button>
             </div>
           )}
 
@@ -229,6 +273,36 @@ export const PlayPage: React.FC = () => {
             <span>Game Rules (?)</span>
           </button>
         </div>
+
+        {/* Free-Tier Wake-Up Callout Banner */}
+        {isPublicHosting && isWakingUp && !isSocketConnected && (
+          <div className="max-w-xl mx-auto mb-5 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/80 border border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200 text-xs flex items-center gap-2.5 shadow-sm">
+            <Loader2 className="w-4 h-4 animate-spin text-amber-600 dark:text-amber-400 shrink-0" />
+            <div className="flex-1 text-left">
+              <span className="font-bold">Render Free Instance Spin-Up:</span> Free web services automatically spin down after inactivity. Cold starts typically take 50–70 seconds. Once awake, the board connects automatically!
+            </div>
+            <button
+              type="button"
+              onClick={retryConnection}
+              className="px-2.5 py-1 rounded bg-amber-200 dark:bg-amber-800 text-amber-950 dark:text-white text-xs font-bold hover:bg-amber-300 dark:hover:bg-amber-700 transition-colors cursor-pointer shrink-0"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
+        {/* Missing VITE_SERVER_URL Notice */}
+        {connectionStatus === 'unconfigured' && (
+          <div className="max-w-xl mx-auto mb-5 p-3.5 rounded-xl bg-red-50 dark:bg-red-950/80 border border-red-300 dark:border-red-800 text-red-900 dark:text-red-200 text-xs flex items-start gap-2.5 shadow-sm">
+            <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+            <div className="flex-1 text-left space-y-1">
+              <div className="font-bold">Production Backend URL Not Configured</div>
+              <div>
+                This deployed frontend needs to know where your Render backend is running. Set the repository Actions variable <code className="font-mono bg-red-100 dark:bg-red-900/80 px-1 py-0.5 rounded">VITE_SERVER_URL</code> to your Render Web Service URL (e.g. <code className="font-mono bg-red-100 dark:bg-red-900/80 px-1 py-0.5 rounded">https://monopoly-india-server.onrender.com</code>).
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* USERNAME SETUP & TYCOON IDENTITY PROMPT (Requirement 6) */}
         {!hasUsername || isEditingName ? (
