@@ -17,7 +17,7 @@ import http from 'http';
 import fs from 'fs';
 import path from 'path';
 import { io as ClientSocket, Socket as ClientSocketType } from 'socket.io-client';
-import { isOriginAllowed, normalizeOrigin } from '../../server/network/cors-config';
+import { isOriginAllowed, normalizeOrigin, getAllowedOrigins } from '../../server/network/cors-config';
 import { createLanServer } from '../../server/index';
 import {
   ClientToServerEvents,
@@ -68,12 +68,41 @@ describe('Backend Production Readiness & Multiplayer Contract', () => {
       expect(allowed).toBe(true);
     });
 
+    it('permits a custom Render Static Site frontend origin configured via CLIENT_ORIGIN', () => {
+      const allowed = isOriginAllowed('https://monopoly-india-frontend.onrender.com', {
+        nodeEnv: 'production',
+        clientOrigin: 'https://monopoly-india-frontend.onrender.com',
+      });
+      expect(allowed).toBe(true);
+    });
+
+    it('permits configured Render frontend origin even when configured with trailing slashes, uppercase, or path', () => {
+      const allowed = isOriginAllowed('https://monopoly-india-frontend.onrender.com', {
+        nodeEnv: 'production',
+        clientOrigin: 'https://Monopoly-India-Frontend.onrender.com/subpath/',
+      });
+      expect(allowed).toBe(true);
+    });
+
+    it('supports multiple comma-separated and semicolon-separated origins in CLIENT_ORIGIN', () => {
+      const multiOrigin = 'https://render-frontend.onrender.com, https://k-692.github.io; https://staging.onrender.com';
+      expect(isOriginAllowed('https://render-frontend.onrender.com', { nodeEnv: 'production', clientOrigin: multiOrigin })).toBe(true);
+      expect(isOriginAllowed('https://k-692.github.io', { nodeEnv: 'production', clientOrigin: multiOrigin })).toBe(true);
+      expect(isOriginAllowed('https://staging.onrender.com', { nodeEnv: 'production', clientOrigin: multiOrigin })).toBe(true);
+      expect(isOriginAllowed('https://unlisted-origin.com', { nodeEnv: 'production', clientOrigin: multiOrigin })).toBe(false);
+    });
+
     it('rejects an unrelated or unauthorized production origin', () => {
       const rejected = isOriginAllowed('https://unauthorized-phishing.com', {
         nodeEnv: 'production',
-        clientOrigin: 'https://k-692.github.io',
+        clientOrigin: 'https://monopoly-frontend.onrender.com',
       });
       expect(rejected).toBe(false);
+    });
+
+    it('falls back to GitHub Pages origin when CLIENT_ORIGIN is not provided in production', () => {
+      expect(isOriginAllowed('https://k-692.github.io', { nodeEnv: 'production' })).toBe(true);
+      expect(isOriginAllowed('https://random-site.com', { nodeEnv: 'production' })).toBe(false);
     });
 
     it('allows all local/LAN origins when nodeEnv is NOT production', () => {
@@ -84,6 +113,67 @@ describe('Backend Production Readiness & Multiplayer Contract', () => {
 
     it('normalizes origin whitespace and trailing slashes correctly', () => {
       expect(normalizeOrigin(' https://k-692.github.io/// ')).toBe('https://k-692.github.io');
+      expect(normalizeOrigin('https://My-Render-App.onrender.com/')).toBe('https://my-render-app.onrender.com');
+    });
+
+    it('extracts allowed origins array with getAllowedOrigins', () => {
+      expect(getAllowedOrigins({ clientOrigin: 'https://site-a.com, https://site-b.com' })).toEqual([
+        'https://site-a.com',
+        'https://site-b.com',
+      ]);
+    });
+  });
+
+  describe('HTTP API CORS Middleware Security Verification', () => {
+    it('sets Access-Control-Allow-Origin, credentials, and Vary: Origin for approved origin', async () => {
+      const response = await fetch(`http://127.0.0.1:${testPort}/api/health`, {
+        headers: { Origin: 'https://k-692.github.io' },
+      });
+      expect(response.status).toBe(200);
+      expect(response.headers.get('access-control-allow-origin')).toBe('https://k-692.github.io');
+      expect(response.headers.get('access-control-allow-credentials')).toBe('true');
+      expect(response.headers.get('vary')).toContain('Origin');
+      // Must NOT use wildcard origin
+      expect(response.headers.get('access-control-allow-origin')).not.toBe('*');
+    });
+
+    it('handles OPTIONS preflight for approved origin with 204 No Content', async () => {
+      const response = await fetch(`http://127.0.0.1:${testPort}/api/health`, {
+        method: 'OPTIONS',
+        headers: {
+          Origin: 'https://k-692.github.io',
+          'Access-Control-Request-Method': 'GET',
+        },
+      });
+      expect(response.status).toBe(204);
+      expect(response.headers.get('access-control-allow-origin')).toBe('https://k-692.github.io');
+      expect(response.headers.get('access-control-allow-methods')).toContain('GET');
+    });
+
+    it('rejects HTTP API request from unapproved origin with 403 Forbidden', async () => {
+      const response = await fetch(`http://127.0.0.1:${testPort}/api/health`, {
+        headers: { Origin: 'https://unauthorized-attacker.com' },
+      });
+      expect(response.status).toBe(403);
+      const data = await response.json();
+      expect(data.error).toBe('CORS forbidden');
+      expect(response.headers.get('access-control-allow-origin')).toBeNull();
+    });
+
+    it('rejects OPTIONS preflight from unapproved origin with 403 Forbidden', async () => {
+      const response = await fetch(`http://127.0.0.1:${testPort}/api/health`, {
+        method: 'OPTIONS',
+        headers: { Origin: 'https://unauthorized-attacker.com' },
+      });
+      expect(response.status).toBe(403);
+      const data = await response.json();
+      expect(data.error).toBe('CORS forbidden');
+    });
+
+    it('allows requests without Origin header (e.g. server-to-server or health checks) without emitting wildcard', async () => {
+      const response = await fetch(`http://127.0.0.1:${testPort}/api/health`);
+      expect(response.status).toBe(200);
+      expect(response.headers.get('access-control-allow-origin')).toBeNull();
     });
   });
 
@@ -200,6 +290,71 @@ describe('Backend Production Readiness & Multiplayer Contract', () => {
       expect(getRes.error).toBe(
         'The game server restarted or the room expired. Please create or join a new room.'
       );
+    });
+
+    it('permits Socket.IO connections from approved Origin header', async () => {
+      const clientAllowed = ClientSocket(`http://127.0.0.1:${testPort}`, {
+        extraHeaders: { Origin: 'https://k-692.github.io' },
+        transports: ['polling'],
+        forceNew: true,
+      });
+
+      await new Promise<void>((resolve, reject) => {
+        clientAllowed.on('connect', () => resolve());
+        clientAllowed.on('connect_error', (err) => reject(err));
+      });
+
+      expect(clientAllowed.connected).toBe(true);
+      clientAllowed.disconnect();
+    });
+
+    it('rejects Socket.IO connections from unauthorized Origin header with CORS error', async () => {
+      const clientRejected = ClientSocket(`http://127.0.0.1:${testPort}`, {
+        extraHeaders: { Origin: 'https://unauthorized-attacker.com' },
+        transports: ['polling'],
+        forceNew: true,
+      });
+
+      const error = await new Promise<Error>((resolve) => {
+        clientRejected.on('connect_error', (err) => resolve(err));
+      });
+
+      expect(error).toBeDefined();
+      expect(clientRejected.connected).toBe(false);
+      clientRejected.disconnect();
+    });
+
+    it('permits Socket.IO connections to a server configured with custom Render frontend origin', async () => {
+      const customPort = testPort + 20;
+      const customOrigin = 'https://custom-monopoly-frontend.onrender.com';
+      const customServer = createLanServer({
+        port: customPort,
+        nodeEnv: 'production',
+        clientOrigin: customOrigin,
+      });
+
+      await new Promise<void>((resolve) => {
+        customServer.httpServer.listen(customPort, '127.0.0.1', () => resolve());
+      });
+
+      try {
+        const clientCustom = ClientSocket(`http://127.0.0.1:${customPort}`, {
+          extraHeaders: { Origin: customOrigin },
+          transports: ['polling'],
+          forceNew: true,
+        });
+
+        await new Promise<void>((resolve, reject) => {
+          clientCustom.on('connect', () => resolve());
+          clientCustom.on('connect_error', (err) => reject(err));
+        });
+
+        expect(clientCustom.connected).toBe(true);
+        clientCustom.disconnect();
+      } finally {
+        clearInterval(customServer.cleanupInterval);
+        await new Promise<void>((resolve) => customServer.httpServer.close(() => resolve()));
+      }
     });
   });
 

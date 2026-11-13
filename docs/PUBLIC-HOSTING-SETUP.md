@@ -83,7 +83,7 @@ All public hosting configurations and workflows are maintained on a dedicated br
    - **Health Check Path:** `/api/health`
    - **Environment Variables:**
      - `NODE_ENV=production`
-     - `CLIENT_ORIGIN=https://k-692.github.io`
+     - `CLIENT_ORIGIN`: Set in the Render Dashboard to your frontend origin (e.g. `https://<your-frontend>.onrender.com` or `https://k-692.github.io`). Multiple origins can be comma-separated.
 6. Click **Apply**.
 7. Once deployed, note your service URL (e.g., `https://monopoly-india-server.onrender.com`).
 
@@ -106,7 +106,7 @@ If you prefer to configure manually:
    - **Auto-Deploy:** Yes
 5. Under **Environment Variables**, add:
    - `NODE_ENV` = `production`
-   - `CLIENT_ORIGIN` = `https://k-692.github.io`
+   - `CLIENT_ORIGIN` = `https://<your-frontend>.onrender.com` (or `https://k-692.github.io`, or comma-separated list)
 6. Click **Create Web Service**.
 7. Copy your backend URL once live.
 
@@ -242,7 +242,7 @@ npm run lan:host
 
 ### 3. "CORS forbidden" error in browser console
 - **Cause:** `CLIENT_ORIGIN` on Render does not match the frontend origin.
-- **Fix:** In Render Dashboard -> Service Environment Variables, verify that `CLIENT_ORIGIN` is set to `https://k-692.github.io`.
+- **Fix:** In Render Dashboard -> Service Environment Variables, verify that `CLIENT_ORIGIN` is set to your frontend origin (e.g. `https://<your-frontend>.onrender.com` or `https://k-692.github.io`). Multiple origins can be comma-separated.
 
 ### 4. GitHub Actions build fails with "Repository Actions variable 'VITE_SERVER_URL' is missing"
 - **Cause:** The workflow strictly validates the presence of `VITE_SERVER_URL` to prevent broken builds.

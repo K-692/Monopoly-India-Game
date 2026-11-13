@@ -403,9 +403,11 @@ In production mode (`NODE_ENV=production`), the Node.js backend discards wildcar
 
 $$\text{isOriginAllowed}(\text{Origin}) = \begin{cases} 
 \text{true} & \text{if } \text{Origin} = \emptyset \quad (\text{Health Check, Curl, Internal}) \\
-\text{true} & \text{if } \text{clean}(\text{Origin}) \in \text{CLIENT\_ORIGIN} \lor \text{clean}(\text{Origin}) = \text{"https://k-692.github.io"} \\
+\text{true} & \text{if } \text{clean}(\text{Origin}) \in \text{getAllowedOrigins}(\text{CLIENT\_ORIGIN}) \\
 \text{false} & \text{otherwise} \implies \text{HTTP 403 Forbidden}
 \end{cases}$$
+
+Where $\text{getAllowedOrigins}(\text{CLIENT\_ORIGIN})$ parses comma, semicolon, or whitespace separated URLs (e.g. Render Static Site frontend origin, custom domain, or GitHub Pages), canonicalizing schemes and domains to lowercase per RFC 6454 and trimming trailing slashes and paths via `new URL(o).origin`. If `CLIENT_ORIGIN` is unconfigured, it safely falls back to `"https://k-692.github.io"`. HTTP preflight OPTIONS requests emit strict non-wildcard headers with `Vary: Origin` and `Access-Control-Allow-Credentials: true`.
 
 ### 9.3 Client Connection Resolution & Fail-Closed Guard
 

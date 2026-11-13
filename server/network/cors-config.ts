@@ -2,8 +2,9 @@
  * Indian Monopoly - Cross-Origin Resource Sharing (CORS) Security Module
  * 
  * Implements strict, environment-aware origin validation:
- * - In Production: Strictly permits only the deployed GitHub Pages origin (e.g. https://k-692.github.io)
- *   or custom origins configured via CLIENT_ORIGIN. Rejecting arbitrary or wildcard origins.
+ * - In Production: Permits explicitly configured frontend origin(s) specified via CLIENT_ORIGIN
+ *   (e.g., your Render Static Site URL, GitHub Pages, or custom domains). Rejects arbitrary or wildcard origins.
+ *   If CLIENT_ORIGIN is not set, defaults to the repository GitHub Pages deployment.
  * - In Local / LAN Mode: Permits local development (localhost, 127.0.0.1) and Wi-Fi LAN host origins.
  */
 
@@ -15,10 +16,32 @@ export interface CorsConfigOptions {
 }
 
 /**
- * Normalizes an origin string by trimming whitespace and removing trailing slashes.
+ * Normalizes an origin string by parsing URL or trimming whitespace and removing trailing slashes,
+ * and canonicalizing scheme/host to lowercase per RFC 6454.
  */
 export function normalizeOrigin(origin: string): string {
-  return origin.trim().replace(/\/+$/, '');
+  try {
+    const url = new URL(origin.trim());
+    return url.origin.toLowerCase();
+  } catch {
+    return origin.trim().replace(/\/+$/, '').toLowerCase();
+  }
+}
+
+/**
+ * Parses and returns the list of allowed production origins from options or CLIENT_ORIGIN env var.
+ * Supports comma, semicolon, or whitespace separated origin lists.
+ */
+export function getAllowedOrigins(options?: CorsConfigOptions): string[] {
+  const rawClientOrigin = options?.clientOrigin ?? process.env.CLIENT_ORIGIN;
+  if (rawClientOrigin && rawClientOrigin.trim()) {
+    return rawClientOrigin
+      .split(/[,;\s]+/)
+      .map((entry) => normalizeOrigin(entry))
+      .filter(Boolean);
+  }
+  // Default production origin fallback if CLIENT_ORIGIN is not explicitly configured
+  return ['https://k-692.github.io'];
 }
 
 /**
@@ -36,23 +59,11 @@ export function isOriginAllowed(origin: string | undefined, options?: CorsConfig
 
   const nodeEnv = options?.nodeEnv ?? process.env.NODE_ENV;
   const isProduction = nodeEnv === 'production';
-  const rawClientOrigin = options?.clientOrigin ?? process.env.CLIENT_ORIGIN;
   const cleanOrigin = normalizeOrigin(origin);
 
   if (isProduction) {
-    // If CLIENT_ORIGIN is explicitly defined, parse comma-separated list of allowed origins
-    if (rawClientOrigin && rawClientOrigin.trim()) {
-      const allowedList = rawClientOrigin
-        .split(',')
-        .map((entry) => normalizeOrigin(entry))
-        .filter(Boolean);
-
-      return allowedList.includes(cleanOrigin);
-    }
-
-    // Default production origin is the official GitHub Pages deployment
-    const defaultProductionOrigin = 'https://k-692.github.io';
-    return cleanOrigin === defaultProductionOrigin;
+    const allowedList = getAllowedOrigins(options);
+    return allowedList.includes(cleanOrigin);
   }
 
   // Non-production modes (development, test, LAN Wi-Fi hosting)
@@ -63,6 +74,7 @@ export function isOriginAllowed(origin: string | undefined, options?: CorsConfig
 /**
  * Express middleware for cross-origin security headers.
  * Emits Access-Control headers for allowed origins and responds with 403 Forbidden for disallowed origins in production.
+ * Never emits wildcard '*' origins.
  */
 export function corsMiddleware(options?: CorsConfigOptions) {
   return (req: Request, res: Response, next: NextFunction) => {
@@ -72,8 +84,7 @@ export function corsMiddleware(options?: CorsConfigOptions) {
       if (origin) {
         res.header('Access-Control-Allow-Origin', origin);
         res.header('Access-Control-Allow-Credentials', 'true');
-      } else {
-        res.header('Access-Control-Allow-Origin', '*');
+        res.header('Vary', 'Origin');
       }
       res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
       res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
@@ -85,10 +96,6 @@ export function corsMiddleware(options?: CorsConfigOptions) {
     }
 
     // Origin is not allowed
-    if (req.method === 'OPTIONS') {
-      return res.status(403).json({ error: 'CORS forbidden' });
-    }
     return res.status(403).json({ error: 'CORS forbidden' });
   };
 }
-

@@ -123,11 +123,18 @@ const isMain =
 
 if (isMain) {
   const PORT = DEFAULT_PORT;
-  const { httpServer } = createLanServer({ port: PORT });
+  const { httpServer } = createLanServer({
+    port: PORT,
+    clientOrigin: process.env.CLIENT_ORIGIN,
+    nodeEnv: process.env.NODE_ENV,
+  });
 
   httpServer.listen(PORT, HOST, () => {
     const isProduction = process.env.NODE_ENV === 'production';
     if (isProduction) {
+      const allowedOriginsDisplay = process.env.CLIENT_ORIGIN
+        ? process.env.CLIENT_ORIGIN
+        : 'https://k-692.github.io (default fallback - set CLIENT_ORIGIN in Render dashboard for your frontend)';
       console.log(`
 ========================================
      INDIAN MONOPOLY HOSTED SERVER
@@ -138,7 +145,7 @@ Environment: production
 Port: ${PORT}
 Host: ${HOST}
 Health Check: http://localhost:${PORT}/api/health
-Allowed Client Origin: ${process.env.CLIENT_ORIGIN || 'https://k-692.github.io'}
+Allowed Client Origin: ${allowedOriginsDisplay}
 
 Multiplayer Backend: READY
 Transport: Socket.IO (WebSocket + Polling)
