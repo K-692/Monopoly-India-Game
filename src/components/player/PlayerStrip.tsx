@@ -22,7 +22,7 @@ interface PlayerStripProps {
   onGiveUp?: () => void;
 }
 
-export const PlayerStrip: React.FC<PlayerStripProps> = ({
+export const PlayerStrip: React.FC<PlayerStripProps> = React.memo(({
   players,
   currentPlayerUid,
   properties,
@@ -380,4 +380,4 @@ export const PlayerStrip: React.FC<PlayerStripProps> = ({
       )}
     </div>
   );
-};
+});

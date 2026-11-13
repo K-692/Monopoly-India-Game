@@ -20,6 +20,7 @@ interface GameBoardProps {
   selectedSpaceIndex: number | null;
   onSelectSpace: (index: number | null) => void;
   isRolling: boolean;
+  pendingCommandType?: string | null;
   onRollDice?: () => void;
   onDismissCardPopup?: () => void;
   onDismissMoneyAck?: () => void;
@@ -30,11 +31,12 @@ interface GameBoardProps {
   walkingAnimation?: WalkingAnimationState | null;
 }
 
-export const GameBoard: React.FC<GameBoardProps> = ({
+export const GameBoard: React.FC<GameBoardProps> = React.memo(({
   gameState,
   selectedSpaceIndex,
   onSelectSpace,
   isRolling,
+  pendingCommandType,
   onRollDice,
   onDismissCardPopup: _onDismissCardPopup,
   onDismissMoneyAck: _onDismissMoneyAck,
@@ -1019,12 +1021,15 @@ export const GameBoard: React.FC<GameBoardProps> = ({
               {isMyTurn && gameState.phase === 'AWAIT_ROLL' && !walkingAnimation && !gameState.handoff?.isActive && (!gameState.movement || gameState.movement.isComplete) ? (
                 <button
                   type="button"
-                  disabled={isRolling}
+                  disabled={isRolling || pendingCommandType === 'ROLL_DICE'}
                   onClick={onRollDice}
-                  className="px-5 py-2.5 rounded-full font-black text-xs text-white bg-gradient-to-r from-indian-terracotta-500 to-indian-terracotta-600 hover:from-indian-terracotta-600 hover:to-indian-terracotta-700 shadow-md active:scale-95 transition-all flex items-center gap-1.5 border border-indian-terracotta-400 animate-pulse-subtle cursor-pointer min-h-[44px]"
+                  className={cn(
+                    "px-5 py-2.5 rounded-full font-black text-xs text-white bg-gradient-to-r from-indian-terracotta-500 to-indian-terracotta-600 hover:from-indian-terracotta-600 hover:to-indian-terracotta-700 shadow-md active:scale-95 transition-all flex items-center gap-1.5 border border-indian-terracotta-400 min-h-[44px]",
+                    (isRolling || pendingCommandType === 'ROLL_DICE') ? "opacity-75 cursor-wait" : "animate-pulse-subtle cursor-pointer"
+                  )}
                 >
-                  <Dices className="w-4 h-4" />
-                  <span>{isRolling ? 'Rolling...' : 'ROLL DICE'}</span>
+                  <Dices className={cn("w-4 h-4", (isRolling || pendingCommandType === 'ROLL_DICE') && "animate-spin")} />
+                  <span>{isRolling || pendingCommandType === 'ROLL_DICE' ? 'Rolling...' : 'ROLL DICE'}</span>
                 </button>
               ) : isMyTurn && (gameState.phase === 'MANAGEMENT' || gameState.phase === 'TURN_END') && !walkingAnimation && !gameState.handoff?.isActive && (!gameState.movement || gameState.movement.isComplete) ? (
                 <div className="flex items-center gap-1.5">
@@ -1041,11 +1046,15 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                   {!(canBuildHere || isShowingPurchasePrompt || (isOwnMortgagedCity && canAffordReacquire)) && (
                     <button
                       type="button"
+                      disabled={pendingCommandType === 'END_TURN'}
                       onClick={() => onDispatch?.('END_TURN')}
-                      className="px-4 py-2 rounded-full font-bold text-xs text-white bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 shadow-md active:scale-95 transition-all flex items-center gap-1.5 border border-emerald-400 cursor-pointer min-h-[44px]"
+                      className={cn(
+                        "px-4 py-2 rounded-full font-bold text-xs text-white bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 shadow-md active:scale-95 transition-all flex items-center gap-1.5 border border-emerald-400 min-h-[44px]",
+                        pendingCommandType === 'END_TURN' ? "opacity-75 cursor-wait" : "cursor-pointer"
+                      )}
                     >
-                      <span>END TURN</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
+                      <span>{pendingCommandType === 'END_TURN' ? 'Ending...' : 'END TURN'}</span>
+                      <ArrowRight className={cn("w-3.5 h-3.5", pendingCommandType === 'END_TURN' && "animate-pulse")} />
                     </button>
                   )}
                 </div>
@@ -1054,35 +1063,42 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                   {Boolean(activePlayer?.jailFreeCards && activePlayer.jailFreeCards > 0) && (
                     <button
                       type="button"
+                      disabled={pendingCommandType === 'USE_JAIL_CARD'}
                       onClick={() => onDispatch?.('USE_JAIL_CARD')}
                       className="px-3.5 py-2 rounded-full font-bold text-xs text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 active:scale-95 shadow-md cursor-pointer flex items-center gap-1.5 min-h-[44px] border border-emerald-400"
                       title="Use your Get Out of Jail card to leave Central Jail immediately (strictly non-tradable)"
                     >
                       <KeyRound className="w-3.5 h-3.5 text-emerald-200" />
-                      <span>Use Get Out of Jail Card ({activePlayer?.jailFreeCards})</span>
+                      <span>{pendingCommandType === 'USE_JAIL_CARD' ? 'Using Card...' : `Use Get Out of Jail Card (${activePlayer?.jailFreeCards})`}</span>
                     </button>
                   )}
                   <button
                     type="button"
                     onClick={() => onDispatch?.('PAY_BAIL')}
-                    disabled={activePlayer ? activePlayer.cash < authoritativeBail : false}
+                    disabled={pendingCommandType === 'PAY_BAIL' || (activePlayer ? activePlayer.cash < authoritativeBail : false)}
                     className={cn(
                       'px-3 py-2 rounded-full font-bold text-xs text-white shadow-xs flex items-center gap-1.5 transition-all min-h-[44px]',
                       activePlayer && activePlayer.cash < authoritativeBail
                         ? 'bg-gray-500 opacity-60 cursor-not-allowed'
+                        : pendingCommandType === 'PAY_BAIL'
+                        ? 'bg-red-700 opacity-80 cursor-wait'
                         : 'bg-red-600 hover:bg-red-500 active:scale-95 cursor-pointer'
                     )}
                   >
                     <KeyRound className="w-3.5 h-3.5" />
-                    <span>Pay ₹{authoritativeBail.toLocaleString('en-IN')} Bail</span>
+                    <span>{pendingCommandType === 'PAY_BAIL' ? 'Paying Bail...' : `Pay ₹${authoritativeBail.toLocaleString('en-IN')} Bail`}</span>
                   </button>
                   <button
                     type="button"
+                    disabled={pendingCommandType === 'TRY_DOUBLES'}
                     onClick={() => onDispatch?.('TRY_DOUBLES')}
-                    className="px-3 py-2 rounded-full font-bold text-xs text-white bg-amber-600 hover:bg-amber-500 active:scale-95 shadow-xs cursor-pointer flex items-center gap-1.5 min-h-[44px]"
+                    className={cn(
+                      "px-3 py-2 rounded-full font-bold text-xs text-white bg-amber-600 hover:bg-amber-500 active:scale-95 shadow-xs flex items-center gap-1.5 min-h-[44px]",
+                      pendingCommandType === 'TRY_DOUBLES' ? "opacity-75 cursor-wait" : "cursor-pointer"
+                    )}
                   >
-                    <Dices className="w-3.5 h-3.5" />
-                    <span>Roll for Doubles</span>
+                    <Dices className={cn("w-3.5 h-3.5", pendingCommandType === 'TRY_DOUBLES' && "animate-spin")} />
+                    <span>{pendingCommandType === 'TRY_DOUBLES' ? 'Rolling...' : 'Roll for Doubles'}</span>
                   </button>
                 </div>
               ) : gameState.handoff?.isActive ? (
@@ -1261,19 +1277,27 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                     <button
                       type="button"
                       data-testid="buy-property-btn"
+                      disabled={pendingCommandType === 'BUY_PROPERTY'}
                       onClick={() => onDispatch?.('BUY_PROPERTY', { spaceIndex: playerPos })}
-                      className="flex-1 py-2 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-500 text-white shadow-md active:scale-95 transition-all flex items-center justify-center gap-1 cursor-pointer min-h-[44px]"
+                      className={cn(
+                        "flex-1 py-2 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-500 text-white shadow-md active:scale-95 transition-all flex items-center justify-center gap-1 min-h-[44px]",
+                        pendingCommandType === 'BUY_PROPERTY' ? "opacity-75 cursor-wait" : "cursor-pointer"
+                      )}
                     >
-                      <Check className="w-3.5 h-3.5" />
-                      <span>{isBankAcquisition ? `Acquire ${propertyNoun}` : `Buy ${propertyNoun}`}</span>
+                      <Check className={cn("w-3.5 h-3.5", pendingCommandType === 'BUY_PROPERTY' && "animate-spin")} />
+                      <span>{pendingCommandType === 'BUY_PROPERTY' ? 'Purchasing...' : isBankAcquisition ? `Acquire ${propertyNoun}` : `Buy ${propertyNoun}`}</span>
                     </button>
                     <button
                       type="button"
                       data-testid="decline-property-btn"
+                      disabled={pendingCommandType === 'DECLINE_PROPERTY'}
                       onClick={handleDeclineAction}
-                      className="px-3.5 py-2 rounded-xl font-bold text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 active:scale-95 transition-all cursor-pointer min-h-[44px]"
+                      className={cn(
+                        "px-3.5 py-2 rounded-xl font-bold text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 active:scale-95 transition-all min-h-[44px]",
+                        pendingCommandType === 'DECLINE_PROPERTY' ? "opacity-75 cursor-wait" : "cursor-pointer"
+                      )}
                     >
-                      Decline
+                      {pendingCommandType === 'DECLINE_PROPERTY' ? 'Declining...' : 'Decline'}
                     </button>
                   </div>
                 </>
@@ -1296,20 +1320,28 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                   <div className="flex items-center gap-1.5 pt-1">
                     <button
                       type="button"
+                      disabled={pendingCommandType === 'BUILD'}
                       onClick={() => onDispatch?.('BUILD', { spaceIndex: playerPos })}
-                      className="flex-1 py-2 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-500 text-white shadow-md active:scale-95 transition-all flex items-center justify-center gap-1 cursor-pointer min-h-[44px]"
+                      className={cn(
+                        "flex-1 py-2 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-500 text-white shadow-md active:scale-95 transition-all flex items-center justify-center gap-1 min-h-[44px]",
+                        pendingCommandType === 'BUILD' ? "opacity-75 cursor-wait" : "cursor-pointer"
+                      )}
                     >
-                      <Check className="w-3.5 h-3.5" />
-                      <span>{playerPropState?.buildings === 4 ? 'Build Tower' : 'Build House'}</span>
+                      <Check className={cn("w-3.5 h-3.5", pendingCommandType === 'BUILD' && "animate-spin")} />
+                      <span>{pendingCommandType === 'BUILD' ? 'Building...' : playerPropState?.buildings === 4 ? 'Build Tower' : 'Build House'}</span>
                     </button>
                     <button
                       type="button"
                       data-testid="build-done-btn"
                       title="Skip building and end turn (Shortcut: N)"
+                      disabled={pendingCommandType === 'END_TURN'}
                       onClick={() => onDispatch?.('END_TURN', { confirmBuildSkip: true })}
-                      className="px-3.5 py-2 rounded-xl font-bold text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 active:scale-95 transition-all cursor-pointer min-h-[44px]"
+                      className={cn(
+                        "px-3.5 py-2 rounded-xl font-bold text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 active:scale-95 transition-all min-h-[44px]",
+                        pendingCommandType === 'END_TURN' ? "opacity-75 cursor-wait" : "cursor-pointer"
+                      )}
                     >
-                      Done
+                      {pendingCommandType === 'END_TURN' ? 'Ending...' : 'Done'}
                     </button>
                   </div>
                 </>
@@ -1586,4 +1618,4 @@ export const GameBoard: React.FC<GameBoardProps> = ({
       )}
     </div>
   );
-};
+});

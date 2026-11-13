@@ -35,13 +35,13 @@ export interface CpuControllerTimingConfig {
 }
 
 export const DEFAULT_CPU_TIMING: CpuControllerTimingConfig = {
-  rollDelay: 1200,
-  jailDelay: 1200,
-  managementDelay: 1000,
-  debtResolutionDelay: 800,
-  postLandingBaseDelay: 1000,
-  stepAnimationMs: 380,
-  diceTumbleMs: 600,
+  rollDelay: 600,
+  jailDelay: 600,
+  managementDelay: 500,
+  debtResolutionDelay: 400,
+  postLandingBaseDelay: 500,
+  stepAnimationMs: 200,
+  diceTumbleMs: 350,
 };
 
 export const FAST_CPU_TIMING: CpuControllerTimingConfig = {

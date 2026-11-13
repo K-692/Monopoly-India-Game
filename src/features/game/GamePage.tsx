@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useGameStore } from './use-game-store';
 import { useAuthStore } from '@/features/auth/use-auth-store';
@@ -13,6 +13,39 @@ import confetti from 'canvas-confetti';
 import { getSocket } from '@/lib/socket/socket-client';
 import { calculateNetWorth, formatGameTimer } from '@/domain/ruleset';
 
+const GameElapsedTimer: React.FC<{
+  startedAt?: number;
+  completedAt?: number | null;
+  status?: string;
+  totalGameTimeSeconds?: number;
+}> = React.memo(({ startedAt, completedAt, status, totalGameTimeSeconds }) => {
+  const [elapsed, setElapsed] = useState<number>(() => {
+    if (!startedAt) return 0;
+    if (typeof totalGameTimeSeconds === 'number') return totalGameTimeSeconds;
+    const end = completedAt || Date.now();
+    return Math.max(0, Math.floor((end - startedAt) / 1000));
+  });
+
+  useEffect(() => {
+    if (!startedAt) return;
+    if (status === 'COMPLETED') {
+      const end = completedAt || Date.now();
+      setElapsed(Math.max(0, Math.floor((end - startedAt) / 1000)));
+      return;
+    }
+    if (typeof totalGameTimeSeconds === 'number') {
+      setElapsed(totalGameTimeSeconds);
+    }
+    const timer = setInterval(() => {
+      const end = completedAt || Date.now();
+      setElapsed(Math.max(0, Math.floor((end - startedAt) / 1000)));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [startedAt, completedAt, status, totalGameTimeSeconds]);
+
+  return <span>{formatGameTimer(elapsed)}</span>;
+});
+
 export const GamePage: React.FC = () => {
   const { gameId } = useParams<{ gameId: string }>();
   const navigate = useNavigate();
@@ -23,60 +56,34 @@ export const GamePage: React.FC = () => {
     events,
     selectedSpaceIndex,
     isRolling,
+    pendingCommandType,
     walkingAnimation,
     error,
     initializeGameFromRoom,
     dispatchAction,
     selectSpace,
     dismissError,
-    tickTurnTimer,
   } = useGameStore();
 
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
 
-  // Synchronized entire game elapsed time (starts at 00:00 and increments actual seconds)
-  const [elapsedSeconds, setElapsedSeconds] = useState<number>(() => {
-    if (!gameState?.startedAt) return 0;
-    if (typeof gameState.totalGameTimeSeconds === 'number') {
-      return gameState.totalGameTimeSeconds;
+  const handleRollDice = useCallback(() => {
+    dispatchAction('ROLL_DICE');
+  }, [dispatchAction]);
+
+  const handleDispatch = useCallback((commandType: Parameters<typeof dispatchAction>[0], payload?: Record<string, unknown>) => {
+    dispatchAction(commandType, payload);
+  }, [dispatchAction]);
+
+  const handleSelectSpace = useCallback((index: number | null) => {
+    selectSpace(index);
+  }, [selectSpace]);
+
+  const handleGiveUp = useCallback(() => {
+    if (gameState?.currentPlayerUid === (player?.uid || 'player_1')) {
+      dispatchAction('GIVE_UP');
     }
-    const end = gameState.completedAt || Date.now();
-    return Math.max(0, Math.floor((end - gameState.startedAt) / 1000));
-  });
-
-  useEffect(() => {
-    if (!gameState?.startedAt) return;
-
-    // If game has concluded, freeze the timer at final completion duration
-    if (gameState.status === 'COMPLETED') {
-      const end = gameState.completedAt || Date.now();
-      setElapsedSeconds(Math.max(0, Math.floor((end - gameState.startedAt) / 1000)));
-      return;
-    }
-
-    // Sync from server-provided totalGameTimeSeconds if present
-    if (typeof gameState.totalGameTimeSeconds === 'number') {
-      setElapsedSeconds(gameState.totalGameTimeSeconds);
-    }
-
-    // Tick every second to track actual elapsed gameplay time smoothly across all clients
-    const timer = setInterval(() => {
-      const end = gameState.completedAt || Date.now();
-      const current = Math.max(0, Math.floor((end - gameState.startedAt) / 1000));
-      setElapsedSeconds(current);
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [gameState?.startedAt, gameState?.completedAt, gameState?.status, gameState?.totalGameTimeSeconds]);
-
-  // Turn Countdown Timer ticker
-  useEffect(() => {
-    if (!gameState || gameState.status === 'COMPLETED') return;
-    const interval = setInterval(() => {
-      tickTurnTimer();
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [gameState, tickTurnTimer]);
+  }, [gameState?.currentPlayerUid, player?.uid, dispatchAction]);
 
   // Handle Game Initialization: multiplayer match requires real room members or derived room
   useEffect(() => {
@@ -209,7 +216,12 @@ export const GamePage: React.FC = () => {
           title="Total gameplay duration"
         >
           <Clock className="w-3.5 h-3.5 text-indian-terracotta-600 dark:text-indian-gold-400 shrink-0" />
-          <span>{formatGameTimer(elapsedSeconds)}</span>
+          <GameElapsedTimer
+            startedAt={gameState.startedAt}
+            completedAt={gameState.completedAt}
+            status={gameState.status}
+            totalGameTimeSeconds={gameState.totalGameTimeSeconds}
+          />
         </div>
 
         <div className="flex items-center gap-2">
@@ -396,13 +408,9 @@ export const GamePage: React.FC = () => {
               (gameState.movement && !gameState.movement.isComplete)
             )}
             onSelectPlayer={() => {}}
-            onSelectSpace={selectSpace}
+            onSelectSpace={handleSelectSpace}
             userUid={player?.uid || 'player_1'}
-            onGiveUp={() => {
-              if (gameState.currentPlayerUid === (player?.uid || 'player_1')) {
-                dispatchAction('GIVE_UP');
-              }
-            }}
+            onGiveUp={handleGiveUp}
           />
         </div>
 
@@ -411,12 +419,13 @@ export const GamePage: React.FC = () => {
           <GameBoard
             gameState={gameState}
             selectedSpaceIndex={selectedSpaceIndex}
-            onSelectSpace={selectSpace}
+            onSelectSpace={handleSelectSpace}
             isRolling={isRolling}
-            onRollDice={() => dispatchAction('ROLL_DICE')}
+            pendingCommandType={pendingCommandType}
+            onRollDice={handleRollDice}
             onDismissCardPopup={() => {}}
             onDismissMoneyAck={() => {}}
-            onDispatch={dispatchAction}
+            onDispatch={handleDispatch}
             isMyTurn={
               isMyTurn &&
               !walkingAnimation &&

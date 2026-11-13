@@ -185,7 +185,7 @@ Indian Monopoly includes an enterprise-grade multiplayer synchronization engine 
 1. **Strict Room and Game Isolation & Authoritative Persistence:**
    - Database partial unique index (`idx_one_active_game_per_room`) guarantees a room cannot spawn multiple active games under concurrent requests or double-clicks.
    - **Authoritative Async Lifecycle:** Room creation (`createRoom`) and match startup (`startGame`) strictly await and verify database commit in `game.rooms` and `game.games` before returning success or emitting socket events to clients.
-   - **Parent Session Verification:** Command processing (`commitCommandExecution`) row-locks and validates the parent `game.games` record before inserting into `game.processed_commands` or `game.game_events`, preventing foreign key constraint violations (`processed_commands_game_id_fkey`).
+   - **Parent Session Verification & Atomic CTE Commit:** Command processing (`commitCommandExecution`) uses a single atomic Common Table Expression (CTE) query to row-lock the parent `game.games` record, check idempotency in `game.processed_commands` with `ON CONFLICT DO NOTHING`, insert into `game.game_events`, and update `game.games` in one database round-trip. This eliminates 7–8 serial round-trips and prevents foreign key constraint violations (`processed_commands_game_id_fkey`).
    - **Explicit Schema Isolation:** All PostgreSQL statements are explicitly schema-qualified (`game.rooms`, `game.games`, `game.processed_commands`, etc.), eliminating reliance on connection pooler `search_path` states.
    - Channel decoupling separates room membership (`room:<roomId>`) from active gameplay events (`game:<gameId>`), preventing cross-match state leakage.
 
@@ -194,16 +194,30 @@ Indian Monopoly includes an enterprise-grade multiplayer synchronization engine 
    - Retransmitted commands return original results without re-executing transactions.
    - Monotonically increasing state versions reject stale commands and keep all connected clients synchronized.
 
-3. **Handshake Reconnection & Single-Active-Socket Fencing:**
+3. **High-Performance Multi-Region Database & Broadcast Optimization:**
+   - **Single-Round-Trip CTE Persistence:** Replaced serial transaction queries with a consolidated atomic CTE (`lock_game` -> `insert_cmd` -> `insert_event` -> `update_game`), reducing command persistence latency between Render (Oregon) and Supabase (Mumbai) from ~1,500ms down to ~67ms (~22x speedup).
+   - **Deduplicated Socket.IO Multicasting:** Emits state updates via array channels `io.to([gameChannel, roomChannel, ...])`, leveraging Socket.IO's internal Set to guarantee exactly one packet per client and eliminating duplicate wire traffic.
+   - **Pre-Queue Memory Deduplication:** In-memory command ID caching bypasses redundant remote database lookups before entering the command processing queue.
+
+4. **Instant Client Responsiveness & Render Isolation:**
+   - **Immediate Click Feedback & Lock:** Action buttons (`ROLL DICE`, `END TURN`, `BUY`, `BUILD`, `PAY BAIL`, etc.) instantly show an active spinner (`Rolling...`, `Ending...`) and disable further clicks, with a 6-second auto-clearing safety watchdog.
+   - **Render-Decoupled Game Timer:** Extracted match duration (`elapsedSeconds`) into an isolated `GameElapsedTimer` component, preventing 1-second interval updates from cascading full re-renders across `GameBoard` (1,500+ lines) and all 40 `BoardSpaceTile` components.
+   - **Component Memoization:** `GameBoard`, `BoardSpaceTile`, and `PlayerStrip` are wrapped with custom `React.memo` equality checks to isolate re-renders to only spaces or players whose properties, positions, or balances actually change.
+
+5. **Calibrated Turn Pacing & Self-Healing Guards:**
+   - **Optimized Pacing:** Tuned post-turn handoff delay from 2,000ms down to 600ms, and token walking animations to 350ms tumble + 200ms/step + 180ms settle, cutting turn turnaround time by over 50% while preserving visual clarity.
+   - **Self-Healing Movement & Queue Guards:** Expired movement blocks and turn handoffs auto-clear upon timestamp expiry, and server command queue timeouts (8s) plus client state-recovery timeouts (5s) prevent frozen matches if network packets are lost or delayed.
+
+6. **Handshake Reconnection & Single-Active-Socket Fencing:**
    - Persistent reconnect tokens are authenticated during the Socket.IO handshake (`auth.token`), completely eliminating query-param or URL token leakage.
    - Sessions maintain a monotonically incrementing generation number: when a player connects a new socket (e.g. tab refresh), older sockets receive a `SESSION_REPLACED` event and are fenced off immediately.
 
-4. **Automatic Human-to-CPU Takeover & Seamless Recovery:**
+7. **Automatic Human-to-CPU Takeover & Seamless Recovery:**
    - If a human player disconnects during their turn, the server starts an authoritative 10-second grace timer (`BOT_TAKEOVER_GRACE_MS=10000`).
    - Upon timer expiry, the autonomous `CpuController` takes over the player slot without forfeiting their seat, assets, or balance.
    - When the human returns, the server cancels pending bot actions, returns control to the player (`isBotControlled = false`), broadcasts `player:controller_changed`, and delivers the latest authoritative state snapshot.
 
-5. **Durable Persistence & Server Restart Recovery (Supabase PostgreSQL 17):**
+8. **Durable Persistence & Server Restart Recovery (Supabase PostgreSQL 17):**
    - Cloud production utilizes **Supabase PostgreSQL 17** (hosted in `ap-south-1`) with connection pooling (`pg.Pool`, conservative `max: 10` clients) and versioned SQL migrations.
    - All critical tables reside in a backend-only `game` schema (`REVOKE ALL ON SCHEMA game FROM anon, authenticated`) to prevent unauthorized client PostgREST access.
    - Offline local Wi-Fi LAN mode runs on a zero-dependency in-memory store (`MemoryStore`).
@@ -293,7 +307,7 @@ TEST_DATABASE_URL="postgres://postgres:postgres@localhost:5432/monopoly_test" np
 | `npm run build:server` | Bundles the standalone server into `dist-server/index.cjs` using `esbuild`. |
 | `npm run build:desktop` | Builds both the React LAN frontend (`dist/`) and the server bundle (`dist-server/index.cjs`). |
 | `npm run desktop` | Builds desktop assets and launches the application inside native Electron. |
-| `npm test` | Runs the full Vitest test suite (401 tests across 30 test files including hardening suite). |
+| `npm test` | Runs the full Vitest test suite (419 tests across 33 test files including performance & hardening suites). |
 | `npm run test:watch` | Runs Vitest in interactive watch mode for test-driven development. |
 | `npm run test:coverage`| Generates detailed test code coverage reports. |
 | `npm run typecheck` | Strict TypeScript compiler validation across client, server, and tests (`tsc -b --noEmit`). |

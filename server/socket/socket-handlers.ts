@@ -25,28 +25,20 @@ export function setupSocketHandlers(
   gameManager: GameManager,
   isServerReady: () => boolean = () => true
 ): void {
-  // Configure GameManager broadcast bridge to Socket.IO with strict channel isolation
+  // Configure GameManager broadcast bridge to Socket.IO with deduplicated channel delivery
   gameManager.setBroadcastCallback((gameId, roomId, event, data) => {
-    const gameChannel = `game:${gameId}`;
-    const roomChannel = `room:${roomId}`;
+    const channels = [`game:${gameId}`, `room:${roomId}`, roomId, gameId];
 
     if (event === 'game:state') {
-      io.to(gameChannel).emit('game:state', data as GameState);
-      io.to(roomId).emit('game:state', data as GameState);
+      io.to(channels).emit('game:state', data as GameState);
     } else if (event === 'game:event') {
-      io.to(gameChannel).emit('game:event', data as GameEvent);
-      io.to(roomId).emit('game:event', data as GameEvent);
+      io.to(channels).emit('game:event', data as GameEvent);
     } else if (event === 'game:timer') {
-      io.to(gameChannel).emit('game:timer', data as Parameters<ServerToClientEvents['game:timer']>[0]);
-      io.to(roomId).emit('game:timer', data as Parameters<ServerToClientEvents['game:timer']>[0]);
+      io.to(channels).emit('game:timer', data as Parameters<ServerToClientEvents['game:timer']>[0]);
     } else if (event === 'game:started') {
-      io.to(roomChannel).emit('game:started', data as { gameId: string; gameState: GameState });
-      io.to(gameChannel).emit('game:started', data as { gameId: string; gameState: GameState });
-      io.to(roomId).emit('game:started', data as { gameId: string; gameState: GameState });
+      io.to(channels).emit('game:started', data as { gameId: string; gameState: GameState });
     } else if (event === 'player:controller_changed') {
-      io.to(gameChannel).emit('player:controller_changed', data as Parameters<ServerToClientEvents['player:controller_changed']>[0]);
-      io.to(roomChannel).emit('player:controller_changed', data as Parameters<ServerToClientEvents['player:controller_changed']>[0]);
-      io.to(roomId).emit('player:controller_changed', data as Parameters<ServerToClientEvents['player:controller_changed']>[0]);
+      io.to(channels).emit('player:controller_changed', data as Parameters<ServerToClientEvents['player:controller_changed']>[0]);
     }
   });
 
@@ -124,8 +116,7 @@ export function setupSocketHandlers(
         const currentRoom = roomManager.getRoom(session.roomId);
         if (currentRoom) {
           socket.emit('room:state', currentRoom);
-          io.to(`room:${session.roomId}`).emit('player:presence', { uid: session.uid, connected: true });
-          io.to(session.roomId).emit('player:presence', { uid: session.uid, connected: true });
+          io.to([`room:${session.roomId}`, session.roomId]).emit('player:presence', { uid: session.uid, connected: true });
 
           if (currentRoom.status === 'IN_PROGRESS' && currentRoom.gameId) {
             socket.join(`game:${currentRoom.gameId}`);
@@ -686,8 +677,7 @@ export function setupSocketHandlers(
         timestamp: Date.now(),
       };
 
-      io.to(`room:${session.roomId}`).emit('reaction:received', reaction);
-      io.to(session.roomId).emit('reaction:received', reaction);
+      io.to([`room:${session.roomId}`, session.roomId]).emit('reaction:received', reaction);
     });
 
     socket.on('ping', (callback) => {
@@ -702,11 +692,7 @@ export function setupSocketHandlers(
       const session = roomManager.unbindSocket(socket.id);
       if (session) {
         if (session.roomId) {
-          io.to(`room:${session.roomId}`).emit('player:presence', {
-            uid: session.uid,
-            connected: false,
-          });
-          io.to(session.roomId).emit('player:presence', {
+          io.to([`room:${session.roomId}`, session.roomId]).emit('player:presence', {
             uid: session.uid,
             connected: false,
           });

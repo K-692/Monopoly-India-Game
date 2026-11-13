@@ -42,7 +42,7 @@ interface BoardSpaceTileProps {
   showTokens?: boolean;
 }
 
-export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
+export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = React.memo(({
   space,
   propertyState,
   playersHere,
@@ -303,4 +303,4 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = ({
       )}
     </div>
   );
-};
+});

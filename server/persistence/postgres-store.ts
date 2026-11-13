@@ -49,7 +49,9 @@ export class PostgresStore implements PersistenceStore {
     // Conservative connection pool sizing suitable for Supabase Free plan and single Render Web Service
     config.max = config.max || 10;
     config.idleTimeoutMillis = 30000;
-    config.connectionTimeoutMillis = 10000;
+    config.connectionTimeoutMillis = 8000;
+    config.statement_timeout = 8000;
+    config.query_timeout = 8000;
 
     this.pool = new Pool(config);
 
@@ -639,122 +641,107 @@ export class PostgresStore implements PersistenceStore {
     ok: boolean;
     alreadyProcessed?: boolean;
     result: EngineResult;
+    durationMs?: number;
   }> {
+    const startTime = Date.now();
     const client = await this.pool.connect();
     try {
-      await client.query('BEGIN');
+      // High-performance atomic commit via compound CTE query:
+      // 1. Obtains row-level lock on the game session (FOR UPDATE).
+      // 2. Records processed command with idempotent ON CONFLICT (game_id, command_id) DO NOTHING.
+      // 3. Atomically records game event and updates game state in a single round-trip.
+      // 4. Returns game existence, whether command was newly applied, and previous result if already processed.
+      const cteSql = `
+        WITH locked_game AS (
+          SELECT game_id, version FROM game.games WHERE game_id = $1 FOR UPDATE
+        ),
+        ins_cmd AS (
+          INSERT INTO game.processed_commands (game_id, command_id, actor_uid, result, version, created_at)
+          SELECT $1, $2, $3, $4::jsonb, $5::int, $6::bigint
+          FROM locked_game
+          ON CONFLICT (game_id, command_id) DO NOTHING
+          RETURNING result
+        ),
+        ins_event AS (
+          INSERT INTO game.game_events (game_id, sequence, command_id, actor_uid, type, summary, payload, created_at, version_after)
+          SELECT $1, $7::int, $2, $3, $8, $9, $10::jsonb, $11::bigint, $12::int
+          FROM ins_cmd
+          ON CONFLICT (game_id, sequence) DO NOTHING
+        ),
+        upd_game AS (
+          UPDATE game.games SET
+            status = $13,
+            current_player_uid = $14,
+            turn_number = $15::int,
+            phase = $16,
+            version = $5::int,
+            winner_uid = $17,
+            updated_at = $18::bigint,
+            completed_at = $19::bigint,
+            state = $20::jsonb
+          WHERE game_id = $1 AND EXISTS (SELECT 1 FROM ins_cmd)
+          RETURNING game_id
+        )
+        SELECT 
+          (SELECT COUNT(*)::int FROM locked_game) as game_found,
+          (SELECT COUNT(*)::int FROM ins_cmd) as cmd_inserted,
+          (SELECT result FROM game.processed_commands WHERE game_id = $1 AND command_id = $2) as existing_result;
+      `;
 
-      // 0. Verify parent game exists and obtain row-level lock
-      const gameLock = await client.query<{ game_id: string; version: number }>(
-        'SELECT game_id, version FROM game.games WHERE game_id = $1 FOR UPDATE',
-        [params.gameId]
-      );
+      const now = Date.now();
+      const queryParams = [
+        params.gameId, // $1
+        params.commandId, // $2
+        params.actorUid, // $3
+        JSON.stringify(params.result), // $4
+        params.nextState.version, // $5
+        now, // $6
+        params.result.event.sequence, // $7
+        params.result.event.type, // $8
+        params.result.event.summary, // $9
+        JSON.stringify(params.result.event.payload || {}), // $10
+        params.result.event.createdAt, // $11
+        params.result.event.versionAfter, // $12
+        params.nextState.status, // $13
+        params.nextState.currentPlayerUid, // $14
+        params.nextState.turnNumber, // $15
+        params.nextState.phase, // $16
+        params.nextState.winnerUid || null, // $17
+        now, // $18
+        params.nextState.completedAt || null, // $19
+        JSON.stringify(params.nextState), // $20
+      ];
 
-      if (gameLock.rows.length === 0) {
-        await client.query('ROLLBACK');
+      const res = await client.query<{
+        game_found: number;
+        cmd_inserted: number;
+        existing_result: EngineResult | null;
+      }>(cteSql, queryParams);
+
+      const durationMs = Date.now() - startTime;
+      const row = res.rows[0];
+
+      if (!row || row.game_found === 0) {
         throw new Error(
           `GAME_SESSION_NOT_PERSISTED: Cannot execute a command because the game session "${params.gameId}" has not been committed to PostgreSQL.`
         );
       }
 
-      // 1. Check idempotency: Was this command already processed?
-      const checkRes = await client.query<{ result: EngineResult }>(
-        'SELECT result FROM game.processed_commands WHERE game_id = $1 AND command_id = $2',
-        [params.gameId, params.commandId]
-      );
-
-      if (checkRes.rows.length > 0) {
-        await client.query('COMMIT');
+      if (row.cmd_inserted === 0 && row.existing_result) {
         return {
           ok: true,
           alreadyProcessed: true,
-          result: checkRes.rows[0].result,
+          result: row.existing_result,
+          durationMs,
         };
       }
 
-      // 2. Record processed command
-      await client.query(
-        `
-        INSERT INTO game.processed_commands (game_id, command_id, actor_uid, result, version, created_at)
-        VALUES ($1, $2, $3, $4, $5, $6)
-        `,
-        [
-          params.gameId,
-          params.commandId,
-          params.actorUid,
-          JSON.stringify(params.result),
-          params.nextState.version,
-          Date.now(),
-        ]
-      );
-
-      // 3. Record ordered game event
-      await client.query(
-        `
-        INSERT INTO game.game_events (
-          game_id, sequence, command_id, actor_uid, type, summary, payload, created_at, version_after
-        )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-        ON CONFLICT (game_id, sequence) DO NOTHING
-        `,
-        [
-          params.gameId,
-          params.result.event.sequence,
-          params.commandId,
-          params.actorUid,
-          params.result.event.type,
-          params.result.event.summary,
-          JSON.stringify(params.result.event.payload || {}),
-          params.result.event.createdAt,
-          params.result.event.versionAfter,
-        ]
-      );
-
-      // 4. Update game state
-      const updateRes = await client.query(
-        `
-        UPDATE game.games SET
-          status = $2,
-          current_player_uid = $3,
-          turn_number = $4,
-          phase = $5,
-          version = $6,
-          winner_uid = $7,
-          updated_at = $8,
-          completed_at = $9,
-          state = $10
-        WHERE game_id = $1
-        `,
-        [
-          params.gameId,
-          params.nextState.status,
-          params.nextState.currentPlayerUid,
-          params.nextState.turnNumber,
-          params.nextState.phase,
-          params.nextState.version,
-          params.nextState.winnerUid || null,
-          Date.now(),
-          params.nextState.completedAt || null,
-          JSON.stringify(params.nextState),
-        ]
-      );
-
-      if (updateRes.rowCount !== 1) {
-        await client.query('ROLLBACK');
-        throw new Error(
-          `GAME_SESSION_NOT_PERSISTED: Failed to update game state for game "${params.gameId}". Expected 1 row updated, got ${updateRes.rowCount}.`
-        );
-      }
-
-      await client.query('COMMIT');
       return {
         ok: true,
         alreadyProcessed: false,
         result: params.result,
+        durationMs,
       };
-    } catch (err) {
-      await client.query('ROLLBACK');
-      throw err;
     } finally {
       client.release();
     }

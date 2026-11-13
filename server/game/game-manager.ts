@@ -24,6 +24,7 @@ import { calculateReacquisitionCost, canBuildOnProperty, getAuthoritativeBailAmo
 import { MemoryStore } from '../persistence/memory-store';
 import { PersistenceStore } from '../persistence/types';
 import { ServerRoom } from '../types/server-types';
+import { serverPerf } from '../diagnostics/perf-telemetry';
 import { CpuController, CpuControllerTimingConfig } from './cpu-controller';
 
 export type GameBroadcastCallback = (
@@ -103,21 +104,23 @@ export class GameManager {
 
   /**
    * Computes the authoritative movement duration matching client-side walking animations.
+   * Optimized for responsive, smooth gameplay: 350ms dice tumble + 200ms per step + 180ms settling.
    */
   public calculateMovementDuration(steps: number): number {
     const isTest = process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
-    const tumble = isTest ? 20 : 600;
-    const stepMs = isTest ? 10 : 380;
-    const settle = isTest ? 50 : 300;
+    const tumble = isTest ? 20 : 350;
+    const stepMs = isTest ? 10 : 200;
+    const settle = isTest ? 50 : 180;
     return tumble + steps * stepMs + settle;
   }
 
   /**
-   * Computes the inter-turn handoff delay (2 seconds in production, fast in test).
+   * Computes the inter-turn handoff delay (600ms in production, 100ms in test).
+   * Snappy pacing allowing players to clearly follow turns without sluggish waiting.
    */
   public getHandoffDelay(): number {
     const isTest = process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
-    return isTest ? 100 : 2000;
+    return isTest ? 100 : 600;
   }
 
   public getBotTakeoverGraceMs(): number {
@@ -298,22 +301,16 @@ export class GameManager {
     actorUid: string,
     options?: { cardRuleIndex?: number; isServerTimeout?: boolean }
   ): Promise<EngineResult> {
-    // Check durable deduplication
+    // Check fast in-memory deduplication (0ms)
     if (command.commandId) {
       const dedupeKey = `${gameId}:${command.commandId}`;
       const memoryCached = this.processedCommands.get(dedupeKey);
       if (memoryCached) {
         return memoryCached.result;
       }
-
-      const storeCached = await this.store.getProcessedCommand(gameId, command.commandId);
-      if (storeCached) {
-        this.processedCommands.set(dedupeKey, { result: storeCached, timestamp: Date.now() });
-        return storeCached;
-      }
     }
 
-    // Serialize commands using a per-game promise queue
+    // Serialize commands using a per-game promise queue with safety execution timeout
     const currentQueue = this.commandQueues.get(gameId) || Promise.resolve();
     let resolveCommand!: (res: EngineResult) => void;
     let rejectCommand!: (err: unknown) => void;
@@ -328,11 +325,23 @@ export class GameManager {
       currentQueue
         .catch(() => {}) // Continue queue even if previous command rejected
         .then(async () => {
+          let timeoutHandle: NodeJS.Timeout | null = null;
+          const timeoutPromise = new Promise<never>((_, rej) => {
+            timeoutHandle = setTimeout(() => {
+              rej(new GameEngineError('COMMAND_TIMEOUT', 'Command execution exceeded safety timeout limit'));
+            }, 8000);
+          });
+
           try {
-            const result = await this.executeCommandInternal(gameId, command, actorUid, options);
+            const result = await Promise.race([
+              this.executeCommandInternal(gameId, command, actorUid, options),
+              timeoutPromise,
+            ]);
             resolveCommand(result);
           } catch (err) {
             rejectCommand(err);
+          } finally {
+            if (timeoutHandle) clearTimeout(timeoutHandle);
           }
         })
     );
@@ -368,14 +377,22 @@ export class GameManager {
       );
     }
 
-    // Guard 1: Block actions during active turn handoff (unless server timeout)
+    // Guard 1: Block actions during active turn handoff with self-healing expiration
     if (!options?.isServerTimeout && currentState.handoff?.isActive) {
-      throw new GameEngineError('INVALID_PHASE', 'Turn handoff in progress');
+      if (currentState.handoff.endsAt && Date.now() >= currentState.handoff.endsAt) {
+        currentState.handoff = null;
+      } else {
+        throw new GameEngineError('INVALID_PHASE', 'Turn handoff in progress');
+      }
     }
 
-    // Guard 2: Block actions during active token movement animation (unless server timeout)
+    // Guard 2: Block actions during active token movement animation with self-healing expiration
     if (!options?.isServerTimeout && currentState.movement && !currentState.movement.isComplete) {
-      throw new GameEngineError('INVALID_PHASE', 'Player token is currently moving');
+      if (currentState.movement.endsAt && Date.now() >= currentState.movement.endsAt) {
+        currentState.movement.isComplete = true;
+      } else {
+        throw new GameEngineError('INVALID_PHASE', 'Player token is currently moving');
+      }
     }
 
     // Guard 3: Voluntary Sell-to-Bank is only permitted during the active player's turn (or for debt resolution)
@@ -406,15 +423,34 @@ export class GameManager {
       injectedDice = generateFairDicePair();
     }
 
+    const serverStartMs = Date.now();
     const result = applyGameCommand(currentState, command, actorUid, injectedDice, options);
 
     // Atomically persist state, event, and processed command record before broadcast
-    await this.store.commitCommandExecution({
+    const commitRes = await this.store.commitCommandExecution({
       gameId,
       commandId: command.commandId,
       actorUid,
       result,
       nextState: result.nextState,
+    });
+
+    if (commitRes.alreadyProcessed && commitRes.result) {
+      if (command.commandId) {
+        this.processedCommands.set(dedupeKey, { result: commitRes.result, timestamp: Date.now() });
+      }
+      return commitRes.result;
+    }
+
+    serverPerf.recordMetric({
+      commandId: command.commandId,
+      gameId,
+      actionType: command.type,
+      actorUid,
+      serverReceivedAt: serverStartMs,
+      serverDurationMs: Date.now() - serverStartMs,
+      dbDurationMs: commitRes.durationMs ?? 0,
+      broadcastAt: Date.now(),
     });
 
     // Save updated state and cache command for in-memory deduplication

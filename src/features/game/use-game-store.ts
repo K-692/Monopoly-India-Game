@@ -20,6 +20,7 @@ import { HostCustomRules } from '@/domain/ruleset';
 import { getSocket } from '@/lib/socket/socket-client';
 import { useToastStore } from '@/components/feedback/toast-store';
 import { useAuthStore } from '@/features/auth/use-auth-store';
+import { clientPerf } from '@/lib/diagnostics/perf-telemetry';
 
 interface GameStoreState {
   gameState: GameState | null;
@@ -27,6 +28,7 @@ interface GameStoreState {
   activeEmotes: EmoteReaction[];
   selectedSpaceIndex: number | null;
   isRolling: boolean;
+  pendingCommandType: GameCommand['type'] | null;
   walkingAnimation: WalkingAnimationState | null;
   isLiveMultiplayer: boolean;
   error: string | null;
@@ -49,6 +51,8 @@ interface GameStoreState {
 
 let activeWalkingTimer: NodeJS.Timeout | null = null;
 let pendingServerState: GameState | null = null;
+let pendingStateSafetyTimer: NodeJS.Timeout | null = null;
+let lastDispatchedCommandId: string | null = null;
 const processedRollIds = new Set<string>();
 
 export const useGameStore = create<GameStoreState>((set, get) => ({
@@ -57,6 +61,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   activeEmotes: [],
   selectedSpaceIndex: null,
   isRolling: false,
+  pendingCommandType: null,
   walkingAnimation: null,
   isLiveMultiplayer: true,
   error: null,
@@ -89,6 +94,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         activeEmotes: [],
         selectedSpaceIndex: null,
         isRolling: false,
+        pendingCommandType: null,
         isLiveMultiplayer: true,
         error: null,
       });
@@ -100,6 +106,16 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       const { isRolling, walkingAnimation } = get();
       if (isRolling || walkingAnimation) {
         pendingServerState = nextState;
+        if (!pendingStateSafetyTimer) {
+          pendingStateSafetyTimer = setTimeout(() => {
+            const held = pendingServerState;
+            pendingServerState = null;
+            pendingStateSafetyTimer = null;
+            if (held) {
+              set({ gameState: held, isRolling: false, walkingAnimation: null });
+            }
+          }, 5000);
+        }
         return;
       }
 
@@ -107,10 +123,29 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       // hold state to prevent snapping the token prematurely to newPos before walking begins
       if (nextState.dice?.rollId && !processedRollIds.has(nextState.dice.rollId)) {
         pendingServerState = nextState;
+        if (!pendingStateSafetyTimer) {
+          pendingStateSafetyTimer = setTimeout(() => {
+            const held = pendingServerState;
+            pendingServerState = null;
+            pendingStateSafetyTimer = null;
+            if (held) {
+              set({ gameState: held, isRolling: false, walkingAnimation: null });
+            }
+          }, 5000);
+        }
         return;
       }
 
+      if (pendingStateSafetyTimer) {
+        clearTimeout(pendingStateSafetyTimer);
+        pendingStateSafetyTimer = null;
+      }
+
       set({ gameState: nextState, isLiveMultiplayer: true });
+      if (lastDispatchedCommandId) {
+        clientPerf.recordActionRendered(lastDispatchedCommandId);
+        lastDispatchedCommandId = null;
+      }
     };
 
     // Handle authoritative game event broadcast from server
@@ -188,7 +223,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
 
         sound.play('DICE_ROLL');
 
-        // Phase 1: 3D Dice tumble and settle on the authoritative values
+        // Phase 1: 3D Dice tumble and settle on the authoritative values (snappy 350ms)
         setTimeout(() => {
           set({ isRolling: false });
 
@@ -197,20 +232,28 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
             setTimeout(() => {
               const finalState = pendingServerState;
               pendingServerState = null;
+              if (pendingStateSafetyTimer) {
+                clearTimeout(pendingStateSafetyTimer);
+                pendingStateSafetyTimer = null;
+              }
               if (finalState) set({ gameState: finalState });
-            }, 300);
+            }, 180);
             return;
           }
 
           if (totalSteps <= 0) {
             const finalState = pendingServerState;
             pendingServerState = null;
+            if (pendingStateSafetyTimer) {
+              clearTimeout(pendingStateSafetyTimer);
+              pendingStateSafetyTimer = null;
+            }
             if (finalState) set({ gameState: finalState });
             return;
           }
 
           // Phase 2: Token walking begins ONLY AFTER the roll finishes settling.
-          // Sequential step-by-step movement along circular path.
+          // Sequential step-by-step movement along circular path (optimized 200ms per step).
           let currentStep = 0;
           if (activeWalkingTimer) clearInterval(activeWalkingTimer);
 
@@ -230,7 +273,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
               },
             });
 
-            // Phase 3: Token reaches destination
+            // Phase 3: Token reaches destination (snappy 180ms settle)
             if (currentStep >= totalSteps) {
               if (activeWalkingTimer) clearInterval(activeWalkingTimer);
               activeWalkingTimer = null;
@@ -238,14 +281,18 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
               setTimeout(() => {
                 const finalState = pendingServerState;
                 pendingServerState = null;
+                if (pendingStateSafetyTimer) {
+                  clearTimeout(pendingStateSafetyTimer);
+                  pendingStateSafetyTimer = null;
+                }
                 set({
                   walkingAnimation: null,
                   ...(finalState ? { gameState: finalState } : {}),
                 });
-              }, 300);
+              }, 180);
             }
-          }, 380);
-        }, 600);
+          }, 200);
+        }, 350);
       } else if (event.type === 'MORTGAGE') {
         const mortgageAmount = (event.payload as { mortgageAmount?: number })?.mortgageAmount;
         const myUid = useAuthStore.getState().player?.uid;
@@ -378,19 +425,21 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   // ==========================================
 
   dispatchAction: (commandType, payload = {}) => {
-    const { gameState, isRolling, walkingAnimation } = get();
+    const { gameState, isRolling, walkingAnimation, pendingCommandType } = get();
     if (
       !gameState ||
       isRolling ||
       walkingAnimation ||
+      pendingCommandType !== null ||
       gameState.handoff?.isActive ||
       (gameState.movement && !gameState.movement.isComplete)
     ) {
       return;
     }
 
+    const commandId = 'cmd_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
     const command: GameCommand = {
-      commandId: 'cmd_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+      commandId,
       roomId: gameState.roomId,
       gameId: gameState.gameId,
       expectedVersion: gameState.version,
@@ -398,8 +447,25 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       payload,
     };
 
+    lastDispatchedCommandId = commandId;
+    clientPerf.recordActionStart(commandId, commandType);
+
+    // Provide immediate UI feedback and prevent duplicate command emissions
+    set({ pendingCommandType: commandType });
+
+    // Safety timeout to auto-reset pending state if connection drops or server fails
+    const safetyTimeout = setTimeout(() => {
+      if (get().pendingCommandType === commandType) {
+        set({ pendingCommandType: null });
+      }
+    }, 6000);
+
     const socket = getSocket();
     socket.emit('game:command', command, (response) => {
+      clearTimeout(safetyTimeout);
+      set({ pendingCommandType: null });
+      clientPerf.recordActionAck(commandId);
+
       if (!response.ok) {
         const errMsg = response.error || 'Server rejected action';
         if (errMsg.includes('Stale version')) {

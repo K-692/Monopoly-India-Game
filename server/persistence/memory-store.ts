@@ -215,7 +215,9 @@ export class MemoryStore implements PersistenceStore {
     ok: boolean;
     alreadyProcessed?: boolean;
     result: EngineResult;
+    durationMs?: number;
   }> {
+    const startMs = Date.now();
     // 0. Verify parent game exists
     if (!this.games.has(params.gameId)) {
       throw new Error(
@@ -232,6 +234,7 @@ export class MemoryStore implements PersistenceStore {
         ok: true,
         alreadyProcessed: true,
         result: cached.result,
+        durationMs: Date.now() - startMs,
       };
     }
 
@@ -253,6 +256,7 @@ export class MemoryStore implements PersistenceStore {
       ok: true,
       alreadyProcessed: false,
       result: params.result,
+      durationMs: Date.now() - startMs,
     };
   }
 

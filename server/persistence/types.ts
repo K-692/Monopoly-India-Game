@@ -79,6 +79,7 @@ export interface PersistenceStore {
     ok: boolean;
     alreadyProcessed?: boolean;
     result: EngineResult;
+    durationMs?: number;
   }>;
   getProcessedCommand(gameId: string, commandId: string): Promise<EngineResult | null>;
   getGameEvents(gameId: string, fromSequence?: number): Promise<GameEvent[]>;
