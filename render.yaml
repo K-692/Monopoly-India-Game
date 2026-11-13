@@ -1,6 +1,6 @@
-# Render Blueprint Specification for Indian Monopoly Unified Production Service
-# Always-On Starter Web Service running Node.js + Socket.IO Authoritative Backend + Built React App
-# Backed by Render Starter PostgreSQL database with ACID transaction isolation.
+# Render Blueprint Specification for Indian Monopoly Production Service
+# Free Web Service running Node.js + Socket.IO Authoritative Backend + Built React App
+# Backed by Supabase PostgreSQL 17 Database with ACID transaction isolation.
 # Docs: https://render.com/docs/blueprint-spec
 
 services:
@@ -8,7 +8,7 @@ services:
     name: monopoly-india-server
     runtime: node
     branch: feature/render-public-hosting
-    plan: starter
+    plan: free
     region: oregon
     buildCommand: npm ci --include=dev && npm run build && npm run build:server
     startCommand: npm start
@@ -18,17 +18,8 @@ services:
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
-        fromDatabase:
-          name: monopoly-india-postgres
-          property: connectionString
+        sync: false
       - key: BOT_TAKEOVER_GRACE_MS
         value: "10000"
       - key: CLIENT_ORIGIN
         sync: false
-
-databases:
-  - name: monopoly-india-postgres
-    plan: starter
-    region: oregon
-    databaseName: monopoly_india
-    user: monopoly_user

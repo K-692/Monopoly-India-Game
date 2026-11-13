@@ -644,83 +644,88 @@ The storage subsystem abstracts database operations behind a unified `Persistenc
                │                               │
 ┌──────────────┴───────────────┐ ┌──────────────┴───────────────┐
 │        PostgresStore         │ │          MemoryStore         │
-│  - Production (Render)       │ │  - Local Wi-Fi LAN Mode      │
-│  - pg.Pool Connection Pooling│ │  - Vitest Test Suites        │
-│  - ACID Transactions         │ │  - Zero External Dependencies│
-│  - Row-Level Locking         │ │  - Synchronous Deep Copies   │
+│  - Supabase PostgreSQL 17    │ │  - Local Wi-Fi LAN Mode      │
+│  - Isolated 'game' Schema    │ │  - Vitest Test Suites        │
+│  - pg.Pool Connection Pooling│ │  - Zero External Dependencies│
+│  - ACID Transactions         │ │  - Synchronous Deep Copies   │
+│  - Row-Level Locking         │ │                              │
 └──────────────────────────────┘ └──────────────────────────────┘
 ```
 
-#### 1. Schema Migrations (`server/persistence/migrations/001_initial_schema.sql`)
-The PostgreSQL schema tracks versioned migrations via `schema_migrations`:
-- `player_sessions`: UID, token hash, display name, token color, session generation.
+#### 1. Schema Migrations & Private Schema Isolation
+The PostgreSQL schema tracks versioned migrations via `game.schema_migrations` inside an isolated `game` schema:
+$$\text{CREATE SCHEMA IF NOT EXISTS game;}$$
+$$\text{REVOKE ALL ON SCHEMA game FROM anon, authenticated;}$$
+
+This guarantees that Supabase PostgREST data APIs cannot expose internal game data to unauthorized frontend callers. Only the authoritative Node.js backend connecting via `pg.Pool` with `search_path = game, public` has access.
+
+Entities in `game`:
+- `player_sessions`: UID, token hash, display name, token color, session generation, status.
 - `rooms`: Room ID, host UID, invite code, status, custom rules JSON, member count.
-- `room_members`: Room ID, player UID, readiness, slot index.
-- `games`: Game ID, room ID, status, version, authoritative state JSON, current player UID.
+- `room_members`: Room ID, player UID, readiness, slot index, current controller, connection status.
+- `games`: Game ID, room ID, status, version, authoritative state JSON, current player UID, timer deadlines.
 - `game_events`: Monotonically sequenced event log per game.
 - `processed_commands`: Idempotency tracking `(game_id, command_id)`.
 - `game_archives`: Historical archive of finished games and rankings.
 
-#### 2. Dual-Engine Operation
-- **Render Production**: `DATABASE_URL` is configured pointing to a managed PostgreSQL instance with SSL enabled (`rejectUnauthorized: false` for cloud certificates).
+#### 2. Dual-Engine Operation & Connection Architecture
+- **Production (Render + Supabase Free)**: `DATABASE_URL` connects to Supabase PostgreSQL 17 via Supabase Session Pooler (port `5432`) or direct connection with SSL (`rejectUnauthorized: false`). Connection pool is conservatively bounded to `max: 10` clients to respect Supabase Free plan constraints.
 - **Offline Local LAN**: If `DATABASE_URL` is unset, the server automatically defaults to `MemoryStore`, preserving 100% functionality for zero-configuration offline LAN play and unit tests.
 
 ### 10.7 Server Restart Recovery Specification
 
-When the backend restarts (e.g. cloud host redeployment, OS restart, or maintenance):
-1. `migrator.runMigrations()` verifies and applies all schema migrations.
-2. `roomManager.recoverActiveRooms()` reloads all rooms with status `LOBBY` or `IN_PROGRESS`.
+When the backend restarts (e.g. Render container sleep/wake cycle, redeployment, or maintenance):
+1. `migrator.runMigrations()` verifies and applies all schema migrations idempotently.
+2. `roomManager.loadActiveState()` reloads all rooms with status `LOBBY` or `IN_PROGRESS`.
 3. `gameManager.recoverActiveGames()` reloads active game states with status `IN_PROGRESS` or `ACTION_REQUIRED`.
 4. If a recovered game has a pending turn timer, the remaining duration is recalculated relative to `updated_at`:
 $$\Delta t_{\text{remaining}} = \max(5000, \text{turnDurationMs} - (\text{now} - \text{state.updatedAt}))$$
 5. Any disconnected active player triggers a bot takeover check, ensuring games resume smoothly without hanging.
 
-### 10.8 Render Production Topology (`render.yaml`)
+### 10.8 Zero-Cost Production Topology (`render.yaml` & Supabase)
 
-The production deployment specification is defined as code in `render.yaml`:
+The production deployment operates completely within the zero-cost Free tier:
 ```yaml
 services:
   - type: web
-    name: monopoly-india-game
+    name: monopoly-india-server
     runtime: node
-    plan: starter
+    branch: feature/render-public-hosting
+    plan: free
+    region: oregon
     buildCommand: npm ci --include=dev && npm run build && npm run build:server
     startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
     envVars:
       - key: NODE_ENV
         value: production
+      - key: DATABASE_URL
+        sync: false
       - key: BOT_TAKEOVER_GRACE_MS
         value: "10000"
-      - key: DATABASE_URL
-        fromDatabase:
-          name: monopoly-india-postgres
-          property: connectionString
-
-databases:
-  - name: monopoly-india-postgres
-    plan: starter
-    databaseName: monopoly_india
-    user: monopoly_user
+      - key: CLIENT_ORIGIN
+        sync: false
 ```
 
-This configuration ensures:
-1. The web service runs on the persistent `starter` plan to eliminate cold-start drops.
-2. The PostgreSQL database is co-located in the same region with automated connection pooling.
-3. The build process produces both the client distribution (`dist/`) and the Node.js server bundle (`dist-server/index.cjs`).
+- **Backend:** Render Free Web Service (Node.js runtime, single instance).
+- **Database:** Supabase Free PostgreSQL 17 project (`omelbzqsmqsjazaliqvo` in `ap-south-1`).
+- **Connection Security:** `DATABASE_URL` is securely injected via Render Dashboard Environment settings (never committed to repository).
 
 ### 10.9 Formal Verification Matrix
 
 | Verification Target | Architectural Invariant | Test Suite / Spec | Result |
 |---|---|---|---|
 | **Room & Game Isolation** | Room A and Room B operate completely independently; no event leaks across matches. | `multiplayer-production-hardening.test.ts` | ✅ Passed (164ms) |
-| **Duplicate Game Guard** | A second `room:start` request returns existing `gameId` without spawning duplicate matches. | `multiplayer-production-hardening.test.ts` | ✅ Passed (12ms) |
-| **3-Player Synchronization** | 3 human clients observe identical monotonic versions and sequence orders. | `multiplayer-production-hardening.test.ts` | ✅ Passed (167ms) |
+| **Duplicate Game Guard** | A second `room:start` request returns existing `gameId` without spawning duplicate matches. | `multiplayer-production-hardening.test.ts` | ✅ Passed (13ms) |
+| **3-Player Synchronization** | 3 human clients observe identical monotonic versions and sequence orders. | `multiplayer-production-hardening.test.ts` | ✅ Passed (166ms) |
 | **Command Deduplication** | Repeated submission of `(game_id, command_id)` returns cached result without re-executing. | `multiplayer-production-hardening.test.ts` | ✅ Passed |
-| **Authorization Check** | Sockets cannot join or command rooms/games they do not belong to. | `multiplayer-production-hardening.test.ts` | ✅ Passed (10ms) |
+| **Authorization Check** | Sockets cannot join or command rooms/games they do not belong to. | `multiplayer-production-hardening.test.ts` | ✅ Passed (9ms) |
 | **Socket Fencing** | New socket connection for an active session terminates the older socket (`SESSION_REPLACED`). | `multiplayer-production-hardening.test.ts` | ✅ Passed (205ms) |
-| **Bot Takeover** | Grace period expiration transitions disconnected human to bot control without seat loss. | `multiplayer-production-hardening.test.ts` | ✅ Passed (364ms) |
-| **Control Recovery** | Reconnecting human with auth handshake restores original seat and revokes bot control. | `multiplayer-production-hardening.test.ts` | ✅ Passed (375ms) |
-| **Server Restart Recovery**| Restarting server restores active rooms, game states, and turn timers from persistent store. | `multiplayer-production-hardening.test.ts` | ✅ Passed (134ms) |
+| **Bot Takeover** | Grace period expiration transitions disconnected human to bot control without seat loss. | `multiplayer-production-hardening.test.ts` | ✅ Passed (369ms) |
+| **Control Recovery** | Reconnecting human with auth handshake restores original seat and revokes bot control. | `multiplayer-production-hardening.test.ts` | ✅ Passed (373ms) |
+| **Server Restart Recovery**| Restarting server restores active rooms, game states, and turn timers from persistent store. | `multiplayer-production-hardening.test.ts` | ✅ Passed (140ms) |
+| **Database Fail-Safe** | `/api/health` reports 503 when store is unhealthy; stale versions are rejected cleanly. | `multiplayer-production-hardening.test.ts` | ✅ Passed (31ms) |
 | **Production Build** | `npm run build && npm run build:server` produces both frontend and backend bundles. | CI / Local Build | ✅ Passed |
 
 

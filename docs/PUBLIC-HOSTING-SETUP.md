@@ -205,25 +205,43 @@ npm run lan:host
 
 ---
 
-## 8. Render Free-Tier Behavior & State Management
+## 8. Render Free-Tier Behavior & Supabase Persistent State Architecture
 
-### In-Memory State Architecture
-- The game backend uses high-performance in-memory state (`Map<string, ServerRoom>` and `Map<string, LiveGameInstance>`).
-- Exactly **one** backend instance runs on Render Free.
-- No paid persistence layer (such as Redis or Postgres) is introduced.
+### Durable PostgreSQL Persistence (Supabase Free Tier)
+- The game backend uses durable ACID persistence powered by **Supabase PostgreSQL 17** (hosted in `ap-south-1`).
+- All critical application entities (`player_sessions`, `rooms`, `room_members`, `games`, `game_events`, `processed_commands`, `game_archives`) reside in a dedicated, isolated `game` database schema.
+- Privileged access is restricted exclusively to the Node.js backend; client-side PostgREST access is revoked (`REVOKE ALL ON SCHEMA game FROM anon, authenticated`).
+- A partial unique index (`idx_one_active_game_per_room`) guarantees that a room cannot accidentally spawn duplicate concurrent matches.
+- Exactly **one** backend instance runs on Render Free Web Service with a conservative connection pool (`max: 10`) connected via Supabase Session Pooler or Direct Connection.
+- 100% zero-cost architecture within the Free tier limits of both platforms.
 
-### Free-Tier Inactivity Spin-Down
+### Free-Tier Inactivity Spin-Down & Crash Recovery
 - Render spins down free Web Services after **15 minutes of inactivity**.
 - **Cold Start Duration:** When a player visits the frontend while the backend is sleeping, waking up typically takes **50 to 70 seconds**.
 - **User Feedback:** The frontend automatically detects cold starts and displays an informational message:
   > *"Render Free Instance Spin-Up: Free web services automatically spin down after inactivity. Cold starts typically take 50–70 seconds. Once awake, the board connects automatically!"*
 - A **Retry** button allows players to manually trigger reconnection attempts without refreshing the page.
 
-### Backend Restarts & Session Loss
-- Any server restart (such as a new deployment or sleep/wake cycle) wipes existing in-memory rooms.
-- If a client attempts to rejoin a destroyed room, the frontend gracefully displays:
-  > *"The game server restarted or the room expired. Please create or join a new room."*
-- Players are never left stuck on infinite loading screens.
+### Backend Restarts & Match Recovery
+- Unlike purely in-memory servers, server restarts (such as deployments or sleep/wake cycles) **do NOT destroy active matches**.
+- On startup, the backend automatically queries Supabase PostgreSQL to recover:
+  1. All active rooms with status `LOBBY` or `IN_PROGRESS`.
+  2. All ongoing game states and versions.
+  3. Authoritative player slots, turn orders, property ownership, and cash balances.
+  4. Authoritative countdown timers and deadlines recalculated relative to `updated_at`.
+- Reconnecting players authenticate using their cryptographic handshake token hash, cancel any temporary bot takeover, and resume control seamlessly.
+
+### How to Configure DATABASE_URL on Render
+1. In the [Render Dashboard](https://dashboard.render.com/), open your `monopoly-india-server` Web Service.
+2. Navigate to **Environment**.
+3. Add environment variable:
+   - **Key:** `DATABASE_URL`
+   - **Value:** Your Supabase connection string.
+     - **Option A (Session Pooler - Recommended):**
+       `postgresql://postgres.omelbzqsmqsjazaliqvo:[YOUR-PASSWORD]@aws-0-ap-south-1.pooler.supabase.com:5432/postgres?sslmode=require`
+     - **Option B (Direct Connection):**
+       `postgresql://postgres:[YOUR-PASSWORD]@db.omelbzqsmqsjazaliqvo.supabase.co:5432/postgres?sslmode=require`
+4. Click **Save Changes**. Render will automatically redeploy the service with persistent database access.
 
 ---
 

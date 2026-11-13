@@ -20,7 +20,7 @@
   [![Socket.IO](https://img.shields.io/badge/Socket.IO-4.8-010101.svg?logo=socketdotio&logoColor=white)](https://socket.io/)
   [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38B2AC.svg?logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
   [![Vitest](https://img.shields.io/badge/Vitest-3.2-FCC72B.svg?logo=vitest&logoColor=black)](https://vitest.dev/)
-  [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1.svg?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+  [![Supabase PostgreSQL](https://img.shields.io/badge/Supabase_PostgreSQL-17-3ECF8E.svg?logo=supabase&logoColor=white)](https://supabase.com/)
   [![Render](https://img.shields.io/badge/Render-Live%20Deployment-46E3B7.svg?logo=render&logoColor=black)](https://monopoly-india-game.onrender.com/)
   [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -200,10 +200,54 @@ Indian Monopoly includes an enterprise-grade multiplayer synchronization engine 
    - Upon timer expiry, the autonomous `CpuController` takes over the player slot without forfeiting their seat, assets, or balance.
    - When the human returns, the server cancels pending bot actions, returns control to the player (`isBotControlled = false`), broadcasts `player:controller_changed`, and delivers the latest authoritative state snapshot.
 
-5. **Durable Persistence & Server Restart Recovery:**
-   - Render production environments utilize PostgreSQL with connection pooling (`pg.Pool`) and versioned SQL migrations.
+5. **Durable Persistence & Server Restart Recovery (Supabase PostgreSQL 17):**
+   - Cloud production utilizes **Supabase PostgreSQL 17** (hosted in `ap-south-1`) with connection pooling (`pg.Pool`, conservative `max: 10` clients) and versioned SQL migrations.
+   - All critical tables reside in a backend-only `game` schema (`REVOKE ALL ON SCHEMA game FROM anon, authenticated`) to prevent unauthorized client PostgREST access.
    - Offline local Wi-Fi LAN mode runs on a zero-dependency in-memory store (`MemoryStore`).
-   - On server restart, active matches and pending turn timers are recovered dynamically from persistence, preventing match loss.
+   - On server restart, active matches and pending turn timers are recovered dynamically from Supabase PostgreSQL, preventing match loss across Render cold-start spin-downs and redeployments.
+
+---
+
+## 🗄️ Supabase PostgreSQL Integration & Configuration
+
+Indian Monopoly uses **Supabase PostgreSQL 17** for persistent ACID multiplayer storage while retaining high-performance **Socket.IO** for real-time WebSocket state streaming:
+
+### Database Schema Overview (Schema: `game`)
+- **`game.player_sessions`**: Persistent reconnect identities, token hashes (`token_hash`), generation fencing, and connection presence.
+- **`game.rooms`**: Private rooms, invite codes, host ownership, and custom rulesets.
+- **`game.room_members`**: Player slots, display names, readiness, token colors, and controller assignments (`HUMAN` vs `BOT`).
+- **`game.games`**: Authoritative game session snapshots (`JSONB`), versions, turn timers, and status. Enforced with partial unique index `idx_one_active_game_per_room`.
+- **`game.game_events`**: Sequenced, ordered event log for action auditing and state recovery.
+- **`game.processed_commands`**: Idempotency records `(game_id, command_id)` preventing duplicate dice rolls or financial transactions.
+- **`game.game_archives`**: Historical match archives, final rankings, and statistics.
+- **`game.schema_migrations`**: Version-controlled migration ledger.
+
+### How to Configure `DATABASE_URL`
+- **Render Production**:
+  1. Open your Render Web Service -> **Environment**.
+  2. Set `DATABASE_URL` to your Supabase connection string.
+     - **Session Pooler (Recommended - Port 5432):**
+       `postgresql://postgres.omelbzqsmqsjazaliqvo:[YOUR-PASSWORD]@aws-0-ap-south-1.pooler.supabase.com:5432/postgres?sslmode=require`
+     - **Direct Connection (Port 5432):**
+       `postgresql://postgres:[YOUR-PASSWORD]@db.omelbzqsmqsjazaliqvo.supabase.co:5432/postgres?sslmode=require`
+- **Local Development / Testing**:
+  Add `DATABASE_URL` to your local `.env` file or leave it unset to use the zero-dependency in-memory fallback (`MemoryStore`).
+
+### Health & Connectivity Verification
+Check database connectivity anytime via the backend health probe:
+```bash
+curl https://<your-render-service>.onrender.com/api/health
+```
+Response when database is connected:
+```json
+{
+  "status": "ok",
+  "uptime": 124.5,
+  "timestamp": 1794593000000,
+  "database": "connected",
+  "connectedClients": 2
+}
+```
 
 ---
 
@@ -216,7 +260,7 @@ Indian Monopoly includes an enterprise-grade multiplayer synchronization engine 
 | **State Management** | **Zustand 5**, **TanStack Query 5** | Lightweight client state, decoupled toast store, room and game state synchronizers. |
 | **Client UI Primitives**| **Radix UI**, **Canvas Confetti** | Accessible dialogs, range sliders, tooltips, tabs, and celebratory victory animations. |
 | **Backend & Server** | **Node.js 20+**, **Express 5**, **tsx** | High-performance HTTP server serving static client assets, health probes, and API routes. |
-| **Persistence Layer** | **PostgreSQL 16**, **pg**, In-Memory | ACID transaction persistence, row-level locking, versioned schema migrations, zero-dependency LAN fallback. |
+| **Persistence Layer** | **Supabase PostgreSQL 17**, **pg** | ACID transactions, row-level locking, isolated `game` schema, versioned migrations, zero-dependency LAN fallback. |
 | **Real-Time Transport** | **Socket.IO 4.8** | Authoritative bidirectional WebSocket transport with handshake auth, channel isolation, and socket fencing. |
 | **Autonomous AI** | Pure Modular TypeScript Engine | Deterministic heuristic multi-agent decision models with automatic human takeover and animation synchronization. |
 | **Desktop Runtime** | **Electron 45** | Native desktop wrapper with integrated background Node.js server for macOS and Windows. |
@@ -237,7 +281,7 @@ Indian Monopoly includes an enterprise-grade multiplayer synchronization engine 
 | `npm run build:server` | Bundles the standalone server into `dist-server/index.cjs` using `esbuild`. |
 | `npm run build:desktop` | Builds both the React LAN frontend (`dist/`) and the server bundle (`dist-server/index.cjs`). |
 | `npm run desktop` | Builds desktop assets and launches the application inside native Electron. |
-| `npm test` | Runs the full Vitest test suite (399 tests across 30 test files including hardening suite). |
+| `npm test` | Runs the full Vitest test suite (401 tests across 30 test files including hardening suite). |
 | `npm run test:watch` | Runs Vitest in interactive watch mode for test-driven development. |
 | `npm run test:coverage`| Generates detailed test code coverage reports. |
 | `npm run typecheck` | Strict TypeScript compiler validation across client, server, and tests (`tsc -b --noEmit`). |

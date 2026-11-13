@@ -23,17 +23,32 @@ export class PostgresStore implements PersistenceStore {
             connectionString: process.env.DATABASE_URL,
           };
 
-    // Render PostgreSQL requires SSL in production
+    // Supabase / Render PostgreSQL requires SSL in production or when connecting to remote cloud host
     const isProduction = process.env.NODE_ENV === 'production';
-    if (isProduction && config.connectionString && !config.ssl) {
+    const isCloudHost =
+      typeof config.connectionString === 'string' &&
+      (config.connectionString.includes('supabase') ||
+        config.connectionString.includes('render') ||
+        config.connectionString.includes('pooler') ||
+        config.connectionString.includes('amazonaws.com'));
+
+    if ((isProduction || isCloudHost) && config.connectionString && !config.ssl) {
       config.ssl = { rejectUnauthorized: false };
     }
 
-    config.max = config.max || 20; // 20 concurrent connections
+    // Conservative connection pool sizing suitable for Supabase Free plan and single Render Web Service
+    config.max = config.max || 10;
     config.idleTimeoutMillis = 30000;
     config.connectionTimeoutMillis = 10000;
 
     this.pool = new Pool(config);
+
+    // Ensure search_path defaults to game schema, then public on every acquired client
+    this.pool.on('connect', (client) => {
+      client.query('SET search_path TO game, public').catch((err) => {
+        console.warn('[PostgresStore] Warning: Failed to set search_path on connection checkout:', err);
+      });
+    });
 
     this.pool.on('error', (err) => {
       console.error('[PostgresStore] Unexpected error on idle database client:', err);

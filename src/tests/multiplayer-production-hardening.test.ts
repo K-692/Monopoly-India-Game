@@ -579,4 +579,92 @@ describe('Production-Grade Multiplayer Hardening Suite', () => {
       }
     });
   });
+
+  // =========================================================================
+  // SECTION 7: DATABASE RESILIENCE & HEALTH CHECKS
+  // =========================================================================
+  describe('Phase 11: Database Unavailability & Fail-Safe Recovery', () => {
+    it('returns HTTP 503 from /api/health when the persistence store is unhealthy', async () => {
+      // Create a store that reports an error in isHealthy()
+      const failingStore = new MemoryStore();
+      failingStore.isHealthy = async () => ({ ok: false, error: 'Connection to Supabase timed out' });
+
+      const failServerInstance = createLanServer({ store: failingStore });
+      const failHttpServer = failServerInstance.httpServer;
+
+      let failPort = 0;
+      await new Promise<void>((resolve) => {
+        failHttpServer.listen(0, '127.0.0.1', () => {
+          const addr = failHttpServer.address();
+          if (typeof addr === 'object' && addr !== null) {
+            failPort = addr.port;
+          }
+          resolve();
+        });
+      });
+
+      try {
+        const response = await fetch(`http://127.0.0.1:${failPort}/api/health`);
+        expect(response.status).toBe(503);
+        const data = (await response.json()) as { status: string; database: string; dbError?: string };
+        expect(data.status).toBe('degraded');
+        expect(data.database).toBe('error');
+        expect(data.dbError).toContain('Supabase');
+      } finally {
+        clearInterval(failServerInstance.cleanupInterval);
+        failServerInstance.io.close();
+        await new Promise<void>((resolve) => failHttpServer.close(() => resolve()));
+      }
+    });
+
+    it('rejects stale commands when expectedVersion does not match current game version', async () => {
+      const client1 = createClient();
+      const client2 = createClient();
+
+      try {
+        const p1 = await new Promise<PlayerSessionPublic>((res) =>
+          client1.emit('player:register', { displayName: 'Stale Tester 1' }, (r) => res(r.player!))
+        );
+        await new Promise<PlayerSessionPublic>((res) =>
+          client2.emit('player:register', { displayName: 'Stale Tester 2' }, (r) => res(r.player!))
+        );
+
+        const room = await new Promise<RoomState>((res) =>
+          client1.emit('room:create', { customRules: { ...DEFAULT_HOST_RULES, maxPlayers: 2 } }, (r) => res(r.room!))
+        );
+        await new Promise((res) => client2.emit('room:join', { inviteCode: room.inviteCode }, res));
+
+        await new Promise((res) => client1.emit('room:set-ready', { isReady: true }, res));
+        await new Promise((res) => client2.emit('room:set-ready', { isReady: true }, res));
+
+        const startRes = await new Promise<GameStartResponse>((res) => client1.emit('room:start', res));
+        const gameId = startRes.gameId!;
+
+        const game = serverInstance.gameManager.getGame(gameId)!;
+        const activeClient = game.currentPlayerUid === p1.uid ? client1 : client2;
+
+        // Submit a command with deliberately stale expectedVersion = 999
+        const staleRes = await new Promise<GameCommandResponse>((res) =>
+          activeClient.emit(
+            'game:command',
+            {
+              commandId: 'cmd_stale_' + Date.now(),
+              roomId: room.roomId,
+              gameId,
+              expectedVersion: 999, // Incorrect version
+              type: 'ROLL_DICE',
+              payload: {},
+            },
+            res
+          )
+        );
+
+        expect(staleRes.ok).toBe(false);
+        expect(staleRes.error).toBeDefined();
+      } finally {
+        client1.disconnect();
+        client2.disconnect();
+      }
+    });
+  });
 });
