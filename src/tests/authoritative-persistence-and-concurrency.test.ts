@@ -10,6 +10,9 @@
  * 6. Concurrent start requests: Near-simultaneous starts atomically yield exactly one active game session.
  */
 
+import http from 'http';
+import { io as ClientSocket, Socket as ClientSocketType } from 'socket.io-client';
+import { Server } from 'socket.io';
 import { describe, expect, it } from 'vitest';
 import { GameCommand, GameState } from '../domain/game-types';
 import { DEFAULT_HOST_RULES } from '../domain/ruleset';
@@ -17,7 +20,19 @@ import { GameManager } from '../../server/game/game-manager';
 import { MemoryStore } from '../../server/persistence/memory-store';
 import { CommandCommitParams } from '../../server/persistence/types';
 import { RoomManager } from '../../server/rooms/room-manager';
-import { ServerRoom } from '../../server/types/server-types';
+import { setupSocketHandlers } from '../../server/socket/socket-handlers';
+import {
+  ClientToServerEvents,
+  InterServerEvents,
+  PlayerAuthResponse,
+  PlayerSession,
+  RoomCreateResponse,
+  ServerRoom,
+  ServerToClientEvents,
+  SocketData,
+} from '../../server/types/server-types';
+
+type TypedClient = ClientSocketType<ServerToClientEvents, ClientToServerEvents>;
 
 describe('Authoritative Room and Game Persistence Invariants', () => {
   // =========================================================================
@@ -61,6 +76,60 @@ describe('Authoritative Room and Game Persistence Invariants', () => {
     const stored = await store.getRoom(result.room!.roomId);
     expect(stored).not.toBeNull();
     expect(stored?.roomId).toBe(result.room!.roomId);
+  });
+
+  it('1.1 Host session persistence: persisted host session contains correct room ID immediately upon creation', async () => {
+    const store = new MemoryStore();
+    const rm = new RoomManager(store);
+    const host = rm.registerPlayer('Aarav Host');
+    expect(host.uid).toBeDefined();
+
+    // Prior to room creation, host session in store has no roomId
+    const preSession = await store.getSessionByUid(host.uid);
+    expect(preSession?.roomId).toBeNull();
+
+    const createRes = await rm.createRoom(host.uid, DEFAULT_HOST_RULES);
+    expect(createRes.ok).toBe(true);
+    const room = createRes.room!;
+
+    // Host session in memory has new roomId
+    const hostSessionMem = rm.getSessionByUid(host.uid);
+    expect(hostSessionMem?.roomId).toBe(room.roomId);
+
+    // Crucial: Host session committed in the store has the new roomId
+    const storedSession = await store.getSessionByUid(host.uid);
+    expect(storedSession).not.toBeNull();
+    expect(storedSession?.roomId).toBe(room.roomId);
+  });
+
+  it('1.2 Host session persistence failure rollback: cleans up room and preserves previous session state', async () => {
+    class FailingSaveSessionStore extends MemoryStore {
+      public override async saveSession(session: PlayerSession): Promise<void> {
+        // Fail when attempting to save the session with the new room
+        if (session.roomId && typeof session.roomId === 'string' && session.roomId.startsWith('room_')) {
+          throw new Error('Database disk error during saveSession');
+        }
+        return super.saveSession(session);
+      }
+    }
+
+    const store = new FailingSaveSessionStore();
+    const rm = new RoomManager(store);
+    const host = rm.registerPlayer('RollbackHost');
+
+    const preSession = rm.getSessionByUid(host.uid);
+    expect(preSession?.roomId).toBeNull();
+
+    const createRes = await rm.createRoom(host.uid, DEFAULT_HOST_RULES);
+    expect(createRes.ok).toBe(false);
+    expect(createRes.error).toContain('database persistence failure');
+
+    // Host session rolled back to previous state
+    expect(rm.getSessionByUid(host.uid)?.roomId).toBeNull();
+
+    // Store has no orphaned room
+    const activeRooms = await store.listActiveRooms();
+    expect(activeRooms).toHaveLength(0);
   });
 
   // =========================================================================
@@ -294,5 +363,72 @@ describe('Authoritative Room and Game Persistence Invariants', () => {
     const activeGame = await store.getActiveGameForRoom(room.roomId);
     expect(activeGame).not.toBeNull();
     expect(activeGame?.gameId).toBe(startRes1.gameId);
+  });
+
+  // =========================================================================
+  // 7. SERVER READINESS GATE
+  // =========================================================================
+  it('7. Server readiness gate: rejects operations with SERVICE_INITIALIZING until ready, accepts when ready', async () => {
+    let isReady = false;
+    const store = new MemoryStore();
+    const rm = new RoomManager(store);
+    const gm = new GameManager(store);
+
+    const httpServer = http.createServer();
+    const io = new Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>(httpServer, {
+      cors: { origin: '*' },
+    });
+
+    setupSocketHandlers(io, rm, gm, () => isReady);
+
+    await new Promise<void>((resolve) => {
+      httpServer.listen(0, '127.0.0.1', () => resolve());
+    });
+
+    const addr = httpServer.address();
+    const port = typeof addr === 'object' && addr !== null ? addr.port : 0;
+    const client: TypedClient = ClientSocket(`http://127.0.0.1:${port}`, {
+      transports: ['websocket'],
+      forceNew: true,
+      autoConnect: true,
+    }) as TypedClient;
+
+    await new Promise<void>((resolve) => client.on('connect', () => resolve()));
+
+    // 1. When server is not ready: player:register is rejected with SERVICE_INITIALIZING
+    const registerBeforeReady = await new Promise<PlayerAuthResponse>((resolve) => {
+      client.emit('player:register', { displayName: 'EarlyBird' }, (res) => resolve(res));
+    });
+    expect(registerBeforeReady.ok).toBe(false);
+    expect(registerBeforeReady.code).toBe('SERVICE_INITIALIZING');
+    expect(registerBeforeReady.error).toContain('Server is initializing');
+
+    // 2. room:create is rejected with SERVICE_INITIALIZING
+    const roomBeforeReady = await new Promise<RoomCreateResponse>((resolve) => {
+      client.emit('room:create', { customRules: DEFAULT_HOST_RULES }, (res) => resolve(res));
+    });
+    expect(roomBeforeReady.ok).toBe(false);
+    expect(roomBeforeReady.code).toBe('SERVICE_INITIALIZING');
+
+    // 3. Transition server to ready
+    isReady = true;
+
+    // 4. Now operations succeed!
+    const registerAfterReady = await new Promise<PlayerAuthResponse>((resolve) => {
+      client.emit('player:register', { displayName: 'ReadyPlayer' }, (res) => resolve(res));
+    });
+    expect(registerAfterReady.ok).toBe(true);
+    expect(registerAfterReady.player).toBeDefined();
+
+    const roomAfterReady = await new Promise<RoomCreateResponse>((resolve) => {
+      client.emit('room:create', { customRules: DEFAULT_HOST_RULES }, (res) => resolve(res));
+    });
+    expect(roomAfterReady.ok).toBe(true);
+    expect(roomAfterReady.room).toBeDefined();
+
+    // Clean up
+    client.disconnect();
+    io.close();
+    await new Promise<void>((resolve) => httpServer.close(() => resolve()));
   });
 });

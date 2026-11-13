@@ -409,17 +409,39 @@ export class RoomManager {
     };
 
     // Authoritative persistence: Await database commit before registering in-memory state and acknowledging success
+    const previousRoomId = hostSession.roomId;
+    let roomPersisted = false;
+
     try {
+      // 1. Persist the room and its initial members first
       await this.store.createRoom(room);
+      roomPersisted = true;
+
+      // 2. Update host session with the new roomId BEFORE persisting host session
+      hostSession.roomId = roomId;
       await this.store.saveSession(hostSession);
     } catch (err) {
-      console.error('[RoomManager] Failed to persist new room to store:', err);
+      console.error('[RoomManager] Failed to persist new room or host session to store:', err);
+
+      // Rollback host session in-memory state
+      hostSession.roomId = previousRoomId;
+
+      // Clean up partially created room in store if it was persisted
+      if (roomPersisted) {
+        await this.store.deleteRoom(roomId).catch((deleteErr) => {
+          console.warn('[RoomManager] Failed to clean up partially created room in store:', deleteErr);
+        });
+      }
+
+      // Ensure in-memory maps do not keep partial room
+      this.rooms.delete(roomId);
+      this.codeToRoomId.delete(inviteCode);
+
       return { ok: false, error: 'Failed to create room: database persistence failure' };
     }
 
     this.rooms.set(roomId, room);
     this.codeToRoomId.set(inviteCode, roomId);
-    hostSession.roomId = roomId;
 
     return { ok: true, room };
   }

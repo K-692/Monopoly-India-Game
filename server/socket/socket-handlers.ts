@@ -22,7 +22,8 @@ import {
 export function setupSocketHandlers(
   io: Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>,
   roomManager: RoomManager,
-  gameManager: GameManager
+  gameManager: GameManager,
+  isServerReady: () => boolean = () => true
 ): void {
   // Configure GameManager broadcast bridge to Socket.IO with strict channel isolation
   gameManager.setBroadcastCallback((gameId, roomId, event, data) => {
@@ -53,6 +54,11 @@ export function setupSocketHandlers(
   // HANDSHAKE AUTHENTICATION MIDDLEWARE
   // ==========================================
   io.use(async (socket, next) => {
+    // If database and state recovery are still initializing, allow socket to connect but defer DB lookups
+    if (!isServerReady()) {
+      return next();
+    }
+
     try {
       const token = socket.handshake.auth?.token;
       if (token && typeof token === 'string' && token.trim()) {
@@ -96,6 +102,19 @@ export function setupSocketHandlers(
     const rawIp = socket.handshake.address;
     const clientIp = normalizeIp(rawIp);
 
+    // Readiness gate: rejects gameplay requests if database migration or recovery is still in flight
+    const requireReady = (callback?: (res: { ok: boolean; error?: string; code?: string }) => void): boolean => {
+      if (!isServerReady()) {
+        const errorMsg = 'Server is initializing database and active games. Please retry in a few seconds.';
+        socket.emit('server:error', { code: 'SERVICE_INITIALIZING', message: errorMsg });
+        if (typeof callback === 'function') {
+          callback({ ok: false, error: errorMsg, code: 'SERVICE_INITIALIZING' });
+        }
+        return false;
+      }
+      return true;
+    };
+
     // If socket was pre-authenticated during handshake, join channels and restore state
     if (socket.data.session) {
       const session = socket.data.session;
@@ -133,6 +152,7 @@ export function setupSocketHandlers(
     // ==========================================
 
     socket.on('player:register', ({ displayName, avatarColor, token }, callback) => {
+      if (!requireReady(callback)) return;
       try {
         const player = roomManager.registerPlayer(displayName, avatarColor, token, clientIp);
         const { session, previousSocketId } = roomManager.bindSocket(socket.id, player.uid, clientIp);
@@ -172,6 +192,7 @@ export function setupSocketHandlers(
     });
 
     socket.on('player:resume', ({ token, displayName }, callback) => {
+      if (!requireReady(callback)) return;
       try {
         const player = roomManager.resumePlayer(token, displayName, clientIp);
         if (!player) {
@@ -235,6 +256,7 @@ export function setupSocketHandlers(
     // ==========================================
 
     socket.on('room:create', async ({ customRules, cpuPlayers }, callback) => {
+      if (!requireReady(callback)) return;
       if (!requireSession(socket, roomManager)) {
         if (typeof callback === 'function') callback({ ok: false, error: 'Unauthenticated' });
         return;
@@ -266,6 +288,7 @@ export function setupSocketHandlers(
     });
 
     socket.on('room:join', ({ inviteCode }, callback) => {
+      if (!requireReady(callback)) return;
       if (!requireSession(socket, roomManager)) {
         if (typeof callback === 'function') callback({ ok: false, error: 'Unauthenticated' });
         return;
@@ -311,6 +334,7 @@ export function setupSocketHandlers(
     });
 
     socket.on('room:get', ({ roomId }, callback) => {
+      if (!requireReady(callback)) return;
       if (!requireSession(socket, roomManager)) {
         if (typeof callback === 'function') callback({ ok: false, error: 'Unauthenticated' });
         return;
@@ -347,6 +371,7 @@ export function setupSocketHandlers(
     });
 
     socket.on('room:set-ready', ({ isReady }, callback) => {
+      if (!requireReady(callback)) return;
       if (!requireSession(socket, roomManager)) return;
       const session = socket.data.session!;
       if (!session.roomId) {
@@ -367,6 +392,7 @@ export function setupSocketHandlers(
     });
 
     socket.on('room:add-cpu', (data, callback) => {
+      if (!requireReady(callback)) return;
       if (!requireSession(socket, roomManager)) {
         if (typeof callback === 'function') callback({ ok: false, error: 'Unauthenticated' });
         return;
@@ -390,6 +416,7 @@ export function setupSocketHandlers(
     });
 
     socket.on('room:remove-cpu', ({ cpuUid }, callback) => {
+      if (!requireReady(callback)) return;
       if (!requireSession(socket, roomManager)) {
         if (typeof callback === 'function') callback({ ok: false, error: 'Unauthenticated' });
         return;
@@ -413,6 +440,7 @@ export function setupSocketHandlers(
     });
 
     socket.on('room:rename-cpu', ({ cpuUid, newName }, callback) => {
+      if (!requireReady(callback)) return;
       if (!requireSession(socket, roomManager)) {
         if (typeof callback === 'function') callback({ ok: false, error: 'Unauthenticated' });
         return;
@@ -436,6 +464,7 @@ export function setupSocketHandlers(
     });
 
     socket.on('room:leave', (callback) => {
+      if (!requireReady(callback)) return;
       const session = socket.data.session;
       if (!session || !session.roomId) {
         if (typeof callback === 'function') callback({ ok: true });
@@ -458,6 +487,7 @@ export function setupSocketHandlers(
     });
 
     socket.on('room:start', async (callback) => {
+      if (!requireReady(callback)) return;
       if (!requireSession(socket, roomManager)) return;
       const session = socket.data.session!;
       if (!session.roomId) {
@@ -510,6 +540,7 @@ export function setupSocketHandlers(
     });
 
     socket.on('game:join', ({ gameId }, callback) => {
+      if (!requireReady(callback)) return;
       if (!requireSession(socket, roomManager)) {
         if (typeof callback === 'function') callback({ ok: false, error: 'Unauthenticated' });
         return;
@@ -565,6 +596,7 @@ export function setupSocketHandlers(
     // ==========================================
 
     socket.on('game:command', async (command, callback) => {
+      if (!requireReady(callback)) return;
       if (!requireSession(socket, roomManager)) {
         if (typeof callback === 'function') callback({ ok: false, error: 'Unauthenticated' });
         return;

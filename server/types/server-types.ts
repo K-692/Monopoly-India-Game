@@ -51,6 +51,7 @@ export interface PlayerAuthResponse {
   ok: boolean;
   player?: PlayerSessionPublic;
   error?: string;
+  code?: string;
 }
 
 export interface RoomCreateResponse {
@@ -59,6 +60,7 @@ export interface RoomCreateResponse {
   inviteCode?: string;
   room?: RoomState;
   error?: string;
+  code?: string;
 }
 
 export interface RoomJoinResponse {
@@ -66,17 +68,20 @@ export interface RoomJoinResponse {
   roomId?: string;
   room?: RoomState;
   error?: string;
+  code?: string;
 }
 
 export interface GameStartResponse {
   ok: boolean;
   gameId?: string;
   error?: string;
+  code?: string;
 }
 
 export interface GameCommandResponse {
   ok: boolean;
   error?: string;
+  code?: string;
 }
 
 /**

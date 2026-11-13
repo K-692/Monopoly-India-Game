@@ -71,11 +71,11 @@ export function createLanServer(options?: LanServerOptions) {
   const roomManager = new RoomManager(store);
   const gameManager = new GameManager(store);
 
-  // Setup Socket.IO Event Handlers
-  setupSocketHandlers(io, roomManager, gameManager);
-
   let isReady = false;
   let readyError: string | null = null;
+
+  // Setup Socket.IO Event Handlers with dynamic readiness gate
+  setupSocketHandlers(io, roomManager, gameManager, () => isReady);
 
   // Initialize store and recover active matches
   const readyPromise = store
@@ -88,6 +88,10 @@ export function createLanServer(options?: LanServerOptions) {
     .catch((err) => {
       readyError = err instanceof Error ? err.message : String(err);
       console.error('[Server] Critical persistence store initialization failure:', err);
+      if (options?.nodeEnv === 'production' || process.env.NODE_ENV === 'production') {
+        console.error('[Server] Fatal: Persistence store initialization failed in production mode.');
+      }
+      throw err;
     });
 
   // Setup periodic cleanup of abandoned rooms
@@ -157,14 +161,23 @@ const isMain =
 
 if (isMain) {
   const PORT = DEFAULT_PORT;
-  const { httpServer, store, cleanupInterval, io } = createLanServer({
+  const isProduction = process.env.NODE_ENV === 'production';
+  const { httpServer, store, cleanupInterval, io, readyPromise } = createLanServer({
     port: PORT,
     clientOrigin: process.env.CLIENT_ORIGIN,
     nodeEnv: process.env.NODE_ENV,
   });
 
-  httpServer.listen(PORT, HOST, () => {
-    const isProduction = process.env.NODE_ENV === 'production';
+  httpServer.listen(PORT, HOST, async () => {
+    try {
+      await readyPromise;
+    } catch (err) {
+      console.error('[Server] Fatal database initialization failure on startup:', err);
+      if (isProduction) {
+        process.exit(1);
+      }
+    }
+
     if (isProduction) {
       const allowedOriginsDisplay = process.env.CLIENT_ORIGIN
         ? process.env.CLIENT_ORIGIN

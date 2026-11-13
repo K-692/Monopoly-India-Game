@@ -245,12 +245,20 @@ Response when database is connected:
 ```json
 {
   "status": "ok",
+  "ready": true,
   "uptime": 124.5,
   "timestamp": 1794593000000,
   "database": "connected",
   "connectedClients": 2
 }
 ```
+
+### Running PostgreSQL Integration Tests
+To execute the genuine PostgreSQL integration test suite against a disposable local or CI test database:
+```bash
+TEST_DATABASE_URL="postgres://postgres:postgres@localhost:5432/monopoly_test" npm run test
+```
+*(Automated safety guards prevent `TEST_DATABASE_URL` from connecting to the production Supabase database).*
 
 ---
 
