@@ -25,6 +25,18 @@
 
 ---
 
+## 🎮 Play Live in Browser (Worldwide Multiplayer)
+
+Play Indian Monopoly right now directly in your web browser:
+
+👉 **[https://k-692.github.io/Monopoly-India-Game/](https://k-692.github.io/Monopoly-India-Game/)**
+
+- **Instant Worldwide Access:** Works on desktop, laptop, tablet, and smartphone browsers.
+- **Real-Time Multiplayer:** Host a private room with custom rules, invite friends via code/link, or seat autonomous AI opponents.
+- **Zero Installation:** No downloads or terminal commands required to play online.
+
+---
+
 ## 🌐 Choose Your Multiplayer Mode
 
 Indian Monopoly supports two production-ready, non-interfering multiplayer execution architectures:
