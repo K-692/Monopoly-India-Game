@@ -5,6 +5,13 @@
 
   **A modern, server-authoritative, full-stack multiplayer property trading board game featuring Indian economic mechanics, autonomous computer players (CPUs), configurable starting capital, offline LAN hosting, and cross-platform desktop runtime.**
 
+  <p align="center">
+    <a href="https://k-692.github.io/Monopoly-India-Game/">
+      <img src="https://img.shields.io/badge/🎮_Play_Live_Game-Online_Now-brightgreen?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Play Live Game" />
+    </a>
+  </p>
+
+  [![Play Live](https://img.shields.io/badge/Live_Game-https%3A%2F%2Fk--692.github.io%2FMonopoly--India--Game%2F-success?logo=githubpages&logoColor=white)](https://k-692.github.io/Monopoly-India-Game/)
   [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue.svg?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
   [![React](https://img.shields.io/badge/React-19.0-61DAFB.svg?logo=react&logoColor=black)](https://react.dev/)
   [![Socket.IO](https://img.shields.io/badge/Socket.IO-4.8-010101.svg?logo=socketdotio&logoColor=white)](https://socket.io/)
@@ -14,6 +21,18 @@
   [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 </div>
+
+---
+
+## 🎮 Play Live in Browser
+
+Play Indian Monopoly right now directly in your web browser:
+
+👉 **[https://k-692.github.io/Monopoly-India-Game/](https://k-692.github.io/Monopoly-India-Game/)**
+
+- **Instant Worldwide Access:** Works on desktop, laptop, tablet, and smartphone browsers.
+- **Real-Time Multiplayer:** Host a private room with custom rules, invite friends via code/link, or seat autonomous AI opponents.
+- **Zero Installation:** No downloads or terminal commands required to play online.
 
 ---
 
