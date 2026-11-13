@@ -3,33 +3,35 @@
 
   # 🇮🇳 Indian Monopoly (Monopoly-India-Game)
 
-  **A modern, server-authoritative, full-stack multiplayer property trading board game featuring Indian economic mechanics, autonomous computer players (CPUs), configurable starting capital, worldwide multiplayer on GitHub Pages + Render Free, and offline local Wi-Fi LAN hosting.**
+  **A modern, server-authoritative, full-stack multiplayer property trading board game featuring Indian economic mechanics, autonomous computer players (CPUs), configurable starting capital, worldwide multiplayer on Render, and offline local Wi-Fi LAN hosting.**
 
   <p align="center">
-    <a href="https://k-692.github.io/Monopoly-India-Game/">
-      <img src="https://img.shields.io/badge/🎮_Play_Live_Game-Online_Now-brightgreen?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Play Live Game" />
+    <a href="https://monopoly-india-game.onrender.com/">
+      <img src="https://img.shields.io/badge/🎮_Play_Live_Game-Online_Now-brightgreen?style=for-the-badge&logo=render&logoColor=white" alt="Play Live Game" />
     </a>
   </p>
 
-  [![Play Live](https://img.shields.io/badge/Live_Game-https%3A%2F%2Fk--692.github.io%2FMonopoly--India--Game%2F-success?logo=githubpages&logoColor=white)](https://k-692.github.io/Monopoly-India-Game/)
+  ### 🌐 Official Live Deployment
+  **Play Online:** [https://monopoly-india-game.onrender.com/](https://monopoly-india-game.onrender.com/)
+
+  [![Play Live](https://img.shields.io/badge/Live_Game-https%3A%2F%2Fmonopoly--india--game.onrender.com%2F-success?logo=render&logoColor=white)](https://monopoly-india-game.onrender.com/)
   [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue.svg?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
   [![React](https://img.shields.io/badge/React-19.0-61DAFB.svg?logo=react&logoColor=black)](https://react.dev/)
   [![Socket.IO](https://img.shields.io/badge/Socket.IO-4.8-010101.svg?logo=socketdotio&logoColor=white)](https://socket.io/)
   [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38B2AC.svg?logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
   [![Vitest](https://img.shields.io/badge/Vitest-3.2-FCC72B.svg?logo=vitest&logoColor=black)](https://vitest.dev/)
-  [![Render](https://img.shields.io/badge/Render-Free%20Tier-46E3B7.svg?logo=render&logoColor=black)](https://render.com/)
-  [![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-Live%20Frontend-222222.svg?logo=githubpages&logoColor=white)](https://k-692.github.io/Monopoly-India-Game/)
+  [![Render](https://img.shields.io/badge/Render-Live%20Deployment-46E3B7.svg?logo=render&logoColor=black)](https://monopoly-india-game.onrender.com/)
   [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 </div>
 
 ---
 
-## 🎮 Play Live in Browser (Worldwide Multiplayer)
+## 🎮 Play Online (Official Live Game)
 
 Play Indian Monopoly right now directly in your web browser:
 
-👉 **[https://k-692.github.io/Monopoly-India-Game/](https://k-692.github.io/Monopoly-India-Game/)**
+👉 **[https://monopoly-india-game.onrender.com/](https://monopoly-india-game.onrender.com/)**
 
 - **Instant Worldwide Access:** Works on desktop, laptop, tablet, and smartphone browsers.
 - **Real-Time Multiplayer:** Host a private room with custom rules, invite friends via code/link, or seat autonomous AI opponents.
@@ -43,16 +45,16 @@ Indian Monopoly supports two production-ready, non-interfering multiplayer execu
 
 | Operational Mode | Environment | Best For | Documentation & Guide |
 |---|---|---|---|
-| **🌐 Worldwide Public Multiplayer** | **GitHub Pages + Render Free** | Playing with friends anywhere across the globe over the internet | [Public Hosting Setup Guide](docs/PUBLIC-HOSTING-SETUP.md) |
+| **🌐 Worldwide Public Multiplayer** | **Render Web Service** | Playing with friends anywhere across the globe over the internet | [Public Hosting Setup Guide](docs/PUBLIC-HOSTING-SETUP.md) |
 | **🏠 Offline Wi-Fi (LAN) Mode** | **Local Node.js Host** | Zero-latency local play on home Wi-Fi or mobile hotspot | [LAN Quick Start](#-quick-start-host--play-on-local-wi-fi-lan) |
 
 ---
 
-## ⚡ Quick Start: Worldwide Multiplayer (GitHub Pages + Render)
+## ⚡ Quick Start: Worldwide Multiplayer (Render)
 
 Play immediately in your browser without local server installation:
 
-1. **Open the Deployed App:** Navigate to **[https://k-692.github.io/Monopoly-India-Game/](https://k-692.github.io/Monopoly-India-Game/)**.
+1. **Open the Deployed App:** Navigate to **[https://monopoly-india-game.onrender.com/](https://monopoly-india-game.onrender.com/)**.
 2. **Cold Start Notice:** On first visit after server inactivity, the free Render service takes ~50–70 seconds to spin up. An on-screen status banner keeps you informed with a one-click Retry button.
 3. **Host or Join:** Create a private room, configure starting cash and custom rules, and share your 6-character room code or link with friends across any network.
 4. **Deploy Your Own:** Follow the comprehensive [Public Hosting Setup Guide](docs/PUBLIC-HOSTING-SETUP.md) to launch your own free Render backend with 1-click `render.yaml` Blueprint deployment.
@@ -164,8 +166,8 @@ Waiting for players...
                                 │                              │
      +──────────────────────────┴────+     +───────────────────┴──────────────+
      │       LAN GUEST (Phone)       │     │     WORLDWIDE GUEST (Browser)    │
-     │  Safari / Chrome on Android   │     │      GitHub Pages Client CDN     │
-     │  http://192.168.1.8:4173      │     │  https://k-692.github.io/...     │
+     │  Safari / Chrome on Android   │     │        Render Web Client         │
+     │  http://192.168.1.8:4173      │     │  https://monopoly-india-game...  │
      │  Joined via QR Code / Link    │     │  Connected to Render Free Backend│
      +───────────────────────────────+     +──────────────────────────────────+
 ```
