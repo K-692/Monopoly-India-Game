@@ -385,7 +385,7 @@ describe('Feature Update: Revised Property Economy, Central Jail Notification, a
         expiresAt: Date.now() + 3600000,
       };
 
-      const startRes = gm.startGame(room, 'user_1', { forcedPlayerOrder: ['user_1', 'user_2'] });
+      const startRes = await gm.startGame(room, 'user_1', { forcedPlayerOrder: ['user_1', 'user_2'] });
       const gameId = startRes.gameId!;
       const state = gm.getGame(gameId)!;
 
@@ -477,7 +477,7 @@ describe('Feature Update: Revised Property Economy, Central Jail Notification, a
         updatedAt: Date.now(),
         expiresAt: Date.now() + 3600000,
       };
-      const startRes = gm.startGame(room, 'user_1', { forcedPlayerOrder: ['user_1', 'user_2'] });
+      const startRes = await gm.startGame(room, 'user_1', { forcedPlayerOrder: ['user_1', 'user_2'] });
       const gameId = startRes.gameId!;
       const state = gm.getGame(gameId)!;
       state.currentPlayerUid = 'user_1';

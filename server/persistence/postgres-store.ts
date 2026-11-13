@@ -84,7 +84,7 @@ export class PostgresStore implements PersistenceStore {
     const now = Date.now();
     await this.pool.query(
       `
-      INSERT INTO player_sessions (
+      INSERT INTO game.player_sessions (
         uid, token_hash, display_name, avatar_color, socket_id, room_id,
         connected, last_seen_at, ip_address, session_generation, created_at, updated_at
       )
@@ -120,7 +120,7 @@ export class PostgresStore implements PersistenceStore {
   public async getSessionByUid(uid: string): Promise<PlayerSession | null> {
     const res = await this.pool.query(
       `SELECT uid, token_hash, display_name, avatar_color, socket_id, room_id, connected, last_seen_at, ip_address, session_generation
-       FROM player_sessions WHERE uid = $1`,
+       FROM game.player_sessions WHERE uid = $1`,
       [uid]
     );
     if (res.rows.length === 0) return null;
@@ -143,7 +143,7 @@ export class PostgresStore implements PersistenceStore {
   public async getSessionByTokenHash(tokenHash: string): Promise<PlayerSession | null> {
     const res = await this.pool.query(
       `SELECT uid, token_hash, display_name, avatar_color, socket_id, room_id, connected, last_seen_at, ip_address, session_generation
-       FROM player_sessions WHERE token_hash = $1`,
+       FROM game.player_sessions WHERE token_hash = $1`,
       [tokenHash]
     );
     if (res.rows.length === 0) return null;
@@ -166,7 +166,7 @@ export class PostgresStore implements PersistenceStore {
   public async getSessionBySocketId(socketId: string): Promise<PlayerSession | null> {
     const res = await this.pool.query(
       `SELECT uid, token_hash, display_name, avatar_color, socket_id, room_id, connected, last_seen_at, ip_address, session_generation
-       FROM player_sessions WHERE socket_id = $1`,
+       FROM game.player_sessions WHERE socket_id = $1`,
       [socketId]
     );
     if (res.rows.length === 0) return null;
@@ -187,7 +187,7 @@ export class PostgresStore implements PersistenceStore {
   }
 
   public async deleteSession(uid: string): Promise<void> {
-    await this.pool.query('DELETE FROM player_sessions WHERE uid = $1', [uid]);
+    await this.pool.query('DELETE FROM game.player_sessions WHERE uid = $1', [uid]);
   }
 
   // ==========================================
@@ -200,7 +200,7 @@ export class PostgresStore implements PersistenceStore {
 
       await client.query(
         `
-        INSERT INTO rooms (
+        INSERT INTO game.rooms (
           room_id, invite_code, invite_code_hash, host_uid, status,
           max_players, turn_timer_seconds, game_mode, custom_rules,
           cpu_players, game_id, next_join_sequence, created_at, updated_at, expires_at
@@ -229,7 +229,7 @@ export class PostgresStore implements PersistenceStore {
       for (const member of Object.values(room.members)) {
         await client.query(
           `
-          INSERT INTO room_members (
+          INSERT INTO game.room_members (
             room_id, uid, display_name, photo_url, is_ready, joined_at,
             color_token, is_cpu, player_type, room_join_sequence
           )
@@ -274,7 +274,7 @@ export class PostgresStore implements PersistenceStore {
 
       await client.query(
         `
-        UPDATE rooms SET
+        UPDATE game.rooms SET
           status = $2,
           host_uid = $3,
           max_players = $4,
@@ -309,14 +309,14 @@ export class PostgresStore implements PersistenceStore {
       if (memberUids.length > 0) {
         // Remove members that are no longer in the room
         await client.query(
-          `DELETE FROM room_members WHERE room_id = $1 AND uid != ALL($2)`,
+          `DELETE FROM game.room_members WHERE room_id = $1 AND uid != ALL($2)`,
           [room.roomId, memberUids]
         );
 
         for (const member of Object.values(room.members)) {
           await client.query(
             `
-            INSERT INTO room_members (
+            INSERT INTO game.room_members (
               room_id, uid, display_name, photo_url, is_ready, joined_at,
               color_token, is_cpu, player_type, room_join_sequence
             )
@@ -345,7 +345,7 @@ export class PostgresStore implements PersistenceStore {
           );
         }
       } else {
-        await client.query('DELETE FROM room_members WHERE room_id = $1', [room.roomId]);
+        await client.query('DELETE FROM game.room_members WHERE room_id = $1', [room.roomId]);
       }
 
       await client.query('COMMIT');
@@ -358,11 +358,11 @@ export class PostgresStore implements PersistenceStore {
   }
 
   public async getRoom(roomId: string): Promise<ServerRoom | null> {
-    const roomRes = await this.pool.query('SELECT * FROM rooms WHERE room_id = $1', [roomId]);
+    const roomRes = await this.pool.query('SELECT * FROM game.rooms WHERE room_id = $1', [roomId]);
     if (roomRes.rows.length === 0) return null;
     const r = roomRes.rows[0];
 
-    const memberRes = await this.pool.query('SELECT * FROM room_members WHERE room_id = $1 ORDER BY room_join_sequence ASC', [roomId]);
+    const memberRes = await this.pool.query('SELECT * FROM game.room_members WHERE room_id = $1 ORDER BY room_join_sequence ASC', [roomId]);
     const members: Record<string, RoomMember> = {};
     const memberUids: string[] = [];
 
@@ -403,26 +403,26 @@ export class PostgresStore implements PersistenceStore {
   }
 
   public async getRoomByInviteCode(inviteCode: string): Promise<ServerRoom | null> {
-    const res = await this.pool.query('SELECT room_id FROM rooms WHERE invite_code = $1', [inviteCode.trim().toUpperCase()]);
+    const res = await this.pool.query('SELECT room_id FROM game.rooms WHERE invite_code = $1', [inviteCode.trim().toUpperCase()]);
     if (res.rows.length === 0) return null;
     return this.getRoom(res.rows[0].room_id);
   }
 
   public async deleteRoom(roomId: string): Promise<void> {
-    await this.pool.query('DELETE FROM rooms WHERE room_id = $1', [roomId]);
+    await this.pool.query('DELETE FROM game.rooms WHERE room_id = $1', [roomId]);
   }
 
   public async cleanupExpiredRooms(_maxAgeMs = 24 * 60 * 60 * 1000): Promise<number> {
     const now = Date.now();
     const res = await this.pool.query(
-      `DELETE FROM rooms WHERE expires_at < $1 OR (room_id NOT IN (SELECT room_id FROM room_members) AND $1 - updated_at > 1800000)`,
+      `DELETE FROM game.rooms WHERE expires_at < $1 OR (room_id NOT IN (SELECT room_id FROM game.room_members) AND $1 - updated_at > 1800000)`,
       [now]
     );
     return res.rowCount || 0;
   }
 
   public async listActiveRooms(): Promise<ServerRoom[]> {
-    const res = await this.pool.query(`SELECT room_id FROM rooms WHERE status IN ('LOBBY', 'IN_PROGRESS') ORDER BY updated_at DESC`);
+    const res = await this.pool.query(`SELECT room_id FROM game.rooms WHERE status IN ('LOBBY', 'IN_PROGRESS') ORDER BY updated_at DESC`);
     const rooms: ServerRoom[] = [];
     for (const row of res.rows) {
       const room = await this.getRoom(row.room_id);
@@ -434,7 +434,7 @@ export class PostgresStore implements PersistenceStore {
   public async saveRoomMember(roomId: string, member: RoomMember): Promise<void> {
     await this.pool.query(
       `
-      INSERT INTO room_members (
+      INSERT INTO game.room_members (
         room_id, uid, display_name, photo_url, is_ready, joined_at,
         color_token, is_cpu, player_type, room_join_sequence
       )
@@ -464,7 +464,7 @@ export class PostgresStore implements PersistenceStore {
   }
 
   public async removeRoomMember(roomId: string, uid: string): Promise<void> {
-    await this.pool.query('DELETE FROM room_members WHERE room_id = $1 AND uid = $2', [roomId, uid]);
+    await this.pool.query('DELETE FROM game.room_members WHERE room_id = $1 AND uid = $2', [roomId, uid]);
   }
 
   // ==========================================
@@ -477,7 +477,7 @@ export class PostgresStore implements PersistenceStore {
 
       // 1. Lock room to guarantee strict serial transition from LOBBY to IN_PROGRESS
       const roomLock = await client.query<{ status: string; game_id: string | null }>(
-        'SELECT status, game_id FROM rooms WHERE room_id = $1 FOR UPDATE',
+        'SELECT status, game_id FROM game.rooms WHERE room_id = $1 FOR UPDATE',
         [game.roomId]
       );
 
@@ -490,7 +490,7 @@ export class PostgresStore implements PersistenceStore {
 
       // If room is already IN_PROGRESS or has an active game, return the existing game
       if (room.status === 'IN_PROGRESS' && room.game_id) {
-        const existingGameRes = await client.query('SELECT state FROM games WHERE game_id = $1', [room.game_id]);
+        const existingGameRes = await client.query('SELECT state FROM game.games WHERE game_id = $1', [room.game_id]);
         await client.query('ROLLBACK');
         if (existingGameRes.rows.length > 0) {
           return { ok: true, game: existingGameRes.rows[0].state as GameState };
@@ -505,7 +505,7 @@ export class PostgresStore implements PersistenceStore {
       // 2. Insert new game record
       await client.query(
         `
-        INSERT INTO games (
+        INSERT INTO game.games (
           game_id, room_id, status, current_player_uid, turn_number,
           phase, version, winner_uid, ruleset_version, started_at,
           updated_at, completed_at, state
@@ -531,7 +531,7 @@ export class PostgresStore implements PersistenceStore {
 
       // 3. Atomically update room status and active game_id
       await client.query(
-        'UPDATE rooms SET status = $2, game_id = $3, updated_at = $4 WHERE room_id = $1',
+        'UPDATE game.rooms SET status = $2, game_id = $3, updated_at = $4 WHERE room_id = $1',
         [game.roomId, 'IN_PROGRESS', game.gameId, Date.now()]
       );
 
@@ -543,7 +543,7 @@ export class PostgresStore implements PersistenceStore {
       if (msg.includes('idx_one_active_game_per_room')) {
         // Handled constraint violation: Fetch existing active game for room
         const activeRes = await this.pool.query(
-          `SELECT state FROM games WHERE room_id = $1 AND status IN ('IN_PROGRESS', 'ACTION_REQUIRED')`,
+          `SELECT state FROM game.games WHERE room_id = $1 AND status IN ('IN_PROGRESS', 'ACTION_REQUIRED')`,
           [game.roomId]
         );
         if (activeRes.rows.length > 0) {
@@ -559,7 +559,7 @@ export class PostgresStore implements PersistenceStore {
   public async updateGame(game: GameState): Promise<void> {
     await this.pool.query(
       `
-      UPDATE games SET
+      UPDATE game.games SET
         status = $2,
         current_player_uid = $3,
         turn_number = $4,
@@ -587,14 +587,14 @@ export class PostgresStore implements PersistenceStore {
   }
 
   public async getGame(gameId: string): Promise<GameState | null> {
-    const res = await this.pool.query('SELECT state FROM games WHERE game_id = $1', [gameId]);
+    const res = await this.pool.query('SELECT state FROM game.games WHERE game_id = $1', [gameId]);
     if (res.rows.length === 0) return null;
     return res.rows[0].state as GameState;
   }
 
   public async getActiveGameForRoom(roomId: string): Promise<GameState | null> {
     const res = await this.pool.query(
-      `SELECT state FROM games WHERE room_id = $1 AND status IN ('IN_PROGRESS', 'ACTION_REQUIRED') ORDER BY started_at DESC LIMIT 1`,
+      `SELECT state FROM game.games WHERE room_id = $1 AND status IN ('IN_PROGRESS', 'ACTION_REQUIRED') ORDER BY started_at DESC LIMIT 1`,
       [roomId]
     );
     if (res.rows.length === 0) return null;
@@ -603,7 +603,7 @@ export class PostgresStore implements PersistenceStore {
 
   public async listActiveGames(): Promise<GameState[]> {
     const res = await this.pool.query(
-      `SELECT state FROM games WHERE status IN ('IN_PROGRESS', 'ACTION_REQUIRED') ORDER BY updated_at DESC`
+      `SELECT state FROM game.games WHERE status IN ('IN_PROGRESS', 'ACTION_REQUIRED') ORDER BY updated_at DESC`
     );
     return res.rows.map((r) => r.state as GameState);
   }
@@ -620,9 +620,22 @@ export class PostgresStore implements PersistenceStore {
     try {
       await client.query('BEGIN');
 
+      // 0. Verify parent game exists and obtain row-level lock
+      const gameLock = await client.query<{ game_id: string; version: number }>(
+        'SELECT game_id, version FROM game.games WHERE game_id = $1 FOR UPDATE',
+        [params.gameId]
+      );
+
+      if (gameLock.rows.length === 0) {
+        await client.query('ROLLBACK');
+        throw new Error(
+          `GAME_SESSION_NOT_PERSISTED: Cannot execute a command because the game session "${params.gameId}" has not been committed to PostgreSQL.`
+        );
+      }
+
       // 1. Check idempotency: Was this command already processed?
       const checkRes = await client.query<{ result: EngineResult }>(
-        'SELECT result FROM processed_commands WHERE game_id = $1 AND command_id = $2',
+        'SELECT result FROM game.processed_commands WHERE game_id = $1 AND command_id = $2',
         [params.gameId, params.commandId]
       );
 
@@ -638,7 +651,7 @@ export class PostgresStore implements PersistenceStore {
       // 2. Record processed command
       await client.query(
         `
-        INSERT INTO processed_commands (game_id, command_id, actor_uid, result, version, created_at)
+        INSERT INTO game.processed_commands (game_id, command_id, actor_uid, result, version, created_at)
         VALUES ($1, $2, $3, $4, $5, $6)
         `,
         [
@@ -654,7 +667,7 @@ export class PostgresStore implements PersistenceStore {
       // 3. Record ordered game event
       await client.query(
         `
-        INSERT INTO game_events (
+        INSERT INTO game.game_events (
           game_id, sequence, command_id, actor_uid, type, summary, payload, created_at, version_after
         )
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
@@ -674,9 +687,9 @@ export class PostgresStore implements PersistenceStore {
       );
 
       // 4. Update game state
-      await client.query(
+      const updateRes = await client.query(
         `
-        UPDATE games SET
+        UPDATE game.games SET
           status = $2,
           current_player_uid = $3,
           turn_number = $4,
@@ -702,6 +715,13 @@ export class PostgresStore implements PersistenceStore {
         ]
       );
 
+      if (updateRes.rowCount !== 1) {
+        await client.query('ROLLBACK');
+        throw new Error(
+          `GAME_SESSION_NOT_PERSISTED: Failed to update game state for game "${params.gameId}". Expected 1 row updated, got ${updateRes.rowCount}.`
+        );
+      }
+
       await client.query('COMMIT');
       return {
         ok: true,
@@ -718,7 +738,7 @@ export class PostgresStore implements PersistenceStore {
 
   public async getProcessedCommand(gameId: string, commandId: string): Promise<EngineResult | null> {
     const res = await this.pool.query<{ result: EngineResult }>(
-      'SELECT result FROM processed_commands WHERE game_id = $1 AND command_id = $2',
+      'SELECT result FROM game.processed_commands WHERE game_id = $1 AND command_id = $2',
       [gameId, commandId]
     );
     if (res.rows.length === 0) return null;
@@ -728,7 +748,7 @@ export class PostgresStore implements PersistenceStore {
   public async getGameEvents(gameId: string, fromSequence = 0): Promise<GameEvent[]> {
     const res = await this.pool.query(
       `SELECT sequence, command_id, actor_uid, type, summary, payload, created_at, version_after
-       FROM game_events WHERE game_id = $1 AND sequence >= $2 ORDER BY sequence ASC`,
+       FROM game.game_events WHERE game_id = $1 AND sequence >= $2 ORDER BY sequence ASC`,
       [gameId, fromSequence]
     );
     return res.rows.map((r) => ({
@@ -749,7 +769,7 @@ export class PostgresStore implements PersistenceStore {
   public async saveArchive(archive: GameArchive): Promise<void> {
     await this.pool.query(
       `
-      INSERT INTO game_archives (
+      INSERT INTO game.game_archives (
         archive_id, game_id, room_id, winner_uid, winner_name,
         total_turns, duration_seconds, started_at, completed_at,
         data, retention_until, created_at
@@ -775,7 +795,7 @@ export class PostgresStore implements PersistenceStore {
   }
 
   public async getArchive(gameId: string): Promise<GameArchive | null> {
-    const res = await this.pool.query('SELECT data FROM game_archives WHERE game_id = $1', [gameId]);
+    const res = await this.pool.query('SELECT data FROM game.game_archives WHERE game_id = $1', [gameId]);
     if (res.rows.length === 0) return null;
     return res.rows[0].data as GameArchive;
   }

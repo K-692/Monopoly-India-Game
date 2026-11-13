@@ -47,7 +47,7 @@ describe('Feature: Human Timeout Auto-Resolution & Build Shortcut Refinement', (
         h2: { uid: 'h2', displayName: 'Human 2', photoURL: null, isReady: true, colorToken: '#3B82F6', joinedAt: 2 },
       };
       const room = createTestRoom('room_p1', 'h1', members);
-      const startRes = gm.startGame(room, 'h1');
+      const startRes = await gm.startGame(room, 'h1');
       const gameId = startRes.gameId!;
       const state = gm.getGame(gameId)!;
 
@@ -85,7 +85,7 @@ describe('Feature: Human Timeout Auto-Resolution & Build Shortcut Refinement', (
         h2: { uid: 'h2', displayName: 'Human 2', photoURL: null, isReady: true, colorToken: '#3B82F6', joinedAt: 2 },
       };
       const room = createTestRoom('room_p2', 'h1', members);
-      const startRes = gm.startGame(room, 'h1');
+      const startRes = await gm.startGame(room, 'h1');
       const gameId = startRes.gameId!;
       const state = gm.getGame(gameId)!;
 
@@ -120,7 +120,7 @@ describe('Feature: Human Timeout Auto-Resolution & Build Shortcut Refinement', (
         h2: { uid: 'h2', displayName: 'Human 2', photoURL: null, isReady: true, colorToken: '#3B82F6', joinedAt: 2 },
       };
       const room = createTestRoom('room_p3', 'h1', members);
-      const startRes = gm.startGame(room, 'h1');
+      const startRes = await gm.startGame(room, 'h1');
       const gameId = startRes.gameId!;
       const state = gm.getGame(gameId)!;
 
@@ -156,7 +156,7 @@ describe('Feature: Human Timeout Auto-Resolution & Build Shortcut Refinement', (
         h2: { uid: 'h2', displayName: 'Human 2', photoURL: null, isReady: true, colorToken: '#3B82F6', joinedAt: 2 },
       };
       const room = createTestRoom('room_p4', 'h1', members);
-      const startRes = gm.startGame(room, 'h1');
+      const startRes = await gm.startGame(room, 'h1');
       const gameId = startRes.gameId!;
       const state = gm.getGame(gameId)!;
 
@@ -200,7 +200,7 @@ describe('Feature: Human Timeout Auto-Resolution & Build Shortcut Refinement', (
         h2: { uid: 'h2', displayName: 'Human 2', photoURL: null, isReady: true, colorToken: '#3B82F6', joinedAt: 2 },
       };
       const room = createTestRoom('room_p5', 'h1', members);
-      const startRes = gm.startGame(room, 'h1');
+      const startRes = await gm.startGame(room, 'h1');
       const gameId = startRes.gameId!;
       const state = gm.getGame(gameId)!;
 
@@ -243,7 +243,7 @@ describe('Feature: Human Timeout Auto-Resolution & Build Shortcut Refinement', (
         cpu1: { uid: 'cpu1', displayName: 'CPU1', photoURL: null, isReady: true, colorToken: '#3B82F6', joinedAt: 2, isCpu: true, playerType: 'COMPUTER' },
       };
       const room = createTestRoom('room_cpu', 'h1', members);
-      const startRes = gm.startGame(room, 'h1');
+      const startRes = await gm.startGame(room, 'h1');
       const gameId = startRes.gameId!;
       const state = gm.getGame(gameId)!;
 
@@ -271,7 +271,7 @@ describe('Feature: Human Timeout Auto-Resolution & Build Shortcut Refinement', (
         h2: { uid: 'h2', displayName: 'Creditor', photoURL: null, isReady: true, colorToken: '#3B82F6', joinedAt: 2 },
       };
       const room = createTestRoom('room_fin1', 'h1', members);
-      const startRes = gm.startGame(room, 'h1');
+      const startRes = await gm.startGame(room, 'h1');
       const gameId = startRes.gameId!;
       const state = gm.getGame(gameId)!;
 
@@ -308,7 +308,7 @@ describe('Feature: Human Timeout Auto-Resolution & Build Shortcut Refinement', (
         h2: { uid: 'h2', displayName: 'Creditor', photoURL: null, isReady: true, colorToken: '#3B82F6', joinedAt: 2 },
       };
       const room = createTestRoom('room_fin2', 'h1', members);
-      const startRes = gm.startGame(room, 'h1');
+      const startRes = await gm.startGame(room, 'h1');
       const gameId = startRes.gameId!;
       const state = gm.getGame(gameId)!;
 
@@ -373,7 +373,7 @@ describe('Feature: Human Timeout Auto-Resolution & Build Shortcut Refinement', (
         h2: { uid: 'h2', displayName: 'Creditor', photoURL: null, isReady: true, colorToken: '#3B82F6', joinedAt: 2 },
       };
       const room = createTestRoom('room_fin3', 'h1', members);
-      const startRes = gm.startGame(room, 'h1');
+      const startRes = await gm.startGame(room, 'h1');
       const gameId = startRes.gameId!;
       const state = gm.getGame(gameId)!;
 

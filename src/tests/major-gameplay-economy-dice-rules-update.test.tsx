@@ -444,7 +444,7 @@ describe('Major Gameplay, Economy, Dice, UI and Rules Update — Regression Suit
       }
     });
 
-    it('6.2 GameManager.startGame shuffles complete player list when starting match', () => {
+    it('6.2 GameManager.startGame shuffles complete player list when starting match', async () => {
       const gm = new GameManager();
       const room: ServerRoom = {
         roomId: 'room_rand',
@@ -462,7 +462,7 @@ describe('Major Gameplay, Economy, Dice, UI and Rules Update — Regression Suit
         expiresAt: Date.now() + 3600000,
       };
 
-      const res = gm.startGame(room, 'user_1', { randomizeOrder: true });
+      const res = await gm.startGame(room, 'user_1', { randomizeOrder: true });
       expect(res.ok).toBe(true);
       const game = res.gameState!;
 

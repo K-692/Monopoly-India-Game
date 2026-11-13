@@ -164,11 +164,11 @@ export class GameManager {
    * Starts an authoritative multiplayer match for a ready room.
    * Atomic isolation: prevents duplicate concurrent games in the same room.
    */
-  public startGame(
+  public async startGame(
     room: ServerRoom,
     callerUid: string,
     options?: { forcedPlayerOrder?: string[]; randomizeOrder?: boolean }
-  ): { ok: boolean; gameId?: string; gameState?: GameState; error?: string } {
+  ): Promise<{ ok: boolean; gameId?: string; gameState?: GameState; error?: string }> {
     if (room.hostUid !== callerUid) {
       return { ok: false, error: 'Only the room host can start the game.' };
     }
@@ -245,23 +245,43 @@ export class GameManager {
       { forcedPlayerOrder: playerOrder }
     );
 
-    this.games.set(gameId, initialGame);
-    this.activeGameByRoom.set(room.roomId, gameId);
-    room.status = 'IN_PROGRESS';
-    room.gameId = gameId;
+    // Authoritative persistence: Await durable commit before updating active state and timers
+    let persistedGame: GameState;
+    try {
+      const persistRes = await this.store.createGame(initialGame);
+      if (!persistRes.ok) {
+        if (persistRes.game) {
+          persistedGame = persistRes.game;
+        } else {
+          console.error('[GameManager] Failed to persist new game session to store:', persistRes.error);
+          return {
+            ok: false,
+            error: persistRes.error || 'Failed to persist game session',
+          };
+        }
+      } else {
+        persistedGame = persistRes.game || initialGame;
+      }
+    } catch (err) {
+      console.error('[GameManager] Unexpected error during game persistence:', err);
+      return {
+        ok: false,
+        error: 'Database persistence error while starting game',
+      };
+    }
 
-    // Persist in background store
-    this.store.createGame(initialGame).catch((err) => {
-      console.warn('[GameManager] Failed to persist initial game:', err);
-    });
+    this.games.set(persistedGame.gameId, persistedGame);
+    this.activeGameByRoom.set(room.roomId, persistedGame.gameId);
+    room.status = 'IN_PROGRESS';
+    room.gameId = persistedGame.gameId;
 
     // Start turn timer ticker for this game
-    this.startTurnTimer(initialGame);
+    this.startTurnTimer(persistedGame);
 
     // Trigger autonomous computer players if first player is CPU
-    this.cpuController.onGameStateChanged(initialGame);
+    this.cpuController.onGameStateChanged(persistedGame);
 
-    return { ok: true, gameId, gameState: initialGame };
+    return { ok: true, gameId: persistedGame.gameId, gameState: persistedGame };
   }
 
   // ==========================================
@@ -1307,6 +1327,16 @@ export class GameManager {
 
   public getGame(gameId: string): GameState | null {
     return this.games.get(gameId) || null;
+  }
+
+  public getActiveGameIdForRoom(roomId: string): string | undefined {
+    return this.activeGameByRoom.get(roomId);
+  }
+
+  public getActiveGameForRoom(roomId: string): GameState | null {
+    const gameId = this.activeGameByRoom.get(roomId);
+    if (!gameId) return null;
+    return this.getGame(gameId);
   }
 
   private archiveGameSession(gameState: GameState): void {

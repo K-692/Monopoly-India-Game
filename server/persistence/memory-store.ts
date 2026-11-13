@@ -161,8 +161,7 @@ export class MemoryStore implements PersistenceStore {
       const existing = this.games.get(existingActiveId);
       if (existing && existing.status !== 'COMPLETED') {
         return {
-          ok: false,
-          error: `An active game session (${existingActiveId}) already exists for room ${game.roomId}.`,
+          ok: true,
           game: existing,
         };
       }
@@ -217,6 +216,13 @@ export class MemoryStore implements PersistenceStore {
     alreadyProcessed?: boolean;
     result: EngineResult;
   }> {
+    // 0. Verify parent game exists
+    if (!this.games.has(params.gameId)) {
+      throw new Error(
+        `GAME_SESSION_NOT_PERSISTED: Cannot execute a command because the game session "${params.gameId}" has not been committed to memory store.`
+      );
+    }
+
     const dedupeKey = `${params.gameId}:${params.commandId}`;
 
     // Deduplication check

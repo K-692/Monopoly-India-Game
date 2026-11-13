@@ -74,11 +74,19 @@ export function createLanServer(options?: LanServerOptions) {
   // Setup Socket.IO Event Handlers
   setupSocketHandlers(io, roomManager, gameManager);
 
+  let isReady = false;
+  let readyError: string | null = null;
+
   // Initialize store and recover active matches
-  store
+  const readyPromise = store
     .init()
     .then(() => Promise.all([roomManager.loadActiveState(), gameManager.recoverActiveGames()]))
+    .then(() => {
+      isReady = true;
+      console.log('[Server] Database store and active game state recovered and ready.');
+    })
     .catch((err) => {
+      readyError = err instanceof Error ? err.message : String(err);
       console.error('[Server] Critical persistence store initialization failure:', err);
     });
 
@@ -96,13 +104,15 @@ export function createLanServer(options?: LanServerOptions) {
   // API Health & Readiness Endpoint
   app.get('/api/health', async (_req, res) => {
     const health = await store.isHealthy();
-    const statusCode = health.ok ? 200 : 503;
+    const ready = isReady && health.ok;
+    const statusCode = ready ? 200 : 503;
     res.status(statusCode).json({
-      status: health.ok ? 'ok' : 'degraded',
+      status: ready ? 'ok' : 'degraded',
+      ready,
       uptime: process.uptime(),
       timestamp: Date.now(),
       database: health.ok ? 'connected' : 'error',
-      dbError: health.error,
+      dbError: readyError || health.error,
       connectedClients: io.sockets.sockets.size,
     });
   });
@@ -132,7 +142,7 @@ export function createLanServer(options?: LanServerOptions) {
     });
   }
 
-  return { app, httpServer, io, roomManager, gameManager, store, cleanupInterval };
+  return { app, httpServer, io, roomManager, gameManager, store, cleanupInterval, readyPromise };
 }
 
 // Start server directly when executed as main module

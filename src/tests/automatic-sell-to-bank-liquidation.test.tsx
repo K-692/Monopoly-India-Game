@@ -53,7 +53,7 @@ describe('Automatic Sell-to-Bank Liquidation on 120-Second Financial Resolution 
       creditor: { uid: 'creditor', displayName: 'Creditor Player', photoURL: null, isReady: true, colorToken: '#3B82F6', joinedAt: 2 },
     };
     const room = createTestRoom('room_scen_a', 'debtor', members);
-    const startRes = gm.startGame(room, 'debtor');
+    const startRes = await gm.startGame(room, 'debtor');
     const gameId = startRes.gameId!;
     const state = gm.getGame(gameId)!;
 
@@ -170,7 +170,7 @@ describe('Automatic Sell-to-Bank Liquidation on 120-Second Financial Resolution 
       creditor: { uid: 'creditor', displayName: 'Creditor', photoURL: null, isReady: true, colorToken: '#3B82F6', joinedAt: 2 },
     };
     const room = createTestRoom('room_scen_c', 'debtor', members);
-    const startRes = gm.startGame(room, 'debtor');
+    const startRes = await gm.startGame(room, 'debtor');
     const gameId = startRes.gameId!;
     const state = gm.getGame(gameId)!;
 
@@ -232,7 +232,7 @@ describe('Automatic Sell-to-Bank Liquidation on 120-Second Financial Resolution 
       creditor: { uid: 'creditor', displayName: 'Creditor', photoURL: null, isReady: true, colorToken: '#3B82F6', joinedAt: 2 },
     };
     const room = createTestRoom('room_scen_d', 'debtor', members);
-    const startRes = gm.startGame(room, 'debtor');
+    const startRes = await gm.startGame(room, 'debtor');
     const gameId = startRes.gameId!;
     const state = gm.getGame(gameId)!;
 
@@ -281,7 +281,7 @@ describe('Automatic Sell-to-Bank Liquidation on 120-Second Financial Resolution 
       creditor: { uid: 'creditor', displayName: 'Creditor', photoURL: null, isReady: true, colorToken: '#3B82F6', joinedAt: 2 },
     };
     const room = createTestRoom('room_scen_e', 'debtor', members);
-    const startRes = gm.startGame(room, 'debtor');
+    const startRes = await gm.startGame(room, 'debtor');
     const gameId = startRes.gameId!;
     const state = gm.getGame(gameId)!;
 
@@ -349,7 +349,7 @@ describe('Automatic Sell-to-Bank Liquidation on 120-Second Financial Resolution 
       creditor: { uid: 'creditor', displayName: 'Creditor', photoURL: null, isReady: true, colorToken: '#3B82F6', joinedAt: 2 },
     };
     const room = createTestRoom('room_scen_f', 'debtor', members);
-    const startRes = gm.startGame(room, 'debtor');
+    const startRes = await gm.startGame(room, 'debtor');
     const gameId = startRes.gameId!;
     const state = gm.getGame(gameId)!;
 
@@ -395,7 +395,7 @@ describe('Automatic Sell-to-Bank Liquidation on 120-Second Financial Resolution 
       creditor: { uid: 'creditor', displayName: 'Creditor', photoURL: null, isReady: true, colorToken: '#3B82F6', joinedAt: 2 },
     };
     const room = createTestRoom('room_scen_g', 'debtor', members);
-    const startRes = gm.startGame(room, 'debtor');
+    const startRes = await gm.startGame(room, 'debtor');
     const gameId = startRes.gameId!;
     const state = gm.getGame(gameId)!;
 
@@ -448,7 +448,7 @@ describe('Automatic Sell-to-Bank Liquidation on 120-Second Financial Resolution 
       creditor: { uid: 'creditor', displayName: 'Creditor', photoURL: null, isReady: true, colorToken: '#3B82F6', joinedAt: 2 },
     };
     const room = createTestRoom('room_scen_h', 'debtor', members);
-    const startRes = gm.startGame(room, 'debtor');
+    const startRes = await gm.startGame(room, 'debtor');
     const gameId = startRes.gameId!;
     const state = gm.getGame(gameId)!;
 
@@ -504,7 +504,7 @@ describe('Automatic Sell-to-Bank Liquidation on 120-Second Financial Resolution 
       h2: { uid: 'h2', displayName: 'Human 2', photoURL: null, isReady: true, colorToken: '#3B82F6', joinedAt: 2 },
     };
     const room = createTestRoom('room_scen_i', 'cpu1', members);
-    const startRes = gm.startGame(room, 'cpu1');
+    const startRes = await gm.startGame(room, 'cpu1');
     const gameId = startRes.gameId!;
     const state = gm.getGame(gameId)!;
 
@@ -540,7 +540,7 @@ describe('Automatic Sell-to-Bank Liquidation on 120-Second Financial Resolution 
       creditor: { uid: 'creditor', displayName: 'Creditor', photoURL: null, isReady: true, colorToken: '#3B82F6', joinedAt: 2 },
     };
     const room = createTestRoom('room_scen_j', 'debtor', members);
-    const startRes = gm.startGame(room, 'debtor');
+    const startRes = await gm.startGame(room, 'debtor');
     const gameId = startRes.gameId!;
     const state = gm.getGame(gameId)!;
 

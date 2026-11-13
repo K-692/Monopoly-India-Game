@@ -102,10 +102,10 @@ describe('Settings Popup, Board Visual Enhancements, and UI Refinements', () => 
   });
 
   describe('3. Default CPU Naming Format (CPU1, CPU2, CPU3...) without space', () => {
-    it('generates CPU1, CPU2, CPU3 names by default in RoomManager', () => {
+    it('generates CPU1, CPU2, CPU3 names by default in RoomManager', async () => {
       const rm = new RoomManager();
       const hostSession = rm.registerPlayer('HostPlayer');
-      const createRes = rm.createRoom(hostSession.uid, DEFAULT_HOST_RULES);
+      const createRes = await rm.createRoom(hostSession.uid, DEFAULT_HOST_RULES);
       expect(createRes.ok).toBe(true);
       const room = createRes.room!;
 

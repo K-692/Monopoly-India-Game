@@ -116,7 +116,7 @@ describe('Turn Synchronization, CPU Pacing & Player Timers', () => {
       };
       const room = createTestRoom('room_timer_1', 'player_h1', members);
 
-      const startRes = gm.startGame(room, 'player_h1');
+      const startRes = await gm.startGame(room, 'player_h1');
       expect(startRes.ok).toBe(true);
       const gameId = startRes.gameId!;
 
@@ -204,7 +204,7 @@ describe('Turn Synchronization, CPU Pacing & Player Timers', () => {
       };
       const room = createTestRoom('room_handoff_1', 'player_h1', members);
 
-      const startRes = gm.startGame(room, 'player_h1');
+      const startRes = await gm.startGame(room, 'player_h1');
       expect(startRes.ok).toBe(true);
       const gameId = startRes.gameId!;
 
@@ -284,7 +284,7 @@ describe('Turn Synchronization, CPU Pacing & Player Timers', () => {
         turnTimerSeconds: 45,
       });
 
-      const startRes = gm.startGame(room, 'player_h1');
+      const startRes = await gm.startGame(room, 'player_h1');
       const gameId = startRes.gameId!;
       const state = gm.getGame(gameId)!;
 
@@ -348,7 +348,7 @@ describe('Turn Synchronization, CPU Pacing & Player Timers', () => {
       };
       const room = createTestRoom('room_debt_timer', 'player_debtor', members);
 
-      const startRes = gm.startGame(room, 'player_debtor');
+      const startRes = await gm.startGame(room, 'player_debtor');
       const gameId = startRes.gameId!;
       const state = gm.getGame(gameId)!;
 
@@ -431,7 +431,7 @@ describe('Turn Synchronization, CPU Pacing & Player Timers', () => {
       };
       const room = createTestRoom('room_idempotent', 'host_p', members);
 
-      const startRes = gm.startGame(room, 'host_p');
+      const startRes = await gm.startGame(room, 'host_p');
       const gameId = startRes.gameId!;
       const state = gm.getGame(gameId)!;
       state.currentPlayerUid = 'host_p';
@@ -492,7 +492,7 @@ describe('Turn Synchronization, CPU Pacing & Player Timers', () => {
         },
       };
       const room = createTestRoom('room_reg_1', 'player_h1', members);
-      const startRes = gm.startGame(room, 'player_h1');
+      const startRes = await gm.startGame(room, 'player_h1');
       const gameId = startRes.gameId!;
       const state = gm.getGame(gameId)!;
 
@@ -551,7 +551,7 @@ describe('Turn Synchronization, CPU Pacing & Player Timers', () => {
         },
       };
       const room = createTestRoom('room_reg_2', 'player_h1', members);
-      const startRes = gm.startGame(room, 'player_h1');
+      const startRes = await gm.startGame(room, 'player_h1');
       const gameId = startRes.gameId!;
       const state = gm.getGame(gameId)!;
 
@@ -624,7 +624,7 @@ describe('Turn Synchronization, CPU Pacing & Player Timers', () => {
         },
       };
       const room = createTestRoom('room_reg_3', 'player_h1', members);
-      const startRes = gm.startGame(room, 'player_h1');
+      const startRes = await gm.startGame(room, 'player_h1');
       const gameId = startRes.gameId!;
       const state = gm.getGame(gameId)!;
 
@@ -680,7 +680,7 @@ describe('Turn Synchronization, CPU Pacing & Player Timers', () => {
         },
       };
       const room = createTestRoom('room_reg_4', 'player_h1', members);
-      const startRes = gm.startGame(room, 'player_h1');
+      const startRes = await gm.startGame(room, 'player_h1');
       const gameId = startRes.gameId!;
       const state = gm.getGame(gameId)!;
 
@@ -727,7 +727,7 @@ describe('Turn Synchronization, CPU Pacing & Player Timers', () => {
         },
       };
       const room = createTestRoom('room_reg_5', 'player_h1', members);
-      const startRes = gm.startGame(room, 'player_h1');
+      const startRes = await gm.startGame(room, 'player_h1');
       const gameId = startRes.gameId!;
       const state = gm.getGame(gameId)!;
 
@@ -808,7 +808,7 @@ describe('Turn Synchronization, CPU Pacing & Player Timers', () => {
         },
       };
       const room = createTestRoom('room_reg_6', 'cpu_1', members);
-      const startRes = gm.startGame(room, 'cpu_1');
+      const startRes = await gm.startGame(room, 'cpu_1');
       const gameId = startRes.gameId!;
       const state = gm.getGame(gameId)!;
 
@@ -883,7 +883,7 @@ describe('Turn Synchronization, CPU Pacing & Player Timers', () => {
         },
       };
       const room = createTestRoom('room_reg_7', 'player_h1', members);
-      const startRes = gm.startGame(room, 'player_h1');
+      const startRes = await gm.startGame(room, 'player_h1');
       const gameId = startRes.gameId!;
       const state = gm.getGame(gameId)!;
 
@@ -937,7 +937,7 @@ describe('Turn Synchronization, CPU Pacing & Player Timers', () => {
         },
       };
       const room = createTestRoom('room_reg_8', 'player_h1', members);
-      const startRes = gm.startGame(room, 'player_h1');
+      const startRes = await gm.startGame(room, 'player_h1');
       const gameId = startRes.gameId!;
       const state = gm.getGame(gameId)!;
 
@@ -988,7 +988,7 @@ describe('Turn Synchronization, CPU Pacing & Player Timers', () => {
         },
       };
       const room = createTestRoom('room_reg_9', 'player_h1', members);
-      const startRes = gm.startGame(room, 'player_h1');
+      const startRes = await gm.startGame(room, 'player_h1');
       const gameId = startRes.gameId!;
       const state = gm.getGame(gameId)!;
 
@@ -1055,7 +1055,7 @@ describe('Turn Synchronization, CPU Pacing & Player Timers', () => {
         },
       };
       const room = createTestRoom('room_reg_10', 'player_h1', members);
-      const startRes = gm.startGame(room, 'player_h1');
+      const startRes = await gm.startGame(room, 'player_h1');
       const gameId = startRes.gameId!;
       const state = gm.getGame(gameId)!;
       state.currentPlayerUid = 'cpu_1';
@@ -1076,7 +1076,7 @@ describe('Turn Synchronization, CPU Pacing & Player Timers', () => {
       gm.stopTurnTimer(gameId);
     });
 
-    it('Test 11: Null decision handling distinguishes safe end-turn, pending actions, and foreign turns', () => {
+    it('Test 11: Null decision handling distinguishes safe end-turn, pending actions, and foreign turns', async () => {
       const gm = new GameManager();
       const members: Record<string, RoomMember> = {
         cpu_1: {
@@ -1099,7 +1099,7 @@ describe('Turn Synchronization, CPU Pacing & Player Timers', () => {
         },
       };
       const room = createTestRoom('room_reg_11', 'player_h1', members);
-      const startRes = gm.startGame(room, 'player_h1');
+      const startRes = await gm.startGame(room, 'player_h1');
       const gameId = startRes.gameId!;
       const state = gm.getGame(gameId)!;
       const controller = gm.getCpuController();
@@ -1178,7 +1178,7 @@ describe('Turn Synchronization, CPU Pacing & Player Timers', () => {
         },
       };
       const room = createTestRoom('room_reg_12', 'player_h1', members);
-      const startRes = gm.startGame(room, 'player_h1');
+      const startRes = await gm.startGame(room, 'player_h1');
       const gameId = startRes.gameId!;
       const state = gm.getGame(gameId)!;
 
@@ -1230,7 +1230,7 @@ describe('Turn Synchronization, CPU Pacing & Player Timers', () => {
         player_h2: { uid: 'player_h2', displayName: 'HumanPlayer2', photoURL: null, isReady: true, colorToken: '#3B82F6', joinedAt: Date.now() },
       };
       const room = createTestRoom('room_jail_exact', 'player_h1', members, { ...DEFAULT_HOST_RULES, jailBail: 500 });
-      const startRes = gm.startGame(room, 'player_h1');
+      const startRes = await gm.startGame(room, 'player_h1');
       const gameId = startRes.gameId!;
       const state = gm.getGame(gameId)!;
 
@@ -1260,7 +1260,7 @@ describe('Turn Synchronization, CPU Pacing & Player Timers', () => {
         player_h2: { uid: 'player_h2', displayName: 'HumanPlayer2', photoURL: null, isReady: true, colorToken: '#3B82F6', joinedAt: Date.now() },
       };
       const room = createTestRoom('room_jail_surplus', 'player_h1', members, { ...DEFAULT_HOST_RULES, jailBail: 500 });
-      const startRes = gm.startGame(room, 'player_h1');
+      const startRes = await gm.startGame(room, 'player_h1');
       const gameId = startRes.gameId!;
       const state = gm.getGame(gameId)!;
 
@@ -1290,7 +1290,7 @@ describe('Turn Synchronization, CPU Pacing & Player Timers', () => {
         player_h2: { uid: 'player_h2', displayName: 'HumanPlayer2', photoURL: null, isReady: true, colorToken: '#3B82F6', joinedAt: Date.now() },
       };
       const room = createTestRoom('room_jail_insufficient', 'player_h1', members, { ...DEFAULT_HOST_RULES, jailBail: 500 });
-      const startRes = gm.startGame(room, 'player_h1');
+      const startRes = await gm.startGame(room, 'player_h1');
       const gameId = startRes.gameId!;
       const state = gm.getGame(gameId)!;
 
@@ -1327,7 +1327,7 @@ describe('Turn Synchronization, CPU Pacing & Player Timers', () => {
       };
       // Custom host configured bail = ₹1,200
       const room = createTestRoom('room_jail_custom', 'player_h1', members, { ...DEFAULT_HOST_RULES, jailBail: 1200 });
-      const startRes = gm.startGame(room, 'player_h1');
+      const startRes = await gm.startGame(room, 'player_h1');
       const gameId = startRes.gameId!;
       const state = gm.getGame(gameId)!;
       state.rules!.jailBail = 1200;
@@ -1379,7 +1379,7 @@ describe('Turn Synchronization, CPU Pacing & Player Timers', () => {
         player_h2: { uid: 'player_h2', displayName: 'HumanPlayer2', photoURL: null, isReady: true, colorToken: '#3B82F6', joinedAt: Date.now() },
       };
       const room = createTestRoom('room_jail_release', 'player_h1', members, { ...DEFAULT_HOST_RULES, turnTimerSeconds: 45, jailBail: 500 });
-      const startRes = gm.startGame(room, 'player_h1');
+      const startRes = await gm.startGame(room, 'player_h1');
       const gameId = startRes.gameId!;
       const state = gm.getGame(gameId)!;
 
@@ -1488,7 +1488,7 @@ describe('Turn Synchronization, CPU Pacing & Player Timers', () => {
         player_h2: { uid: 'player_h2', displayName: 'HumanPlayer2', photoURL: null, isReady: true, colorToken: '#3B82F6', joinedAt: Date.now() },
       };
       const room = createTestRoom('room_jail_dedup', 'player_h1', members, { ...DEFAULT_HOST_RULES, jailBail: 500 });
-      const startRes = gm.startGame(room, 'player_h1');
+      const startRes = await gm.startGame(room, 'player_h1');
       const gameId = startRes.gameId!;
       const state = gm.getGame(gameId)!;
 
@@ -1545,7 +1545,7 @@ describe('Turn Synchronization, CPU Pacing & Player Timers', () => {
         },
       };
       const room = createTestRoom('room_cpu_jail', 'cpu_1', members, { ...DEFAULT_HOST_RULES, jailBail: 500 });
-      const startRes = gm.startGame(room, 'cpu_1');
+      const startRes = await gm.startGame(room, 'cpu_1');
       const gameId = startRes.gameId!;
       const state = gm.getGame(gameId)!;
 
@@ -1580,7 +1580,7 @@ describe('Turn Synchronization, CPU Pacing & Player Timers', () => {
         player_h2: { uid: 'player_h2', displayName: 'HumanPlayer2', photoURL: null, isReady: true, colorToken: '#3B82F6', joinedAt: Date.now() },
       };
       const room = createTestRoom('room_manual_jail', 'player_h1', members, { ...DEFAULT_HOST_RULES, jailBail: 500 });
-      const startRes = gm.startGame(room, 'player_h1');
+      const startRes = await gm.startGame(room, 'player_h1');
       const gameId = startRes.gameId!;
       const state = gm.getGame(gameId)!;
 
@@ -1651,7 +1651,7 @@ describe('Turn Synchronization, CPU Pacing & Player Timers', () => {
         player_h2: { uid: 'player_h2', displayName: 'Human 2', photoURL: null, isReady: true, colorToken: '#3B82F6', joinedAt: 2 },
       };
       const room = createTestRoom('room_build_1', 'player_h1', members);
-      const startRes = gm.startGame(room, 'player_h1');
+      const startRes = await gm.startGame(room, 'player_h1');
       const gameId = startRes.gameId!;
       const state = gm.getGame(gameId)!;
 
@@ -1697,7 +1697,7 @@ describe('Turn Synchronization, CPU Pacing & Player Timers', () => {
         player_h2: { uid: 'player_h2', displayName: 'Human 2', photoURL: null, isReady: true, colorToken: '#3B82F6', joinedAt: 2 },
       };
       const room = createTestRoom('room_build_2', 'player_h1', members);
-      const startRes = gm.startGame(room, 'player_h1');
+      const startRes = await gm.startGame(room, 'player_h1');
       const gameId = startRes.gameId!;
       const state = gm.getGame(gameId)!;
 
@@ -1734,7 +1734,7 @@ describe('Turn Synchronization, CPU Pacing & Player Timers', () => {
         player_h2: { uid: 'player_h2', displayName: 'Human 2', photoURL: null, isReady: true, colorToken: '#3B82F6', joinedAt: 2 },
       };
       const room = createTestRoom('room_build_3', 'player_h1', members);
-      const startRes = gm.startGame(room, 'player_h1');
+      const startRes = await gm.startGame(room, 'player_h1');
       const gameId = startRes.gameId!;
       const state = gm.getGame(gameId)!;
 
@@ -1774,7 +1774,7 @@ describe('Turn Synchronization, CPU Pacing & Player Timers', () => {
         player_h2: { uid: 'player_h2', displayName: 'Human 2', photoURL: null, isReady: true, colorToken: '#3B82F6', joinedAt: 2 },
       };
       const room = createTestRoom('room_build_4', 'player_h1', members);
-      const startRes = gm.startGame(room, 'player_h1');
+      const startRes = await gm.startGame(room, 'player_h1');
       const gameId = startRes.gameId!;
       const state = gm.getGame(gameId)!;
 
@@ -1821,7 +1821,7 @@ describe('Turn Synchronization, CPU Pacing & Player Timers', () => {
         player_h2: { uid: 'player_h2', displayName: 'Human 2', photoURL: null, isReady: true, colorToken: '#3B82F6', joinedAt: 2 },
       };
       const room = createTestRoom('room_build_5', 'player_h1', members);
-      const startRes = gm.startGame(room, 'player_h1');
+      const startRes = await gm.startGame(room, 'player_h1');
       const gameId = startRes.gameId!;
       const state = gm.getGame(gameId)!;
 
@@ -1859,7 +1859,7 @@ describe('Turn Synchronization, CPU Pacing & Player Timers', () => {
         player_h2: { uid: 'player_h2', displayName: 'Human 2', photoURL: null, isReady: true, colorToken: '#3B82F6', joinedAt: 2 },
       };
       const room = createTestRoom('room_build_6', 'player_h1', members);
-      const startRes = gm.startGame(room, 'player_h1');
+      const startRes = await gm.startGame(room, 'player_h1');
       const gameId = startRes.gameId!;
       const state = gm.getGame(gameId)!;
 
@@ -1896,7 +1896,7 @@ describe('Turn Synchronization, CPU Pacing & Player Timers', () => {
         player_h2: { uid: 'player_h2', displayName: 'Human 2', photoURL: null, isReady: true, colorToken: '#3B82F6', joinedAt: 2 },
       };
       const room = createTestRoom('room_build_7', 'player_h1', members);
-      const startRes = gm.startGame(room, 'player_h1');
+      const startRes = await gm.startGame(room, 'player_h1');
       const gameId = startRes.gameId!;
       const state = gm.getGame(gameId)!;
 
@@ -1953,7 +1953,7 @@ describe('Turn Synchronization, CPU Pacing & Player Timers', () => {
         player_h2: { uid: 'player_h2', displayName: 'Human 2', photoURL: null, isReady: true, colorToken: '#3B82F6', joinedAt: 2 },
       };
       const room = createTestRoom('room_build_8', 'player_h1', members);
-      const startRes = gm.startGame(room, 'player_h1');
+      const startRes = await gm.startGame(room, 'player_h1');
       const gameId = startRes.gameId!;
       const state = gm.getGame(gameId)!;
 
@@ -1990,7 +1990,7 @@ describe('Turn Synchronization, CPU Pacing & Player Timers', () => {
         player_h2: { uid: 'player_h2', displayName: 'Human 2', photoURL: null, isReady: true, colorToken: '#3B82F6', joinedAt: 2 },
       };
       const room = createTestRoom('room_build_9', 'player_h1', members);
-      const startRes = gm.startGame(room, 'player_h1');
+      const startRes = await gm.startGame(room, 'player_h1');
       const gameId = startRes.gameId!;
       const state = gm.getGame(gameId)!;
 
@@ -2033,7 +2033,7 @@ describe('Turn Synchronization, CPU Pacing & Player Timers', () => {
         },
       };
       const room = createTestRoom('room_cpu_reg', 'cpu_1', members);
-      const startRes = gm.startGame(room, 'cpu_1');
+      const startRes = await gm.startGame(room, 'cpu_1');
       const gameId = startRes.gameId!;
       const state = gm.getGame(gameId)!;
 
@@ -2073,7 +2073,7 @@ describe('Turn Synchronization, CPU Pacing & Player Timers', () => {
         player_h2: { uid: 'player_h2', displayName: 'Human 2', photoURL: null, isReady: true, colorToken: '#3B82F6', joinedAt: 2 },
       };
       const room = createTestRoom('room_build_11', 'player_h1', members);
-      const startRes = gm.startGame(room, 'player_h1');
+      const startRes = await gm.startGame(room, 'player_h1');
       const gameId = startRes.gameId!;
       const state = gm.getGame(gameId)!;
 

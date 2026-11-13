@@ -258,11 +258,11 @@ export class RoomManager {
   /**
    * Creates a private multiplayer room hosted by the caller, optionally with computer players.
    */
-  public createRoom(
+  public async createRoom(
     hostUid: string,
     customRules?: HostCustomRules,
     cpuPlayers?: Array<{ name: string }>
-  ): { ok: boolean; room?: ServerRoom; error?: string } {
+  ): Promise<{ ok: boolean; room?: ServerRoom; error?: string }> {
     const hostSession = this.sessionsByUid.get(hostUid);
     if (!hostSession) {
       return { ok: false, error: 'Unauthorized: invalid host session' };
@@ -408,16 +408,18 @@ export class RoomManager {
       expiresAt: Date.now() + 24 * 60 * 60 * 1000,
     };
 
+    // Authoritative persistence: Await database commit before registering in-memory state and acknowledging success
+    try {
+      await this.store.createRoom(room);
+      await this.store.saveSession(hostSession);
+    } catch (err) {
+      console.error('[RoomManager] Failed to persist new room to store:', err);
+      return { ok: false, error: 'Failed to create room: database persistence failure' };
+    }
+
     this.rooms.set(roomId, room);
     this.codeToRoomId.set(inviteCode, roomId);
     hostSession.roomId = roomId;
-
-    this.store.createRoom(room).catch((err) => {
-      console.warn('[RoomManager] Failed to persist new room:', err);
-    });
-    this.store.saveSession(hostSession).catch((err) => {
-      console.warn('[RoomManager] Failed to persist host room binding:', err);
-    });
 
     return { ok: true, room };
   }

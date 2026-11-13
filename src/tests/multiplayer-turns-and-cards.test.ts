@@ -616,7 +616,7 @@ describe('Indian Monopoly Comprehensive Hardening Suite', () => {
         serverInstance.roomManager.setReady(roomRes.roomId, dummy2.uid, true);
         serverInstance.roomManager.setReady(roomRes.roomId, room.hostUid, true);
 
-        const startRes = serverInstance.gameManager.startGame(room, room.hostUid);
+        const startRes = await serverInstance.gameManager.startGame(room, room.hostUid);
         expect(startRes.ok).toBe(true);
         const gameId = startRes.gameId!;
 

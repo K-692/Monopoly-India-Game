@@ -628,13 +628,13 @@ describe('3. Dynamic NET WORTH Rankings & Room-Join Tie Breaking (Requirement 4)
     expect(screen.getByTestId('player-rank-p_c').textContent).toBe('#2');
   });
 
-  it('server RoomManager assigns monotonic roomJoinSequence and transfers to game initial state', () => {
+  it('server RoomManager assigns monotonic roomJoinSequence and transfers to game initial state', async () => {
     const roomManager = new RoomManager();
     const hostSession = roomManager.registerPlayer('Aarav Host');
     const guestSession = roomManager.registerPlayer('Diya Guest');
 
     // Host creates room with 1 initial CPU
-    const createResult = roomManager.createRoom(hostSession.uid, DEFAULT_HOST_RULES, [{ name: 'CPU 1' }]);
+    const createResult = await roomManager.createRoom(hostSession.uid, DEFAULT_HOST_RULES, [{ name: 'CPU 1' }]);
     expect(createResult.ok).toBe(true);
     const room = createResult.room!;
 

@@ -234,14 +234,14 @@ export function setupSocketHandlers(
     // 2. ROOM CREATION, JOINING, & LOBBY
     // ==========================================
 
-    socket.on('room:create', ({ customRules, cpuPlayers }, callback) => {
+    socket.on('room:create', async ({ customRules, cpuPlayers }, callback) => {
       if (!requireSession(socket, roomManager)) {
         if (typeof callback === 'function') callback({ ok: false, error: 'Unauthenticated' });
         return;
       }
 
       const session = socket.data.session!;
-      const result = roomManager.createRoom(session.uid, customRules, cpuPlayers);
+      const result = await roomManager.createRoom(session.uid, customRules, cpuPlayers);
 
       if (!result.ok || !result.room) {
         if (typeof callback === 'function') {
@@ -457,7 +457,7 @@ export function setupSocketHandlers(
       }
     });
 
-    socket.on('room:start', (callback) => {
+    socket.on('room:start', async (callback) => {
       if (!requireSession(socket, roomManager)) return;
       const session = socket.data.session!;
       if (!session.roomId) {
@@ -477,7 +477,7 @@ export function setupSocketHandlers(
         return;
       }
 
-      const startResult = gameManager.startGame(room, session.uid, { randomizeOrder: true });
+      const startResult = await gameManager.startGame(room, session.uid, { randomizeOrder: true });
       if (!startResult.ok || !startResult.gameId || !startResult.gameState) {
         if (typeof callback === 'function') {
           callback({ ok: false, error: startResult.error || 'Failed to start game' });

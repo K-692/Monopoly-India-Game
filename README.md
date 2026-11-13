@@ -182,8 +182,11 @@ For formal mathematical definitions, state machine proofs, and research citation
 
 Indian Monopoly includes an enterprise-grade multiplayer synchronization engine engineered specifically to withstand distributed cloud hosting, transient mobile packet drops, browser refreshes, and host container restarts:
 
-1. **Strict Room and Game Isolation:**
+1. **Strict Room and Game Isolation & Authoritative Persistence:**
    - Database partial unique index (`idx_one_active_game_per_room`) guarantees a room cannot spawn multiple active games under concurrent requests or double-clicks.
+   - **Authoritative Async Lifecycle:** Room creation (`createRoom`) and match startup (`startGame`) strictly await and verify database commit in `game.rooms` and `game.games` before returning success or emitting socket events to clients.
+   - **Parent Session Verification:** Command processing (`commitCommandExecution`) row-locks and validates the parent `game.games` record before inserting into `game.processed_commands` or `game.game_events`, preventing foreign key constraint violations (`processed_commands_game_id_fkey`).
+   - **Explicit Schema Isolation:** All PostgreSQL statements are explicitly schema-qualified (`game.rooms`, `game.games`, `game.processed_commands`, etc.), eliminating reliance on connection pooler `search_path` states.
    - Channel decoupling separates room membership (`room:<roomId>`) from active gameplay events (`game:<gameId>`), preventing cross-match state leakage.
 
 2. **Durable Command Deduplication & Versioning:**

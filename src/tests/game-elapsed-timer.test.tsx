@@ -226,7 +226,7 @@ describe('Authoritative Total Game Elapsed Timer (MM:SS) Feature', () => {
       vi.useRealTimers();
     });
 
-    it('calculates and includes elapsedSeconds in game:timer broadcasts on interval ticks', () => {
+    it('calculates and includes elapsedSeconds in game:timer broadcasts on interval ticks', async () => {
       const gameManager = new GameManager();
       const broadcastEvents: Array<{ event: string; data: unknown }> = [];
 
@@ -274,7 +274,7 @@ describe('Authoritative Total Game Elapsed Timer (MM:SS) Feature', () => {
         expiresAt: Date.now() + 3600000,
       };
 
-      const startResult = gameManager.startGame(mockRoom, 'host_1');
+      const startResult = await gameManager.startGame(mockRoom, 'host_1');
       expect(startResult.ok).toBe(true);
       expect(startResult.gameState).toBeDefined();
       expect(startResult.gameState?.totalGameTimeSeconds).toBe(0);

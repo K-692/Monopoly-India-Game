@@ -195,7 +195,7 @@ describe('120-Second Low-Balance Mortgage Resolution & Disqualification', () => 
       updatedAt: Date.now(),
       expiresAt: Date.now() + 3600000,
     };
-    const startRes = gm.startGame(room, 'user_1', { forcedPlayerOrder: ['user_1', 'user_2', 'user_3'] });
+    const startRes = await gm.startGame(room, 'user_1', { forcedPlayerOrder: ['user_1', 'user_2', 'user_3'] });
     const gameId = startRes.gameId!;
     const state = gm.getGame(gameId)!;
     state.currentPlayerUid = 'user_1';
