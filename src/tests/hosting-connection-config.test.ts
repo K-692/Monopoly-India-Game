@@ -1,12 +1,10 @@
 /**
- * Indian Monopoly - Public Hosting & LAN Connection Configuration Tests
- * 
+ * Indian Monopoly - Online (GitHub Pages + Supabase) & LAN Connection Configuration Tests
+ *
  * Validates:
  * 1. LAN mode still selects the LAN host URL.
- * 2. Public mode selects VITE_SERVER_URL.
- * 3. Production mode does not silently connect to localhost.
- * 4. Missing production backend URL produces a clear error.
- * 11. Disconnected client or missing room receives useful expired-room message.
+ * 2. Public hostnames (GitHub Pages) select online mode, never localhost.
+ * 3. VITE_NETWORK_MODE can force a mode for local testing.
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -37,9 +35,7 @@ describe('Multiplayer Hosting Connection Configuration', () => {
       });
 
       expect(config.mode).toBe('lan');
-      expect(config.isConfigured).toBe(true);
       expect(config.url).toBe('http://192.168.1.100:4173');
-      expect(config.error).toBeNull();
     });
 
     it('selects 10.x.x.x private LAN host origin', () => {
@@ -76,50 +72,44 @@ describe('Multiplayer Hosting Connection Configuration', () => {
 
       expect(config.mode).toBe('dev');
       expect(config.url).toBe('http://localhost:4173');
-      expect(config.isConfigured).toBe(true);
     });
   });
 
-  describe('Requirement 2: Public Mode VITE_SERVER_URL Selection', () => {
-    it('selects VITE_SERVER_URL when configured', () => {
-      const renderBackend = 'https://monopoly-india-server.onrender.com';
-      const config = resolveServerConfig(renderBackend, {
+  describe('Requirement 2: Online Mode on Public Hosting', () => {
+    it('selects online mode on GitHub Pages and never connects to localhost', () => {
+      const config = resolveServerConfig(undefined, {
         protocol: 'https:',
         hostname: 'k-692.github.io',
         port: '',
         origin: 'https://k-692.github.io',
       });
 
-      expect(config.mode).toBe('public');
-      expect(config.isConfigured).toBe(true);
-      expect(config.url).toBe('https://monopoly-india-server.onrender.com');
-      expect(config.error).toBeNull();
-    });
-
-    it('strips trailing slashes from VITE_SERVER_URL', () => {
-      const config = resolveServerConfig('https://monopoly-backend.onrender.com///');
-      expect(config.url).toBe('https://monopoly-backend.onrender.com');
-    });
-  });
-
-  describe('Requirements 3 & 4: Production Guard & Missing Backend URL Error', () => {
-    it('does NOT silently fall back to localhost on deployed public domain without VITE_SERVER_URL', () => {
-      const config = resolveServerConfig('', {
-        protocol: 'https:',
-        hostname: 'k-692.github.io',
-        port: '',
-        origin: 'https://k-692.github.io',
-      });
-
-      expect(config.mode).toBe('public');
-      expect(config.isConfigured).toBe(false);
+      expect(config.mode).toBe('online');
       expect(config.url).toBeNull();
-      expect(config.error).toContain('VITE_SERVER_URL');
-      expect(config.error).toContain('not configured');
     });
 
-    it('sets unconfigured status in connection store when backend URL is missing on public hosting', () => {
-      // Mock window.location on GitHub Pages
+    it('VITE_NETWORK_MODE=online forces online mode even on localhost', () => {
+      const config = resolveServerConfig('online', {
+        protocol: 'http:',
+        hostname: 'localhost',
+        port: '4173',
+        origin: 'http://localhost:4173',
+      });
+      expect(config.mode).toBe('online');
+    });
+
+    it('VITE_NETWORK_MODE=lan forces LAN mode on a public hostname', () => {
+      const config = resolveServerConfig('lan', {
+        protocol: 'https:',
+        hostname: 'example.com',
+        port: '',
+        origin: 'https://example.com',
+      });
+      expect(config.mode).toBe('lan');
+      expect(config.url).toBe('https://example.com');
+    });
+
+    it('marks the connection store as online when getSocket runs on a public hostname', () => {
       const originalLocation = window.location;
       Object.defineProperty(window, 'location', {
         writable: true,
@@ -136,12 +126,12 @@ describe('Multiplayer Hosting Connection Configuration', () => {
       try {
         const socket = getSocket();
         expect(socket).toBeDefined();
-
         const state = useConnectionStore.getState();
-        expect(state.status).toBe('unconfigured');
+        expect(state.mode).toBe('online');
+        expect(state.isPublicHosting).toBe(true);
         expect(state.serverUrl).toBeNull();
-        expect(state.error).toContain('VITE_SERVER_URL');
       } finally {
+        resetSocketForTesting();
         Object.defineProperty(window, 'location', {
           writable: true,
           configurable: true,
@@ -170,7 +160,7 @@ describe('Multiplayer Hosting Connection Configuration', () => {
 
     it('identifies public domains as non-private', () => {
       expect(isPrivateNetworkHost('k-692.github.io')).toBe(false);
-      expect(isPrivateNetworkHost('monopoly-india.onrender.com')).toBe(false);
+      expect(isPrivateNetworkHost('example.com')).toBe(false);
       expect(isPrivateNetworkHost('8.8.8.8')).toBe(false);
       expect(isPrivateNetworkHost('172.32.0.1')).toBe(false);
     });

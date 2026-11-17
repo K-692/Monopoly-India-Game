@@ -1,8 +1,8 @@
 /**
- * Indian Monopoly - Production & LAN Authoritative Server
- * Express + Socket.IO server hosting the production-built React app
- * and providing authoritative real-time multiplayer gameplay across
- * local Wi-Fi networks and public cloud deployments (Render).
+ * Indian Monopoly - LAN Authoritative Server
+ * Express + Socket.IO server hosting the built React app and providing
+ * authoritative real-time multiplayer gameplay across a local Wi-Fi network.
+ * (Online play needs no server: see src/lib/online/.)
  */
 
 import express from 'express';
@@ -39,13 +39,8 @@ export function createLanServer(options?: LanServerOptions) {
   const app = express();
   const httpServer = http.createServer(app);
 
-  // Persistence Store initialization (PostgreSQL in production, In-Memory in LAN/tests)
-  const store =
-    options?.store ??
-    createPersistenceStore({
-      databaseUrl: process.env.DATABASE_URL,
-      nodeEnv: options?.nodeEnv,
-    });
+  // In-memory persistence for LAN hosting
+  const store = options?.store ?? createPersistenceStore();
 
   // Initialize Socket.IO with environment-aware CORS (strict in production, permissive in LAN/dev)
   const io = new Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>(
@@ -88,9 +83,6 @@ export function createLanServer(options?: LanServerOptions) {
     .catch((err) => {
       readyError = err instanceof Error ? err.message : String(err);
       console.error('[Server] Critical persistence store initialization failure:', err);
-      if (options?.nodeEnv === 'production' || process.env.NODE_ENV === 'production') {
-        console.error('[Server] Fatal: Persistence store initialization failed in production mode.');
-      }
       throw err;
     });
 
@@ -161,54 +153,23 @@ const isMain =
 
 if (isMain) {
   const PORT = DEFAULT_PORT;
-  const isProduction = process.env.NODE_ENV === 'production';
-  const { httpServer, store, cleanupInterval, io, readyPromise } = createLanServer({
-    port: PORT,
-    clientOrigin: process.env.CLIENT_ORIGIN,
-    nodeEnv: process.env.NODE_ENV,
-  });
+  // LAN hosting is always permissive on CORS: every device on the Wi-Fi must be able to connect.
+  const { httpServer, store, cleanupInterval, io, readyPromise } = createLanServer({ port: PORT });
 
   httpServer.listen(PORT, HOST, async () => {
     try {
       await readyPromise;
     } catch (err) {
-      console.error('[Server] Fatal database initialization failure on startup:', err);
-      if (isProduction) {
-        process.exit(1);
-      }
+      console.error('[Server] Initialization failure on startup:', err);
     }
 
-    if (isProduction) {
-      const allowedOriginsDisplay = process.env.CLIENT_ORIGIN
-        ? process.env.CLIENT_ORIGIN
-        : 'https://k-692.github.io (default fallback - set CLIENT_ORIGIN in Render dashboard for your frontend)';
-      console.log(`
-========================================
-     INDIAN MONOPOLY HOSTED SERVER
-========================================
+    const detected = getLanAddresses();
+    const lanLines =
+      detected.length > 0
+        ? detected.map((d) => `http://${d.address}:${PORT}`).join('\n')
+        : 'No external Wi-Fi / LAN interface detected (Local Only)';
 
-Server Status: RUNNING
-Environment: production
-Port: ${PORT}
-Host: ${HOST}
-Health Check: http://localhost:${PORT}/api/health
-Allowed Client Origin: ${allowedOriginsDisplay}
-
-Multiplayer Backend: READY
-Transport: Socket.IO (WebSocket + Polling)
-State Engine: Persistent Store (PostgreSQL / ACID)
-
-Waiting for worldwide players...
-========================================
-`);
-    } else {
-      const detected = getLanAddresses();
-      const lanLines =
-        detected.length > 0
-          ? detected.map((d) => `http://${d.address}:${PORT}`).join('\n')
-          : 'No external Wi-Fi / LAN interface detected (Local Only)';
-
-      console.log(`
+    console.log(`
 ========================================
        INDIAN MONOPOLY LAN SERVER
 ========================================
@@ -227,7 +188,6 @@ Transport: Socket.IO
 Waiting for players...
 ========================================
 `);
-    }
   });
 
   const handleShutdown = () => {

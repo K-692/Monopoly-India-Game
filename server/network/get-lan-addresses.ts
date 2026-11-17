@@ -6,6 +6,9 @@
 
 import os from 'os';
 import { LanAddressInfo, LanServerInfo } from '../types/server-types';
+import { normalizeIp } from './ip-utils';
+
+export { normalizeIp };
 
 /**
  * Checks if an IPv4 address is in an RFC 1918 private network range:
@@ -31,19 +34,6 @@ export function isPrivateIPv4(ip: string): boolean {
   return false;
 }
 
-/**
- * Normalizes IPv4-mapped IPv6 addresses (e.g., ::ffff:192.168.1.5 -> 192.168.1.5)
- */
-export function normalizeIp(ip: string | undefined): string {
-  if (!ip) return '127.0.0.1';
-  if (ip.startsWith('::ffff:')) {
-    return ip.substring(7);
-  }
-  if (ip === '::1') {
-    return '127.0.0.1';
-  }
-  return ip;
-}
 
 /**
  * Scans host network interfaces and returns all usable non-loopback IPv4 addresses.

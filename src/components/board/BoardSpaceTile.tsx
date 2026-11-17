@@ -9,24 +9,26 @@ import { cn } from '@/lib/utils/cn';
  * Returns the localized visual background image for non-city board grids
  * (Civic Fund, Market Buzz, GST Tax, Infra Levy, Utilities, and Transits).
  */
+const grid = (file: string): string => `${import.meta.env.BASE_URL || '/'}assets/grids/${file}`;
+
 function getGridBackgroundImage(space: BoardSpaceDefinition): string | null {
   if (space.type === 'CARD') {
-    return space.deck === 'CIVIC' ? '/assets/grids/civic_fund.svg' : '/assets/grids/market_buzz.svg';
+    return space.deck === 'CIVIC' ? grid('civic_fund.svg') : grid('market_buzz.svg');
   }
   if (space.type === 'TAX') {
     return space.id.includes('infrastructure') || space.name.toLowerCase().includes('infra')
-      ? '/assets/grids/infra_levy.svg'
-      : '/assets/grids/gst_tax.svg';
+      ? grid('infra_levy.svg')
+      : grid('gst_tax.svg');
   }
   if (space.type === 'UTILITY') {
     return space.id.includes('power') || space.name.toLowerCase().includes('urja')
-      ? '/assets/grids/urja_power.svg'
-      : '/assets/grids/jal_board.svg';
+      ? grid('urja_power.svg')
+      : grid('jal_board.svg');
   }
   if (space.type === 'TRANSIT') {
     return space.id.includes('airport') || space.name.toLowerCase().includes('airport')
-      ? '/assets/grids/airport.svg'
-      : '/assets/grids/railway.svg';
+      ? grid('airport.svg')
+      : grid('railway.svg');
   }
   return null;
 }
