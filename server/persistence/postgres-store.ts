@@ -14,6 +14,7 @@ import { CommandCommitParams, PersistenceStore } from './types';
 export class PostgresStore implements PersistenceStore {
   private pool: Pool;
   private isInitialized = false;
+  private keepWarmTimer: NodeJS.Timeout | null = null;
 
   constructor(connectionStringOrConfig?: string | PoolConfig) {
     const config: PoolConfig =
@@ -48,7 +49,11 @@ export class PostgresStore implements PersistenceStore {
 
     // Conservative connection pool sizing suitable for Supabase Free plan and single Render Web Service
     config.max = config.max || 10;
-    config.idleTimeoutMillis = 30000;
+    // Keep connections alive for a long time: opening a new TLS connection to a remote region
+    // costs several network round-trips, which previously landed on players' clicks.
+    config.idleTimeoutMillis = 10 * 60 * 1000;
+    config.keepAlive = true;
+    config.keepAliveInitialDelayMillis = 10000;
     config.connectionTimeoutMillis = 8000;
     config.statement_timeout = 8000;
     config.query_timeout = 8000;
@@ -72,10 +77,32 @@ export class PostgresStore implements PersistenceStore {
     console.log('[PostgresStore] Connecting to PostgreSQL and executing migrations...');
     await runMigrations(this.pool);
     this.isInitialized = true;
+    await this.warmPool();
+    // Periodically touch the pool so idle connections are never torn down between turns
+    this.keepWarmTimer = setInterval(() => {
+      this.pool.query('SELECT 1').catch(() => {});
+    }, 60 * 1000);
+    this.keepWarmTimer.unref?.();
     console.log('[PostgresStore] PostgreSQL connection pool and migrations ready.');
   }
 
+  /**
+   * Pre-opens a couple of connections so the first game commands do not pay TLS setup cost.
+   */
+  private async warmPool(): Promise<void> {
+    try {
+      const clients = await Promise.all([this.pool.connect(), this.pool.connect()]);
+      clients.forEach((c) => c.release());
+    } catch (err) {
+      console.warn('[PostgresStore] Pool warm-up failed (non-fatal):', err);
+    }
+  }
+
   public async close(): Promise<void> {
+    if (this.keepWarmTimer) {
+      clearInterval(this.keepWarmTimer);
+      this.keepWarmTimer = null;
+    }
     await this.pool.end();
     this.isInitialized = false;
   }

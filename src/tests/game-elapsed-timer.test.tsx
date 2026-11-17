@@ -14,41 +14,41 @@ vi.mock('canvas-confetti', () => ({
   default: vi.fn(),
 }));
 
-describe('Authoritative Total Game Elapsed Timer (MM:SS) Feature', () => {
+describe('Authoritative Total Game Elapsed Timer (HH:MM:SS) Feature', () => {
   describe('formatGameTimer formatting logic', () => {
     it('starts at 00:00 for 0 seconds', () => {
-      expect(formatGameTimer(0)).toBe('00:00');
+      expect(formatGameTimer(0)).toBe('00:00:00');
     });
 
     it('formats single-digit seconds with leading zero', () => {
-      expect(formatGameTimer(5)).toBe('00:05');
-      expect(formatGameTimer(9)).toBe('00:09');
+      expect(formatGameTimer(5)).toBe('00:00:05');
+      expect(formatGameTimer(9)).toBe('00:00:09');
     });
 
     it('formats multi-digit seconds correctly', () => {
-      expect(formatGameTimer(45)).toBe('00:45');
-      expect(formatGameTimer(59)).toBe('00:59');
+      expect(formatGameTimer(45)).toBe('00:00:45');
+      expect(formatGameTimer(59)).toBe('00:00:59');
     });
 
     it('formats minutes and seconds accurately across boundary', () => {
-      expect(formatGameTimer(60)).toBe('01:00');
-      expect(formatGameTimer(65)).toBe('01:05');
-      expect(formatGameTimer(599)).toBe('09:59');
-      expect(formatGameTimer(600)).toBe('10:00');
+      expect(formatGameTimer(60)).toBe('00:01:00');
+      expect(formatGameTimer(65)).toBe('00:01:05');
+      expect(formatGameTimer(599)).toBe('00:09:59');
+      expect(formatGameTimer(600)).toBe('00:10:00');
     });
 
     it('formats extended gameplay durations > 59 minutes gracefully', () => {
-      expect(formatGameTimer(3599)).toBe('59:59');
-      expect(formatGameTimer(3600)).toBe('60:00');
-      expect(formatGameTimer(3665)).toBe('61:05');
-      expect(formatGameTimer(7200)).toBe('120:00');
+      expect(formatGameTimer(3599)).toBe('00:59:59');
+      expect(formatGameTimer(3600)).toBe('01:00:00');
+      expect(formatGameTimer(3665)).toBe('01:01:05');
+      expect(formatGameTimer(7200)).toBe('02:00:00');
     });
 
     it('handles negative, non-finite, and floating point inputs cleanly', () => {
-      expect(formatGameTimer(-10)).toBe('00:00');
-      expect(formatGameTimer(NaN)).toBe('00:00');
-      expect(formatGameTimer(Infinity)).toBe('00:00');
-      expect(formatGameTimer(15.9)).toBe('00:15');
+      expect(formatGameTimer(-10)).toBe('00:00:00');
+      expect(formatGameTimer(NaN)).toBe('00:00:00');
+      expect(formatGameTimer(Infinity)).toBe('00:00:00');
+      expect(formatGameTimer(15.9)).toBe('00:00:15');
     });
   });
 
@@ -112,7 +112,7 @@ describe('Authoritative Total Game Elapsed Timer (MM:SS) Feature', () => {
 
       const timerElement = screen.getByTestId('game-timer');
       expect(timerElement).toBeDefined();
-      expect(timerElement.textContent).toBe('00:00');
+      expect(timerElement.textContent).toBe('00:00:00');
 
       // Verify centered positioning classes
       expect(timerElement.className).toContain('absolute');
@@ -137,19 +137,19 @@ describe('Authoritative Total Game Elapsed Timer (MM:SS) Feature', () => {
       );
 
       const timerElement = screen.getByTestId('game-timer');
-      expect(timerElement.textContent).toBe('00:00');
+      expect(timerElement.textContent).toBe('00:00:00');
 
       // Advance by 5 seconds
       act(() => {
         vi.advanceTimersByTime(5000);
       });
-      expect(timerElement.textContent).toBe('00:05');
+      expect(timerElement.textContent).toBe('00:00:05');
 
       // Advance by another 60 seconds (1 minute 5 seconds total)
       act(() => {
         vi.advanceTimersByTime(60000);
       });
-      expect(timerElement.textContent).toBe('01:05');
+      expect(timerElement.textContent).toBe('00:01:05');
     });
 
     it('synchronizes smoothly with server-provided totalGameTimeSeconds update in store', () => {
@@ -168,7 +168,7 @@ describe('Authoritative Total Game Elapsed Timer (MM:SS) Feature', () => {
       );
 
       const timerElement = screen.getByTestId('game-timer');
-      expect(timerElement.textContent).toBe('00:00');
+      expect(timerElement.textContent).toBe('00:00:00');
 
       // Server broadcasts timer update with authoritative elapsed seconds = 125
       act(() => {
@@ -180,7 +180,7 @@ describe('Authoritative Total Game Elapsed Timer (MM:SS) Feature', () => {
         });
       });
 
-      expect(timerElement.textContent).toBe('02:05');
+      expect(timerElement.textContent).toBe('00:02:05');
     });
 
     it('freezes timer at final completed duration when game status is COMPLETED', () => {
@@ -208,12 +208,12 @@ describe('Authoritative Total Game Elapsed Timer (MM:SS) Feature', () => {
 
       const timerElement = screen.getByTestId('game-timer');
       // Freezes at 342 seconds (05:42) despite system time advancing
-      expect(timerElement.textContent).toBe('05:42');
+      expect(timerElement.textContent).toBe('00:05:42');
 
       act(() => {
         vi.advanceTimersByTime(10000);
       });
-      expect(timerElement.textContent).toBe('05:42');
+      expect(timerElement.textContent).toBe('00:05:42');
     });
   });
 
