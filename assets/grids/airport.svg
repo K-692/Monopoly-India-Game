@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 240" fill="none">
+  <defs>
+    <linearGradient id="bg_air" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f0f9ff" stop-opacity="0.95" />
+      <stop offset="100%" stop-color="#e0f2fe" stop-opacity="0.9" />
+    </linearGradient>
+    <linearGradient id="air_cyan" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0284c7" />
+      <stop offset="100%" stop-color="#0369a1" />
+    </linearGradient>
+  </defs>
+  <rect width="200" height="240" fill="url(#bg_air)" />
+  <!-- Passenger Jetliner Ascending & Airport Runway Motif -->
+  <g opacity="0.22" transform="translate(35, 40)">
+    <!-- Runway Perspective -->
+    <polygon points="50,135 80,135 68,95 62,95" fill="#64748b" opacity="0.5" />
+    <path d="M65,100 L65,108 M65,115 L65,123 M65,128 L65,135" stroke="#ffffff" stroke-width="2" />
+    <!-- Jetliner Silhouette -->
+    <path d="M65,10 C62,10 60,15 60,25 L58,55 L15,75 V85 L58,72 L60,105 L45,115 V122 L65,117 L85,122 V115 L70,105 L72,72 L115,85 V75 L72,55 L70,25 C70,15 68,10 65,10 Z" fill="url(#air_cyan)" stroke="#0369a1" stroke-width="2" stroke-linejoin="round" />
+  </g>
+</svg>
