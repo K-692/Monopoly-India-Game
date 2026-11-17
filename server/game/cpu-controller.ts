@@ -12,6 +12,7 @@
  */
 
 import { randomUUID } from '../lib/isomorphic-crypto';
+import { isTestEnv } from '../lib/runtime-env';
 import { GameCommand, GameState, PlayerState } from '../../src/domain/game-types';
 import { decideNextAction, CpuActionDecision } from '../../src/domain/game-engine/cpu-decision-engine';
 import { EngineResult } from '../../src/domain/game-engine/engine';
@@ -78,7 +79,7 @@ export class CpuController {
   ) {
     if (stateGetter) this.stateGetter = stateGetter;
     if (dispatcher) this.dispatcher = dispatcher;
-    const isTest = process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
+    const isTest = isTestEnv();
     this.timingConfig = {
       ...(isTest ? FAST_CPU_TIMING : DEFAULT_CPU_TIMING),
       ...(timingConfig || {}),
