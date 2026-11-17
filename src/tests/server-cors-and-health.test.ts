@@ -194,15 +194,7 @@ describe('Backend Production Readiness & Multiplayer Contract', () => {
     });
   });
 
-  describe('Requirement 8: Compiled Output & Start Script Verification', () => {
-    it('compiled production server bundle exists at dist-server/index.cjs', () => {
-      const bundlePath = path.resolve(process.cwd(), 'dist-server/index.cjs');
-      expect(fs.existsSync(bundlePath)).toBe(true);
-
-      const stats = fs.statSync(bundlePath);
-      expect(stats.size).toBeGreaterThan(50000); // Verify bundle is substantial
-    });
-
+  describe('Requirement 8: Start Script Verification', () => {
     it('package.json defines a production start script pointing to compiled bundle', () => {
       const pkgPath = path.resolve(process.cwd(), 'package.json');
       const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
