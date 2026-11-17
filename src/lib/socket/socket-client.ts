@@ -317,6 +317,12 @@ export function resetSocketForTesting(): void {
     clearTimeout(wakeUpTimer);
     wakeUpTimer = null;
   }
+  if (pingTimer) {
+    clearInterval(pingTimer);
+    pingTimer = null;
+  }
+  pingListenersAttached = false;
+  pingInFlight = false;
   if (socketInstance) {
     socketInstance.removeAllListeners();
     socketInstance.disconnect();
@@ -331,4 +337,94 @@ export function resetSocketForTesting(): void {
     error: null,
     reconnectAttempts: 0,
   });
+}
+
+// ==========================================
+// LIVE LATENCY (PING) MEASUREMENT
+// ==========================================
+
+export interface LatencyStoreState {
+  /** Most recent measured round-trip time in ms (null until first sample). */
+  latencyMs: number | null;
+  /** Exponentially smoothed round-trip time in ms, used for the on-screen indicator. */
+  smoothedMs: number | null;
+  lastSampleAt: number | null;
+  /** True when the last ping did not get an answer within the timeout. */
+  isTimedOut: boolean;
+}
+
+export const useLatencyStore = create<LatencyStoreState>(() => ({
+  latencyMs: null,
+  smoothedMs: null,
+  lastSampleAt: null,
+  isTimedOut: false,
+}));
+
+const PING_INTERVAL_MS = 2000;
+const PING_TIMEOUT_MS = 5000;
+let pingTimer: ReturnType<typeof setInterval> | null = null;
+let pingInFlight = false;
+let pingListenersAttached = false;
+
+/** Sends one ping and records the round-trip time. Resolves with the RTT, or null on timeout. */
+export function measureLatency(socket: MonopolySocket = getSocket()): Promise<number | null> {
+  return new Promise((resolve) => {
+    if (!socket.connected) {
+      resolve(null);
+      return;
+    }
+    const sentAt = performance.now();
+    let settled = false;
+    const timeout = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      useLatencyStore.setState({ isTimedOut: true });
+      resolve(null);
+    }, PING_TIMEOUT_MS);
+
+    socket.emit('ping', () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      const rtt = Math.round(performance.now() - sentAt);
+      const prev = useLatencyStore.getState().smoothedMs;
+      const smoothed = prev === null ? rtt : Math.round(prev * 0.6 + rtt * 0.4);
+      useLatencyStore.setState({
+        latencyMs: rtt,
+        smoothedMs: smoothed,
+        lastSampleAt: Date.now(),
+        isTimedOut: false,
+      });
+      resolve(rtt);
+    });
+  });
+}
+
+/** Starts the periodic latency monitor (idempotent). Returns a stop function. */
+export function startLatencyMonitor(): () => void {
+  if (!pingTimer) {
+    const socket = getSocket();
+    const tick = () => {
+      if (pingInFlight || !socket.connected) return;
+      pingInFlight = true;
+      void measureLatency(socket).finally(() => {
+        pingInFlight = false;
+      });
+    };
+    if (!pingListenersAttached) {
+      pingListenersAttached = true;
+      socket.on('connect', tick);
+      socket.on('disconnect', () => {
+        useLatencyStore.setState({ latencyMs: null, smoothedMs: null, isTimedOut: false });
+      });
+    }
+    tick();
+    pingTimer = setInterval(tick, PING_INTERVAL_MS);
+  }
+  return () => {
+    if (pingTimer) {
+      clearInterval(pingTimer);
+      pingTimer = null;
+    }
+  };
 }

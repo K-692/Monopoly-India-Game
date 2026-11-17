@@ -49,6 +49,8 @@ export class GameManager {
   private handoffTimers: Map<string, NodeJS.Timeout> = new Map();
   private disconnectGraceTimers: Map<string, NodeJS.Timeout> = new Map(); // `${gameId}:${playerUid}` -> timer
   private commandQueues: Map<string, Promise<unknown>> = new Map();
+  // Per-game write-behind persistence queues (keeps DB writes ordered without blocking gameplay)
+  private persistQueues: Map<string, Promise<void>> = new Map();
   private processedCommands: Map<string, ProcessedCommandRecord> = new Map();
   private broadcastCallback: GameBroadcastCallback | null = null;
   private cpuController: CpuController;
@@ -77,6 +79,48 @@ export class GameManager {
 
   public getStore(): PersistenceStore {
     return this.store;
+  }
+
+  /**
+   * Enqueues a durable write for a game. Writes for the same game are applied strictly in order,
+   * but gameplay never waits on them: the in-memory engine is authoritative and broadcasts
+   * immediately, while PostgreSQL catches up in the background. This removes the database
+   * round-trip (which can be hundreds of ms when the DB is in another region) from every click.
+   */
+  private enqueuePersist(gameId: string, label: string, task: () => Promise<unknown>): Promise<void> {
+    const prev = this.persistQueues.get(gameId) || Promise.resolve();
+    const next = prev.then(async () => {
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          await task();
+          return;
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          // A missing parent game will never succeed on retry
+          if (attempt === 3 || msg.includes('GAME_SESSION_NOT_PERSISTED')) {
+            console.error(`[GameManager] Background persistence failed (${label}) for ${gameId}:`, msg);
+            return;
+          }
+          await new Promise((r) => setTimeout(r, 150 * attempt));
+        }
+      }
+    });
+    this.persistQueues.set(gameId, next);
+    void next.then(() => {
+      if (this.persistQueues.get(gameId) === next) this.persistQueues.delete(gameId);
+    });
+    return next;
+  }
+
+  /**
+   * Resolves once all pending background writes for a game (or all games) have been flushed.
+   */
+  public async flushPersistence(gameId?: string): Promise<void> {
+    if (gameId) {
+      await (this.persistQueues.get(gameId) || Promise.resolve());
+      return;
+    }
+    await Promise.all([...this.persistQueues.values()]);
   }
 
   public getCpuController(): CpuController {
@@ -426,31 +470,28 @@ export class GameManager {
     const serverStartMs = Date.now();
     const result = applyGameCommand(currentState, command, actorUid, injectedDice, options);
 
-    // Atomically persist state, event, and processed command record before broadcast
-    const commitRes = await this.store.commitCommandExecution({
+    // Persist state, event, and processed command record in the background (write-behind).
+    // Commands are already serialized per game and deduplicated in memory, so the engine can
+    // broadcast immediately; the ordered persist queue guarantees the DB converges to the same state.
+    const commitParams = {
       gameId,
       commandId: command.commandId,
       actorUid,
       result,
       nextState: result.nextState,
-    });
-
-    if (commitRes.alreadyProcessed && commitRes.result) {
-      if (command.commandId) {
-        this.processedCommands.set(dedupeKey, { result: commitRes.result, timestamp: Date.now() });
-      }
-      return commitRes.result;
-    }
-
-    serverPerf.recordMetric({
-      commandId: command.commandId,
-      gameId,
-      actionType: command.type,
-      actorUid,
-      serverReceivedAt: serverStartMs,
-      serverDurationMs: Date.now() - serverStartMs,
-      dbDurationMs: commitRes.durationMs ?? 0,
-      broadcastAt: Date.now(),
+    };
+    void this.enqueuePersist(gameId, `command:${command.type}`, async () => {
+      const commitRes = await this.store.commitCommandExecution(commitParams);
+      serverPerf.recordMetric({
+        commandId: command.commandId,
+        gameId,
+        actionType: command.type,
+        actorUid,
+        serverReceivedAt: serverStartMs,
+        serverDurationMs: Date.now() - serverStartMs,
+        dbDurationMs: commitRes.durationMs ?? 0,
+        broadcastAt: Date.now(),
+      });
     });
 
     // Save updated state and cache command for in-memory deduplication
@@ -604,7 +645,7 @@ export class GameManager {
     player.controllerType = 'BOT';
     player.isBotControlled = true;
 
-    await this.store.updateGame(state).catch(() => {});
+    void this.enqueuePersist(gameId, 'bot-takeover', () => this.store.updateGame(state));
 
     this.emitBroadcast(gameId, state.roomId, 'player:controller_changed', {
       uid: playerUid,
@@ -645,7 +686,7 @@ export class GameManager {
         // Cancel scheduled CPU decision for this player
         this.cpuController.cancelPlayerAction(gameId, playerUid);
 
-        this.store.updateGame(state).catch(() => {});
+        void this.enqueuePersist(gameId, 'reconnect', () => this.store.updateGame(state));
 
         this.emitBroadcast(gameId, state.roomId, 'player:controller_changed', {
           uid: playerUid,

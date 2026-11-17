@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import { Header } from '@/components/ui/Header';
 import { NamePromptModal } from '@/components/ui/NamePromptModal';
 import { ToastContainer } from '@/components/feedback/ToastContainer';
+import { PingIndicator } from '@/components/feedback/PingIndicator';
 import { useSettingsStore } from '@/features/settings/use-settings-store';
 import { useAuthStore } from '@/features/auth/use-auth-store';
 
@@ -31,6 +32,8 @@ export const App: React.FC = () => {
       <NamePromptModal />
       {/* Floating Bottom-Left Non-Blocking Toasts and Acknowledgment Windows */}
       <ToastContainer />
+      {/* Always-visible live server latency (bottom-right corner) */}
+      <PingIndicator />
     </div>
   );
 };
