@@ -14,7 +14,7 @@
  * - Human-to-CPU takeover activates after configurable grace period and recovers seamlessly.
  */
 
-import crypto from 'crypto';
+import { randomUUID } from '../lib/isomorphic-crypto';
 import { BOARD_SPACES } from '../../src/domain/board-config';
 import { createInitialGame, secureFisherYatesShuffle } from '../../src/domain/game-engine/create-initial-game';
 import { generateFairDicePair } from '../../src/domain/game-engine/dice-fairness';
@@ -282,7 +282,7 @@ export class GameManager {
     }
     const startingPlayerUid = playerOrder[0];
 
-    const gameId = 'game_' + Date.now() + '_' + crypto.randomUUID().slice(0, 8);
+    const gameId = 'game_' + Date.now() + '_' + randomUUID().slice(0, 8);
     const initialGame = createInitialGame(
       room.roomId,
       gameId,
@@ -936,7 +936,7 @@ export class GameManager {
     }
 
     const activeUid = freshState.currentPlayerUid;
-    const commandId = 'timeout_' + Date.now() + '_' + crypto.randomUUID().slice(0, 6);
+    const commandId = 'timeout_' + Date.now() + '_' + randomUUID().slice(0, 6);
 
     try {
       if (freshState.phase === 'AWAIT_ROLL') {
@@ -1110,7 +1110,7 @@ export class GameManager {
         await this.processCommand(
           gameId,
           {
-            commandId: 'timeout_reacquire_' + Date.now() + '_' + crypto.randomUUID().slice(0, 6),
+            commandId: 'timeout_reacquire_' + Date.now() + '_' + randomUUID().slice(0, 6),
             roomId: state.roomId,
             gameId,
             expectedVersion: state.version,
@@ -1124,7 +1124,7 @@ export class GameManager {
         await this.processCommand(
           gameId,
           {
-            commandId: 'timeout_decline_reacquire_' + Date.now() + '_' + crypto.randomUUID().slice(0, 6),
+            commandId: 'timeout_decline_reacquire_' + Date.now() + '_' + randomUUID().slice(0, 6),
             roomId: state.roomId,
             gameId,
             expectedVersion: state.version,
@@ -1159,7 +1159,7 @@ export class GameManager {
           await this.processCommand(
             gameId,
             {
-              commandId: 'timeout_buy_' + Date.now() + '_' + crypto.randomUUID().slice(0, 6),
+              commandId: 'timeout_buy_' + Date.now() + '_' + randomUUID().slice(0, 6),
               roomId: state.roomId,
               gameId,
               expectedVersion: state.version,
@@ -1173,7 +1173,7 @@ export class GameManager {
           await this.processCommand(
             gameId,
             {
-              commandId: 'timeout_decline_buy_' + Date.now() + '_' + crypto.randomUUID().slice(0, 6),
+              commandId: 'timeout_decline_buy_' + Date.now() + '_' + randomUUID().slice(0, 6),
               roomId: state.roomId,
               gameId,
               expectedVersion: state.version,
@@ -1188,7 +1188,7 @@ export class GameManager {
         await this.processCommand(
           gameId,
           {
-            commandId: 'timeout_decline_fallback_' + Date.now() + '_' + crypto.randomUUID().slice(0, 6),
+            commandId: 'timeout_decline_fallback_' + Date.now() + '_' + randomUUID().slice(0, 6),
             roomId: state.roomId,
             gameId,
             expectedVersion: state.version,
@@ -1218,7 +1218,7 @@ export class GameManager {
         await this.processCommand(
           gameId,
           {
-            commandId: 'timeout_resolve_' + Date.now() + '_' + crypto.randomUUID().slice(0, 6),
+            commandId: 'timeout_resolve_' + Date.now() + '_' + randomUUID().slice(0, 6),
             roomId: state.roomId,
             gameId,
             expectedVersion: state.version,
@@ -1252,7 +1252,7 @@ export class GameManager {
           await this.processCommand(
             gameId,
             {
-              commandId: 'timeout_resolve_' + Date.now() + '_' + crypto.randomUUID().slice(0, 6),
+              commandId: 'timeout_resolve_' + Date.now() + '_' + randomUUID().slice(0, 6),
               roomId: state.roomId,
               gameId,
               expectedVersion: state.version,
@@ -1278,7 +1278,7 @@ export class GameManager {
         await this.processCommand(
           gameId,
           {
-            commandId: 'timeout_mortgage_' + Date.now() + '_' + nextToSell.spaceIndex + '_' + crypto.randomUUID().slice(0, 6),
+            commandId: 'timeout_mortgage_' + Date.now() + '_' + nextToSell.spaceIndex + '_' + randomUUID().slice(0, 6),
             roomId: state.roomId,
             gameId,
             expectedVersion: state.version,
@@ -1310,7 +1310,7 @@ export class GameManager {
             await this.processCommand(
               gameId,
               {
-                commandId: 'timeout_give_up_' + Date.now() + '_' + crypto.randomUUID().slice(0, 6),
+                commandId: 'timeout_give_up_' + Date.now() + '_' + randomUUID().slice(0, 6),
                 roomId: state.roomId,
                 gameId,
                 expectedVersion: state.version,
@@ -1344,7 +1344,7 @@ export class GameManager {
       await this.processCommand(
         gameId,
         {
-          commandId: 'timeout_end_turn_' + Date.now() + '_' + crypto.randomUUID().slice(0, 6),
+          commandId: 'timeout_end_turn_' + Date.now() + '_' + randomUUID().slice(0, 6),
           roomId: state.roomId,
           gameId,
           expectedVersion: state.version,
@@ -1366,7 +1366,7 @@ export class GameManager {
     );
 
     const activePlayer = state.players.find((p) => p.uid === state.currentPlayerUid);
-    const commandId = 'recovery_' + Date.now() + '_' + crypto.randomUUID().slice(0, 6);
+    const commandId = 'recovery_' + Date.now() + '_' + randomUUID().slice(0, 6);
 
     if (activePlayer && (activePlayer.isCpu || activePlayer.playerType === 'COMPUTER' || activePlayer.isBotControlled)) {
       const fallback = this.cpuController.getSafeFallbackDecision(state, activePlayer);
@@ -1400,6 +1400,11 @@ export class GameManager {
     }
 
     this.resetTurnTimer(state);
+  }
+
+  /** Lists all games currently held in memory (used for online-host snapshots). */
+  public listGames(): GameState[] {
+    return [...this.games.values()];
   }
 
   public getGame(gameId: string): GameState | null {

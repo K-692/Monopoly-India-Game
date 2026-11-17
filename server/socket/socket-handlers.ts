@@ -9,8 +9,8 @@ import { Server, Socket } from 'socket.io';
 import { GameEvent, GameState } from '../../src/domain/game-types';
 import { GameManager } from '../game/game-manager';
 import { checkJoinRateLimit, requireSession } from '../middleware/validate-session';
-import { normalizeIp } from '../network/get-lan-addresses';
-import { hashToken } from '../persistence';
+import { normalizeIp } from '../network/ip-utils';
+import { hashToken } from '../lib/isomorphic-crypto';
 import { RoomManager } from '../rooms/room-manager';
 import {
   ClientToServerEvents,

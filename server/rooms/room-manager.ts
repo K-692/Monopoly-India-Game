@@ -4,7 +4,7 @@
  * member readiness, and invitation codes with backing persistence.
  */
 
-import crypto from 'crypto';
+import { hashToken, randomHex, randomInt, randomUUID, sha256Hex } from '../lib/isomorphic-crypto';
 import { RoomMember } from '../../src/domain/game-types';
 import {
   DEFAULT_HOST_RULES,
@@ -12,7 +12,6 @@ import {
   isValidStartingCash,
   PASS_START_REWARD_OPTIONS,
 } from '../../src/domain/ruleset';
-import { hashToken } from '../persistence';
 import { MemoryStore } from '../persistence/memory-store';
 import { PersistenceStore } from '../persistence/types';
 import { PlayerSession, PlayerSessionPublic, ServerRoom } from '../types/server-types';
@@ -63,6 +62,34 @@ export class RoomManager {
   }
 
   /**
+   * Exports live sessions and rooms (used by the browser-hosted online mode to snapshot state).
+   */
+  public exportState(): { sessions: PlayerSession[]; rooms: ServerRoom[] } {
+    return {
+      sessions: [...this.sessionsByUid.values()].map((s) => ({ ...s })),
+      rooms: [...this.rooms.values()].map((r) => ({ ...r, members: { ...r.members } })),
+    };
+  }
+
+  /**
+   * Restores sessions and rooms from a snapshot. All sockets start disconnected.
+   */
+  public importState(state: { sessions?: PlayerSession[]; rooms?: ServerRoom[] } | null | undefined): void {
+    if (!state) return;
+    for (const raw of state.sessions || []) {
+      const session: PlayerSession = { ...raw, socketId: null, connected: false };
+      if (!session.tokenHash && session.token) session.tokenHash = hashToken(session.token);
+      this.sessionsByUid.set(session.uid, session);
+      if (session.token) this.sessionsByToken.set(session.token, session);
+      if (session.tokenHash) this.sessionsByTokenHash.set(session.tokenHash, session);
+    }
+    for (const room of state.rooms || []) {
+      this.rooms.set(room.roomId, room);
+      this.codeToRoomId.set(room.inviteCode.toUpperCase(), room.roomId);
+    }
+  }
+
+  /**
    * Generates a cryptographically secure, unambiguous 6-character invitation code.
    */
   public generateUniqueInviteCode(): string {
@@ -70,7 +97,7 @@ export class RoomManager {
     while (attempts < 500) {
       let code = '';
       for (let i = 0; i < 6; i++) {
-        const index = crypto.randomInt(0, INVITE_CODE_ALPHABET.length);
+        const index = randomInt(0, INVITE_CODE_ALPHABET.length);
         code += INVITE_CODE_ALPHABET[index];
       }
       if (!this.codeToRoomId.has(code)) {
@@ -79,7 +106,7 @@ export class RoomManager {
       attempts++;
     }
     // Fallback if alphabet space gets crowded
-    return 'MP' + crypto.randomBytes(2).toString('hex').toUpperCase();
+    return 'MP' + randomHex(2).toUpperCase();
   }
 
   // ==========================================
@@ -93,7 +120,8 @@ export class RoomManager {
     displayName: string,
     avatarColor?: string,
     existingToken?: string,
-    ipAddress?: string
+    ipAddress?: string,
+    preferredUid?: string
   ): PlayerSessionPublic {
     const cleanName = (displayName || 'Player').trim().slice(0, 30);
     const chosenColor = avatarColor || PLAYER_PALETTE[0];
@@ -122,9 +150,15 @@ export class RoomManager {
       }
     }
 
-    // Generate new unique UID and cryptographically secure token
-    const uid = 'usr_' + crypto.randomUUID().replace(/-/g, '').slice(0, 12);
-    const token = crypto.randomBytes(32).toString('hex');
+    // Online mode: browser-generated identity is adopted when it is well-formed and unused,
+    // so a player keeps the same uid/token across hosts. Otherwise generate a fresh identity.
+    const canAdoptIdentity =
+      Boolean(preferredUid && existingToken) &&
+      /^usr_[a-z0-9]{8,32}$/.test(preferredUid!) &&
+      /^[a-f0-9]{32,128}$/.test(existingToken!) &&
+      !this.sessionsByUid.has(preferredUid!);
+    const uid = canAdoptIdentity ? preferredUid! : 'usr_' + randomUUID().replace(/-/g, '').slice(0, 12);
+    const token = canAdoptIdentity ? existingToken! : randomHex(32);
     const tokenHash = hashToken(token);
 
     const session: PlayerSession = {
@@ -272,7 +306,7 @@ export class RoomManager {
       return { ok: false, error: 'Unauthorized: invalid host session' };
     }
 
-    const roomId = 'room_' + crypto.randomUUID().replace(/-/g, '').slice(0, 12);
+    const roomId = 'room_' + randomUUID().replace(/-/g, '').slice(0, 12);
     const inviteCode = this.generateUniqueInviteCode();
 
     // Configurable Starting Cash Slider: ₹5,000 to ₹50,000 in increments of ₹5,000 (default ₹20,000)
@@ -303,7 +337,7 @@ export class RoomManager {
       rules.turnTimerSeconds === 60 ? 60 : 30;
     const normalizedMode: 'STANDARD' | 'TIMED' =
       rules.gameMode === 'TIMED_45' || rules.gameMode === 'TIMED_60' ? 'TIMED' : 'STANDARD';
-    const inviteCodeHash = crypto.createHash('sha256').update(inviteCode).digest('hex');
+    const inviteCodeHash = sha256Hex(inviteCode);
 
     const hostMember: RoomMember = {
       uid: hostUid,
@@ -366,7 +400,7 @@ export class RoomManager {
         const assignedColor = freeColor || PLAYER_PALETTE[(i + 1) % PLAYER_PALETTE.length];
         takenColors.add(assignedColor);
 
-        const cpuUid = 'cpu_' + crypto.randomUUID().replace(/-/g, '').slice(0, 10);
+        const cpuUid = 'cpu_' + randomUUID().replace(/-/g, '').slice(0, 10);
         const cpuMember: RoomMember = {
           uid: cpuUid,
           displayName: rawName,
@@ -654,7 +688,7 @@ export class RoomManager {
       Math.max(0, ...Object.values(room.members).map((m) => m.roomJoinSequence || 0)) + 1;
     room.nextJoinSequence = nextSeq + 1;
 
-    const cpuUid = 'cpu_' + crypto.randomUUID().replace(/-/g, '').slice(0, 10);
+    const cpuUid = 'cpu_' + randomUUID().replace(/-/g, '').slice(0, 10);
     const cpuMember: RoomMember = {
       uid: cpuUid,
       displayName: finalName,

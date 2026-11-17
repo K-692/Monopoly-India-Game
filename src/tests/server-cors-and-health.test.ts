@@ -68,34 +68,34 @@ describe('Backend Production Readiness & Multiplayer Contract', () => {
       expect(allowed).toBe(true);
     });
 
-    it('permits a custom Render Static Site frontend origin configured via CLIENT_ORIGIN', () => {
-      const allowed = isOriginAllowed('https://monopoly-india-frontend.onrender.com', {
+    it('permits a custom frontend origin configured via CLIENT_ORIGIN', () => {
+      const allowed = isOriginAllowed('https://monopoly-india-frontend.example.com', {
         nodeEnv: 'production',
-        clientOrigin: 'https://monopoly-india-frontend.onrender.com',
+        clientOrigin: 'https://monopoly-india-frontend.example.com',
       });
       expect(allowed).toBe(true);
     });
 
-    it('permits configured Render frontend origin even when configured with trailing slashes, uppercase, or path', () => {
-      const allowed = isOriginAllowed('https://monopoly-india-frontend.onrender.com', {
+    it('permits configured frontend origin even when configured with trailing slashes, uppercase, or path', () => {
+      const allowed = isOriginAllowed('https://monopoly-india-frontend.example.com', {
         nodeEnv: 'production',
-        clientOrigin: 'https://Monopoly-India-Frontend.onrender.com/subpath/',
+        clientOrigin: 'https://Monopoly-India-Frontend.example.com/subpath/',
       });
       expect(allowed).toBe(true);
     });
 
     it('supports multiple comma-separated and semicolon-separated origins in CLIENT_ORIGIN', () => {
-      const multiOrigin = 'https://render-frontend.onrender.com, https://k-692.github.io; https://staging.onrender.com';
-      expect(isOriginAllowed('https://render-frontend.onrender.com', { nodeEnv: 'production', clientOrigin: multiOrigin })).toBe(true);
+      const multiOrigin = 'https://render-frontend.example.com, https://k-692.github.io; https://staging.example.com';
+      expect(isOriginAllowed('https://render-frontend.example.com', { nodeEnv: 'production', clientOrigin: multiOrigin })).toBe(true);
       expect(isOriginAllowed('https://k-692.github.io', { nodeEnv: 'production', clientOrigin: multiOrigin })).toBe(true);
-      expect(isOriginAllowed('https://staging.onrender.com', { nodeEnv: 'production', clientOrigin: multiOrigin })).toBe(true);
+      expect(isOriginAllowed('https://staging.example.com', { nodeEnv: 'production', clientOrigin: multiOrigin })).toBe(true);
       expect(isOriginAllowed('https://unlisted-origin.com', { nodeEnv: 'production', clientOrigin: multiOrigin })).toBe(false);
     });
 
     it('rejects an unrelated or unauthorized production origin', () => {
       const rejected = isOriginAllowed('https://unauthorized-phishing.com', {
         nodeEnv: 'production',
-        clientOrigin: 'https://monopoly-frontend.onrender.com',
+        clientOrigin: 'https://monopoly-frontend.example.com',
       });
       expect(rejected).toBe(false);
     });
@@ -113,7 +113,7 @@ describe('Backend Production Readiness & Multiplayer Contract', () => {
 
     it('normalizes origin whitespace and trailing slashes correctly', () => {
       expect(normalizeOrigin(' https://k-692.github.io/// ')).toBe('https://k-692.github.io');
-      expect(normalizeOrigin('https://My-Render-App.onrender.com/')).toBe('https://my-render-app.onrender.com');
+      expect(normalizeOrigin('https://My-Render-App.example.com/')).toBe('https://my-render-app.example.com');
     });
 
     it('extracts allowed origins array with getAllowedOrigins', () => {
@@ -326,7 +326,7 @@ describe('Backend Production Readiness & Multiplayer Contract', () => {
 
     it('permits Socket.IO connections to a server configured with custom Render frontend origin', async () => {
       const customPort = testPort + 20;
-      const customOrigin = 'https://custom-monopoly-frontend.onrender.com';
+      const customOrigin = 'https://custom-monopoly-frontend.example.com';
       const customServer = createLanServer({
         port: customPort,
         nodeEnv: 'production',

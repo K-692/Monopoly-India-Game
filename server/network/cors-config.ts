@@ -3,7 +3,7 @@
  * 
  * Implements strict, environment-aware origin validation:
  * - In Production: Permits explicitly configured frontend origin(s) specified via CLIENT_ORIGIN
- *   (e.g., your Render Static Site URL, GitHub Pages, or custom domains). Rejects arbitrary or wildcard origins.
+ *   (e.g. GitHub Pages or custom domains). Rejects arbitrary or wildcard origins.
  *   If CLIENT_ORIGIN is not set, defaults to the repository GitHub Pages deployment.
  * - In Local / LAN Mode: Permits local development (localhost, 127.0.0.1) and Wi-Fi LAN host origins.
  */

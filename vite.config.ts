@@ -30,7 +30,7 @@ export default defineConfig(({ mode }) => {
         output: {
           manualChunks: {
             'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-            'vendor-network': ['socket.io-client', 'qrcode'],
+            'vendor-network': ['socket.io-client', 'qrcode', '@supabase/supabase-js'],
             'vendor-ui': ['lucide-react', 'clsx', 'tailwind-merge', 'zustand'],
           },
         },

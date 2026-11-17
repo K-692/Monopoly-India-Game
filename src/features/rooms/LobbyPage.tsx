@@ -400,6 +400,16 @@ export const LobbyPage: React.FC = () => {
         </div>
       )}
 
+      {isHost && isPublicHostingMode() && (
+        <div
+          data-testid="online-host-notice"
+          className="mb-4 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/50 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-xs"
+        >
+          <span className="font-bold">You are the host.</span> The game runs in this browser tab, so keep it open
+          until the match ends. If you refresh, the game resumes where it left off.
+        </div>
+      )}
+
       {/* Invite Code & Share Card */}
       <Card className="p-5 mb-6 text-center border-indian-terracotta-300 bg-gradient-to-b from-white to-indian-parchment-100 dark:from-indian-navy-800 dark:to-indian-navy-900">
         <span className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-1">

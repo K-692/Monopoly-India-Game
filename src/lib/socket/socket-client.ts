@@ -1,15 +1,10 @@
 /**
- * Indian Monopoly - Production & LAN Socket.IO Client Architecture
- * 
- * Supports two distinct, strictly separated multiplayer operational modes:
- * 1. Existing LAN Mode: Connects to local Wi-Fi host IP/port without requiring internet access.
- * 2. Worldwide Public Hosted Mode: Connects to the Render Free backend via VITE_SERVER_URL.
- * 
- * Includes:
- * - Free-tier spin-up wake-up awareness (~1 minute notice)
- * - Bounded reconnection with exponential backoff (no socket flooding)
- * - Explicit configuration check preventing silent localhost fallback in deployed production builds
- * - Reactive Zustand connection store for rich UI feedback
+ * Indian Monopoly - Network Client
+ *
+ * Two strictly separated multiplayer modes share one socket-like interface:
+ * 1. LAN mode: Socket.IO to the Node host on the local Wi-Fi (no internet needed).
+ * 2. Online mode (GitHub Pages): the room creator's browser runs the authoritative engine and
+ *    other players connect to it through Supabase Realtime. No server to deploy or wake up.
  */
 
 import { io, Socket } from 'socket.io-client';
@@ -18,6 +13,7 @@ import {
   ClientToServerEvents,
   ServerToClientEvents,
 } from '../../../server/types/server-types';
+import { OnlineSocket } from '../online/online-socket';
 
 export type MonopolySocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -26,22 +22,22 @@ export type ConnectionStatus =
   | 'connecting'
   | 'connected'
   | 'disconnected'
-  | 'error'
-  | 'unconfigured';
+  | 'error';
+
+export type NetworkMode = 'lan' | 'dev' | 'online';
 
 export interface ServerConfig {
+  /** Socket.IO URL for LAN/dev modes; null in online mode. */
   url: string | null;
-  mode: 'lan' | 'public' | 'dev';
-  isConfigured: boolean;
-  error: string | null;
+  mode: NetworkMode;
 }
 
 export interface ConnectionStoreState {
   status: ConnectionStatus;
   serverUrl: string | null;
-  mode: 'lan' | 'public' | 'dev';
+  mode: NetworkMode;
+  /** True when playing online through Supabase (GitHub Pages build). */
   isPublicHosting: boolean;
-  isWakingUp: boolean;
   error: string | null;
   reconnectAttempts: number;
   retryConnection: () => void;
@@ -75,126 +71,73 @@ export function isPrivateNetworkHost(hostname: string): boolean {
 }
 
 /**
- * Resolves the server connection configuration based on environment variables and client location.
- * Enforces that public deployments (e.g. GitHub Pages) must have VITE_SERVER_URL configured,
- * preventing silent fallback to localhost.
+ * Picks the network mode for this page:
+ * - `VITE_NETWORK_MODE=online|lan` forces a mode (used for local testing).
+ * - Public hostnames (e.g. GitHub Pages) use online mode via Supabase.
+ * - Vite dev server (port 5173) talks to the LAN Node host on port 4173.
+ * - Otherwise the page is served by the LAN Node host itself (same origin).
  */
 export function resolveServerConfig(
-  envServerUrl = import.meta.env.VITE_SERVER_URL,
+  forcedMode: string | undefined = import.meta.env.VITE_NETWORK_MODE,
   location?: { protocol: string; hostname: string; port: string; origin: string }
 ): ServerConfig {
-  const cleanEnvUrl = (envServerUrl || '').trim().replace(/\/+$/, '');
+  const forced = (forcedMode || '').trim().toLowerCase();
+  if (forced === 'online') return { url: null, mode: 'online' };
 
-  // If VITE_SERVER_URL is explicitly provided, use it for public hosted mode
-  if (cleanEnvUrl) {
-    return {
-      url: cleanEnvUrl,
-      mode: 'public',
-      isConfigured: true,
-      error: null,
-    };
-  }
-
-  // SSR / Testing environment fallback
+  // SSR / testing environment fallback
   if (typeof window === 'undefined' && !location) {
-    return {
-      url: 'http://localhost:4173',
-      mode: 'lan',
-      isConfigured: true,
-      error: null,
-    };
+    return { url: 'http://localhost:4173', mode: 'lan' };
   }
 
-  const loc = location || (typeof window !== 'undefined' ? window.location : { protocol: 'http:', hostname: 'localhost', port: '4173', origin: 'http://localhost:4173' });
+  const loc = location || window.location;
 
-  // If running on a public hosting origin (e.g. GitHub Pages) without VITE_SERVER_URL
-  const isPublicDomain = !isPrivateNetworkHost(loc.hostname);
-  if (isPublicDomain) {
-    return {
-      url: null,
-      mode: 'public',
-      isConfigured: false,
-      error:
-        'Production backend URL (VITE_SERVER_URL) is not configured. Please set VITE_SERVER_URL in GitHub Repository Settings -> Secrets and variables -> Actions -> Variables.',
-    };
+  if (forced !== 'lan' && !isPrivateNetworkHost(loc.hostname)) {
+    return { url: null, mode: 'online' };
   }
 
-  // Vite local development server (port 5173 -> proxies/connects to Node LAN backend on port 4173)
   if (loc.port === '5173') {
-    return {
-      url: `${loc.protocol}//${loc.hostname}:4173`,
-      mode: 'dev',
-      isConfigured: true,
-      error: null,
-    };
+    return { url: `${loc.protocol}//${loc.hostname}:4173`, mode: 'dev' };
   }
 
-  // In production LAN mode, the Node server serves both frontend assets and Socket.IO on the same origin
-  return {
-      url: loc.origin,
-      mode: 'lan',
-      isConfigured: true,
-      error: null,
-  };
+  return { url: loc.origin, mode: 'lan' };
 }
 
 /**
- * Helper to retrieve the active server URL string or fallback.
+ * Helper to retrieve the active LAN server URL string or fallback.
  */
 export function getServerUrl(): string {
-  const config = resolveServerConfig();
-  return config.url || 'http://localhost:4173';
+  return resolveServerConfig().url || 'http://localhost:4173';
 }
 
 /**
- * Helper to determine whether the client is configured for public hosted multiplayer.
+ * True when playing online (GitHub Pages + Supabase) rather than on a LAN host.
  */
 export function isPublicHostingMode(): boolean {
-  const config = resolveServerConfig();
-  return config.mode === 'public';
+  return resolveServerConfig().mode === 'online';
 }
 
-// Global Socket singleton and wakeup timer references
+// Global socket singleton
 let socketInstance: MonopolySocket | null = null;
-let wakeUpTimer: ReturnType<typeof setTimeout> | null = null;
 
 export const useConnectionStore = create<ConnectionStoreState>((set) => ({
   status: 'idle',
   serverUrl: null,
   mode: 'lan',
   isPublicHosting: false,
-  isWakingUp: false,
   error: null,
   reconnectAttempts: 0,
 
   retryConnection: () => {
     const currentSocket = getSocket();
-    const config = resolveServerConfig();
-
-    if (!config.isConfigured || !config.url) {
-      set({
-        status: 'unconfigured',
-        error: config.error,
-      });
-      return;
-    }
-
-    set({
-      status: 'connecting',
-      isWakingUp: config.mode === 'public',
-      error: null,
-      reconnectAttempts: 0,
-    });
-
-    if (currentSocket && !currentSocket.connected) {
+    set({ status: 'connecting', error: null, reconnectAttempts: 0 });
+    if (!currentSocket.connected) {
       currentSocket.connect();
     }
   },
 }));
 
 /**
- * Initializes or returns the singleton Socket.IO client instance.
- * Automatically wires connection lifecycle events and Render free wake-up notification.
+ * Initializes or returns the singleton socket (Socket.IO for LAN, Supabase-backed for online).
  */
 export function getSocket(): MonopolySocket {
   if (socketInstance) {
@@ -202,45 +145,15 @@ export function getSocket(): MonopolySocket {
   }
 
   const config = resolveServerConfig();
-
-  // If deployed public build is missing backend URL, do not connect to localhost
-  if (!config.isConfigured || !config.url) {
-    useConnectionStore.setState({
-      status: 'unconfigured',
-      serverUrl: null,
-      mode: config.mode,
-      isPublicHosting: true,
-      isWakingUp: false,
-      error: config.error,
-    });
-
-    // Create a dummy disconnected socket instance to avoid null reference crashes
-    socketInstance = io('http://127.0.0.1:0', {
-      autoConnect: false,
-    }) as MonopolySocket;
-
-    return socketInstance;
-  }
+  const isOnline = config.mode === 'online';
 
   useConnectionStore.setState({
     status: 'connecting',
     serverUrl: config.url,
     mode: config.mode,
-    isPublicHosting: config.mode === 'public',
-    isWakingUp: false,
+    isPublicHosting: isOnline,
     error: null,
   });
-
-  // Start wake-up timer for Render Free Web Service spin-up notification (after 4 seconds)
-  if (config.mode === 'public') {
-    if (wakeUpTimer) clearTimeout(wakeUpTimer);
-    wakeUpTimer = setTimeout(() => {
-      const state = useConnectionStore.getState();
-      if (state.status === 'connecting' || state.status === 'disconnected') {
-        useConnectionStore.setState({ isWakingUp: true });
-      }
-    }, 4000);
-  }
 
   // Helper to retrieve saved token for handshake authentication
   const getStoredToken = () => {
@@ -250,73 +163,56 @@ export function getSocket(): MonopolySocket {
     return undefined;
   };
 
-  // Initialize Socket.IO client with bounded backoff and dual WebSocket/polling transports
-  socketInstance = io(config.url, {
-    transports: ['websocket', 'polling'],
-    autoConnect: true,
-    reconnection: true,
-    reconnectionAttempts: 20, // Bounded backoff
-    reconnectionDelay: 1500,
-    reconnectionDelayMax: 8000,
-    timeout: 20000, // 20s connection timeout accommodating cold starts
-    auth: (cb) => {
-      cb({ token: getStoredToken() });
-    },
-  }) as MonopolySocket;
+  socketInstance = isOnline
+    ? (new OnlineSocket(true) as unknown as MonopolySocket)
+    : (io(config.url || 'http://localhost:4173', {
+        transports: ['websocket', 'polling'],
+        autoConnect: true,
+        reconnection: true,
+        reconnectionAttempts: 20,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
+        timeout: 10000,
+        auth: (cb) => {
+          cb({ token: getStoredToken() });
+        },
+      }) as MonopolySocket);
 
-  // Lifecycle listeners
-  socketInstance.on('connect', () => {
-    if (wakeUpTimer) clearTimeout(wakeUpTimer);
-    useConnectionStore.setState({
-      status: 'connected',
-      isWakingUp: false,
-      error: null,
-      reconnectAttempts: 0,
-    });
+  const socket = socketInstance;
+
+  socket.on('connect', () => {
+    useConnectionStore.setState({ status: 'connected', error: null, reconnectAttempts: 0 });
   });
 
-  socketInstance.on('disconnect', (_reason) => {
-    useConnectionStore.setState({
-      status: 'disconnected',
-      isWakingUp: false,
-    });
+  socket.on('disconnect', () => {
+    useConnectionStore.setState({ status: 'disconnected' });
   });
 
-  socketInstance.on('connect_error', (_err) => {
-    const prevAttempts = useConnectionStore.getState().reconnectAttempts;
-    const newAttempts = prevAttempts + 1;
-    const isPublic = useConnectionStore.getState().isPublicHosting;
-
+  socket.on('connect_error', (err: Error) => {
+    const newAttempts = useConnectionStore.getState().reconnectAttempts + 1;
     useConnectionStore.setState({
       reconnectAttempts: newAttempts,
-      isWakingUp: isPublic,
-      status: newAttempts > 3 ? 'error' : 'connecting',
-      error: isPublic
-        ? 'Connecting to multiplayer backend. Render Free service may take ~1 minute to wake up...'
+      status: newAttempts > 5 ? 'error' : 'connecting',
+      error: isOnline
+        ? err?.message || 'Connecting to the online game network…'
         : 'Connecting to local LAN server...',
     });
   });
 
-  socketInstance.io.on('reconnect_failed', () => {
-    if (wakeUpTimer) clearTimeout(wakeUpTimer);
+  socket.io.on('reconnect_failed', () => {
     useConnectionStore.setState({
       status: 'error',
-      isWakingUp: false,
-      error: 'Unable to reach the game server. It may be offline or sleeping. Click Retry to reconnect.',
+      error: 'Unable to reach the LAN game server. Make sure the host is running, then click Retry.',
     });
   });
 
-  return socketInstance;
+  return socket;
 }
 
 /**
  * Resets socket singleton instance (used in automated unit testing).
  */
 export function resetSocketForTesting(): void {
-  if (wakeUpTimer) {
-    clearTimeout(wakeUpTimer);
-    wakeUpTimer = null;
-  }
   if (pingTimer) {
     clearInterval(pingTimer);
     pingTimer = null;
@@ -333,7 +229,6 @@ export function resetSocketForTesting(): void {
     serverUrl: null,
     mode: 'lan',
     isPublicHosting: false,
-    isWakingUp: false,
     error: null,
     reconnectAttempts: 0,
   });

@@ -11,7 +11,7 @@
  * - Implements idempotent command IDs and bounded error retry.
  */
 
-import crypto from 'crypto';
+import { randomUUID } from '../lib/isomorphic-crypto';
 import { GameCommand, GameState, PlayerState } from '../../src/domain/game-types';
 import { decideNextAction, CpuActionDecision } from '../../src/domain/game-engine/cpu-decision-engine';
 import { EngineResult } from '../../src/domain/game-engine/engine';
@@ -423,7 +423,7 @@ export class CpuController {
         }
       }
 
-      const commandId = `cmd_cpu_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
+      const commandId = `cmd_cpu_${Date.now()}_${randomUUID().slice(0, 8)}`;
       session.currentActionId = commandId;
 
       const command: GameCommand = {
