@@ -418,7 +418,9 @@ export const PlayPage: React.FC = () => {
                 Host Multiplayer Room
               </h3>
               <p className="text-xs text-gray-600 dark:text-gray-400 mb-4">
-                Create a private room on your local Wi-Fi. Configure starting cash, turn timers (15s–60s), pass START rewards, and share your LAN URL or 6-character code with friends.
+                {isPublicHosting
+                  ? 'Create a private online room. Configure starting cash, turn timers (15s–60s) and pass START rewards, then share the invite link or 6-character code with friends anywhere.'
+                  : 'Create a private room on your local Wi-Fi. Configure starting cash, turn timers (15s–60s), pass START rewards, and share your LAN URL or 6-character code with friends.'}
               </p>
             </div>
 
@@ -457,7 +459,9 @@ export const PlayPage: React.FC = () => {
                 Join with Room Code
               </h3>
               <p className="text-xs text-gray-600 dark:text-gray-400 mb-4">
-                Connected to the same Wi-Fi? Enter the 6-character invitation code from the host laptop to join instantly.
+                {isPublicHosting
+                  ? 'Got an invite? Enter the 6-character code from the host to join from anywhere.'
+                  : 'Connected to the same Wi-Fi? Enter the 6-character invitation code from the host laptop to join instantly.'}
               </p>
             </div>
 
