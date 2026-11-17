@@ -11,6 +11,7 @@ import { GameManager } from '../game/game-manager';
 import { checkJoinRateLimit, requireSession } from '../middleware/validate-session';
 import { normalizeIp } from '../network/ip-utils';
 import { hashToken } from '../lib/isomorphic-crypto';
+import { isTestEnv } from '../lib/runtime-env';
 import { RoomManager } from '../rooms/room-manager';
 import {
   ClientToServerEvents,
@@ -548,9 +549,9 @@ export function setupSocketHandlers(
 
       // Verify that the player belongs to this match
       const playerInGame = game.players.find((p) => p.uid === session.uid);
-      const isTestEnv = process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
+      const inTestEnv = isTestEnv();
 
-      if (!playerInGame && !isTestEnv) {
+      if (!playerInGame && !inTestEnv) {
         if (typeof callback === 'function') {
           callback({ ok: false, error: 'Unauthorized: you are not a participant in this game' });
         }

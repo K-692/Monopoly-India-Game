@@ -15,6 +15,7 @@
  */
 
 import { randomUUID } from '../lib/isomorphic-crypto';
+import { isTestEnv, readEnv } from '../lib/runtime-env';
 import { BOARD_SPACES } from '../../src/domain/board-config';
 import { createInitialGame, secureFisherYatesShuffle } from '../../src/domain/game-engine/create-initial-game';
 import { generateFairDicePair } from '../../src/domain/game-engine/dice-fairness';
@@ -151,7 +152,7 @@ export class GameManager {
    * Optimized for responsive, smooth gameplay: 350ms dice tumble + 200ms per step + 180ms settling.
    */
   public calculateMovementDuration(steps: number): number {
-    const isTest = process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
+    const isTest = isTestEnv();
     const tumble = isTest ? 20 : 350;
     const stepMs = isTest ? 10 : 200;
     const settle = isTest ? 50 : 180;
@@ -163,14 +164,14 @@ export class GameManager {
    * Snappy pacing allowing players to clearly follow turns without sluggish waiting.
    */
   public getHandoffDelay(): number {
-    const isTest = process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
+    const isTest = isTestEnv();
     return isTest ? 100 : 600;
   }
 
   public getBotTakeoverGraceMs(): number {
-    const isTest = process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
+    const isTest = isTestEnv();
     if (isTest) return 200;
-    return parseInt(process.env.BOT_TAKEOVER_GRACE_MS || '10000', 10);
+    return parseInt(readEnv('BOT_TAKEOVER_GRACE_MS') || '10000', 10);
   }
 
   /**
@@ -270,7 +271,7 @@ export class GameManager {
       playerOrder = [...options.forcedPlayerOrder];
     } else if (options?.randomizeOrder) {
       playerOrder = secureFisherYatesShuffle(memberUids);
-    } else if (process.env.NODE_ENV === 'test' && options?.randomizeOrder !== true) {
+    } else if (readEnv('NODE_ENV') === 'test' && options?.randomizeOrder !== true) {
       const startIdx = memberUids.indexOf(callerUid);
       const validStartIdx = startIdx >= 0 ? startIdx : 0;
       playerOrder =
