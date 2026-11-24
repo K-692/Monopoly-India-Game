@@ -132,20 +132,23 @@ export function usePopupPosition(
       Math.min(targetY, viewportHeight - popupHeight - MIN_MARGIN)
     );
 
-    // Compute pointer arrow alignment pointing towards the cell center
-    const cellCenterX = cellRect.left + cellRect.width / 2;
-    const arrowX = Math.max(16, Math.min(cellCenterX - clampedX, popupWidth - 16));
-
-    const arrowStyle: React.CSSProperties = {
-      position: 'absolute',
-      left: `${arrowX}px`,
-      transform: 'translateX(-50%)',
-    };
-
-    if (placement === 'top') {
-      arrowStyle.bottom = '-8px';
-    } else if (placement === 'bottom') {
-      arrowStyle.top = '-8px';
+    // Pointer arrow on the popup edge that faces the landed tile, aligned with the tile's centre
+    const arrowStyle: React.CSSProperties = { position: 'absolute' };
+    if (placement === 'top' || placement === 'bottom') {
+      const cellCenterX = cellRect.left + cellRect.width / 2;
+      const arrowX = Math.max(16, Math.min(cellCenterX - clampedX, popupWidth - 16));
+      arrowStyle.left = `${arrowX}px`;
+      arrowStyle.transform = 'translateX(-50%)';
+      if (placement === 'top') arrowStyle.bottom = '-8px';
+      else arrowStyle.top = '-8px';
+    } else {
+      const cellCenterY = cellRect.top + cellRect.height / 2;
+      const arrowY = Math.max(16, Math.min(cellCenterY - clampedY, popupHeight - 16));
+      arrowStyle.top = `${arrowY}px`;
+      arrowStyle.transform = 'translateY(-50%)';
+      // placement 'right' = popup sits to the right of the tile, so the arrow is on its left edge
+      if (placement === 'right') arrowStyle.left = '-8px';
+      else arrowStyle.right = '-8px';
     }
 
     setPosition({

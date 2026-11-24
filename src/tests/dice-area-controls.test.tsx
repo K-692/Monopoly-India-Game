@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import { GameState, RoomMember } from '../domain/game-types';
 import { createInitialGame } from '../domain/game-engine/create-initial-game';
 import { GameBoard } from '../components/board/GameBoard';
@@ -131,5 +131,33 @@ describe('Dice area controls', () => {
     const popup = screen.getByTestId('board-decision-popup');
     expect(popup.parentElement).toBe(document.body);
     expect(popup.closest('[data-testid="board-notice-area"]')).toBeNull();
+  });
+
+  it.each([
+    [13, 'right', 'left'],
+    [34, 'left', 'right'],
+  ] as const)('shows a side arrow for a city on the side lanes (space %i)', async (space, placement, arrowEdge) => {
+    const state = stateWithOwnedCity('PROPERTY_DECISION');
+    state.players = state.players.map((p) => (p.uid === 'user_1' ? { ...p, position: space, cash: 20000 } : p));
+    state.properties[space] = { ...state.properties[space], ownerUid: null, ownershipState: 'UNOWNED' };
+    renderBoard(state);
+    const arrow = screen.getByTestId('board-decision-popup-arrow');
+    await waitFor(() => expect(arrow.getAttribute('data-placement')).toBe(placement));
+    expect(arrow.style[arrowEdge]).toBe('-8px');
+    expect(arrow.className).toContain(placement === 'right' ? 'border-r-amber-400' : 'border-l-amber-400');
+    cleanup();
+  });
+
+  it('shows the Central Jail notice in front of the dice', () => {
+    const state = stateWithOwnedCity('AWAIT_ROLL');
+    const { rerender } = render(
+      <GameBoard gameState={state} selectedSpaceIndex={null} onSelectSpace={vi.fn()} isRolling={false} onDispatch={vi.fn()} isMyTurn userUid="user_1" />
+    );
+    const jailed = { ...state, players: state.players.map((p) => (p.uid === 'user_1' ? { ...p, inJail: true, position: 10 } : p)) };
+    rerender(
+      <GameBoard gameState={jailed} selectedSpaceIndex={null} onSelectSpace={vi.fn()} isRolling={false} onDispatch={vi.fn()} isMyTurn userUid="user_1" />
+    );
+    const notice = screen.getByTestId('jail-center-notification');
+    expect(notice.closest('[data-testid="board-dice-container"]')).not.toBeNull();
   });
 });

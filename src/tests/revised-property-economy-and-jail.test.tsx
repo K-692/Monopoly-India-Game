@@ -177,7 +177,7 @@ describe('Feature Update: Revised Property Economy, Central Jail Notification, a
   });
 
   describe('3. Central Jail Notification Over Dice', () => {
-    it('renders jail notification in the board-centre notice area below the dice', () => {
+    it('renders jail notification in front of the dice', () => {
       const state = createInitialGame('room_1', 'game_1', mockMembers, undefined, 'user_1');
       const { rerender } = render(
         <GameBoard
@@ -215,10 +215,9 @@ describe('Feature Update: Revised Property Economy, Central Jail Notification, a
       expect(modal).toHaveTextContent('CENTRAL JAIL');
       expect(modal).toHaveTextContent('Player 1 sent to Central Jail');
 
-      // Verify it is placed in the board-centre notice area directly below the dice
-      const noticeArea = modal.closest('[data-testid="board-notice-area"]');
-      expect(noticeArea).not.toBeNull();
-      expect(modal.closest('#board-inspection-dice-anchor')).toBeNull();
+      // Verify it is shown in front of the dice (inside the dice anchor overlay), not with the other pop-ups
+      expect(modal.closest('#board-inspection-dice-anchor')).not.toBeNull();
+      expect(modal.closest('[data-testid="board-notice-area"]')).toBeNull();
 
       // Verify no toast notification was generated at the bottom-left of the screen
       const jailToasts = useToastStore.getState().toasts.filter((t) => t.title === 'Central Jail');

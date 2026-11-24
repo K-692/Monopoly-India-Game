@@ -996,6 +996,35 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(({
                   data-testid="board-inspection-dice-anchor"
                   className="absolute inset-0 flex items-center justify-center pointer-events-none z-[130]"
                 >
+                  {/* Central Jail notice: the only pop-up shown in front of the dice (absolute, so nothing moves) */}
+                {jailNotification && !isBoardInspecting && (
+                    <div className="pointer-events-auto shrink-0 select-none z-[135]">
+                      <div
+                        data-testid="jail-center-notification"
+                        className="animate-scale-in w-[250px] max-w-[90vw] p-2.5 rounded-2xl bg-[#090D1A] border-2 border-red-500 shadow-[0_16px_40px_rgba(0,0,0,0.95)] text-white flex items-center gap-3"
+                      >
+                        <div className="w-9 h-9 rounded-xl bg-red-600/30 border border-red-500/60 flex items-center justify-center text-red-400 shrink-0">
+                          <ShieldAlert className="w-5 h-5 animate-pulse" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <span className="text-[9.5px] uppercase font-black tracking-wider text-red-400 block leading-tight">
+                            CENTRAL JAIL
+                          </span>
+                          <p className="text-[11.5px] sm:text-xs font-bold text-gray-100 leading-tight truncate mt-0.5">
+                            {jailNotification.playerName} sent to Central Jail
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setJailNotification(null)}
+                          className="w-5 h-5 rounded-md hover:bg-white/20 flex items-center justify-center text-gray-400 hover:text-white cursor-pointer shrink-0"
+                          aria-label="Dismiss jail notification"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1060,7 +1089,7 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(({
               </div>
               </div>
 
-              {/* Bottom slot (white space below the dice): jail notice, low-balance settlement card and
+              {/* Bottom slot (white space below the dice): low-balance settlement card and
                   notifications. Contained and scrollable so nothing spills over the board. */}
               <div
                 data-testid="board-notice-area"
@@ -1068,34 +1097,6 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(({
               >
                 {/* my-auto centres the notices vertically in the free space while still scrolling when it overflows */}
                 <div className="my-auto w-full flex flex-col items-stretch gap-1.5">
-                {jailNotification && !isBoardInspecting && (
-                    <div className="pointer-events-auto shrink-0 select-none w-full">
-                      <div
-                        data-testid="jail-center-notification"
-                        className="animate-scale-in w-full p-2.5 rounded-2xl bg-[#090D1A] border-2 border-red-500 shadow-[0_16px_40px_rgba(0,0,0,0.95)] text-white flex items-center gap-3"
-                      >
-                        <div className="w-9 h-9 rounded-xl bg-red-600/30 border border-red-500/60 flex items-center justify-center text-red-400 shrink-0">
-                          <ShieldAlert className="w-5 h-5 animate-pulse" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <span className="text-[9.5px] uppercase font-black tracking-wider text-red-400 block leading-tight">
-                            CENTRAL JAIL
-                          </span>
-                          <p className="text-[11.5px] sm:text-xs font-bold text-gray-100 leading-tight truncate mt-0.5">
-                            {jailNotification.playerName} sent to Central Jail
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setJailNotification(null)}
-                          className="w-5 h-5 rounded-md hover:bg-white/20 flex items-center justify-center text-gray-400 hover:text-white cursor-pointer shrink-0"
-                          aria-label="Dismiss jail notification"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  )}
                 {/* Low-balance settlement card for other players (portal target) */}
                 <div id="board-notice-slot" data-testid="board-notice-slot" className="w-full empty:hidden" />
                 <ToastContainer variant="inline" />
@@ -1208,8 +1209,14 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(({
                 popupPos.placement === 'top' &&
                   'border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-t-[8px] border-t-amber-400',
                 popupPos.placement === 'bottom' &&
-                  'border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-b-[8px] border-b-amber-400'
+                  'border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-b-[8px] border-b-amber-400',
+                popupPos.placement === 'right' &&
+                  'border-t-[8px] border-t-transparent border-b-[8px] border-b-transparent border-r-[8px] border-r-amber-400',
+                popupPos.placement === 'left' &&
+                  'border-t-[8px] border-t-transparent border-b-[8px] border-b-transparent border-l-[8px] border-l-amber-400'
               )}
+              data-testid="board-decision-popup-arrow"
+              data-placement={popupPos.placement}
             />
 
             {/* Pointed Box Content: CPU Property Decision View */}
