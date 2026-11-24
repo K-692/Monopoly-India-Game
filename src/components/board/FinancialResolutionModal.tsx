@@ -31,7 +31,7 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
   const [isCheckingBoard, setIsCheckingBoard] = useState(false);
   const [selectedSpaceIndices, setSelectedSpaceIndices] = useState<number[]>([]);
 
-  // Board-centre notice slot (below the dice) that hosts the spectator settlement card.
+  // Board-centre slot (above the dice) that hosts the spectator settlement card.
   const [noticeSlotEl, setNoticeSlotEl] = useState<HTMLElement | null>(() =>
     typeof document !== 'undefined' ? document.getElementById('board-notice-slot') : null
   );
@@ -111,17 +111,17 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
   };
 
   // =========================================================================
-  // SPECTATOR VIEW (Non-Debtor Players): compact card in the board centre, below the dice
+  // SPECTATOR VIEW (Non-Debtor Players): compact card in the board centre, above the dice
   // =========================================================================
   if (!isDebtor) {
     if (typeof document === 'undefined') return null;
     const paidPct = Math.min(100, Math.round((currentCash / Math.max(1, amountDue)) * 100));
     const spectatorCard = (
-      <div className="rounded-xl bg-[#090D1A]/95 border-2 border-amber-500/70 shadow-[0_8px_24px_rgba(0,0,0,0.6)] text-white overflow-hidden">
-        <div className="px-2.5 py-1.5 bg-gradient-to-r from-amber-950 via-[#180A0A] to-[#1F1010] border-b border-amber-500/40 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5 min-w-0">
-            <Landmark className="w-3.5 h-3.5 text-amber-400 animate-pulse shrink-0" />
-            <h4 className="font-serif font-black text-[10.5px] tracking-wide text-amber-300 uppercase truncate" title="Low-Balance Resolution">
+      <div className="rounded-xl bg-[#090D1A]/95 border-2 border-amber-500/70 shadow-[0_6px_18px_rgba(0,0,0,0.55)] text-white overflow-hidden">
+        <div className="px-2 py-1 bg-gradient-to-r from-amber-950 via-[#180A0A] to-[#1F1010] border-b border-amber-500/40 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1 min-w-0">
+            <Landmark className="w-3 h-3 text-amber-400 animate-pulse shrink-0" />
+            <h4 className="font-serif font-black text-[10px] tracking-wide text-amber-300 uppercase truncate" title="Low-Balance Resolution">
               Low Balance
             </h4>
           </div>
@@ -136,28 +136,23 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
           </span>
         </div>
 
-        <div className="p-2 space-y-1.5 text-[10.5px]">
-          <p className="text-gray-300 leading-snug">
+        <div className="px-2 py-1.5 space-y-1 text-[10px] leading-tight">
+          <p className="text-gray-300 truncate">
             <strong className="text-amber-300">{debtor?.displayName || 'Player'}</strong> owes{' '}
-            <strong className="text-red-400">₹{amountDue.toLocaleString('en-IN')}</strong> to {creditor?.displayName || 'Bank'}.
+            <strong className="text-red-400">₹{amountDue.toLocaleString('en-IN')}</strong> to {creditor?.displayName || 'Bank'}
           </p>
-          <div className="grid grid-cols-2 gap-1.5 font-mono">
-            <div className="px-1.5 py-1 rounded-lg bg-white/5 border border-white/10">
-              <span className="block text-[9px] text-gray-400 font-sans">Cash in hand</span>
-              <span className="font-bold text-emerald-400">₹{currentCash.toLocaleString('en-IN')}</span>
-            </div>
-            <div
-              data-testid="spectator-remaining-amount"
-              className={cn(
-                'px-1.5 py-1 rounded-lg border',
-                canPayDebt ? 'bg-emerald-950/40 border-emerald-500/50' : 'bg-red-950/40 border-red-500/50'
-              )}
-            >
-              <span className="block text-[9px] text-gray-300 font-sans">Remaining to settle</span>
-              <span className={cn('font-black', canPayDebt ? 'text-emerald-300' : 'text-red-300')}>
-                {canPayDebt ? 'Covered' : `₹${remainingNeeded.toLocaleString('en-IN')}`}
-              </span>
-            </div>
+          <div
+            data-testid="spectator-remaining-amount"
+            className={cn(
+              'flex items-center justify-between gap-2 px-1.5 py-0.5 rounded-md border font-mono',
+              canPayDebt ? 'bg-emerald-950/40 border-emerald-500/50' : 'bg-red-950/40 border-red-500/50'
+            )}
+            title={`Cash in hand ₹${currentCash.toLocaleString('en-IN')}`}
+          >
+            <span className="font-sans text-gray-300 truncate">Remaining to settle</span>
+            <span className={cn('font-black shrink-0', canPayDebt ? 'text-emerald-300' : 'text-red-300')}>
+              {canPayDebt ? '₹0' : `₹${remainingNeeded.toLocaleString('en-IN')}`}
+            </span>
           </div>
           <div className="w-full bg-white/10 rounded-full h-1 overflow-hidden">
             <div className="bg-emerald-400 h-full transition-all duration-300" style={{ width: `${paidPct}%` }} />

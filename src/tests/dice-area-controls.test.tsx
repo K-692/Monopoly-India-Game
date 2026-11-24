@@ -90,4 +90,38 @@ describe('Dice area controls', () => {
       unmount();
     }
   });
+
+  it('shows no handoff or doubles texts, and the Turn label has no (CPU) tag', () => {
+    const state = stateWithOwnedCity('TURN_END');
+    state.handoff = { isActive: true, fromPlayerUid: 'user_1', toPlayerUid: 'user_2', startedAt: Date.now(), endsAt: Date.now() + 1000 } as GameState['handoff'];
+    state.dice = { first: 3, second: 3, total: 6, isDouble: true } as GameState['dice'];
+    state.players = state.players.map((p) => (p.uid === 'user_2' ? { ...p, isCpu: true, playerType: 'COMPUTER' } : p));
+    state.currentPlayerUid = 'user_2';
+    renderBoard(state);
+    expect(screen.queryByText(/Next Turn Starting/)).toBeNull();
+    expect(screen.queryByText(/DOUBLES/)).toBeNull();
+    expect(screen.getByTestId('board-turn-label')).toHaveTextContent('Turn: Player 2');
+    expect(screen.getByTestId('board-turn-label').textContent).not.toContain('CPU');
+  });
+
+  it('in Central Jail, clicking the dice rolls for doubles (no separate Roll Doubles button)', () => {
+    const state = stateWithOwnedCity('JAIL_DECISION');
+    const onDispatch = vi.fn();
+    render(
+      <GameBoard gameState={state} selectedSpaceIndex={null} onSelectSpace={vi.fn()} isRolling={false} onDispatch={onDispatch} isMyTurn userUid="user_1" />
+    );
+    expect(screen.queryByText('Roll Doubles')).toBeNull();
+    fireEvent.click(screen.getByTestId('board-dice-container'));
+    expect(onDispatch).toHaveBeenCalledWith('TRY_DOUBLES');
+  });
+
+  it('places the low-balance settlement slot above the dice and pop-ups below', () => {
+    renderBoard(stateWithOwnedCity('AWAIT_ROLL'));
+    const slot = screen.getByTestId('board-notice-slot');
+    expect(slot.closest('[data-testid="board-settlement-area"]')).not.toBeNull();
+    const dice = screen.getByTestId('board-dice-container');
+    const notices = screen.getByTestId('board-notice-area');
+    expect(slot.compareDocumentPosition(dice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(dice.compareDocumentPosition(notices) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
 });
