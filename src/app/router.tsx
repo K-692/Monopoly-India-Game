@@ -1,5 +1,5 @@
 import React from 'react';
-import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { App } from './App';
 import { PlayPage } from '@/features/play/PlayPage';
 import { LobbyPage } from '@/features/rooms/LobbyPage';
@@ -7,9 +7,12 @@ import { JoinPage } from '@/features/rooms/JoinPage';
 import { GamePage } from '@/features/game/GamePage';
 import { RulesPage } from '@/features/rules/RulesPage';
 
+/** Clean path URLs (no '#'), served under the deployment base path, e.g. /Monopoly-India-Game/join/ABC123. */
+const ROUTER_BASENAME = (import.meta.env.BASE_URL || '/').replace(/\/+$/, '') || '/';
+
 export const AppRouter: React.FC = () => {
   return (
-    <HashRouter>
+    <BrowserRouter basename={ROUTER_BASENAME}>
       <Routes>
         <Route path="/" element={<App />}>
           {/* Main Play Hub */}
@@ -31,6 +34,6 @@ export const AppRouter: React.FC = () => {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
-    </HashRouter>
+    </BrowserRouter>
   );
 };

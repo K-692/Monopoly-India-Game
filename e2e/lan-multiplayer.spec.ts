@@ -49,7 +49,7 @@ test.describe('Indian Monopoly - Two-Device LAN Multiplayer E2E', () => {
     });
 
     // Friend navigates to the shareable LAN invitation link
-    await guestPage.goto(`/#/join/${inviteCode}`);
+    await guestPage.goto(`/join/${inviteCode}`);
 
     // Friend should automatically join and land in the lobby
     await expect(guestPage.getByText(/Joined Players/i)).toBeVisible({ timeout: 15000 });

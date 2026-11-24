@@ -365,7 +365,7 @@ describe('Indian Monopoly LAN Multiplayer Server Integration', () => {
       }
     });
 
-    it('processes join requests from invite links with URL format http://<ip>:<port>/#/join/<code>', async () => {
+    it('processes join requests from invite links with URL format http://<ip>:<port>/join/<code>', async () => {
       const client = createClient();
       try {
         await new Promise((res) => client.emit('player:register', { displayName: 'Link Host' }, res));
@@ -373,8 +373,8 @@ describe('Indian Monopoly LAN Multiplayer Server Integration', () => {
         const code = roomRes.inviteCode!;
 
         // Simulate client extracting code from link
-        const simulatedLink = `http://192.168.1.8:4173/#/join/${code}`;
-        const extractedCode = simulatedLink.split('#/join/')[1];
+        const simulatedLink = `http://192.168.1.8:4173/join/${code}`;
+        const extractedCode = simulatedLink.split('/join/')[1];
         expect(extractedCode).toBe(code);
 
         const guestClient = createClient();

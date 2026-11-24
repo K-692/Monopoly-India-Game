@@ -2,7 +2,7 @@
 <html lang="en" class="h-full">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />
     <meta name="theme-color" content="#C85A32" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -11,7 +11,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
-    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="manifest" href="/manifest.webmanifest" />
     
     <!-- Open Graph / Facebook / WhatsApp / LinkedIn / Telegram -->
     <meta property="og:type" content="website" />
@@ -43,7 +43,22 @@
   </head>
   <body class="h-full bg-indian-parchment-100 text-indian-navy-900 antialiased selection:bg-indian-terracotta-200 selection:text-indian-terracotta-900 overflow-x-hidden">
     <div id="root" class="h-full flex flex-col"></div>
-    <script type="module" src="./src/main.tsx"></script>
+    <script type="text/javascript">
+      // Restore clean URLs: (1) deep links redirected by 404.html as "?/join/ABC123",
+      // (2) old "#/join/ABC123" invite links. Both become ".../join/ABC123" before the app loads.
+      (function (l) {
+        if (l.search[1] === '/') {
+          var decoded = l.search.slice(1).split('&').map(function (s) {
+            return s.replace(/~and~/g, '&');
+          }).join('?');
+          window.history.replaceState(null, '', l.pathname.slice(0, -1) + decoded + l.hash);
+        } else if (l.hash.indexOf('#/') === 0) {
+          var base = l.pathname.charAt(l.pathname.length - 1) === '/' ? l.pathname : l.pathname + '/';
+          window.history.replaceState(null, '', base + l.hash.slice(2));
+        }
+      })(window.location);
+    </script>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
 

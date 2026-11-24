@@ -31,6 +31,9 @@ import { copyToClipboard } from '@/lib/utils/clipboard';
 import { useToastStore } from '@/components/feedback/toast-store';
 import { isPublicHostingMode, isPrivateNetworkHost } from '@/lib/socket/socket-client';
 
+/** Deployment base path with trailing slash ('/' on LAN, '/Monopoly-India-Game/' on GitHub Pages). */
+const APP_BASE = (import.meta.env.BASE_URL || '/').replace(/\/*$/, '/');
+
 const TOTAL_ROOM_SLOTS = 6;
 
 export const LobbyPage: React.FC = () => {
@@ -95,9 +98,7 @@ export const LobbyPage: React.FC = () => {
     // If running in public hosted mode (or external HTTPS domain like GitHub Pages)
     if (isPublicHostingMode() || (typeof window !== 'undefined' && !isPrivateNetworkHost(window.location.hostname))) {
       const origin = typeof window !== 'undefined' ? window.location.origin : '';
-      const pathname = typeof window !== 'undefined' ? window.location.pathname : '/';
-      const cleanPath = pathname.endsWith('/') ? pathname : `${pathname}/`;
-      return `${origin}${cleanPath}#/join/${currentRoom.inviteCode}`;
+      return `${origin}${APP_BASE}join/${currentRoom.inviteCode}`;
     }
 
     const port = lanInfo?.port || (typeof window !== 'undefined' ? window.location.port || '4173' : '4173');
@@ -109,12 +110,12 @@ export const LobbyPage: React.FC = () => {
         : null);
 
     if (targetIp) {
-      return `http://${targetIp}:${port}/#/join/${currentRoom.inviteCode}`;
+      return `http://${targetIp}:${port}${APP_BASE}join/${currentRoom.inviteCode}`;
     }
 
     // Fallback if no LAN interface detected
-    const base = typeof window !== 'undefined' ? window.location.href.split('#')[0] : '';
-    return `${base}#/join/${currentRoom.inviteCode}`;
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    return `${origin}${APP_BASE}join/${currentRoom.inviteCode}`;
   };
 
   const shareableUrl = getShareableUrl();

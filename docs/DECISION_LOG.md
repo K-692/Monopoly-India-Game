@@ -16,7 +16,7 @@ This document records the foundational architectural decisions made for Indian M
 - **Status**: Decided
 - **Context**: The client application is hosted as a static site on GitHub Pages. Direct deep links (e.g. `/room/IND-8492` or `/game/abc123xyz`) cause HTTP 404 on traditional static web servers when using standard HTML5 pushState without server rewrites.
 - **Decision**: Implement a dual strategy:
-  1. Default to **HashRouter** (`/#/room/XYZ`) for seamless deep linking, bookmarking, and link sharing on GitHub Pages without requiring server configuration.
+  1. Use **BrowserRouter** with clean paths (`/Monopoly-India-Game/join/XYZ`). On GitHub Pages, `public/404.html` redirects deep links to `?/join/XYZ` and a script in `index.html` restores the clean path; old `#/` links are converted the same way. The LAN server serves `index.html` for every route.
   2. Provide a standardized `public/404.html` SPA redirect fallback script for standard BrowserRouter compatibility if a custom domain with root base is attached.
 - **Rationale**: Zero configuration failure on GitHub Pages, prevents broken invite links, works identically across Safari iOS, Android Chrome, and desktop.
 
