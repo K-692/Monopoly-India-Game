@@ -149,12 +149,12 @@ export class GameManager {
 
   /**
    * Computes the authoritative movement duration matching client-side walking animations.
-   * Optimized for responsive, smooth gameplay: 350ms dice tumble + 200ms per step + 180ms settling.
+   * Optimized for responsive, smooth gameplay: 350ms dice tumble + 280ms per step + 180ms settling.
    */
   public calculateMovementDuration(steps: number): number {
     const isTest = isTestEnv();
     const tumble = isTest ? 20 : 350;
-    const stepMs = isTest ? 10 : 200;
+    const stepMs = isTest ? 10 : 280;
     const settle = isTest ? 50 : 180;
     return tumble + steps * stepMs + settle;
   }

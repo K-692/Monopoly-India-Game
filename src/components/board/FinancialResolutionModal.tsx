@@ -31,6 +31,17 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
   const [isCheckingBoard, setIsCheckingBoard] = useState(false);
   const [selectedSpaceIndices, setSelectedSpaceIndices] = useState<number[]>([]);
 
+  // Board-centre anchor (sits over the dice) used to show the spectator settlement card
+  // in the middle of the board, just above the dice.
+  const [diceAnchorEl, setDiceAnchorEl] = useState<HTMLElement | null>(() =>
+    typeof document !== 'undefined' ? document.getElementById('board-inspection-dice-anchor') : null
+  );
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const el = document.getElementById('board-inspection-dice-anchor');
+    if (el !== diceAnchorEl) setDiceAnchorEl(el);
+  }, [diceAnchorEl]);
+
   const debtor = players.find((p) => p.uid === obligation.debtorUid);
   const creditor = players.find((p) => p.uid === obligation.creditorUid);
 
@@ -101,12 +112,11 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
   };
 
   // =========================================================================
-  // SPECTATOR VIEW (Non-Debtor Players): Compact floating card at bottom-left
+  // SPECTATOR VIEW (Non-Debtor Players): Compact card in the board centre, just above the dice
   // =========================================================================
   if (!isDebtor) {
     if (typeof document === 'undefined') return null;
-    return createPortal(
-      <div className="fixed bottom-4 left-4 z-[120] max-w-sm w-[92vw] sm:w-96 select-none animate-slide-up pointer-events-auto">
+    const spectatorCard = (
         <div className="rounded-2xl bg-[#090D1A]/95 border-2 border-amber-500/70 shadow-[0_12px_36px_rgba(0,0,0,0.85)] text-white overflow-hidden backdrop-blur-md">
           {/* Header */}
           <div className="px-3.5 py-2.5 bg-gradient-to-r from-amber-950 via-[#180A0A] to-[#1F1010] border-b border-amber-500/40 flex items-center justify-between">
@@ -166,6 +176,27 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
             </div>
           </div>
         </div>
+    );
+
+    if (diceAnchorEl) {
+      return createPortal(
+        <div
+          data-testid="spectator-settlement-popup"
+          onClick={(e) => e.stopPropagation()}
+          className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-[135] w-[290px] sm:w-[340px] max-w-[85vw] select-none pointer-events-auto"
+        >
+          <div className="animate-slide-up">{spectatorCard}</div>
+        </div>,
+        diceAnchorEl
+      );
+    }
+
+    return createPortal(
+      <div
+        data-testid="spectator-settlement-popup"
+        className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[120] max-w-sm w-[92vw] sm:w-96 select-none pointer-events-auto"
+      >
+        <div className="animate-slide-up">{spectatorCard}</div>
       </div>,
       document.body
     );

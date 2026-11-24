@@ -253,7 +253,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
           }
 
           // Phase 2: Token walking begins ONLY AFTER the roll finishes settling.
-          // Sequential step-by-step movement along circular path (optimized 200ms per step).
+          // Sequential step-by-step movement along circular path (280ms per step for an easy-to-follow walk).
           let currentStep = 0;
           if (activeWalkingTimer) clearInterval(activeWalkingTimer);
 
@@ -291,7 +291,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
                 });
               }, 180);
             }
-          }, 200);
+          }, 280);
         }, 350);
       } else if (event.type === 'MORTGAGE') {
         const mortgageAmount = (event.payload as { mortgageAmount?: number })?.mortgageAmount;

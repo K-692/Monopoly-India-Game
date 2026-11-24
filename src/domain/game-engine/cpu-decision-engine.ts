@@ -9,7 +9,13 @@
  * that govern human players.
  */
 
-import { BOARD_SPACES } from '../board-config';
+import {
+  AIRPORT_SPACES,
+  BOARD_SPACES,
+  PROPERTY_GROUPS,
+  RAILWAY_SPACES,
+  UTILITY_SPACES,
+} from '../board-config';
 import {
   GameActionType,
   GameState,
@@ -23,8 +29,12 @@ import {
   calculateBuildingCost,
   calculateMortgageValue,
   calculateReacquisitionCost,
+  calculateRent,
   canBuildOnProperty,
+  DEFAULT_HOST_RULES,
+  GAME_CONSTANTS,
   getAuthoritativeBailAmount,
+  HostCustomRules,
 } from '../ruleset';
 
 export interface CpuActionDecision {
@@ -77,6 +87,262 @@ export function decideJailAction(
   };
 }
 
+
+// ===========================================================================
+// CPU MONEY PLANNER
+// ---------------------------------------------------------------------------
+// CPU players think like a careful human before spending:
+//  1. "What can hit me on my next roll?" - every space 2..12 steps ahead is
+//     checked for opponent rent, taxes and card risk, weighted by dice odds.
+//  2. "How dangerous is the board overall?" - the costliest opponent city
+//     anywhere on the board (opponents keep building over time).
+//  3. "What can I fall back on?" - undeveloped assets that are not part of a
+//     complete colour set can be sold to the bank in an emergency, and START
+//     salary may be coming soon.
+// From these a cash reserve is worked out. A purchase or construction only
+// happens when the cash left afterwards still covers that reserve. Purchases
+// with strong strategic value (completing a colour set, blocking an opponent,
+// the second airport/railway) are allowed to dip deeper into the reserve.
+// ===========================================================================
+
+export type CpuStrategicTier = 'CRITICAL' | 'HIGH' | 'NORMAL';
+
+export interface CpuFinancialOutlook {
+  /** Probability-weighted expected payment on the next roll. */
+  nextRollExpectedCost: number;
+  /** Largest likely payment on the next roll (common totals 4..10). */
+  nextRollLikelyWorstCost: number;
+  /** Largest possible payment on the next roll (any total 2..12). */
+  nextRollWorstCost: number;
+  /** Highest rent any opponent can currently charge anywhere on the board. */
+  boardMaxOpponentRent: number;
+  /** Bank sale value of assets the CPU could give up without hurting its sets. */
+  expendableAssetValue: number;
+  /** Probability of passing/landing on START during the next roll. */
+  passStartProbability: number;
+  /** Minimum cash the CPU never goes below by choice. */
+  floorReserve: number;
+  /** Final reserve that must stay in hand after a voluntary spend. */
+  reserve: number;
+}
+
+const DICE_TOTAL_PROBABILITY: Record<number, number> = {
+  2: 1 / 36, 3: 2 / 36, 4: 3 / 36, 5: 4 / 36, 6: 5 / 36, 7: 6 / 36,
+  8: 5 / 36, 9: 4 / 36, 10: 3 / 36, 11: 2 / 36, 12: 1 / 36,
+};
+
+/** Average exposure from drawing a Civic Fund / Market Buzz card. */
+const CARD_SPACE_RISK = 400;
+
+function getRules(state: GameState): HostCustomRules {
+  return (state.rules as HostCustomRules | undefined) ?? DEFAULT_HOST_RULES;
+}
+
+function isActiveOpponentOwner(state: GameState, ownerUid: string | null | undefined, cpuUid: string): PlayerState | null {
+  if (!ownerUid || ownerUid === cpuUid) return null;
+  const owner = state.players.find((p) => p.uid === ownerUid);
+  if (!owner || owner.isBankrupt) return null;
+  return owner;
+}
+
+/** Cash the CPU would have to pay when landing on a space after rolling `diceTotal`. */
+function estimateLandingCost(state: GameState, cpuPlayer: PlayerState, spaceIndex: number, diceTotal: number): number {
+  const space = BOARD_SPACES[spaceIndex];
+  if (!space) return 0;
+
+  if (space.type === 'PROPERTY' || space.type === 'TRANSIT' || space.type === 'UTILITY') {
+    const prop = state.properties[spaceIndex];
+    const owner = isActiveOpponentOwner(state, prop?.ownerUid, cpuPlayer.uid);
+    if (!owner) return 0;
+    return calculateRent(spaceIndex, state.properties, diceTotal, getRules(state), Boolean(owner.inJail));
+  }
+  if (space.type === 'TAX') {
+    return (space as { amount?: number }).amount ?? GAME_CONSTANTS.GST_CHECKPOST_AMOUNT;
+  }
+  if (space.type === 'CARD') {
+    return CARD_SPACE_RISK;
+  }
+  if (space.type === 'GO_TO_JAIL') {
+    return getAuthoritativeBailAmount(state);
+  }
+  return 0;
+}
+
+/** True when the CPU owns every city of the group the given city belongs to. */
+function ownsFullGroupOf(cpuUid: string, spaceIndex: number, properties: Record<number, PropertyState>): boolean {
+  const space = BOARD_SPACES[spaceIndex];
+  if (!space || space.type !== 'PROPERTY') return false;
+  const members = PROPERTY_GROUPS[(space as PropertyDefinition).group];
+  return Boolean(members?.every((idx) => properties[idx]?.ownerUid === cpuUid));
+}
+
+/**
+ * Builds the CPU's financial picture: upcoming risk, board danger and fall-back options.
+ * `fromPosition` defaults to the CPU's current position (where the next roll starts).
+ */
+export function assessCpuFinancialOutlook(
+  state: GameState,
+  cpuPlayer: PlayerState,
+  fromPosition: number = cpuPlayer.position
+): CpuFinancialOutlook {
+  const rules = getRules(state);
+  const startingCash = rules.startingCash || GAME_CONSTANTS.STARTING_CASH;
+  const salary = rules.passStartReward || GAME_CONSTANTS.START_REWARD;
+
+  // 1. Next-roll exposure
+  let expected = 0;
+  let likelyWorst = 0;
+  let worst = 0;
+  let passStartProbability = 0;
+  for (let total = 2; total <= 12; total++) {
+    const probability = DICE_TOTAL_PROBABILITY[total];
+    const target = (fromPosition + total) % 40;
+    if (fromPosition + total >= 40) passStartProbability += probability;
+    const cost = estimateLandingCost(state, cpuPlayer, target, total);
+    expected += probability * cost;
+    worst = Math.max(worst, cost);
+    if (total >= 4 && total <= 10) likelyWorst = Math.max(likelyWorst, cost);
+  }
+
+  // 2. Board-wide danger (opponents' most expensive rent anywhere)
+  let boardMaxOpponentRent = 0;
+  for (const [idxStr, prop] of Object.entries(state.properties)) {
+    const owner = isActiveOpponentOwner(state, prop?.ownerUid, cpuPlayer.uid);
+    if (!owner) continue;
+    const rent = calculateRent(Number(idxStr), state.properties, 7, rules, false);
+    boardMaxOpponentRent = Math.max(boardMaxOpponentRent, rent);
+  }
+
+  // 3. Fall-back: assets the CPU could sell without breaking a colour set or losing houses
+  let expendableAssetValue = 0;
+  for (const [idxStr, prop] of Object.entries(state.properties)) {
+    const idx = Number(idxStr);
+    if (prop?.ownerUid !== cpuPlayer.uid) continue;
+    if (prop.isMortgaged || prop.ownershipState === 'MORTGAGED' || prop.ownershipState === 'BLOCKED') continue;
+    if (prop.buildings > 0) continue;
+    if (ownsFullGroupOf(cpuPlayer.uid, idx, state.properties)) continue;
+    expendableAssetValue += calculateMortgageValue(idx, prop);
+  }
+
+  const floorReserve = Math.max(1000, Math.round(startingCash * 0.075));
+
+  // Combine: cover the likely worst hit fully, half of the rare worst case,
+  // and keep a cushion against the board's biggest rent for later laps.
+  const nearTermNeed = Math.max(likelyWorst, worst * 0.5) + expected * 0.5;
+  const longTermNeed = boardMaxOpponentRent * 0.35;
+  let reserve = Math.max(floorReserve, nearTermNeed, longTermNeed);
+
+  // Fall-back credits: part of expendable assets and expected START salary
+  const assetCredit = Math.min(reserve * 0.5, expendableAssetValue * 0.4);
+  const salaryCredit = passStartProbability * salary * 0.5;
+  reserve = Math.max(Math.round(floorReserve * 0.6), Math.round(reserve - assetCredit - salaryCredit));
+
+  return {
+    nextRollExpectedCost: Math.round(expected),
+    nextRollLikelyWorstCost: likelyWorst,
+    nextRollWorstCost: worst,
+    boardMaxOpponentRent,
+    expendableAssetValue,
+    passStartProbability,
+    floorReserve,
+    reserve,
+  };
+}
+
+/**
+ * Rates how important an acquisition is for the CPU.
+ * CRITICAL: completes the CPU's own colour set, re-buys a developed bank-sold city,
+ *           or gives the second airport / railway / utility of a pair.
+ * HIGH:     second city of a group, blocks an opponent's set, or any infrastructure.
+ * NORMAL:   everything else.
+ */
+export function evaluateAcquisitionTier(
+  state: GameState,
+  cpuPlayer: PlayerState,
+  spaceIndex: number
+): CpuStrategicTier {
+  const space = BOARD_SPACES[spaceIndex];
+  const prop = state.properties[spaceIndex];
+  if (!space) return 'NORMAL';
+
+  if ((prop?.buildings ?? 0) > 0) return 'CRITICAL';
+
+  if (space.type === 'PROPERTY') {
+    const members = PROPERTY_GROUPS[(space as PropertyDefinition).group] ?? [];
+    const others = members.filter((idx) => idx !== spaceIndex);
+    const mine = others.filter((idx) => state.properties[idx]?.ownerUid === cpuPlayer.uid).length;
+    if (others.length > 0 && mine === others.length) return 'CRITICAL';
+    if (mine > 0) return 'HIGH';
+
+    // Blocking: one opponent holds all other cities of this group
+    const otherOwners = new Set(others.map((idx) => state.properties[idx]?.ownerUid ?? null));
+    if (otherOwners.size === 1) {
+      const [onlyOwner] = Array.from(otherOwners);
+      if (isActiveOpponentOwner(state, onlyOwner, cpuPlayer.uid)) return 'HIGH';
+    }
+    return 'NORMAL';
+  }
+
+  const pairGroup =
+    AIRPORT_SPACES.includes(spaceIndex) ? AIRPORT_SPACES :
+    RAILWAY_SPACES.includes(spaceIndex) ? RAILWAY_SPACES :
+    UTILITY_SPACES.includes(spaceIndex) ? UTILITY_SPACES : [];
+  const ownsPartner = pairGroup.some(
+    (idx) => idx !== spaceIndex && state.properties[idx]?.ownerUid === cpuPlayer.uid
+  );
+  if (ownsPartner) return 'CRITICAL';
+  return 'HIGH';
+}
+
+/** Share of the reserve a CPU must keep after a purchase of the given tier. */
+const TIER_RESERVE_FACTOR: Record<CpuStrategicTier, number> = {
+  CRITICAL: 0.4,
+  HIGH: 0.7,
+  NORMAL: 1.0,
+};
+
+/** Smallest cash balance a CPU will ever leave itself with after a voluntary spend. */
+const ABSOLUTE_MIN_CASH_AFTER_SPEND = 300;
+
+/**
+ * Decides whether spending `price` on an acquisition is a sound money decision.
+ */
+export function shouldCpuAcquire(
+  state: GameState,
+  cpuPlayer: PlayerState,
+  spaceIndex: number,
+  price: number
+): { buy: boolean; tier: CpuStrategicTier; reserve: number; cashAfter: number } {
+  const tier = evaluateAcquisitionTier(state, cpuPlayer, spaceIndex);
+  const cashAfter = cpuPlayer.cash - price;
+  if (cashAfter < 0) return { buy: false, tier, reserve: 0, cashAfter };
+
+  // Strategic purchases may dip deeper into the reserve (see TIER_RESERVE_FACTOR).
+  const outlook = assessCpuFinancialOutlook(state, cpuPlayer);
+  const required = Math.max(
+    ABSOLUTE_MIN_CASH_AFTER_SPEND,
+    Math.round(outlook.reserve * TIER_RESERVE_FACTOR[tier])
+  );
+  return { buy: cashAfter >= required, tier, reserve: required, cashAfter };
+}
+
+/**
+ * Counts buildings this CPU has just constructed on the given city during the
+ * current visit (consecutive most-recent construction transactions of this player).
+ */
+function countBuildsThisVisit(state: GameState, cpuUid: string, spaceIndex: number): number {
+  const txs = state.transactions ?? [];
+  let count = 0;
+  for (let i = txs.length - 1; i >= 0; i--) {
+    const tx = txs[i];
+    if (tx.playerUid !== cpuUid) break;
+    const isBuild = tx.type === 'HOUSE_PURCHASE' || tx.type === 'BUILDING_PURCHASE';
+    if (!isBuild || tx.spaceIndex !== spaceIndex) break;
+    count++;
+  }
+  return count;
+}
+
 /**
  * Evaluates property acquisition and reacquisition decisions:
  * - Unowned cities, infrastructure (airports, stations), and utilities.
@@ -95,7 +361,12 @@ export function decidePropertyAction(
     opp.status === 'PENDING' &&
     opp.spaceIndex === cpuPlayer.position
   ) {
-    if (cpuPlayer.cash >= opp.cost) {
+    const plan = shouldCpuAcquire(state, cpuPlayer, opp.spaceIndex, opp.cost);
+    // Reacquiring an own city is at least HIGH value (restores rent income / colour set)
+    const required = plan.tier === 'NORMAL'
+      ? Math.max(ABSOLUTE_MIN_CASH_AFTER_SPEND, Math.round(plan.reserve * TIER_RESERVE_FACTOR.HIGH))
+      : plan.reserve;
+    if (cpuPlayer.cash >= opp.cost && plan.cashAfter >= required) {
       return {
         type: 'UNMORTGAGE',
         payload: { spaceIndex: opp.spaceIndex },
@@ -104,7 +375,9 @@ export function decidePropertyAction(
     }
     return {
       type: 'DECLINE_REACQUISITION',
-      reason: `${cpuPlayer.displayName} declined reacquisition due to insufficient balance.`,
+      reason: cpuPlayer.cash >= opp.cost
+        ? `${cpuPlayer.displayName} declined reacquisition to keep a safe cash reserve of ₹${required}.`
+        : `${cpuPlayer.displayName} declined reacquisition due to insufficient balance.`,
     };
   }
 
@@ -135,18 +408,9 @@ export function decidePropertyAction(
     };
   }
 
-  // Strategic evaluation:
-  // In Monopoly, acquiring properties is critical for rental income.
-  // We keep a small buffer of ₹300, unless the purchase completes a monopoly or acquires infrastructure.
-  const isMonopolyCandidate =
-    space.type === 'PROPERTY' &&
-    checkIfCompletesMonopoly(cpuPlayer.uid, space as PropertyDefinition, state.properties);
-
-  const isInfrastructure = space.type === 'TRANSIT' || space.type === 'UTILITY';
-
-  const minBuffer = isMonopolyCandidate || isInfrastructure ? 0 : 300;
-
-  if (cpuPlayer.cash - price >= minBuffer || isBankAcquisition) {
+  // Money-planned evaluation: keep enough cash for the dangers ahead.
+  const plan = shouldCpuAcquire(state, cpuPlayer, cpuPlayer.position, price);
+  if (plan.buy) {
     return {
       type: 'BUY_PROPERTY',
       reason: isBankAcquisition
@@ -155,36 +419,10 @@ export function decidePropertyAction(
     };
   }
 
-  // If cash is extremely tight and purchase does not yield high strategic value
   return {
-    type: 'BUY_PROPERTY', // Still prefer purchasing as long as cash >= price
-    reason: `${cpuPlayer.displayName} purchased ${space.name} for ₹${price}.`,
+    type: 'DECLINE_PROPERTY',
+    reason: `${cpuPlayer.displayName} skipped ${space.name} (₹${price}) to keep a safe cash reserve of ₹${plan.reserve}.`,
   };
-}
-
-/**
- * Checks whether acquiring this property would give the player a complete color group monopoly.
- */
-function checkIfCompletesMonopoly(
-  playerUid: string,
-  targetSpace: PropertyDefinition,
-  properties: Record<number, PropertyState>
-): boolean {
-  const group = targetSpace.group;
-  const groupSpaces = BOARD_SPACES.filter(
-    (s): s is PropertyDefinition & { type: 'PROPERTY' } =>
-      s.type === 'PROPERTY' && (s as PropertyDefinition).group === group
-  );
-
-  // Check if player owns all other properties in this group
-  for (const s of groupSpaces) {
-    if (s.spaceIndex === targetSpace.spaceIndex) continue;
-    const prop = properties[s.spaceIndex];
-    if (!prop || prop.ownerUid !== playerUid) {
-      return false;
-    }
-  }
-  return true;
 }
 
 /**
@@ -192,8 +430,15 @@ function checkIfCompletesMonopoly(
  * In Indian Monopoly, a player can build a house/tower on a city when:
  * 1. The player is visiting that city (cpuPlayer.position === spaceIndex).
  * 2. It is not the same turn they bought it.
- * 3. Cash reserve is healthy (at least ₹1,500 retained).
- * 4. Maximum tower level not yet reached.
+ * 3. Maximum tower level not yet reached.
+ *
+ * Money planning (like a careful human player):
+ * - Cash left after building must still cover the CPU's reserve (upcoming rents,
+ *   taxes and board danger; never less than ₹1,500).
+ * - Building on a city without the full colour set needs a 20% bigger cushion
+ *   and stops at 4 houses; a Commercial Tower needs an extra 25% cushion.
+ * - Each further level built in the same visit needs 50% more cushion, so a CPU
+ *   only stacks several levels at once when it is clearly cash-rich.
  */
 export function decideBuildingAction(
   state: GameState,
@@ -211,8 +456,26 @@ export function decideBuildingAction(
   const cost = calculateBuildingCost(currentPos, prop.buildings);
   if (cost <= 0) return null;
 
+  const outlook = assessCpuFinancialOutlook(state, cpuPlayer);
+  const hasFullSet = ownsFullGroupOf(cpuPlayer.uid, currentPos, state.properties);
+
+  // Without the full colour set a Commercial Tower is not worth it: stop at 4 houses there.
+  if (!hasFullSet && prop.buildings >= 4) return null;
+
+  // Houses pay back quickly (cost = new rent), so building may use a bit of the
+  // reserve's fall-back cushion, but never below the ₹1,500 liquidity floor.
+  let required = Math.max(LIQUIDITY_RESERVE, Math.round(outlook.reserve * 0.8));
+  if (!hasFullSet) required = Math.round(required * 1.2);
+  if (prop.buildings + 1 === GAME_CONSTANTS.TOWER_BUILDING_LEVEL) required = Math.round(required * 1.25);
+
+  const buildsThisVisit = countBuildsThisVisit(state, cpuPlayer.uid, currentPos);
+  if (buildsThisVisit >= 1) {
+    // Extra levels in the same visit need a much stronger position
+    required = Math.round(required * (1 + 0.5 * buildsThisVisit));
+  }
+
   // Check cash reserve requirement
-  if (cpuPlayer.cash - cost < LIQUIDITY_RESERVE) return null;
+  if (cpuPlayer.cash - cost < required) return null;
 
   const check = canBuildOnProperty(
     currentPos,

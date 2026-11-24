@@ -14,7 +14,7 @@
  * 5. Re-evaluates dynamically on resize, scroll, orientation changes, and layout shifts.
  */
 
-import { useState, useEffect, useCallback, RefObject } from 'react';
+import { useState, useEffect, useCallback, useRef, RefObject } from 'react';
 import { getSpaceGridCoord } from './board-layout-utils';
 
 export interface PopupPositionResult {
@@ -27,7 +27,8 @@ export interface PopupPositionResult {
 export function usePopupPosition(
   spaceIndex: number,
   popupRef: RefObject<HTMLElement | null>,
-  boardContainerRef?: RefObject<HTMLElement | null>
+  boardContainerRef?: RefObject<HTMLElement | null>,
+  isVisible: boolean = true
 ): PopupPositionResult {
   const [position, setPosition] = useState<PopupPositionResult>({
     style: { opacity: 0, position: 'fixed', pointerEvents: 'none' },
@@ -162,7 +163,34 @@ export function usePopupPosition(
     });
   }, [spaceIndex, popupRef]);
 
+  // Track the popup element itself: the popup is mounted/unmounted conditionally, and on
+  // non-host screens it often appears after the landed position was already known. Whenever
+  // the element appears (or disappears) the placement is recomputed (or cleared).
+  const lastPopupElRef = useRef<HTMLElement | null>(null);
+  const [popupMountKey, setPopupMountKey] = useState(0);
+  // Runs after every render on purpose (cheap identity check, guarded state update).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
+    const el = popupRef.current;
+    if (el !== lastPopupElRef.current) {
+      lastPopupElRef.current = el;
+      setPopupMountKey((k) => k + 1);
+    }
+  });
+  const isPopupMounted = isVisible && Boolean(lastPopupElRef.current);
+
+  useEffect(() => {
+    // When the popup is hidden, forget the last placement so a later showing never
+    // flashes at a stale spot (e.g. the previous player's tile on non-host screens).
+    if (!isPopupMounted) {
+      setPosition((prev) =>
+        prev.isReady
+          ? { style: { opacity: 0, position: 'fixed', pointerEvents: 'none' }, placement: 'top', arrowStyle: {}, isReady: false }
+          : prev
+      );
+      return;
+    }
+
     // Initial calculation with double requestAnimationFrame to ensure DOM styles settled
     let rafId2 = 0;
     const rafId1 = requestAnimationFrame(() => {
@@ -185,6 +213,7 @@ export function usePopupPosition(
         calculatePosition();
       });
       resizeObserver.observe(boardContainerRef.current);
+      if (popupRef.current) resizeObserver.observe(popupRef.current);
     }
 
     return () => {
@@ -197,7 +226,7 @@ export function usePopupPosition(
         resizeObserver.disconnect();
       }
     };
-  }, [calculatePosition, boardContainerRef]);
+  }, [calculatePosition, boardContainerRef, popupRef, isPopupMounted, popupMountKey]);
 
   return position;
 }
