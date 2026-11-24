@@ -5,6 +5,7 @@ import { CardAction, GameActionType, GameEvent, GameState, WalkingAnimationState
 import { BoardSpaceTile } from './BoardSpaceTile';
 import { CityDeedModal } from './CityDeedModal';
 import { FinancialResolutionModal } from './FinancialResolutionModal';
+import { usePopupPosition } from './use-popup-position';
 import { getSpaceGridCoord } from './board-layout-utils';
 import { calculateBuildingCost, calculateMortgageValue, calculateReacquisitionCost, canBuildOnProperty, getAuthoritativeBailAmount, getPropertyNoun, getSortedEligibleSellToBankProperties } from '@/domain/ruleset';
 import { ToastContainer } from '@/components/feedback/ToastContainer';
@@ -290,7 +291,10 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(({
   const playerSpace = BOARD_SPACES[playerPos];
   const playerPropState = gameState.properties[playerPos];
 
+  // Buy / Build / Reacquire prompt: placed next to the tile the player landed on (viewport-clamped)
+  const popupRef = useRef<HTMLDivElement>(null);
   const boardContainerRef = useRef<HTMLDivElement>(null);
+  const popupPos = usePopupPosition(playerPos, popupRef, boardContainerRef);
 
   // Authoritative bail amount & property terminology
   const authoritativeBail = getAuthoritativeBailAmount(gameState);
@@ -931,14 +935,8 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(({
 
             {/* In-Board Dice Roll Arena: Symmetrically Centered 3D Dice & Controls */}
             <div className="flex-1 flex flex-col items-center z-20 min-w-[200px] shrink-0 min-h-0 h-full px-1 [perspective:1000px] w-full max-w-sm mx-auto">
-              {/* Top slot (white space above the dice): low-balance settlement card, turn, ping, mobile rule buttons */}
+              {/* Top slot (white space above the dice): turn, ping, mobile rule buttons */}
               <div className="flex-1 basis-0 min-h-0 w-full flex flex-col items-center justify-end gap-1 pb-1.5">
-              <div
-                data-testid="board-settlement-area"
-                className="flex-1 min-h-0 w-full max-w-[300px] flex flex-col overflow-y-auto overflow-x-hidden no-scrollbar"
-              >
-                <div id="board-notice-slot" data-testid="board-notice-slot" className="my-auto w-full empty:hidden pt-1" />
-              </div>
               <div
                 data-testid="board-turn-label"
                 className="max-w-full truncate text-[11px] sm:text-xs font-bold text-indian-navy-900 dark:text-indian-parchment-100"
@@ -1062,7 +1060,7 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(({
               </div>
               </div>
 
-              {/* Bottom slot (white space below the dice): jail notice and
+              {/* Bottom slot (white space below the dice): jail notice, low-balance settlement card and
                   notifications. Contained and scrollable so nothing spills over the board. */}
               <div
                 data-testid="board-notice-area"
@@ -1070,15 +1068,149 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(({
               >
                 {/* my-auto centres the notices vertically in the free space while still scrolling when it overflows */}
                 <div className="my-auto w-full flex flex-col items-stretch gap-1.5">
-        {/* Buy / Build / Reacquire prompt: shown in the space under the dice so it never covers the board */}
+                {jailNotification && !isBoardInspecting && (
+                    <div className="pointer-events-auto shrink-0 select-none w-full">
+                      <div
+                        data-testid="jail-center-notification"
+                        className="animate-scale-in w-full p-2.5 rounded-2xl bg-[#090D1A] border-2 border-red-500 shadow-[0_16px_40px_rgba(0,0,0,0.95)] text-white flex items-center gap-3"
+                      >
+                        <div className="w-9 h-9 rounded-xl bg-red-600/30 border border-red-500/60 flex items-center justify-center text-red-400 shrink-0">
+                          <ShieldAlert className="w-5 h-5 animate-pulse" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <span className="text-[9.5px] uppercase font-black tracking-wider text-red-400 block leading-tight">
+                            CENTRAL JAIL
+                          </span>
+                          <p className="text-[11.5px] sm:text-xs font-bold text-gray-100 leading-tight truncate mt-0.5">
+                            {jailNotification.playerName} sent to Central Jail
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setJailNotification(null)}
+                          className="w-5 h-5 rounded-md hover:bg-white/20 flex items-center justify-center text-gray-400 hover:text-white cursor-pointer shrink-0"
+                          aria-label="Dismiss jail notification"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                {/* Low-balance settlement card for other players (portal target) */}
+                <div id="board-notice-slot" data-testid="board-notice-slot" className="w-full empty:hidden" />
+                <ToastContainer variant="inline" />
+                </div>
+              </div>
+            </div>
+
+            {/* Panel 2: Market Buzz (All 11 Fortune & Chance Rules Indexed 2..12 — Desktop: visible; Mobile: compact drawer) */}
+            <div className="hidden md:flex md:w-[37%] max-w-[280px] min-w-[112px] h-full rounded-xl bg-gradient-to-br from-teal-900 via-emerald-950 to-stone-900 text-white p-1.5 border-2 border-emerald-400/80 shadow-xl flex-col justify-between overflow-hidden shrink">
+              <div className="flex items-center justify-between border-b border-emerald-300/40 pb-0.5 shrink-0">
+                <div className="flex items-center gap-1.5">
+                  <Flame className="w-3.5 h-3.5 text-emerald-300" />
+                  <span className="font-serif font-black text-[10px] sm:text-[11px] md:text-[12.5px] tracking-wide text-emerald-100 uppercase">
+                    MARKET BUZZ
+                  </span>
+                </div>
+                <span className="text-[7.5px] sm:text-[8.5px] font-black text-emerald-300 bg-emerald-900/80 px-1.5 py-0.2 rounded border border-emerald-400/40 shadow-2xs">
+                  11 Rules
+                </span>
+              </div>
+
+              {/* All 11 Rules Listed Simultaneously (No Scrollbar, Increased Font Size) */}
+              <div className="flex-1 flex flex-col justify-between py-0.5 select-none overflow-hidden min-h-0">
+                {MARKET_BUZZ_CARDS.map((card, idx) => {
+                  const ruleNum = idx + 2;
+                  const isApplied =
+                    gameState.activeCardPopup?.deck === 'MARKET' &&
+                    gameState.activeCardPopup.ruleIndex === ruleNum;
+                  return (
+                    <div
+                      key={card.id}
+                      onClick={() => setInspectedCard(card)}
+                      title={`Rule #${ruleNum}: ${card.title} - ${card.description}`}
+                      className={cn(
+                        'flex items-center justify-between gap-1 px-1 py-0.2 rounded cursor-pointer transition-all text-left leading-tight',
+                        isApplied
+                          ? 'bg-emerald-400 text-indian-navy-950 ring-2 ring-white font-black scale-[1.02] shadow-sm animate-pulse'
+                          : 'hover:bg-white/20 text-white'
+                      )}
+                    >
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span
+                          className={cn(
+                            'shrink-0 w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full flex items-center justify-center text-[8px] sm:text-[9px] font-black leading-none',
+                            isApplied ? 'bg-indian-navy-950 text-white' : 'bg-white/25 text-white'
+                          )}
+                        >
+                          {ruleNum}
+                        </span>
+                        <span className="font-bold truncate text-[9.5px] sm:text-[10.5px] md:text-[11.5px] leading-tight">
+                          {card.title}
+                        </span>
+                      </div>
+                      {(() => {
+                        const effect = getCardFinancialEffect(card);
+                        if (card.amount && card.actionType !== 'MOVE_RELATIVE') {
+                          if (effect === 'LOSS') {
+                            return (
+                              <span className="shrink-0 text-[8.5px] sm:text-[9.5px] md:text-[10px] font-black text-red-400 ml-1">
+                                - ₹{Math.abs(card.amount).toLocaleString('en-IN')}
+                              </span>
+                            );
+                          }
+                          if (effect === 'GAIN') {
+                            return (
+                              <span className="shrink-0 text-[8.5px] sm:text-[9.5px] md:text-[10px] font-black text-emerald-300 ml-1">
+                                + ₹{card.amount.toLocaleString('en-IN')}
+                              </span>
+                            );
+                          }
+                        }
+                        return (
+                          <span className="shrink-0 text-[8px] sm:text-[9px] font-bold text-teal-300/90 ml-1">
+                            {ruleNum === 5 ? '-3 Spaces' : (ruleNum === 9 ? 'To Jail' : (ruleNum === 2 ? 'To Start' : (ruleNum === 3 ? 'To CP' : (ruleNum === 12 ? 'To Marine' : ''))))}
+                          </span>
+                        );
+                      })()}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="text-[7px] sm:text-[8px] text-teal-200/90 font-black tracking-wider text-center border-t border-emerald-300/30 pt-0.5 shrink-0 uppercase">
+                FORTUNE & CHANCE
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+        {/* Buy / Build / Reacquire prompt: rendered at the top layer (portal) next to the landed tile so it is never hidden under other elements */}
         {((isPropertyDecision && isUnownedPurchasable && canAffordCity) ||
           (isCpuTurn && gameState.phase === 'PROPERTY_DECISION' && !walkingAnimation && isUnownedPurchasable) ||
           canBuildHere ||
-          (isOwnMortgagedCity && canAffordReacquire)) && (
+          (isOwnMortgagedCity && canAffordReacquire)) &&
+          typeof document !== 'undefined' &&
+          createPortal(
           <div
+            ref={popupRef}
             data-testid="board-decision-popup"
-            className="w-full shrink-0 p-2.5 rounded-xl bg-[#070A12]/95 text-white border-2 border-amber-400 shadow-[0_8px_24px_rgba(0,0,0,0.6)] flex flex-col gap-2 animate-scale-in text-xs pointer-events-auto"
+            style={popupPos.style}
+            className="w-64 sm:w-72 p-3 rounded-2xl bg-[#070A12]/95 text-white border-2 border-amber-400 shadow-[0_12px_36px_rgba(0,0,0,0.85)] flex flex-col gap-2.5 animate-scale-in text-xs backdrop-blur-md"
           >
+            {/* Pointer arrow towards the landed tile */}
+            <div
+              style={popupPos.arrowStyle}
+              className={cn(
+                'w-0 h-0',
+                popupPos.placement === 'top' &&
+                  'border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-t-[8px] border-t-amber-400',
+                popupPos.placement === 'bottom' &&
+                  'border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-b-[8px] border-b-amber-400'
+              )}
+            />
 
             {/* Pointed Box Content: CPU Property Decision View */}
             {isCpuTurn && gameState.phase === 'PROPERTY_DECISION' && isUnownedPurchasable && playerSpace && 'price' in playerSpace && (
@@ -1237,124 +1369,9 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(({
                   </div>
                 </>
               )}
-          </div>
-        )}
-                  {jailNotification && !isBoardInspecting && (
-                    <div className="pointer-events-auto shrink-0 select-none w-full">
-                      <div
-                        data-testid="jail-center-notification"
-                        className="animate-scale-in w-full p-2.5 rounded-2xl bg-[#090D1A] border-2 border-red-500 shadow-[0_16px_40px_rgba(0,0,0,0.95)] text-white flex items-center gap-3"
-                      >
-                        <div className="w-9 h-9 rounded-xl bg-red-600/30 border border-red-500/60 flex items-center justify-center text-red-400 shrink-0">
-                          <ShieldAlert className="w-5 h-5 animate-pulse" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <span className="text-[9.5px] uppercase font-black tracking-wider text-red-400 block leading-tight">
-                            CENTRAL JAIL
-                          </span>
-                          <p className="text-[11.5px] sm:text-xs font-bold text-gray-100 leading-tight truncate mt-0.5">
-                            {jailNotification.playerName} sent to Central Jail
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setJailNotification(null)}
-                          className="w-5 h-5 rounded-md hover:bg-white/20 flex items-center justify-center text-gray-400 hover:text-white cursor-pointer shrink-0"
-                          aria-label="Dismiss jail notification"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                <ToastContainer variant="inline" />
-                </div>
-              </div>
-            </div>
-
-            {/* Panel 2: Market Buzz (All 11 Fortune & Chance Rules Indexed 2..12 — Desktop: visible; Mobile: compact drawer) */}
-            <div className="hidden md:flex md:w-[37%] max-w-[280px] min-w-[112px] h-full rounded-xl bg-gradient-to-br from-teal-900 via-emerald-950 to-stone-900 text-white p-1.5 border-2 border-emerald-400/80 shadow-xl flex-col justify-between overflow-hidden shrink">
-              <div className="flex items-center justify-between border-b border-emerald-300/40 pb-0.5 shrink-0">
-                <div className="flex items-center gap-1.5">
-                  <Flame className="w-3.5 h-3.5 text-emerald-300" />
-                  <span className="font-serif font-black text-[10px] sm:text-[11px] md:text-[12.5px] tracking-wide text-emerald-100 uppercase">
-                    MARKET BUZZ
-                  </span>
-                </div>
-                <span className="text-[7.5px] sm:text-[8.5px] font-black text-emerald-300 bg-emerald-900/80 px-1.5 py-0.2 rounded border border-emerald-400/40 shadow-2xs">
-                  11 Rules
-                </span>
-              </div>
-
-              {/* All 11 Rules Listed Simultaneously (No Scrollbar, Increased Font Size) */}
-              <div className="flex-1 flex flex-col justify-between py-0.5 select-none overflow-hidden min-h-0">
-                {MARKET_BUZZ_CARDS.map((card, idx) => {
-                  const ruleNum = idx + 2;
-                  const isApplied =
-                    gameState.activeCardPopup?.deck === 'MARKET' &&
-                    gameState.activeCardPopup.ruleIndex === ruleNum;
-                  return (
-                    <div
-                      key={card.id}
-                      onClick={() => setInspectedCard(card)}
-                      title={`Rule #${ruleNum}: ${card.title} - ${card.description}`}
-                      className={cn(
-                        'flex items-center justify-between gap-1 px-1 py-0.2 rounded cursor-pointer transition-all text-left leading-tight',
-                        isApplied
-                          ? 'bg-emerald-400 text-indian-navy-950 ring-2 ring-white font-black scale-[1.02] shadow-sm animate-pulse'
-                          : 'hover:bg-white/20 text-white'
-                      )}
-                    >
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <span
-                          className={cn(
-                            'shrink-0 w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full flex items-center justify-center text-[8px] sm:text-[9px] font-black leading-none',
-                            isApplied ? 'bg-indian-navy-950 text-white' : 'bg-white/25 text-white'
-                          )}
-                        >
-                          {ruleNum}
-                        </span>
-                        <span className="font-bold truncate text-[9.5px] sm:text-[10.5px] md:text-[11.5px] leading-tight">
-                          {card.title}
-                        </span>
-                      </div>
-                      {(() => {
-                        const effect = getCardFinancialEffect(card);
-                        if (card.amount && card.actionType !== 'MOVE_RELATIVE') {
-                          if (effect === 'LOSS') {
-                            return (
-                              <span className="shrink-0 text-[8.5px] sm:text-[9.5px] md:text-[10px] font-black text-red-400 ml-1">
-                                - ₹{Math.abs(card.amount).toLocaleString('en-IN')}
-                              </span>
-                            );
-                          }
-                          if (effect === 'GAIN') {
-                            return (
-                              <span className="shrink-0 text-[8.5px] sm:text-[9.5px] md:text-[10px] font-black text-emerald-300 ml-1">
-                                + ₹{card.amount.toLocaleString('en-IN')}
-                              </span>
-                            );
-                          }
-                        }
-                        return (
-                          <span className="shrink-0 text-[8px] sm:text-[9px] font-bold text-teal-300/90 ml-1">
-                            {ruleNum === 5 ? '-3 Spaces' : (ruleNum === 9 ? 'To Jail' : (ruleNum === 2 ? 'To Start' : (ruleNum === 3 ? 'To CP' : (ruleNum === 12 ? 'To Marine' : ''))))}
-                          </span>
-                        );
-                      })()}
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="text-[7px] sm:text-[8px] text-teal-200/90 font-black tracking-wider text-center border-t border-emerald-300/30 pt-0.5 shrink-0 uppercase">
-                FORTUNE & CHANCE
-              </div>
-            </div>
-          </div>
-        </div>
-
-      </div>
+          </div>,
+            document.body
+          )}
 
       {/* MANDATORY FINANCIAL RESOLUTION WINDOW (Section 6) */}
       {gameState.pendingFinancialObligation && (

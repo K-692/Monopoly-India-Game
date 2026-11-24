@@ -115,13 +115,21 @@ describe('Dice area controls', () => {
     expect(onDispatch).toHaveBeenCalledWith('TRY_DOUBLES');
   });
 
-  it('places the low-balance settlement slot above the dice and pop-ups below', () => {
+  it('places the low-balance settlement slot with the other pop-ups under the dice', () => {
     renderBoard(stateWithOwnedCity('AWAIT_ROLL'));
     const slot = screen.getByTestId('board-notice-slot');
-    expect(slot.closest('[data-testid="board-settlement-area"]')).not.toBeNull();
+    expect(slot.closest('[data-testid="board-notice-area"]')).not.toBeNull();
     const dice = screen.getByTestId('board-dice-container');
-    const notices = screen.getByTestId('board-notice-area');
-    expect(slot.compareDocumentPosition(dice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(dice.compareDocumentPosition(notices) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(dice.compareDocumentPosition(slot) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('renders the Buy prompt at the top layer (document.body), not inside the board centre', () => {
+    const state = stateWithOwnedCity('PROPERTY_DECISION');
+    state.players = state.players.map((p) => (p.uid === 'user_1' ? { ...p, position: 1 } : p));
+    state.properties[1] = { ...state.properties[1], ownerUid: null, ownershipState: 'UNOWNED' };
+    renderBoard(state);
+    const popup = screen.getByTestId('board-decision-popup');
+    expect(popup.parentElement).toBe(document.body);
+    expect(popup.closest('[data-testid="board-notice-area"]')).toBeNull();
   });
 });

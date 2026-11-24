@@ -31,7 +31,7 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
   const [isCheckingBoard, setIsCheckingBoard] = useState(false);
   const [selectedSpaceIndices, setSelectedSpaceIndices] = useState<number[]>([]);
 
-  // Board-centre slot (above the dice) that hosts the spectator settlement card.
+  // Board-centre slot (under the dice) that hosts the spectator settlement card.
   const [noticeSlotEl, setNoticeSlotEl] = useState<HTMLElement | null>(() =>
     typeof document !== 'undefined' ? document.getElementById('board-notice-slot') : null
   );
@@ -111,7 +111,7 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
   };
 
   // =========================================================================
-  // SPECTATOR VIEW (Non-Debtor Players): compact card in the board centre, above the dice
+  // SPECTATOR VIEW (Non-Debtor Players): compact card in the board centre, under the dice
   // =========================================================================
   if (!isDebtor) {
     if (typeof document === 'undefined') return null;
