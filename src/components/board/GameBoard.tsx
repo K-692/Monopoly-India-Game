@@ -706,6 +706,32 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(({
     );
   };
 
+  // Turn-level idle state: no pawn movement, handoff or board inspection in progress
+  const isTurnIdle =
+    !walkingAnimation && !gameState.handoff?.isActive && (!gameState.movement || gameState.movement.isComplete);
+  const canClickDiceToRoll =
+    isMyTurn && gameState.phase === 'AWAIT_ROLL' && !isRolling && pendingCommandType !== 'ROLL_DICE' && isTurnIdle && !isBoardInspecting;
+  // Sell to Bank stays available for the whole turn: before rolling (incl. jail) and after rolling until END TURN
+  const showSellToBank =
+    isMyTurn &&
+    isTurnIdle &&
+    myMortgageableProperties.length > 0 &&
+    ['AWAIT_ROLL', 'JAIL_DECISION', 'PROPERTY_DECISION', 'MANAGEMENT', 'TURN_END'].includes(gameState.phase);
+  const activeTurnName = activePlayer
+    ? `${activePlayer.displayName}${activePlayer.isCpu || activePlayer.playerType === 'COMPUTER' ? ' (CPU)' : ''}`
+    : '—';
+  const sellToBankButton = showSellToBank ? (
+    <button
+      type="button"
+      data-testid="sell-to-bank-btn"
+      onClick={() => setVoluntaryMortgageOpen(true)}
+      className="px-3 py-2 rounded-full font-bold text-xs text-amber-200 bg-amber-950/80 hover:bg-amber-900 border border-amber-600/60 shadow-md active:scale-95 transition-all flex items-center gap-1 cursor-pointer min-h-[44px] whitespace-nowrap"
+    >
+      <Landmark className="w-3.5 h-3.5" />
+      <span>Sell to Bank</span>
+    </button>
+  ) : null;
+
   return (
     <div
       ref={boardContainerRef}
@@ -898,6 +924,13 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(({
             <div className="flex-1 flex flex-col items-center z-20 min-w-[200px] shrink-0 min-h-0 h-full px-1 [perspective:1000px] w-full max-w-sm mx-auto">
               {/* Top slot (white space above the dice): live ping + mobile rule buttons */}
               <div className="flex-1 basis-0 min-h-0 w-full flex flex-col items-center justify-end gap-1 pb-1.5">
+              <div
+                data-testid="board-turn-label"
+                className="max-w-full truncate text-[11px] sm:text-xs font-bold text-indian-navy-900 dark:text-indian-parchment-100"
+                title={`Turn: ${activeTurnName}`}
+              >
+                Turn: <span className="font-black text-indian-terracotta-600 dark:text-amber-300">{activeTurnName}</span>
+              </div>
               <PingIndicator variant="inline" />
               {/* Mobile Quick-Rule Access Buttons */}
               <div className="md:hidden flex items-center justify-center gap-1.5">
@@ -926,10 +959,13 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(({
               {/* Interactive 3D Tumbling Dice with Authentic Perspective Roll Effect */}
               <div
                 data-testid="board-dice-container"
-                onClick={isMyTurn && gameState.phase === 'AWAIT_ROLL' && !isRolling && !walkingAnimation && !gameState.handoff?.isActive && (!gameState.movement || gameState.movement.isComplete) && !isBoardInspecting ? onRollDice : undefined}
+                onClick={canClickDiceToRoll ? onRollDice : undefined}
+                role={canClickDiceToRoll ? 'button' : undefined}
+                aria-label={canClickDiceToRoll ? 'Roll the dice' : undefined}
+                title={canClickDiceToRoll ? 'Click the dice to roll (Space)' : undefined}
                 className={cn(
                   'relative flex items-center justify-center gap-2.5 sm:gap-3.5 transition-all p-2 rounded-2xl min-h-[44px]',
-                  isMyTurn && gameState.phase === 'AWAIT_ROLL' && !isRolling && !walkingAnimation && !gameState.handoff?.isActive && (!gameState.movement || gameState.movement.isComplete) && !isBoardInspecting
+                  canClickDiceToRoll
                     ? 'cursor-pointer hover:scale-105 active:scale-95 ring-2 ring-indian-terracotta-400 bg-amber-50/90 shadow-md'
                     : ''
                 )}
@@ -950,46 +986,19 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(({
                 </div>
               </div>
 
-              {/* Dice Outcome Total Indicator — ONLY Combined Result */}
-              {gameState.dice && !isRolling && (
-                <div className="text-[10px] sm:text-[11.5px] font-black font-mono text-indian-navy-950 bg-amber-100/95 border-2 border-amber-300 px-3 py-0.5 rounded-full shadow-2xs">
-                  🎲 Rolled: {gameState.dice.first + gameState.dice.second}
-                </div>
-              )}
-
-              {/* Center Controls: Roll Dice / End Turn / Jail Actions */}
-              {isMyTurn && gameState.phase === 'AWAIT_ROLL' && !walkingAnimation && !gameState.handoff?.isActive && (!gameState.movement || gameState.movement.isComplete) ? (
-                <button
-                  type="button"
-                  disabled={isRolling || pendingCommandType === 'ROLL_DICE'}
-                  onClick={onRollDice}
-                  className={cn(
-                    "px-5 py-2.5 rounded-full font-black text-xs text-white bg-gradient-to-r from-indian-terracotta-500 to-indian-terracotta-600 hover:from-indian-terracotta-600 hover:to-indian-terracotta-700 shadow-md active:scale-95 transition-all flex items-center gap-1.5 border border-indian-terracotta-400 min-h-[44px]",
-                    (isRolling || pendingCommandType === 'ROLL_DICE') ? "opacity-75 cursor-wait" : "animate-pulse-subtle cursor-pointer"
-                  )}
-                >
-                  <Dices className={cn("w-4 h-4", (isRolling || pendingCommandType === 'ROLL_DICE') && "animate-spin")} />
-                  <span>{isRolling || pendingCommandType === 'ROLL_DICE' ? 'Rolling...' : 'ROLL DICE'}</span>
-                </button>
+              {/* Center Controls: Sell to Bank / End Turn / Jail Actions (the dice themselves roll) */}
+              {isMyTurn && (gameState.phase === 'AWAIT_ROLL' || gameState.phase === 'PROPERTY_DECISION') && isTurnIdle ? (
+                sellToBankButton
               ) : isMyTurn && (gameState.phase === 'MANAGEMENT' || gameState.phase === 'TURN_END') && !walkingAnimation && !gameState.handoff?.isActive && (!gameState.movement || gameState.movement.isComplete) ? (
-                <div className="flex items-center gap-1.5">
-                  {myMortgageableProperties.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setVoluntaryMortgageOpen(true)}
-                      className="px-3 py-2 rounded-full font-bold text-xs text-amber-200 bg-amber-950/80 hover:bg-amber-900 border border-amber-600/60 shadow-md active:scale-95 transition-all flex items-center gap-1 cursor-pointer min-h-[44px]"
-                    >
-                      <Landmark className="w-3.5 h-3.5" />
-                      <span>Sell to Bank</span>
-                    </button>
-                  )}
+                <div className="flex flex-wrap items-center justify-center gap-1.5">
+                  {sellToBankButton}
                   {!(canBuildHere || isShowingPurchasePrompt || (isOwnMortgagedCity && canAffordReacquire)) && (
                     <button
                       type="button"
                       disabled={pendingCommandType === 'END_TURN'}
                       onClick={() => onDispatch?.('END_TURN')}
                       className={cn(
-                        "px-4 py-2 rounded-full font-bold text-xs text-white bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 shadow-md active:scale-95 transition-all flex items-center gap-1.5 border border-emerald-400 min-h-[44px]",
+                        "px-4 py-2 rounded-full font-bold text-xs whitespace-nowrap text-white bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 shadow-md active:scale-95 transition-all flex items-center gap-1.5 border border-emerald-400 min-h-[44px]",
                         pendingCommandType === 'END_TURN' ? "opacity-75 cursor-wait" : "cursor-pointer"
                       )}
                     >
@@ -1000,6 +1009,7 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(({
                 </div>
               ) : isMyTurn && gameState.phase === 'JAIL_DECISION' && !walkingAnimation && !gameState.handoff?.isActive && (!gameState.movement || gameState.movement.isComplete) ? (
                 <div className="flex items-center gap-1.5 flex-wrap justify-center">
+                  {sellToBankButton}
                   {Boolean(activePlayer?.jailFreeCards && activePlayer.jailFreeCards > 0) && (
                     <button
                       type="button"
@@ -1053,19 +1063,17 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(({
                 <span className="text-[9px] font-bold text-indian-terracotta-600 bg-indian-terracotta-100 px-2 py-0.5 rounded-full border border-indian-terracotta-300">
                   🎉 DOUBLES!
                 </span>
-              ) : (
-                <span className="text-[8.5px] font-bold text-indian-navy-800 bg-white/90 px-2.5 py-0.5 rounded-full border border-indian-parchment-300 shadow-2xs">
-                  {isMyTurn ? 'Your Turn' : `Waiting for ${activePlayer?.displayName || 'Player'}`}
-                </span>
-              )}
+              ) : null}
               </div>
 
               {/* Bottom slot (white space below the dice): jail notice, low-balance status and
                   notifications. Contained and scrollable so nothing spills over the board. */}
               <div
                 data-testid="board-notice-area"
-                className="flex-1 basis-0 min-h-0 w-full max-w-[300px] flex flex-col items-stretch gap-1.5 pt-1.5 overflow-y-auto overflow-x-hidden no-scrollbar"
+                className="flex-1 basis-0 min-h-0 w-full max-w-[300px] flex flex-col items-stretch gap-1.5 py-1.5 overflow-y-auto overflow-x-hidden no-scrollbar"
               >
+                {/* my-auto centres the notices vertically in the free space while still scrolling when it overflows */}
+                <div className="my-auto w-full flex flex-col items-stretch gap-1.5">
                   {jailNotification && !isBoardInspecting && (
                     <div className="pointer-events-auto shrink-0 select-none w-full">
                       <div
@@ -1096,6 +1104,7 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(({
                   )}
                 <div id="board-notice-slot" data-testid="board-notice-slot" className="w-full empty:hidden" />
                 <ToastContainer variant="inline" />
+                </div>
               </div>
             </div>
 

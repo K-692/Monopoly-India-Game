@@ -229,14 +229,6 @@ export const GamePage: React.FC = () => {
             <Users className="w-3.5 h-3.5" />
             {`Room #${gameState.roomId.replace('room_', '').slice(0, 6).toUpperCase()}`}
           </Badge>
-          <Badge
-            variant={isMyTurn ? "emerald" : "neutral"}
-            className="text-xs font-bold"
-          >
-            {isMyTurn
-              ? "Your Turn"
-              : `Waiting for ${gameState.players.find((p) => p.uid === gameState.currentPlayerUid)?.displayName || 'Player'}`}
-          </Badge>
           <button
             onClick={() => setMobileDrawerOpen(!mobileDrawerOpen)}
             className="sm:hidden text-xs text-indian-terracotta-600 font-bold underline"
