@@ -849,16 +849,19 @@ export class RoomManager {
     room.updatedAt = Date.now();
 
     const remainingMembers = Object.keys(room.members);
+    const remainingHumans = Object.values(room.members).filter(
+      (m) => !(m.isCpu || m.playerType === 'COMPUTER')
+    );
 
-    // If room is empty, delete room immediately
-    if (remainingMembers.length === 0) {
+    // No humans left (only CPUs or nobody): the room and its game are finished, delete them now
+    if (remainingMembers.length === 0 || remainingHumans.length === 0) {
       this.deleteRoom(roomId);
       return { ok: true, roomDeleted: true };
     }
 
-    // If host left, promote the next oldest member to host
+    // If host left, promote the next oldest human member to host
     if (room.hostUid === playerUid) {
-      const nextHost = Object.values(room.members).sort((a, b) => a.joinedAt - b.joinedAt)[0];
+      const nextHost = remainingHumans.sort((a, b) => a.joinedAt - b.joinedAt)[0];
       if (nextHost) {
         room.hostUid = nextHost.uid;
       }
@@ -867,6 +870,20 @@ export class RoomManager {
     this.store.updateRoom(room).catch(() => {});
 
     return { ok: true, room };
+  }
+
+  /** Gives a room a fresh invite code (used when the code is already taken in the online directory). */
+  public regenerateInviteCode(roomId: string): string | null {
+    const room = this.rooms.get(roomId);
+    if (!room) return null;
+    this.codeToRoomId.delete(room.inviteCode);
+    const code = this.generateUniqueInviteCode();
+    room.inviteCode = code;
+    room.inviteCodeHash = sha256Hex(code);
+    room.updatedAt = Date.now();
+    this.codeToRoomId.set(code, roomId);
+    this.store.updateRoom(room).catch(() => {});
+    return code;
   }
 
   private roomDeletedListeners: Array<(room: ServerRoom) => void> = [];

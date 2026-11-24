@@ -32,13 +32,51 @@ const HOST_KEY_STORAGE = 'monopoly_online_host_key';
 const SNAPSHOT_INTERVAL_MS = 3000;
 const REGISTER_REFRESH_MS = 10 * 60 * 1000;
 
-interface HostSnapshot {
+export interface HostSnapshot {
   version: 1;
   savedAt: number;
   sessions: PlayerSession[];
   rooms: ServerRoom[];
   games: GameState[];
   publishedRoomIds: string[];
+}
+
+/**
+ * Keeps only consistent, still-playable data in a host snapshot: rooms that still have a human member
+ * and are in the lobby or mid-game, the one active game that belongs to each kept room, and sessions
+ * pointing only at kept rooms. Anything else (finished, orphaned or CPU-only games) is dropped.
+ */
+export function sanitizeHostSnapshot(snapshot: HostSnapshot): HostSnapshot {
+  const isHuman = (m: { isCpu?: boolean; playerType?: string }) => !(m.isCpu || m.playerType === 'COMPUTER');
+  // A player belongs to exactly one room: the one their session points at. Memberships in any other
+  // room are stale leftovers (e.g. from before they created/joined a newer room).
+  const sessionRoom = new Map((snapshot.sessions || []).map((sess) => [sess.uid, sess.roomId || null]));
+  const rooms = (snapshot.rooms || []).filter(
+    (r) =>
+      (r.status === 'LOBBY' || r.status === 'IN_PROGRESS') &&
+      Object.values(r.members || {}).some(
+        (m) => isHuman(m) && (!sessionRoom.has(m.uid) || sessionRoom.get(m.uid) === r.roomId)
+      )
+  );
+  const roomById = new Map(rooms.map((r) => [r.roomId, r]));
+  const games = (snapshot.games || []).filter((g) => {
+    const room = roomById.get(g.roomId);
+    return Boolean(room && room.status === 'IN_PROGRESS' && room.gameId === g.gameId && g.status !== 'COMPLETED');
+  });
+  const gameRoomIds = new Set(games.map((g) => g.roomId));
+  // A room that says it is mid-game but whose game is missing cannot be resumed
+  const keptRooms = rooms.filter((r) => r.status === 'LOBBY' || gameRoomIds.has(r.roomId));
+  const keptIds = new Set(keptRooms.map((r) => r.roomId));
+  const sessions = (snapshot.sessions || []).map((sess) =>
+    sess.roomId && !keptIds.has(sess.roomId) ? { ...sess, roomId: null } : sess
+  );
+  return {
+    ...snapshot,
+    sessions,
+    rooms: keptRooms,
+    games,
+    publishedRoomIds: (snapshot.publishedRoomIds || []).filter((id) => keptIds.has(id)),
+  };
 }
 
 interface HostedChannel {
@@ -153,20 +191,37 @@ export class OnlineHost {
     return Boolean(this.roomManager.getRoomByCode(inviteCode.toUpperCase()));
   }
 
-  /** Makes a room reachable by invite code for players on other devices. */
-  async publishRoom(room: { roomId: string; inviteCode: string }): Promise<void> {
-    if (this.channels.has(room.roomId)) return;
+  /**
+   * Makes a room reachable by invite code for players on other devices.
+   * Invite codes are unique across all hosts: if another host already owns the code, the room gets a
+   * fresh code (and everyone in it is told). Returns the invite code that was finally published.
+   */
+  async publishRoom(room: { roomId: string; inviteCode: string }): Promise<string> {
+    const existing = this.channels.get(room.roomId);
+    if (existing) return existing.inviteCode;
     const supabase = getSupabase();
     const channelName = channelForRoom(room.roomId);
 
-    const { data: registered, error } = await supabase.rpc('online_register_room', {
-      p_invite_code: room.inviteCode,
-      p_channel: channelName,
-      p_room_id: room.roomId,
-      p_host_key: this.hostKey,
-    });
-    if (error) throw new Error(`Could not publish room online: ${error.message}`);
-    if (registered === false) throw new Error('This invite code is already used by another host.');
+    let inviteCode = room.inviteCode;
+    for (let attempt = 0; ; attempt++) {
+      const { data: registered, error } = await supabase.rpc('online_register_room', {
+        p_invite_code: inviteCode,
+        p_channel: channelName,
+        p_room_id: room.roomId,
+        p_host_key: this.hostKey,
+      });
+      if (error) throw new Error(`Could not publish room online: ${error.message}`);
+      if (registered !== false) break;
+      if (attempt >= 4) throw new Error('Could not get a free invite code. Please try creating the room again.');
+      const fresh = this.roomManager.regenerateInviteCode(room.roomId);
+      if (!fresh) throw new Error('Room no longer exists.');
+      inviteCode = fresh;
+    }
+    if (inviteCode !== room.inviteCode) {
+      const updated = this.roomManager.getRoom(room.roomId);
+      if (updated) this.io.to([`room:${room.roomId}`, room.roomId]).emit('room:state', updated);
+    }
+    room = { roomId: room.roomId, inviteCode };
 
     const channel = supabase.channel(channelName, { config: { broadcast: { self: false, ack: false } } });
     channel.on('broadcast', { event: C2H_EVENT }, ({ payload }) => this.onClientMessage(room.roomId, payload as ClientToHostMessage));
@@ -190,6 +245,7 @@ export class OnlineHost {
     this.channels.set(room.roomId, { roomId: room.roomId, inviteCode: room.inviteCode, channel, subscribed, refreshTimer });
     this.dirty = true;
     await subscribed;
+    return room.inviteCode;
   }
 
   /** Removes a room from the online directory, closes its channel and deletes stale snapshots. */
@@ -330,14 +386,14 @@ export class OnlineHost {
 
   private buildSnapshot(): HostSnapshot {
     const { sessions, rooms } = this.roomManager.exportState();
-    return {
+    return sanitizeHostSnapshot({
       version: 1,
       savedAt: Date.now(),
       sessions: sessions.map((s) => ({ ...s, socketId: null, connected: false })),
       rooms,
       games: this.gameManager.listGames().filter((g) => g.status !== 'COMPLETED'),
       publishedRoomIds: [...this.channels.keys()],
-    };
+    });
   }
 
   private async flushSnapshot(force = false): Promise<void> {
@@ -378,6 +434,7 @@ export class OnlineHost {
       }
     }
     if (!snapshot || snapshot.version !== 1) return;
+    snapshot = sanitizeHostSnapshot(snapshot);
 
     this.roomManager.importState({ sessions: snapshot.sessions, rooms: snapshot.rooms });
     for (const game of snapshot.games || []) {

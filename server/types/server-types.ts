@@ -177,6 +177,8 @@ export interface ServerToClientEvents {
   'game:closed': (data: { gameId: string; roomId: string }) => void;
   'game:event': (event: GameEvent) => void;
   'game:timer': (data: {
+    /** Game this timer belongs to. */
+    gameId?: string;
     remaining: number;
     activeUid: string;
     isPaused?: boolean;

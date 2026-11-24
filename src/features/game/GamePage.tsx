@@ -95,10 +95,14 @@ export const GamePage: React.FC = () => {
     const socket = getSocket();
 
     let cleanupRoom: (() => void) | undefined;
+    // Late replies for a game we already navigated away from must never be applied
+    let cancelled = false;
 
     const joinGameSession = () => {
       // Authoritatively join game room on the server to retrieve active state and attach presence
       socket.emit('game:join', { gameId }, (response) => {
+        if (cancelled) return;
+        if (response?.ok && response.gameState && response.gameState.gameId !== gameId) return;
         if (response && response.ok) {
           if (response.gameState) {
             useGameStore.getState().setLiveGameState(response.gameState);
@@ -143,6 +147,7 @@ export const GamePage: React.FC = () => {
     }
 
     return () => {
+      cancelled = true;
       socket.off('connect', joinGameSession);
       if (cleanupRoom) cleanupRoom();
     };

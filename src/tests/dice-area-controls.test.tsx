@@ -67,4 +67,27 @@ describe('Dice area controls', () => {
     expect(screen.queryByTestId('sell-to-bank-btn')).toBeNull();
     expect(screen.getByTestId('board-turn-label')).toHaveTextContent('Turn: Player 2');
   });
+
+  it('keeps a fixed-height controls row in every phase and never shows the stepping text', () => {
+    for (const phase of ['AWAIT_ROLL', 'JAIL_DECISION', 'MANAGEMENT', 'TURN_END', 'PROPERTY_DECISION'] as const) {
+      const state = stateWithOwnedCity(phase);
+      state.movement = { playerId: 'user_1', startPos: 0, targetPos: 5, steps: 5, startedAt: Date.now(), endsAt: Date.now() + 5000, durationMs: 5000, isComplete: phase === 'AWAIT_ROLL' };
+      const { unmount } = render(
+        <GameBoard
+          gameState={state}
+          selectedSpaceIndex={null}
+          onSelectSpace={vi.fn()}
+          isRolling={false}
+          onDispatch={vi.fn()}
+          isMyTurn
+          userUid="user_1"
+        />
+      );
+      const row = screen.getByTestId('board-controls-row');
+      expect(row.className).toContain('h-[84px]');
+      expect(row.className).toContain('shrink-0');
+      expect(screen.queryByText(/Stepping along lane/)).toBeNull();
+      unmount();
+    }
+  });
 });

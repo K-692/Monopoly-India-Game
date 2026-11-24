@@ -398,6 +398,8 @@ export interface GameEvent {
   payload: Record<string, unknown>;
   createdAt: number;
   versionAfter: number;
+  /** Game this event belongs to (stamped on broadcast so clients can ignore other games). */
+  gameId?: string;
 }
 
 export interface GameArchive {

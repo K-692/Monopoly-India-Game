@@ -32,6 +32,10 @@ interface GameBoardProps {
   walkingAnimation?: WalkingAnimationState | null;
 }
 
+/** Shared compact size for the board-centre turn controls (fits two rows inside the fixed controls row). */
+const CONTROL_BUTTON_CLASS =
+  'h-9 px-3 rounded-full font-bold text-[11px] whitespace-nowrap flex items-center justify-center gap-1 shadow-md active:scale-95 transition-all min-w-0';
+
 export const GameBoard: React.FC<GameBoardProps> = React.memo(({
   gameState,
   selectedSpaceIndex,
@@ -725,7 +729,7 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(({
       type="button"
       data-testid="sell-to-bank-btn"
       onClick={() => setVoluntaryMortgageOpen(true)}
-      className="px-3 py-2 rounded-full font-bold text-xs text-amber-200 bg-amber-950/80 hover:bg-amber-900 border border-amber-600/60 shadow-md active:scale-95 transition-all flex items-center gap-1 cursor-pointer min-h-[44px] whitespace-nowrap"
+      className={cn(CONTROL_BUTTON_CLASS, 'text-amber-200 bg-amber-950/80 hover:bg-amber-900 border border-amber-600/60 cursor-pointer')}
     >
       <Landmark className="w-3.5 h-3.5" />
       <span>Sell to Bank</span>
@@ -986,11 +990,13 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(({
                 </div>
               </div>
 
-              {/* Center Controls: Sell to Bank / End Turn / Jail Actions (the dice themselves roll) */}
+              {/* Center Controls row: FIXED height so the dice, turn label and ping above never move.
+                  The dice themselves are the roll control. */}
+              <div data-testid="board-controls-row" className="h-[84px] w-full shrink-0 flex items-center justify-center">
               {isMyTurn && (gameState.phase === 'AWAIT_ROLL' || gameState.phase === 'PROPERTY_DECISION') && isTurnIdle ? (
                 sellToBankButton
-              ) : isMyTurn && (gameState.phase === 'MANAGEMENT' || gameState.phase === 'TURN_END') && !walkingAnimation && !gameState.handoff?.isActive && (!gameState.movement || gameState.movement.isComplete) ? (
-                <div className="flex flex-wrap items-center justify-center gap-1.5">
+              ) : isMyTurn && (gameState.phase === 'MANAGEMENT' || gameState.phase === 'TURN_END') && isTurnIdle ? (
+                <div className="flex items-center justify-center gap-1.5">
                   {sellToBankButton}
                   {!(canBuildHere || isShowingPurchasePrompt || (isOwnMortgagedCity && canAffordReacquire)) && (
                     <button
@@ -998,28 +1004,28 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(({
                       disabled={pendingCommandType === 'END_TURN'}
                       onClick={() => onDispatch?.('END_TURN')}
                       className={cn(
-                        "px-4 py-2 rounded-full font-bold text-xs whitespace-nowrap text-white bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 shadow-md active:scale-95 transition-all flex items-center gap-1.5 border border-emerald-400 min-h-[44px]",
-                        pendingCommandType === 'END_TURN' ? "opacity-75 cursor-wait" : "cursor-pointer"
+                        CONTROL_BUTTON_CLASS,
+                        'text-white bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 border border-emerald-400',
+                        pendingCommandType === 'END_TURN' ? 'opacity-75 cursor-wait' : 'cursor-pointer'
                       )}
                     >
                       <span>{pendingCommandType === 'END_TURN' ? 'Ending...' : 'END TURN'}</span>
-                      <ArrowRight className={cn("w-3.5 h-3.5", pendingCommandType === 'END_TURN' && "animate-pulse")} />
+                      <ArrowRight className={cn('w-3.5 h-3.5', pendingCommandType === 'END_TURN' && 'animate-pulse')} />
                     </button>
                   )}
                 </div>
-              ) : isMyTurn && gameState.phase === 'JAIL_DECISION' && !walkingAnimation && !gameState.handoff?.isActive && (!gameState.movement || gameState.movement.isComplete) ? (
-                <div className="flex items-center gap-1.5 flex-wrap justify-center">
-                  {sellToBankButton}
+              ) : isMyTurn && gameState.phase === 'JAIL_DECISION' && isTurnIdle ? (
+                <div className="grid grid-cols-2 gap-1.5 w-full max-w-[260px]">
                   {Boolean(activePlayer?.jailFreeCards && activePlayer.jailFreeCards > 0) && (
                     <button
                       type="button"
                       disabled={pendingCommandType === 'USE_JAIL_CARD'}
                       onClick={() => onDispatch?.('USE_JAIL_CARD')}
-                      className="px-3.5 py-2 rounded-full font-bold text-xs text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 active:scale-95 shadow-md cursor-pointer flex items-center gap-1.5 min-h-[44px] border border-emerald-400"
+                      className={cn(CONTROL_BUTTON_CLASS, 'w-full text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 border border-emerald-400 cursor-pointer')}
                       title="Use your Get Out of Jail card to leave Central Jail immediately (strictly non-tradable)"
                     >
-                      <KeyRound className="w-3.5 h-3.5 text-emerald-200" />
-                      <span>{pendingCommandType === 'USE_JAIL_CARD' ? 'Using Card...' : `Use Get Out of Jail Card (${activePlayer?.jailFreeCards})`}</span>
+                      <KeyRound className="w-3.5 h-3.5 shrink-0 text-emerald-200" />
+                      <span className="truncate">{pendingCommandType === 'USE_JAIL_CARD' ? 'Using...' : `Jail Card (${activePlayer?.jailFreeCards})`}</span>
                     </button>
                   )}
                   <button
@@ -1027,43 +1033,43 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(({
                     onClick={() => onDispatch?.('PAY_BAIL')}
                     disabled={pendingCommandType === 'PAY_BAIL' || (activePlayer ? activePlayer.cash < authoritativeBail : false)}
                     className={cn(
-                      'px-3 py-2 rounded-full font-bold text-xs text-white shadow-xs flex items-center gap-1.5 transition-all min-h-[44px]',
+                      CONTROL_BUTTON_CLASS,
+                      'w-full text-white',
                       activePlayer && activePlayer.cash < authoritativeBail
                         ? 'bg-gray-500 opacity-60 cursor-not-allowed'
                         : pendingCommandType === 'PAY_BAIL'
                         ? 'bg-red-700 opacity-80 cursor-wait'
-                        : 'bg-red-600 hover:bg-red-500 active:scale-95 cursor-pointer'
+                        : 'bg-red-600 hover:bg-red-500 cursor-pointer'
                     )}
                   >
-                    <KeyRound className="w-3.5 h-3.5" />
-                    <span>{pendingCommandType === 'PAY_BAIL' ? 'Paying Bail...' : `Pay ₹${authoritativeBail.toLocaleString('en-IN')} Bail`}</span>
+                    <KeyRound className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate">{pendingCommandType === 'PAY_BAIL' ? 'Paying...' : `Pay ₹${authoritativeBail.toLocaleString('en-IN')} Bail`}</span>
                   </button>
                   <button
                     type="button"
                     disabled={pendingCommandType === 'TRY_DOUBLES'}
                     onClick={() => onDispatch?.('TRY_DOUBLES')}
                     className={cn(
-                      "px-3 py-2 rounded-full font-bold text-xs text-white bg-amber-600 hover:bg-amber-500 active:scale-95 shadow-xs flex items-center gap-1.5 min-h-[44px]",
-                      pendingCommandType === 'TRY_DOUBLES' ? "opacity-75 cursor-wait" : "cursor-pointer"
+                      CONTROL_BUTTON_CLASS,
+                      'w-full text-white bg-amber-600 hover:bg-amber-500',
+                      pendingCommandType === 'TRY_DOUBLES' ? 'opacity-75 cursor-wait' : 'cursor-pointer'
                     )}
                   >
-                    <Dices className={cn("w-3.5 h-3.5", pendingCommandType === 'TRY_DOUBLES' && "animate-spin")} />
-                    <span>{pendingCommandType === 'TRY_DOUBLES' ? 'Rolling...' : 'Roll for Doubles'}</span>
+                    <Dices className={cn('w-3.5 h-3.5 shrink-0', pendingCommandType === 'TRY_DOUBLES' && 'animate-spin')} />
+                    <span className="truncate">{pendingCommandType === 'TRY_DOUBLES' ? 'Rolling...' : 'Roll Doubles'}</span>
                   </button>
+                  {sellToBankButton && <div className="w-full [&>button]:w-full">{sellToBankButton}</div>}
                 </div>
               ) : gameState.handoff?.isActive ? (
                 <span className="text-[9px] font-bold text-amber-800 bg-amber-100 px-3 py-1 rounded-full border border-amber-300 animate-pulse flex items-center gap-1">
                   ⏳ Next Turn Starting...
                 </span>
-              ) : walkingAnimation || (gameState.movement && !gameState.movement.isComplete) ? (
-                <span className="text-[8.5px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-300 animate-pulse">
-                  🚶 Stepping along lane...
-                </span>
-              ) : gameState.dice?.isDouble ? (
+              ) : gameState.dice?.isDouble && isTurnIdle ? (
                 <span className="text-[9px] font-bold text-indian-terracotta-600 bg-indian-terracotta-100 px-2 py-0.5 rounded-full border border-indian-terracotta-300">
                   🎉 DOUBLES!
                 </span>
               ) : null}
+              </div>
               </div>
 
               {/* Bottom slot (white space below the dice): jail notice, low-balance status and

@@ -442,7 +442,25 @@ export class OnlineSocket {
     await this.connectLocal();
   }
 
+  /**
+   * Tells the host we are currently connected to that we are leaving its room, so it flushes our seat
+   * right away (instead of waiting for a heartbeat timeout). Never blocks for more than 2 seconds.
+   */
+  private leaveCurrentRoom(): Promise<void> {
+    if (!this.connected) return Promise.resolve();
+    return new Promise<void>((resolve) => {
+      const done = setTimeout(resolve, 2000);
+      this.forward('room:leave', [], () => {
+        clearTimeout(done);
+        resolve();
+      });
+    });
+  }
+
   private async switchToRemote(t: Extract<Target, { kind: 'remote' }>): Promise<void> {
+    // One room at a time: leave wherever we are (our own hosted room or another host's) first
+    await this.leaveCurrentRoom();
+    if (this.target.kind === 'remote') this.teardownRemote(true);
     this.localSocket?.disconnect(false, 'client namespace disconnect');
     this.localSocket = null;
     this.connected = false;
@@ -469,13 +487,24 @@ export class OnlineSocket {
   }
 
   private async handleCreate(args: unknown[], ack?: Ack): Promise<void> {
-    if (this.target.kind === 'remote') await this.switchToLocal();
+    if (this.target.kind === 'remote') {
+      // Leave the other host's room before hosting our own
+      await this.leaveCurrentRoom();
+      await this.switchToLocal();
+    }
     this.forward('room:create', args, async (...res: unknown[]) => {
-      const response = res[0] as { ok?: boolean; room?: { roomId: string; inviteCode: string } } | undefined;
+      const response = res[0] as
+        | { ok?: boolean; inviteCode?: string; room?: { roomId: string; inviteCode: string } }
+        | undefined;
       if (response?.ok && response.room) {
         try {
           const { OnlineHost } = await import('./online-host');
-          await OnlineHost.get().publishRoom(response.room);
+          const published = await OnlineHost.get().publishRoom(response.room);
+          if (published !== response.room.inviteCode) {
+            // The code was taken by another host and replaced: hand the caller the code that works
+            response.room = { ...response.room, inviteCode: published };
+            response.inviteCode = published;
+          }
         } catch (err) {
           ack?.({ ok: false, error: err instanceof Error ? err.message : 'Could not publish the room online' });
           return;

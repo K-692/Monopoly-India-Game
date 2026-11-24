@@ -56,6 +56,31 @@ let pendingServerState: GameState | null = null;
 let pendingStateSafetyTimer: NodeJS.Timeout | null = null;
 let lastDispatchedCommandId: string | null = null;
 const processedRollIds = new Set<string>();
+/** The only game this client is showing. Broadcasts for any other game are ignored. */
+let activeGameId: string | null = null;
+
+/** Drops every piece of in-flight presentation state (held server states, timers, roll ids). */
+function resetTransientGameState(): void {
+  if (activeWalkingTimer) {
+    clearInterval(activeWalkingTimer);
+    activeWalkingTimer = null;
+  }
+  if (pendingStateSafetyTimer) {
+    clearTimeout(pendingStateSafetyTimer);
+    pendingStateSafetyTimer = null;
+  }
+  pendingServerState = null;
+  lastDispatchedCommandId = null;
+  processedRollIds.clear();
+}
+
+/** Switches the client to a new game, flushing everything that belonged to the previous one. */
+function activateGame(gameId: string): boolean {
+  if (activeGameId === gameId) return false;
+  resetTransientGameState();
+  activeGameId = gameId;
+  return true;
+}
 
 export const useGameStore = create<GameStoreState>((set, get) => ({
   gameState: null,
@@ -75,9 +100,10 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   initializeGameFromRoom: (roomId, gameId, members, customRules) => {
     const socket = getSocket();
 
-    // Check if initial state is already cached
+    // Switching games flushes all state from the previous game before anything else happens
+    const switched = activateGame(gameId);
     const current = get().gameState;
-    if (!current || current.gameId !== gameId) {
+    if (switched || !current || current.gameId !== gameId) {
       const initial = createInitialGame(roomId, gameId, members, customRules);
       const welcomeEvent: GameEvent = {
         sequence: 1,
@@ -104,6 +130,12 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
 
     // Handle authoritative game state broadcast from server
     const handleServerGameState = (nextState: GameState) => {
+      // Ignore broadcasts from any other game this connection may still hear about
+      if (!nextState || nextState.gameId !== gameId || activeGameId !== gameId) return;
+      // Never step backwards: an out-of-order older snapshot must not overwrite a newer one
+      const shown = get().gameState;
+      const newestKnown = Math.max(shown?.gameId === gameId ? shown.version ?? 0 : 0, pendingServerState?.version ?? 0);
+      if ((nextState.version ?? 0) < newestKnown) return;
       // If we are currently tumbling dice or walking, hold committing state until destination is reached
       const { isRolling, walkingAnimation } = get();
       if (isRolling || walkingAnimation) {
@@ -152,6 +184,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
 
     // Handle authoritative game event broadcast from server
     const handleServerGameEvent = (event: GameEvent) => {
+      if (activeGameId !== gameId || (event.gameId && event.gameId !== gameId)) return;
       set((s) => ({
         events: [event, ...s.events].slice(0, 50),
       }));
@@ -345,6 +378,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
 
     // Handle authoritative server turn timer ticks
     const handleServerTimer = (data: {
+      gameId?: string;
       remaining: number;
       activeUid: string;
       isPaused?: boolean;
@@ -352,8 +386,9 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       handoff?: boolean;
       elapsedSeconds?: number;
     }) => {
+      if (activeGameId !== gameId || (data.gameId && data.gameId !== gameId)) return;
       set((s) => {
-        if (!s.gameState) return s;
+        if (!s.gameState || s.gameState.gameId !== gameId) return s;
         return {
           gameState: {
             ...s.gameState,
@@ -376,6 +411,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       emote: string;
       timestamp: number;
     }) => {
+      if (reaction.roomId && reaction.roomId !== roomId) return;
       sound.play('EMOTE');
       const emoteObj: EmoteReaction = {
         id: reaction.id,
@@ -415,6 +451,25 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   },
 
   setLiveGameState: (state: GameState) => {
+    if (!state) return;
+    if (activateGame(state.gameId)) {
+      // A different game: start from a clean slate so nothing from the previous game leaks in
+      set({
+        gameState: state,
+        events: [],
+        activeEmotes: [],
+        selectedSpaceIndex: null,
+        isRolling: false,
+        pendingCommandType: null,
+        walkingAnimation: null,
+        isLiveMultiplayer: true,
+        error: null,
+      });
+      return;
+    }
+    // Same game: never roll back to an older version than the one already shown
+    const current = get().gameState;
+    if (current && current.gameId === state.gameId && (current.version ?? 0) > (state.version ?? 0)) return;
     set({ gameState: state, isLiveMultiplayer: true });
   },
 
@@ -498,17 +553,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     } catch {
       // socket unavailable — the host still deletes the game after its retention window
     }
-    if (activeWalkingTimer) {
-      clearInterval(activeWalkingTimer);
-      activeWalkingTimer = null;
-    }
-    if (pendingStateSafetyTimer) {
-      clearTimeout(pendingStateSafetyTimer);
-      pendingStateSafetyTimer = null;
-    }
-    pendingServerState = null;
-    lastDispatchedCommandId = null;
-    processedRollIds.clear();
+    resetTransientGameState();
+    activeGameId = null;
     set({
       gameState: null,
       events: [],

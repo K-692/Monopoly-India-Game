@@ -30,12 +30,13 @@ export function setupSocketHandlers(
   gameManager.setBroadcastCallback((gameId, roomId, event, data) => {
     const channels = [`game:${gameId}`, `room:${roomId}`, roomId, gameId];
 
+    // Every game-scoped payload carries its gameId so clients can ignore broadcasts from other games.
     if (event === 'game:state') {
       io.to(channels).emit('game:state', data as GameState);
     } else if (event === 'game:event') {
-      io.to(channels).emit('game:event', data as GameEvent);
+      io.to(channels).emit('game:event', { ...(data as GameEvent), gameId });
     } else if (event === 'game:timer') {
-      io.to(channels).emit('game:timer', data as Parameters<ServerToClientEvents['game:timer']>[0]);
+      io.to(channels).emit('game:timer', { ...(data as Parameters<ServerToClientEvents['game:timer']>[0]), gameId });
     } else if (event === 'game:started') {
       io.to(channels).emit('game:started', data as { gameId: string; gameState: GameState });
     } else if (event === 'player:controller_changed') {
@@ -49,6 +50,44 @@ export function setupSocketHandlers(
     io.to([`game:${gameId}`, `room:${roomId}`, roomId, gameId]).emit('game:closed', { gameId, roomId });
     roomManager.deleteRoom(roomId);
   });
+
+  // A deleted room takes its game with it (e.g. every human left a match that only CPUs were still playing).
+  roomManager.onRoomDeleted((room) => {
+    if (room.gameId && gameManager.getGame(room.gameId)) {
+      gameManager.purgeGame(room.gameId);
+    }
+  });
+
+  type AppSocket = Socket<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
+
+  /** Removes a socket from every room/game broadcast channel except the ones listed in `keep`. */
+  const detachChannels = (socket: AppSocket, keep: string[] = []): void => {
+    for (const channel of [...socket.rooms]) {
+      if (channel === socket.id || keep.includes(channel)) continue;
+      socket.leave(channel);
+    }
+  };
+
+  /**
+   * A player can only be in one room at a time. Leaving (explicitly, or by creating/joining another room)
+   * detaches all channels, removes the membership, hands an in-progress seat to the bot and deletes the
+   * room and its game when no human remains.
+   */
+  const leaveCurrentRoom = (socket: AppSocket): void => {
+    const session = socket.data.session;
+    detachChannels(socket);
+    if (!session || !session.roomId) return;
+    const oldRoomId = session.roomId;
+    const oldRoom = roomManager.getRoom(oldRoomId);
+    const oldGameId = oldRoom?.gameId || null;
+    const result = roomManager.leaveRoom(session.uid);
+    if (result.room) {
+      io.to([`room:${oldRoomId}`, oldRoomId]).emit('room:state', result.room);
+    }
+    if (!result.roomDeleted && oldGameId && oldRoom?.status === 'IN_PROGRESS') {
+      void gameManager.handlePlayerLeftGame(oldGameId, session.uid);
+    }
+  };
 
   // ==========================================
   // HANDSHAKE AUTHENTICATION MIDDLEWARE
@@ -129,7 +168,7 @@ export function setupSocketHandlers(
           if (currentRoom.status === 'IN_PROGRESS' && currentRoom.gameId) {
             socket.join(`game:${currentRoom.gameId}`);
             socket.join(currentRoom.gameId);
-            gameManager.handlePlayerReconnected(session.uid);
+            gameManager.handlePlayerReconnected(session.uid, currentRoom.gameId);
             const activeGame = gameManager.getGame(currentRoom.gameId);
             if (activeGame) {
               socket.emit('game:state', activeGame);
@@ -228,7 +267,7 @@ export function setupSocketHandlers(
               if (currentRoom.status === 'IN_PROGRESS' && currentRoom.gameId) {
                 socket.join(`game:${currentRoom.gameId}`);
                 socket.join(currentRoom.gameId);
-                gameManager.handlePlayerReconnected(player.uid);
+                gameManager.handlePlayerReconnected(player.uid, currentRoom.gameId);
                 const game = gameManager.getGame(currentRoom.gameId);
                 if (game) {
                   socket.emit('game:state', game);
@@ -262,6 +301,8 @@ export function setupSocketHandlers(
       }
 
       const session = socket.data.session!;
+      // Creating a room always starts clean: leave (and flush) whatever room/game this player was in
+      leaveCurrentRoom(socket);
       const result = await roomManager.createRoom(session.uid, customRules, cpuPlayers);
 
       if (!result.ok || !result.room) {
@@ -301,6 +342,19 @@ export function setupSocketHandlers(
       }
 
       const session = socket.data.session!;
+      // Joining a different room leaves (and flushes) the previous one first
+      const targetRoom = roomManager.getRoomByCode(String(inviteCode || ''));
+      if (!targetRoom) {
+        if (typeof callback === 'function') {
+          callback({ ok: false, error: 'Room not found. Please verify the 6-character invitation code.' });
+        }
+        return;
+      }
+      if (session.roomId && session.roomId !== targetRoom.roomId) {
+        leaveCurrentRoom(socket);
+      } else {
+        detachChannels(socket, [`room:${targetRoom.roomId}`, targetRoom.roomId]);
+      }
       const result = roomManager.joinRoom(inviteCode, session.uid);
 
       if (!result.ok || !result.room) {
@@ -320,7 +374,7 @@ export function setupSocketHandlers(
       if (room.status === 'IN_PROGRESS' && room.gameId) {
         socket.join(`game:${room.gameId}`);
         socket.join(room.gameId);
-        gameManager.handlePlayerReconnected(session.uid);
+        gameManager.handlePlayerReconnected(session.uid, room.gameId);
         const activeGame = gameManager.getGame(room.gameId);
         if (activeGame) {
           socket.emit('game:state', activeGame);
@@ -464,21 +518,7 @@ export function setupSocketHandlers(
 
     socket.on('room:leave', (callback) => {
       if (!requireReady(callback)) return;
-      const session = socket.data.session;
-      if (!session || !session.roomId) {
-        if (typeof callback === 'function') callback({ ok: true });
-        return;
-      }
-
-      const roomId = session.roomId;
-      socket.leave(`room:${roomId}`);
-      socket.leave(roomId);
-      const result = roomManager.leaveRoom(session.uid);
-
-      if (result.room) {
-        io.to(`room:${roomId}`).emit('room:state', result.room);
-        io.to(roomId).emit('room:state', result.room);
-      }
+      leaveCurrentRoom(socket);
 
       if (typeof callback === 'function') {
         callback({ ok: true });
@@ -565,14 +605,20 @@ export function setupSocketHandlers(
         return;
       }
 
+      // Only this game's channels: drop any channels left over from another room/game
+      if (session.roomId && session.roomId !== game.roomId) {
+        leaveCurrentRoom(socket);
+      } else {
+        detachChannels(socket, [`game:${game.gameId}`, game.gameId, `room:${game.roomId}`, game.roomId]);
+      }
       socket.join(`game:${game.gameId}`);
       socket.join(game.gameId);
       socket.join(`room:${game.roomId}`);
       socket.join(game.roomId);
       session.roomId = game.roomId;
 
-      // Restore human control and presence
-      gameManager.handlePlayerReconnected(session.uid);
+      // Restore human control and presence (this game only)
+      gameManager.handlePlayerReconnected(session.uid, game.gameId);
 
       const room = roomManager.getRoom(game.roomId);
       if (room) {
@@ -655,7 +701,7 @@ export function setupSocketHandlers(
 
       // If slot was bot-controlled, restore human control on valid command
       if (playerInGame.isBotControlled) {
-        gameManager.handlePlayerReconnected(session.uid);
+        gameManager.handlePlayerReconnected(session.uid, command.gameId);
       }
 
       try {

@@ -632,6 +632,23 @@ export class GameManager {
   }
 
   /**
+   * A human player deliberately left an in-progress game (exit, or created/joined another room):
+   * hand their seat to the bot immediately instead of waiting for the reconnect grace period.
+   */
+  public async handlePlayerLeftGame(gameId: string, playerUid: string): Promise<void> {
+    const state = this.games.get(gameId);
+    if (!state || state.status === 'COMPLETED') return;
+    const player = state.players.find((p) => p.uid === playerUid);
+    if (!player || player.isCpu || player.playerType === 'COMPUTER') return;
+    const timerKey = `${gameId}:${playerUid}`;
+    const grace = this.disconnectGraceTimers.get(timerKey);
+    if (grace) clearTimeout(grace);
+    this.disconnectGraceTimers.delete(timerKey);
+    player.disconnectedAt = player.disconnectedAt || Date.now();
+    await this.activateBotTakeover(gameId, playerUid);
+  }
+
+  /**
    * Activates autonomous bot control for a disconnected human player after grace period expires.
    */
   public async activateBotTakeover(gameId: string, playerUid: string): Promise<void> {
@@ -666,8 +683,13 @@ export class GameManager {
    * Called when an authenticated human player reconnects with their original token.
    * Restores human control and cancels future bot actions for their slot.
    */
-  public handlePlayerReconnected(playerUid: string): void {
+  /**
+   * Restores human control for a reconnecting player. When `onlyGameId` is given (always the case
+   * from the socket layer), only that game is touched, so games the player has left stay bot-controlled.
+   */
+  public handlePlayerReconnected(playerUid: string, onlyGameId?: string): void {
     for (const [gameId, state] of this.games.entries()) {
+      if (onlyGameId && gameId !== onlyGameId) continue;
       if (state.status === 'COMPLETED') continue;
       const player = state.players.find((p) => p.uid === playerUid);
       if (!player) continue;
