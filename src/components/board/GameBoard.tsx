@@ -8,7 +8,8 @@ import { FinancialResolutionModal } from './FinancialResolutionModal';
 import { usePopupPosition } from './use-popup-position';
 import { getSpaceGridCoord } from './board-layout-utils';
 import { calculateBuildingCost, calculateMortgageValue, calculateReacquisitionCost, canBuildOnProperty, getAuthoritativeBailAmount, getPropertyNoun, getSortedEligibleSellToBankProperties } from '@/domain/ruleset';
-import { TurnStepAcknowledgment } from '@/components/feedback/TurnStepAcknowledgment';
+import { ToastContainer } from '@/components/feedback/ToastContainer';
+import { PingIndicator } from '@/components/feedback/PingIndicator';
 import { PopupTurnTimer } from '@/components/feedback/PopupTurnTimer';
 import { useToastStore } from '@/components/feedback/toast-store';
 import { sound } from '@/lib/audio/sound-engine';
@@ -43,7 +44,6 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(({
   onDispatch,
   isMyTurn = true,
   userUid,
-  lastEvent,
   walkingAnimation,
 }) => {
   const activePlayer = gameState.players.find((p) => p.uid === gameState.currentPlayerUid);
@@ -371,37 +371,6 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(({
   const canAffordReacquire = (activePlayer?.cash ?? 0) >= reacquisitionCost;
 
   const isCpuTurn = Boolean(activePlayer && (activePlayer.isCpu || activePlayer.playerType === 'COMPUTER'));
-
-  // Requirement 2: Derived polished player-facing turn indicator without technical debug info
-  const playerFacingTurnMessage = (() => {
-    if (gameState.handoff?.isActive) {
-      const nextP = gameState.players.find((p) => p.uid === gameState.handoff?.toPlayerUid);
-      return `Handoff to ${nextP?.displayName || 'Next Player'}...`;
-    }
-    if (walkingAnimation || (gameState.movement && !gameState.movement.isComplete)) {
-      return isMyTurn ? 'Processing Move...' : `Moving ${activePlayer?.displayName || 'Player'}...`;
-    }
-    if (isMyTurn) {
-      if (gameState.phase === 'AWAIT_ROLL') return 'Your Turn — Roll the Dice';
-      if (gameState.phase === 'JAIL_DECISION') {
-        if (activePlayer?.jailFreeCards && activePlayer.jailFreeCards > 0) {
-          return `Your Turn — In Jail (Use Get Out of Jail Card, Pay ₹${authoritativeBail.toLocaleString('en-IN')} Bail, or Try Doubles)`;
-        }
-        return `Your Turn — In Jail (Pay ₹${authoritativeBail.toLocaleString('en-IN')} Bail or Try Doubles)`;
-      }
-      if (gameState.phase === 'PROPERTY_DECISION') return `Your Turn — ${propertyNoun} Decision`;
-      if (gameState.phase === 'ACTION_REQUIRED') return 'Action Required — Financial Resolution';
-      return 'Your Turn — Manage or End Turn';
-    }
-    if (isCpuTurn && activePlayer) {
-      if (gameState.phase === 'AWAIT_ROLL') return `${activePlayer.displayName} (CPU) is rolling...`;
-      if (gameState.phase === 'JAIL_DECISION') return `${activePlayer.displayName} (CPU) in Central Jail — deciding...`;
-      if (gameState.phase === 'PROPERTY_DECISION') return `${activePlayer.displayName} (CPU) is considering ${playerSpace?.name || 'property'}...`;
-      if (gameState.phase === 'ACTION_REQUIRED') return `${activePlayer.displayName} (CPU) resolving debt...`;
-      return `${activePlayer.displayName} (CPU) is taking turn...`;
-    }
-    return `Waiting for ${activePlayer?.displayName || 'Player'}`;
-  })();
 
   // Toast triggers for insufficient balance
   const lastInsuffNoticeRef = useRef<string | null>(null);
@@ -838,18 +807,10 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(({
             gridRow: '2 / 11',
           }}
         >
-          {/* Top Center: Turn Step Acknowledgment Banner */}
-          <div className="w-full max-w-sm z-10 shrink-0">
-            <TurnStepAcknowledgment
-              gameState={gameState}
-              lastEvent={lastEvent}
-            />
-          </div>
-
           {/* Middle Row: Civic Fund Indexed List, 3D Dice Rolling Arena, and Market Buzz Indexed List */}
           <div className="w-full flex-1 flex items-stretch justify-between gap-1.5 sm:gap-3 my-auto z-10 px-1 sm:px-2 min-h-0">
             {/* Panel 1: Civic Fund (All 11 Community Treasury Rules Indexed 2..12 — Desktop: visible; Mobile: compact drawer) */}
-            <div className="hidden md:flex md:w-[37%] max-w-[280px] min-w-[160px] h-full rounded-xl bg-gradient-to-br from-indian-terracotta-800 via-amber-950 to-stone-900 text-white p-1.5 border-2 border-amber-400/80 shadow-xl flex-col justify-between overflow-hidden shrink-0">
+            <div className="hidden md:flex md:w-[37%] max-w-[280px] min-w-[112px] h-full rounded-xl bg-gradient-to-br from-indian-terracotta-800 via-amber-950 to-stone-900 text-white p-1.5 border-2 border-amber-400/80 shadow-xl flex-col justify-between overflow-hidden shrink">
               <div className="flex items-center justify-between border-b border-amber-300/40 pb-0.5 shrink-0">
                 <div className="flex items-center gap-1.5">
                   <Gift className="w-3.5 h-3.5 text-amber-300" />
@@ -934,9 +895,12 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(({
             </div>
 
             {/* In-Board Dice Roll Arena: Symmetrically Centered 3D Dice & Controls */}
-            <div className="flex-1 flex flex-col items-center justify-center gap-1.5 sm:gap-2 z-20 shrink-0 px-1 [perspective:1000px] w-full max-w-sm mx-auto">
+            <div className="flex-1 flex flex-col items-center z-20 min-w-[200px] shrink-0 min-h-0 h-full px-1 [perspective:1000px] w-full max-w-sm mx-auto">
+              {/* Top slot (white space above the dice): live ping + mobile rule buttons */}
+              <div className="flex-1 basis-0 min-h-0 w-full flex flex-col items-center justify-end gap-1 pb-1.5">
+              <PingIndicator variant="inline" />
               {/* Mobile Quick-Rule Access Buttons */}
-              <div className="md:hidden flex items-center justify-center gap-1.5 mb-0.5">
+              <div className="md:hidden flex items-center justify-center gap-1.5">
                 <button
                   type="button"
                   onClick={() => setInspectedCard(CIVIC_FUND_CARDS[0])}
@@ -954,6 +918,10 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(({
                   <span>Market Buzz (11)</span>
                 </button>
               </div>
+              </div>
+
+              {/* Dice, rolled total and turn controls */}
+              <div className="shrink-0 flex flex-col items-center gap-1.5 sm:gap-2">
 
               {/* Interactive 3D Tumbling Dice with Authentic Perspective Roll Effect */}
               <div
@@ -979,34 +947,6 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(({
                   data-testid="board-inspection-dice-anchor"
                   className="absolute inset-0 flex items-center justify-center pointer-events-none z-[130]"
                 >
-                  {jailNotification && !isBoardInspecting && (
-                    <div className="pointer-events-auto shrink-0 select-none z-[135]">
-                      <div
-                        data-testid="jail-center-notification"
-                        className="animate-scale-in min-w-[240px] sm:min-w-[270px] max-w-[320px] p-3 sm:p-3.5 rounded-2xl bg-[#090D1A] border-2 border-red-500 shadow-[0_16px_40px_rgba(0,0,0,0.95)] text-white flex items-center gap-3"
-                      >
-                        <div className="w-9 h-9 rounded-xl bg-red-600/30 border border-red-500/60 flex items-center justify-center text-red-400 shrink-0">
-                          <ShieldAlert className="w-5 h-5 animate-pulse" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <span className="text-[9.5px] uppercase font-black tracking-wider text-red-400 block leading-tight">
-                            CENTRAL JAIL
-                          </span>
-                          <p className="text-[11.5px] sm:text-xs font-bold text-gray-100 leading-tight truncate mt-0.5">
-                            {jailNotification.playerName} sent to Central Jail
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setJailNotification(null)}
-                          className="w-5 h-5 rounded-md hover:bg-white/20 flex items-center justify-center text-gray-400 hover:text-white cursor-pointer shrink-0"
-                          aria-label="Dismiss jail notification"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
 
@@ -1118,10 +1058,49 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(({
                   {isMyTurn ? 'Your Turn' : `Waiting for ${activePlayer?.displayName || 'Player'}`}
                 </span>
               )}
+              </div>
+
+              {/* Bottom slot (white space below the dice): jail notice, low-balance status and
+                  notifications. Contained and scrollable so nothing spills over the board. */}
+              <div
+                data-testid="board-notice-area"
+                className="flex-1 basis-0 min-h-0 w-full max-w-[300px] flex flex-col items-stretch gap-1.5 pt-1.5 overflow-y-auto overflow-x-hidden no-scrollbar"
+              >
+                  {jailNotification && !isBoardInspecting && (
+                    <div className="pointer-events-auto shrink-0 select-none w-full">
+                      <div
+                        data-testid="jail-center-notification"
+                        className="animate-scale-in w-full p-2.5 rounded-2xl bg-[#090D1A] border-2 border-red-500 shadow-[0_16px_40px_rgba(0,0,0,0.95)] text-white flex items-center gap-3"
+                      >
+                        <div className="w-9 h-9 rounded-xl bg-red-600/30 border border-red-500/60 flex items-center justify-center text-red-400 shrink-0">
+                          <ShieldAlert className="w-5 h-5 animate-pulse" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <span className="text-[9.5px] uppercase font-black tracking-wider text-red-400 block leading-tight">
+                            CENTRAL JAIL
+                          </span>
+                          <p className="text-[11.5px] sm:text-xs font-bold text-gray-100 leading-tight truncate mt-0.5">
+                            {jailNotification.playerName} sent to Central Jail
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setJailNotification(null)}
+                          className="w-5 h-5 rounded-md hover:bg-white/20 flex items-center justify-center text-gray-400 hover:text-white cursor-pointer shrink-0"
+                          aria-label="Dismiss jail notification"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                <div id="board-notice-slot" data-testid="board-notice-slot" className="w-full empty:hidden" />
+                <ToastContainer variant="inline" />
+              </div>
             </div>
 
             {/* Panel 2: Market Buzz (All 11 Fortune & Chance Rules Indexed 2..12 — Desktop: visible; Mobile: compact drawer) */}
-            <div className="hidden md:flex md:w-[37%] max-w-[280px] min-w-[160px] h-full rounded-xl bg-gradient-to-br from-teal-900 via-emerald-950 to-stone-900 text-white p-1.5 border-2 border-emerald-400/80 shadow-xl flex-col justify-between overflow-hidden shrink-0">
+            <div className="hidden md:flex md:w-[37%] max-w-[280px] min-w-[112px] h-full rounded-xl bg-gradient-to-br from-teal-900 via-emerald-950 to-stone-900 text-white p-1.5 border-2 border-emerald-400/80 shadow-xl flex-col justify-between overflow-hidden shrink">
               <div className="flex items-center justify-between border-b border-emerald-300/40 pb-0.5 shrink-0">
                 <div className="flex items-center gap-1.5">
                   <Flame className="w-3.5 h-3.5 text-emerald-300" />
@@ -1199,12 +1178,6 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(({
                 FORTUNE & CHANCE
               </div>
             </div>
-          </div>
-
-          {/* Bottom Center: Polished Player-Facing Turn Indicator (Requirement 2: Zero internal state/phase debug info) */}
-          <div className="z-10 text-[8.5px] sm:text-[9.5px] text-indian-navy-900 dark:text-indian-parchment-100 font-bold bg-white/90 dark:bg-indian-navy-900/90 px-3 py-0.5 rounded-full border border-indian-parchment-300 dark:border-indian-navy-700 shadow-2xs shrink-0 flex items-center gap-1.5">
-            <span className={cn('w-2 h-2 rounded-full shrink-0', isMyTurn ? 'bg-indian-terracotta-500 animate-ping' : 'bg-gray-400')} />
-            <span>{playerFacingTurnMessage}</span>
           </div>
         </div>
 

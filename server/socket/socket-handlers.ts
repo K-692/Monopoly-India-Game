@@ -43,6 +43,13 @@ export function setupSocketHandlers(
     }
   });
 
+  // Finished games are deleted once every player has closed them (or after the retention window):
+  // remove the room as well and tell anyone still connected.
+  gameManager.onGamePurged((gameId, roomId) => {
+    io.to([`game:${gameId}`, `room:${roomId}`, roomId, gameId]).emit('game:closed', { gameId, roomId });
+    roomManager.deleteRoom(roomId);
+  });
+
   // ==========================================
   // HANDSHAKE AUTHENTICATION MIDDLEWARE
   // ==========================================
@@ -663,6 +670,24 @@ export function setupSocketHandlers(
           callback({ ok: false, error: errorMsg });
         }
       }
+    });
+
+    socket.on('game:close', ({ gameId }, callback) => {
+      if (!requireReady(callback)) return;
+      if (!requireSession(socket, roomManager)) {
+        if (typeof callback === 'function') callback({ ok: false, error: 'Unauthenticated' });
+        return;
+      }
+      const session = socket.data.session!;
+      const game = gameManager.getGame(gameId);
+      if (!game || !game.players.some((p) => p.uid === session.uid)) {
+        if (typeof callback === 'function') callback({ ok: true, purged: !game });
+        return;
+      }
+      socket.leave(`game:${gameId}`);
+      socket.leave(gameId);
+      const purged = gameManager.markGameClosed(gameId, session.uid);
+      if (typeof callback === 'function') callback({ ok: true, purged });
     });
 
     socket.on('reaction:send', ({ emote }) => {

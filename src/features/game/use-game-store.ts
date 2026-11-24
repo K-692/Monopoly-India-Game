@@ -47,6 +47,8 @@ interface GameStoreState {
   tickTurnTimer: () => void;
   setError: (error: string | null) => void;
   dismissError: () => void;
+  /** Closes a finished game: tells the host to delete it and wipes it from this device. */
+  closeFinishedGame: (gameId: string) => void;
 }
 
 let activeWalkingTimer: NodeJS.Timeout | null = null;
@@ -489,4 +491,32 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   setError: (error: string | null) => set({ error }),
 
   dismissError: () => set({ error: null }),
+
+  closeFinishedGame: (gameId: string) => {
+    try {
+      getSocket().emit('game:close', { gameId }, () => {});
+    } catch {
+      // socket unavailable — the host still deletes the game after its retention window
+    }
+    if (activeWalkingTimer) {
+      clearInterval(activeWalkingTimer);
+      activeWalkingTimer = null;
+    }
+    if (pendingStateSafetyTimer) {
+      clearTimeout(pendingStateSafetyTimer);
+      pendingStateSafetyTimer = null;
+    }
+    pendingServerState = null;
+    lastDispatchedCommandId = null;
+    processedRollIds.clear();
+    set({
+      gameState: null,
+      events: [],
+      selectedSpaceIndex: null,
+      isRolling: false,
+      pendingCommandType: null,
+      walkingAnimation: null,
+      error: null,
+    });
+  },
 }));

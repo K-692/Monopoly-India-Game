@@ -264,3 +264,11 @@
 
 
 
+
+/* Scrollable area without a visible scrollbar (board-centre notice area) */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}

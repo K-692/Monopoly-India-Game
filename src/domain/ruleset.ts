@@ -44,7 +44,7 @@ export type PassStartRewardOption = (typeof PASS_START_REWARD_OPTIONS)[number];
 export interface HostCustomRules {
   startingCash: number; // Configurable: ₹5,000 to ₹50,000 in steps of ₹5,000 (default ₹20,000)
   passStartReward: number; // Statutory standard: ₹3,000
-  turnTimerSeconds: number; // 15, 30, 45, 60, 90
+  turnTimerSeconds: number; // 3, 15, 30, 45, 60
   maxPlayers: number; // 2..6
   jailBail: number;
   doubleRentMonopoly?: boolean;

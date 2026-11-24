@@ -31,16 +31,15 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
   const [isCheckingBoard, setIsCheckingBoard] = useState(false);
   const [selectedSpaceIndices, setSelectedSpaceIndices] = useState<number[]>([]);
 
-  // Board-centre anchor (sits over the dice) used to show the spectator settlement card
-  // in the middle of the board, just above the dice.
-  const [diceAnchorEl, setDiceAnchorEl] = useState<HTMLElement | null>(() =>
-    typeof document !== 'undefined' ? document.getElementById('board-inspection-dice-anchor') : null
+  // Board-centre notice slot (below the dice) that hosts the spectator settlement card.
+  const [noticeSlotEl, setNoticeSlotEl] = useState<HTMLElement | null>(() =>
+    typeof document !== 'undefined' ? document.getElementById('board-notice-slot') : null
   );
   useEffect(() => {
     if (typeof document === 'undefined') return;
-    const el = document.getElementById('board-inspection-dice-anchor');
-    if (el !== diceAnchorEl) setDiceAnchorEl(el);
-  }, [diceAnchorEl]);
+    const el = document.getElementById('board-notice-slot');
+    if (el !== noticeSlotEl) setNoticeSlotEl(el);
+  }, [noticeSlotEl]);
 
   const debtor = players.find((p) => p.uid === obligation.debtorUid);
   const creditor = players.find((p) => p.uid === obligation.creditorUid);
@@ -112,89 +111,78 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
   };
 
   // =========================================================================
-  // SPECTATOR VIEW (Non-Debtor Players): Compact card in the board centre, just above the dice
+  // SPECTATOR VIEW (Non-Debtor Players): compact card in the board centre, below the dice
   // =========================================================================
   if (!isDebtor) {
     if (typeof document === 'undefined') return null;
+    const paidPct = Math.min(100, Math.round((currentCash / Math.max(1, amountDue)) * 100));
     const spectatorCard = (
-        <div className="rounded-2xl bg-[#090D1A]/95 border-2 border-amber-500/70 shadow-[0_12px_36px_rgba(0,0,0,0.85)] text-white overflow-hidden backdrop-blur-md">
-          {/* Header */}
-          <div className="px-3.5 py-2.5 bg-gradient-to-r from-amber-950 via-[#180A0A] to-[#1F1010] border-b border-amber-500/40 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0">
-                <Landmark className="w-4 h-4 animate-pulse" />
-              </div>
-              <div>
-                <h4 className="font-serif font-black text-xs tracking-wide text-amber-300 uppercase">
-                  Low-Balance Resolution
-                </h4>
-                <span className="text-[10px] text-gray-300 block">
-                  Debt resolution in progress (Sell to Bank)
-                </span>
-              </div>
+      <div className="rounded-xl bg-[#090D1A]/95 border-2 border-amber-500/70 shadow-[0_8px_24px_rgba(0,0,0,0.6)] text-white overflow-hidden">
+        <div className="px-2.5 py-1.5 bg-gradient-to-r from-amber-950 via-[#180A0A] to-[#1F1010] border-b border-amber-500/40 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <Landmark className="w-3.5 h-3.5 text-amber-400 animate-pulse shrink-0" />
+            <h4 className="font-serif font-black text-[10.5px] tracking-wide text-amber-300 uppercase truncate" title="Low-Balance Resolution">
+              Low Balance
+            </h4>
+          </div>
+          <span
+            className={cn(
+              'flex items-center gap-0.5 font-mono font-bold text-[10px] shrink-0',
+              timeLeft <= 15 ? 'text-red-400 animate-pulse' : 'text-amber-300'
+            )}
+          >
+            <Clock className="w-3 h-3" />
+            {timeLeft}s
+          </span>
+        </div>
+
+        <div className="p-2 space-y-1.5 text-[10.5px]">
+          <p className="text-gray-300 leading-snug">
+            <strong className="text-amber-300">{debtor?.displayName || 'Player'}</strong> owes{' '}
+            <strong className="text-red-400">₹{amountDue.toLocaleString('en-IN')}</strong> to {creditor?.displayName || 'Bank'}.
+          </p>
+          <div className="grid grid-cols-2 gap-1.5 font-mono">
+            <div className="px-1.5 py-1 rounded-lg bg-white/5 border border-white/10">
+              <span className="block text-[9px] text-gray-400 font-sans">Cash in hand</span>
+              <span className="font-bold text-emerald-400">₹{currentCash.toLocaleString('en-IN')}</span>
             </div>
-            <div className="text-right">
-              <span className="text-[9px] text-gray-400 block uppercase font-bold">Debt Due</span>
-              <span className="font-mono font-black text-xs text-red-400">
-                ₹{amountDue.toLocaleString('en-IN')}
+            <div
+              data-testid="spectator-remaining-amount"
+              className={cn(
+                'px-1.5 py-1 rounded-lg border',
+                canPayDebt ? 'bg-emerald-950/40 border-emerald-500/50' : 'bg-red-950/40 border-red-500/50'
+              )}
+            >
+              <span className="block text-[9px] text-gray-300 font-sans">Remaining to settle</span>
+              <span className={cn('font-black', canPayDebt ? 'text-emerald-300' : 'text-red-300')}>
+                {canPayDebt ? 'Covered' : `₹${remainingNeeded.toLocaleString('en-IN')}`}
               </span>
             </div>
           </div>
-
-          {/* Details */}
-          <div className="p-3 space-y-2 text-xs">
-            <p className="text-gray-300 text-[11px] leading-snug">
-              <strong className="text-amber-300">{debtor?.displayName || 'Player'}</strong> is resolving a debt of <strong className="text-red-400">₹{amountDue.toLocaleString('en-IN')}</strong> to {creditor?.displayName || 'Bank'}.
-            </p>
-
-            <div className="flex items-center justify-between p-2 rounded-xl bg-white/5 border border-white/10 text-[11px] font-mono">
-              <span className="text-gray-400">Debtor Liquid Cash:</span>
-              <span className="font-bold text-emerald-400">
-                ₹{currentCash.toLocaleString('en-IN')} / ₹{amountDue.toLocaleString('en-IN')}
-              </span>
-            </div>
-
-            {/* Progress bar */}
-            <div className="w-full bg-white/10 rounded-full h-1.5 overflow-hidden">
-              <div
-                className="bg-emerald-400 h-full transition-all duration-300"
-                style={{ width: `${Math.min(100, Math.round((currentCash / Math.max(1, amountDue)) * 100))}%` }}
-              />
-            </div>
-
-            <div className="flex items-center justify-between text-[10px] text-gray-400 pt-0.5">
-              <span className="flex items-center gap-1 text-amber-300">
-                <Clock className="w-3 h-3" />
-                <span>120s Window</span>
-              </span>
-              <span className={cn(
-                'font-mono font-bold',
-                timeLeft <= 15 ? 'text-red-400 animate-pulse' : 'text-amber-300'
-              )}>
-                {timeLeft}s remaining
-              </span>
-            </div>
+          <div className="w-full bg-white/10 rounded-full h-1 overflow-hidden">
+            <div className="bg-emerald-400 h-full transition-all duration-300" style={{ width: `${paidPct}%` }} />
           </div>
         </div>
+      </div>
     );
 
-    if (diceAnchorEl) {
+    if (noticeSlotEl) {
       return createPortal(
         <div
           data-testid="spectator-settlement-popup"
           onClick={(e) => e.stopPropagation()}
-          className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-[135] w-[290px] sm:w-[340px] max-w-[85vw] select-none pointer-events-auto"
+          className="w-full select-none pointer-events-auto animate-scale-in"
         >
-          <div className="animate-slide-up">{spectatorCard}</div>
+          {spectatorCard}
         </div>,
-        diceAnchorEl
+        noticeSlotEl
       );
     }
 
     return createPortal(
       <div
         data-testid="spectator-settlement-popup"
-        className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[120] max-w-sm w-[92vw] sm:w-96 select-none pointer-events-auto"
+        className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[120] max-w-xs w-[92vw] select-none pointer-events-auto"
       >
         <div className="animate-slide-up">{spectatorCard}</div>
       </div>,
@@ -302,11 +290,12 @@ export const FinancialResolutionModal: React.FC<FinancialResolutionModalProps> =
             </div>
           </div>
 
-          <div className="text-right shrink-0">
-            <span className="text-[10px] text-gray-400 block uppercase font-bold">Owed</span>
-            <span className="font-mono font-black text-base sm:text-lg text-red-400">
-              ₹{amountDue.toLocaleString('en-IN')}
+          <div className="text-right shrink-0" data-testid="debtor-remaining-amount">
+            <span className="text-[10px] text-gray-400 block uppercase font-bold">Remaining to settle</span>
+            <span className={cn('font-mono font-black text-base sm:text-lg', canPayDebt ? 'text-emerald-400' : 'text-red-400')}>
+              {canPayDebt ? '₹0' : `₹${remainingNeeded.toLocaleString('en-IN')}`}
             </span>
+            <span className="text-[10px] text-gray-400 block">of ₹{amountDue.toLocaleString('en-IN')} owed</span>
           </div>
         </div>
 

@@ -91,6 +91,8 @@ export class OnlineHost {
       this.gameManager,
       () => this.isReady
     );
+    // A finished game was deleted: take its room off the online directory and drop stored copies.
+    this.roomManager.onRoomDeleted((room) => void this.unpublishRoom(room.roomId, room.inviteCode));
     this.io.onEmit = (event) => {
       if (event === 'game:state' || event === 'room:state' || event === 'game:started' || event === 'room:created') {
         this.dirty = true;
@@ -188,6 +190,31 @@ export class OnlineHost {
     this.channels.set(room.roomId, { roomId: room.roomId, inviteCode: room.inviteCode, channel, subscribed, refreshTimer });
     this.dirty = true;
     await subscribed;
+  }
+
+  /** Removes a room from the online directory, closes its channel and deletes stale snapshots. */
+  private async unpublishRoom(roomId: string, inviteCode: string): Promise<void> {
+    const supabase = getSupabase();
+    const hosted = this.channels.get(roomId);
+    void supabase.rpc('online_close_room', { p_invite_code: inviteCode, p_host_key: this.hostKey });
+    if (hosted) {
+      clearInterval(hosted.refreshTimer);
+      this.channels.delete(roomId);
+      // Give the final "game closed" broadcast a moment to reach remote players before leaving.
+      setTimeout(() => void supabase.removeChannel(hosted.channel), 1500);
+    }
+    if (this.channels.size === 0 && this.roomManager.exportState().rooms.length === 0) {
+      try {
+        localStorage.removeItem('monopoly_online_host_snapshot');
+      } catch {
+        // storage unavailable
+      }
+      const { error } = await supabase.rpc('online_delete_snapshot', { p_host_key: this.hostKey });
+      if (error) console.warn('[OnlineHost] Snapshot delete failed:', error.message);
+    } else {
+      this.dirty = true;
+      await this.flushSnapshot(true);
+    }
   }
 
   private send(roomId: string, msg: HostToClientMessage): void {

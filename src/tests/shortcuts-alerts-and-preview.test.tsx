@@ -192,7 +192,7 @@ describe('Refinements: Net Worth Typography, Board Preview, Alert Sounds & Keybo
       document.body.removeChild(anchor);
     });
 
-    it('displays "120s Window" in the spectator Low-Balance Resolution pop-up', () => {
+    it('shows the countdown and remaining amount in the spectator Low-Balance Resolution pop-up', () => {
       const mockObligation = {
         obligationId: 'obl_spec',
         paymentType: 'TAX' as const,
@@ -217,8 +217,10 @@ describe('Refinements: Net Worth Typography, Board Preview, Alert Sounds & Keybo
         />
       );
 
-      expect(screen.getByText('120s Window')).toBeInTheDocument();
-      expect(screen.getByText(/remaining/i)).toBeInTheDocument();
+      // Compact card: countdown, cash in hand and the amount still to be settled
+      expect(screen.getByText('Remaining to settle')).toBeInTheDocument();
+      expect(screen.getByTestId('spectator-remaining-amount')).toHaveTextContent('Remaining to settle');
+      expect(screen.getByText(/\d+s$/)).toBeInTheDocument();
     });
 
     it('anchors the inspection overlay into board-inspection-dice-anchor when available', () => {

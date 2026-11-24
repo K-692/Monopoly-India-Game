@@ -4,7 +4,8 @@ import { cn } from '@/lib/utils/cn';
 import { useToastStore } from './toast-store';
 
 /**
- * Section 7: Bottom-left floating toast notification container.
+ * Section 7: Toast notification stack — shown in the board centre below the dice during a game,
+ * and in the bottom-left corner elsewhere.
  * - Non-blocking: never obstructs board spaces, dice, player actions or controls.
  * - Zero acknowledgment buttons: acknowledgment button is completely removed.
  * - Small cross ('×') button to dismiss manually.
@@ -13,13 +14,22 @@ import { useToastStore } from './toast-store';
  * - Multiple notifications stack vertically without overlapping.
  * - Per-player independent notification state (purely local client state).
  */
-export const ToastContainer: React.FC = () => {
+export const ToastContainer: React.FC<{
+  /** 'inline' renders inside the board centre (below the dice); 'floating' pins to the bottom-left corner. */
+  variant?: 'floating' | 'inline';
+}> = ({ variant = 'floating' }) => {
   const { toasts, removeToast } = useToastStore();
 
   if (toasts.length === 0) return null;
 
   return (
-    <div className="fixed bottom-4 left-4 z-50 flex flex-col gap-2 max-w-xs sm:max-w-sm pointer-events-none select-none">
+    <div
+      data-testid={variant === 'inline' ? 'board-toast-stack' : 'floating-toast-stack'}
+      className={cn(
+        'flex flex-col gap-1.5 pointer-events-none select-none',
+        variant === 'inline' ? 'w-full' : 'fixed bottom-4 left-4 z-50 max-w-xs sm:max-w-sm gap-2'
+      )}
+    >
       {toasts.map((toast) => {
         const isCivic = toast.deck === 'CIVIC';
         const isMarket = toast.deck === 'MARKET';
@@ -34,8 +44,11 @@ export const ToastContainer: React.FC = () => {
             key={toast.id}
             data-testid={isJail ? 'jail-notification' : `toast-${toast.id}`}
             className={cn(
-              'pointer-events-auto relative overflow-hidden flex flex-col p-3 rounded-xl border shadow-2xl backdrop-blur-md text-xs transition-all duration-200',
-              toast.isExiting ? 'animate-slide-out-left' : 'animate-slide-in-left',
+              'pointer-events-auto relative overflow-hidden flex flex-col shrink-0 rounded-xl',
+              'border shadow-2xl backdrop-blur-md transition-all duration-200',
+              variant === 'inline' ? 'p-2 text-[11px]' : 'p-3 text-xs',
+              variant === 'inline' ? 'animate-scale-in' : toast.isExiting ? 'animate-slide-out-left' : 'animate-slide-in-left',
+              toast.isExiting && variant === 'inline' && 'opacity-0',
               isCivic && 'bg-gradient-to-br from-[#3b1208]/95 via-[#541c0a]/95 to-[#1a0a05]/95 border-amber-400 text-white',
               isMarket && 'bg-gradient-to-br from-[#062c26]/95 via-[#094137]/95 to-[#041714]/95 border-emerald-400 text-white',
               isSuccess && 'bg-[#0B1E17]/95 border-emerald-500/60 text-white',

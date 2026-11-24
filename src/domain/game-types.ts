@@ -437,6 +437,9 @@ export interface RoomMember {
   lastActivityAt?: number;
 }
 
+/** Allowed per-turn time limits in seconds (0 = no limit). */
+export type TurnTimerSeconds = 0 | 3 | 15 | 30 | 45 | 60;
+
 export interface RoomState {
   roomId: string;
   inviteCode: string;
@@ -444,7 +447,7 @@ export interface RoomState {
   hostUid: string;
   status: 'LOBBY' | 'IN_PROGRESS' | 'COMPLETED' | 'ARCHIVED';
   maxPlayers: number;
-  turnTimerSeconds: 0 | 30 | 45 | 60;
+  turnTimerSeconds: TurnTimerSeconds;
   gameMode: 'STANDARD' | 'TIMED';
   customRules?: HostCustomRules;
   members: Record<string, RoomMember>;

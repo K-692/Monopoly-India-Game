@@ -375,10 +375,16 @@ export const GamePage: React.FC = () => {
             <div className="flex gap-2 pt-2">
               <Button
                 variant="primary"
-                onClick={() => navigate('/')}
+                data-testid="close-finished-game"
+                onClick={() => {
+                  // Game is over: delete it everywhere and leave the room, then go home.
+                  useGameStore.getState().closeFinishedGame(gameState.gameId);
+                  useRoomStore.getState().leaveRoom();
+                  navigate('/');
+                }}
                 className="flex-1 font-bold py-2.5"
               >
-                Back to Lobby
+                Close Game
               </Button>
             </div>
           </Card>

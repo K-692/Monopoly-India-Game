@@ -509,6 +509,7 @@ export class GameManager {
       this.stopTurnTimer(gameId);
       this.activeGameByRoom.delete(result.nextState.roomId);
       this.archiveGameSession(result.nextState);
+      this.scheduleFinishedGamePurge(gameId);
 
       this.emitBroadcast(gameId, result.nextState.roomId, 'game:event', result.event);
       this.emitBroadcast(gameId, result.nextState.roomId, 'game:state', result.nextState);
@@ -1466,5 +1467,81 @@ export class GameManager {
 
   public getArchive(gameId: string): GameArchive | null {
     return this.archives.get(gameId) || null;
+  }
+
+  // ==========================================
+  // FINISHED-GAME CLEANUP
+  // ==========================================
+
+  /** Human players who have closed the Game Over screen, per finished game. */
+  private closedBy: Map<string, Set<string>> = new Map();
+  private retentionTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
+  private purgeListeners: Array<(gameId: string, roomId: string) => void> = [];
+
+  /** Registers a callback run after a finished game has been purged (used to remove its room). */
+  public onGamePurged(listener: (gameId: string, roomId: string) => void): void {
+    this.purgeListeners.push(listener);
+  }
+
+  /** How long a finished game is kept if not every player closes the Game Over screen. */
+  public static readonly FINISHED_GAME_RETENTION_MS = 10 * 60 * 1000;
+
+  private scheduleFinishedGamePurge(gameId: string): void {
+    if (this.retentionTimers.has(gameId)) return;
+    const delay = isTestEnv() ? 2000 : GameManager.FINISHED_GAME_RETENTION_MS;
+    const timer = setTimeout(() => this.purgeGame(gameId), delay);
+    this.retentionTimers.set(gameId, timer);
+  }
+
+  /**
+   * Records that a player closed the Game Over screen. When every human player has closed it,
+   * the game is deleted. Returns true when the game was purged.
+   */
+  public markGameClosed(gameId: string, uid: string): boolean {
+    const state = this.games.get(gameId);
+    if (!state || state.status !== 'COMPLETED') return false;
+    const closed = this.closedBy.get(gameId) || new Set<string>();
+    closed.add(uid);
+    this.closedBy.set(gameId, closed);
+    const humans = state.players.filter((p) => !(p.isCpu || p.playerType === 'COMPUTER')).map((p) => p.uid);
+    if (humans.every((h) => closed.has(h))) {
+      this.purgeGame(gameId);
+      return true;
+    }
+    return false;
+  }
+
+  /** Permanently deletes every trace of a game: state, events, commands, archive and timers. */
+  public purgeGame(gameId: string): void {
+    const state = this.games.get(gameId);
+    const roomId = state?.roomId || '';
+    this.stopTurnTimer(gameId);
+    this.cpuController.stopGame(gameId);
+    const retention = this.retentionTimers.get(gameId);
+    if (retention) clearTimeout(retention);
+    this.retentionTimers.delete(gameId);
+    for (const [key, timer] of [...this.disconnectGraceTimers.entries()]) {
+      if (key.startsWith(`${gameId}:`)) {
+        clearTimeout(timer);
+        this.disconnectGraceTimers.delete(key);
+      }
+    }
+    for (const key of [...this.processedCommands.keys()]) {
+      if (key.startsWith(`${gameId}:`)) this.processedCommands.delete(key);
+    }
+    this.games.delete(gameId);
+    this.archives.delete(gameId);
+    this.closedBy.delete(gameId);
+    if (roomId && this.activeGameByRoom.get(roomId) === gameId) this.activeGameByRoom.delete(roomId);
+    void this.enqueuePersist(gameId, 'delete-game', () => this.store.deleteGame(gameId));
+    if (state) {
+      for (const listener of this.purgeListeners) {
+        try {
+          listener(gameId, roomId);
+        } catch (err) {
+          console.warn('[GameManager] purge listener failed:', err);
+        }
+      }
+    }
   }
 }

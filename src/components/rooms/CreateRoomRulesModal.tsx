@@ -146,8 +146,8 @@ export const CreateRoomRulesModal: React.FC<CreateRoomRulesModalProps> = ({
             <label className="block font-bold text-indian-navy-900 dark:text-indian-parchment-100 mb-1.5 uppercase tracking-wider">
               Turn Timer Limit
             </label>
-            <div className="grid grid-cols-4 gap-2">
-              {[15, 30, 45, 60].map((sec) => (
+            <div className="grid grid-cols-5 gap-2">
+              {[3, 15, 30, 45, 60].map((sec) => (
                 <button
                   type="button"
                   key={sec}
@@ -158,7 +158,7 @@ export const CreateRoomRulesModal: React.FC<CreateRoomRulesModalProps> = ({
                       : 'bg-indian-parchment-100 dark:bg-indian-navy-800 text-indian-navy-900 dark:text-gray-300 border-indian-parchment-300 hover:bg-indian-parchment-200'
                   }`}
                 >
-                  {sec} seconds
+                  {sec}s
                 </button>
               ))}
             </div>

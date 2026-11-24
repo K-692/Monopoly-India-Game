@@ -116,6 +116,19 @@ export class MemoryStore implements PersistenceStore {
     }
   }
 
+  public async deleteGame(gameId: string): Promise<void> {
+    const game = this.games.get(gameId);
+    if (game && this.activeGameByRoomId.get(game.roomId) === gameId) {
+      this.activeGameByRoomId.delete(game.roomId);
+    }
+    this.games.delete(gameId);
+    this.gameEvents.delete(gameId);
+    this.archives.delete(gameId);
+    for (const key of [...this.processedCommands.keys()]) {
+      if (key.startsWith(`${gameId}:`)) this.processedCommands.delete(key);
+    }
+  }
+
   public async cleanupExpiredRooms(_maxAgeMs = 24 * 60 * 60 * 1000): Promise<number> {
     const now = Date.now();
     let cleaned = 0;

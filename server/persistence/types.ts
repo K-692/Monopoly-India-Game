@@ -67,6 +67,8 @@ export interface PersistenceStore {
   getGame(gameId: string): Promise<GameState | null>;
   getActiveGameForRoom(roomId: string): Promise<GameState | null>;
   listActiveGames(): Promise<GameState[]>;
+  /** Permanently removes a game with its events, processed commands and archive. */
+  deleteGame(gameId: string): Promise<void>;
 
   // ==========================================
   // ATOMIC COMMAND COMMIT & EVENTS

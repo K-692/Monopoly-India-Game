@@ -152,6 +152,11 @@ export interface ClientToServerEvents {
     callback?: (res: { ok: boolean; gameState?: GameState; room?: RoomState; error?: string }) => void
   ) => void;
 
+  'game:close': (
+    data: { gameId: string },
+    callback?: (res: { ok: boolean; purged?: boolean; error?: string }) => void
+  ) => void;
+
   'reaction:send': (
     data: { emote: string }
   ) => void;
@@ -169,6 +174,7 @@ export interface ServerToClientEvents {
   'room:state': (room: RoomState) => void;
   'game:started': (data: { gameId: string; gameState: GameState }) => void;
   'game:state': (gameState: GameState) => void;
+  'game:closed': (data: { gameId: string; roomId: string }) => void;
   'game:event': (event: GameEvent) => void;
   'game:timer': (data: {
     remaining: number;

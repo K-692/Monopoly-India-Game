@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { Header } from '@/components/ui/Header';
 import { NamePromptModal } from '@/components/ui/NamePromptModal';
 import { ToastContainer } from '@/components/feedback/ToastContainer';
@@ -10,6 +10,8 @@ import { useAuthStore } from '@/features/auth/use-auth-store';
 export const App: React.FC = () => {
   const { theme } = useSettingsStore();
   const { initializeAuth } = useAuthStore();
+  // On the game screen the ping badge and notifications live inside the board centre instead.
+  const onGameScreen = useLocation().pathname.startsWith('/game/');
 
   useEffect(() => {
     initializeAuth();
@@ -30,10 +32,9 @@ export const App: React.FC = () => {
         <Outlet />
       </main>
       <NamePromptModal />
-      {/* Floating Bottom-Left Non-Blocking Toasts and Acknowledgment Windows */}
-      <ToastContainer />
-      {/* Always-visible live server latency (bottom-right corner) */}
-      <PingIndicator />
+      {/* Outside a game: bottom-left toasts and bottom-right live latency badge */}
+      {!onGameScreen && <ToastContainer />}
+      {!onGameScreen && <PingIndicator />}
     </div>
   );
 };

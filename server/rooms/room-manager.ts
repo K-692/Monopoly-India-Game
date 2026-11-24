@@ -5,7 +5,7 @@
  */
 
 import { hashToken, randomHex, randomInt, randomUUID, sha256Hex } from '../lib/isomorphic-crypto';
-import { RoomMember } from '../../src/domain/game-types';
+import { RoomMember, TurnTimerSeconds } from '../../src/domain/game-types';
 import {
   DEFAULT_HOST_RULES,
   HostCustomRules,
@@ -331,8 +331,10 @@ export class RoomManager {
       passStartReward,
       jailBail,
     };
-    const normalizedTimer: 0 | 30 | 45 | 60 =
+    const normalizedTimer: TurnTimerSeconds =
       rules.turnTimerSeconds === 0 ? 0 :
+      rules.turnTimerSeconds === 3 ? 3 :
+      rules.turnTimerSeconds === 15 ? 15 :
       rules.turnTimerSeconds === 45 ? 45 :
       rules.turnTimerSeconds === 60 ? 60 : 30;
     const normalizedMode: 'STANDARD' | 'TIMED' =
@@ -850,9 +852,7 @@ export class RoomManager {
 
     // If room is empty, delete room immediately
     if (remainingMembers.length === 0) {
-      this.rooms.delete(roomId);
-      this.codeToRoomId.delete(room.inviteCode);
-      this.store.deleteRoom(roomId).catch(() => {});
+      this.deleteRoom(roomId);
       return { ok: true, roomDeleted: true };
     }
 
@@ -867,6 +867,37 @@ export class RoomManager {
     this.store.updateRoom(room).catch(() => {});
 
     return { ok: true, room };
+  }
+
+  private roomDeletedListeners: Array<(room: ServerRoom) => void> = [];
+
+  /** Registers a callback run after a room has been deleted. */
+  public onRoomDeleted(listener: (room: ServerRoom) => void): void {
+    this.roomDeletedListeners.push(listener);
+  }
+
+  /** Permanently deletes a room and detaches every member session from it. */
+  public deleteRoom(roomId: string): ServerRoom | null {
+    const room = this.rooms.get(roomId);
+    if (!room) return null;
+    this.rooms.delete(roomId);
+    this.codeToRoomId.delete(room.inviteCode);
+    for (const uid of Object.keys(room.members)) {
+      const session = this.sessionsByUid.get(uid);
+      if (session && session.roomId === roomId) {
+        session.roomId = null;
+        this.store.saveSession(session).catch(() => {});
+      }
+    }
+    this.store.deleteRoom(roomId).catch(() => {});
+    for (const listener of this.roomDeletedListeners) {
+      try {
+        listener(room);
+      } catch (err) {
+        console.warn('[RoomManager] room-deleted listener failed:', err);
+      }
+    }
+    return room;
   }
 
   public getRoom(roomId: string): ServerRoom | null {

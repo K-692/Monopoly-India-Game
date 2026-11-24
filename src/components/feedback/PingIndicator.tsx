@@ -19,9 +19,12 @@ const QUALITY_STYLES: Record<ReturnType<typeof getLatencyQuality>, { dot: string
 };
 
 /**
- * Always-visible bottom-right badge showing live round-trip latency to the game server.
+ * Always-visible badge (on the board during a game, bottom-right elsewhere) showing live round-trip latency to the game server.
  */
-export const PingIndicator: React.FC = () => {
+export const PingIndicator: React.FC<{
+  /** 'inline' sits on the board above the dice; 'floating' pins to the bottom-right corner. */
+  variant?: 'floating' | 'inline';
+}> = ({ variant = 'floating' }) => {
   const status = useConnectionStore((s) => s.status);
   const smoothedMs = useLatencyStore((s) => s.smoothedMs);
   const latencyMs = useLatencyStore((s) => s.latencyMs);
@@ -47,7 +50,12 @@ export const PingIndicator: React.FC = () => {
       role="status"
       aria-live="off"
       title={latencyMs !== null ? `Server round-trip: ${latencyMs} ms (last sample)` : 'Server latency'}
-      className="fixed bottom-2 right-2 z-[200] flex items-center gap-1.5 px-2 py-0.5 rounded-md border shadow-sm font-mono text-[11px] font-bold select-none pointer-events-auto bg-indian-parchment-50/90 dark:bg-indian-navy-800/90 border-indian-parchment-300 dark:border-indian-navy-600 backdrop-blur-sm mb-[env(safe-area-inset-bottom)]"
+      className={cn(
+        'flex items-center gap-1.5 px-2 py-0.5 border shadow-sm font-mono text-[11px] font-bold select-none pointer-events-auto bg-indian-parchment-50/90 dark:bg-indian-navy-800/90 border-indian-parchment-300 dark:border-indian-navy-600',
+        variant === 'inline'
+          ? 'rounded-full shrink-0'
+          : 'fixed bottom-2 right-2 z-[200] rounded-md backdrop-blur-sm mb-[env(safe-area-inset-bottom)]'
+      )}
     >
       {isConnected ? (
         <Wifi className={cn('w-3.5 h-3.5', styles.text)} />
