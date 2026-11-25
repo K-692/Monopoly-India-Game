@@ -56,7 +56,7 @@ function safeSet(key: string, value: string): void {
 }
 
 /** Stable per-browser identity, shared with the auth store's localStorage keys. */
-export function getOnlineIdentity(): { uid: string; token: string; displayName: string; avatarColor: string } {
+export function getOnlineIdentity(): { uid: string; token: string; displayName: string; avatarColor: string; avatarEmoji: string | null } {
   let uid = safeGet('monopoly_player_uid') || '';
   let token = safeGet('monopoly_reconnect_token') || '';
   if (!/^usr_[a-z0-9]{8,32}$/.test(uid) || !/^[a-f0-9]{32,128}$/.test(token)) {
@@ -70,6 +70,7 @@ export function getOnlineIdentity(): { uid: string; token: string; displayName: 
     token,
     displayName: safeGet('monopoly_player_name') || 'Player',
     avatarColor: safeGet('monopoly_player_color') || '#C2410C',
+    avatarEmoji: safeGet('monopoly_player_avatar') || null,
   };
 }
 
@@ -158,6 +159,10 @@ export class OnlineSocket {
   }
 
   private fire(event: string, ...args: unknown[]): void {
+    // Kicked out of another host's room: go back to our own (local) host after listeners run
+    if (event === 'room:kicked' && this.target.kind === 'remote') {
+      setTimeout(() => void this.switchToLocal(), 300);
+    }
     for (const fn of [...(this.listeners.get(event) || [])]) {
       try {
         fn(...args);

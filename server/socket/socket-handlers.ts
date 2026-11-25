@@ -189,10 +189,10 @@ export function setupSocketHandlers(
     // 1. PLAYER REGISTRATION & RECONNECTION
     // ==========================================
 
-    socket.on('player:register', ({ displayName, avatarColor, token }, callback) => {
+    socket.on('player:register', ({ displayName, avatarColor, token, avatarEmoji }, callback) => {
       if (!requireReady(callback)) return;
       try {
-        const player = roomManager.registerPlayer(displayName, avatarColor, token, clientIp);
+        const player = roomManager.registerPlayer(displayName, avatarColor, token, clientIp, undefined, avatarEmoji);
         const { session, previousSocketId } = roomManager.bindSocket(socket.id, player.uid, clientIp);
 
         if (previousSocketId && previousSocketId !== socket.id) {
@@ -213,7 +213,8 @@ export function setupSocketHandlers(
             socket.join(session.roomId);
             const currentRoom = roomManager.getRoom(session.roomId);
             if (currentRoom) {
-              socket.emit('room:state', currentRoom);
+              // Name/avatar changes show for everyone in the lobby
+              io.to([`room:${currentRoom.roomId}`, currentRoom.roomId]).emit('room:state', currentRoom);
             }
           }
         }
@@ -227,6 +228,46 @@ export function setupSocketHandlers(
           callback({ ok: false, error: msg });
         }
       }
+    });
+
+    socket.on('player:update-profile', (data, callback) => {
+      if (!requireReady(callback)) return;
+      if (!requireSession(socket, roomManager)) {
+        if (typeof callback === 'function') callback({ ok: false, error: 'Unauthenticated' });
+        return;
+      }
+      const result = roomManager.updateProfile(socket.data.session!.uid, data || {});
+      if (result.ok && result.room) {
+        io.to([`room:${result.room.roomId}`, result.room.roomId]).emit('room:state', result.room);
+      }
+      if (typeof callback === 'function') callback({ ok: result.ok, player: result.player, error: result.error });
+    });
+
+    socket.on('room:kick', ({ uid }, callback) => {
+      if (!requireReady(callback)) return;
+      if (!requireSession(socket, roomManager)) {
+        if (typeof callback === 'function') callback({ ok: false, error: 'Unauthenticated' });
+        return;
+      }
+      const session = socket.data.session!;
+      if (!session.roomId) {
+        if (typeof callback === 'function') callback({ ok: false, error: 'Not in a room' });
+        return;
+      }
+      const roomId = session.roomId;
+      const targetSocketId = roomManager.getSocketIdForUid(uid);
+      const result = roomManager.kickMember(roomId, session.uid, uid);
+      if (!result.ok || !result.room) {
+        if (typeof callback === 'function') callback({ ok: false, error: result.error });
+        return;
+      }
+      const target = targetSocketId ? io.sockets.sockets.get(targetSocketId) : undefined;
+      if (target) {
+        target.emit('room:kicked', { roomId, message: 'You have been kicked out from the room.' });
+        detachChannels(target as AppSocket);
+      }
+      io.to([`room:${roomId}`, roomId]).emit('room:state', result.room);
+      if (typeof callback === 'function') callback({ ok: true });
     });
 
     socket.on('player:resume', ({ token, displayName }, callback) => {

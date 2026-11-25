@@ -1,9 +1,12 @@
 import React from 'react';
+import { avatarLabel } from '@/domain/avatar';
 import { Clock } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 
 interface PopupTurnTimerProps {
   activePlayerName?: string;
+  /** Emoji avatar of the active player (falls back to the name's initial). */
+  activePlayerEmoji?: string | null;
   activePlayerColor?: string;
   timeRemaining?: number;
   isMyTurn?: boolean;
@@ -12,6 +15,7 @@ interface PopupTurnTimerProps {
 
 export const PopupTurnTimer: React.FC<PopupTurnTimerProps> = ({
   activePlayerName = 'Player',
+  activePlayerEmoji = null,
   activePlayerColor = '#C85A32',
   timeRemaining = 30,
   isMyTurn = false,
@@ -34,7 +38,7 @@ export const PopupTurnTimer: React.FC<PopupTurnTimerProps> = ({
         style={{ backgroundColor: activePlayerColor }}
         className="w-4 h-4 rounded-full text-[8.5px] font-black text-white flex items-center justify-center border border-white shadow-xs shrink-0"
       >
-        {activePlayerName.charAt(0).toUpperCase()}
+        {avatarLabel({ displayName: activePlayerName, avatarEmoji: activePlayerEmoji })}
       </div>
       <span className="truncate max-w-[90px] sm:max-w-[120px] text-[10.5px] sm:text-xs">
         {isMyTurn ? 'Your Turn' : activePlayerName}

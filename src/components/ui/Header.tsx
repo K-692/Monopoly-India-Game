@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { avatarLabel } from '@/domain/avatar';
 import { Link, useLocation } from 'react-router-dom';
 import { Volume2, VolumeX, Dices, Settings as SettingsIcon, Edit3, HelpCircle } from 'lucide-react';
 import { useAuthStore } from '@/features/auth/use-auth-store';
@@ -107,7 +108,7 @@ export const Header: React.FC = () => {
                 style={{ backgroundColor: player?.avatarColor || '#C85A32' }}
                 className="w-6 h-6 rounded-full text-white text-[10px] font-black flex items-center justify-center shadow-xs shrink-0"
               >
-                {(player?.displayName || 'P').charAt(0).toUpperCase()}
+                {avatarLabel(player)}
               </div>
               <span className="text-xs font-bold text-indian-navy-900 dark:text-indian-parchment-100 max-w-[65px] sm:max-w-[120px] truncate">
                 {player?.displayName || 'Set Name'}

@@ -130,6 +130,8 @@ export interface PlayerState {
   uid: string;
   displayName: string;
   photoURL: string | null;
+  /** Emoji avatar shown in place of the name's initial. */
+  avatarEmoji?: string | null;
   cash: number;
   netWorth: number;
   position: number; // [0..39]
@@ -430,6 +432,10 @@ export interface RoomMember {
   uid: string;
   displayName: string;
   photoURL: string | null;
+  /** Emoji avatar shown in place of the name's initial. */
+  avatarEmoji?: string | null;
+  /** Fixed lobby slot (1..6). A player who leaves the lobby gets the same slot back when they return. */
+  slotIndex?: number;
   isReady: boolean;
   joinedAt: number;
   colorToken: string;
@@ -460,6 +466,12 @@ export interface RoomState {
   updatedAt: number;
   expiresAt: number;
   nextJoinSequence?: number;
+  /** Slot reserved for a human who left (uid -> slot), honoured when they rejoin. */
+  reservedSlots?: Record<string, number>;
+  /** Members who left, kept so they can rejoin (same slot, or their seat mid-game). */
+  formerMembers?: Record<string, RoomMember>;
+  /** Players removed by the host; they cannot rejoin this room. */
+  kickedUids?: string[];
 }
 
 export interface EmoteReaction {

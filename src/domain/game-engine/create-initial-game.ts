@@ -150,6 +150,7 @@ export function createInitialGame(
       uid: m.uid,
       displayName: m.displayName || `Player ${index + 1}`,
       photoURL: m.photoURL || null,
+      avatarEmoji: m.avatarEmoji || null,
       cash: initialCash,
       netWorth: initialCash,
       position: 0, // START

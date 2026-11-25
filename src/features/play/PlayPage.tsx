@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore, PLAYER_COLORS } from '@/features/auth/use-auth-store';
+import { AvatarPicker } from '@/components/ui/AvatarPicker';
+import { avatarLabel } from '@/domain/avatar';
 import { useRoomStore } from '@/features/rooms/use-room-store';
 import { CreateRoomRulesModal } from '@/components/rooms/CreateRoomRulesModal';
 import { RulesModal } from '@/components/rules/RulesModal';
@@ -54,6 +56,7 @@ export const PlayPage: React.FC = () => {
   const hasUsername = isValidUsername(player?.displayName);
   const [usernameInput, setUsernameInput] = useState(player?.displayName || '');
   const [selectedColor, setSelectedColor] = useState(player?.avatarColor || PLAYER_COLORS[0]);
+  const [selectedEmoji, setSelectedEmoji] = useState<string | null>(player?.avatarEmoji ?? null);
   const [usernameError, setUsernameError] = useState<string | null>(null);
   const [isEditingName, setIsEditingName] = useState(!hasUsername);
   const [isSavingName, setIsSavingName] = useState(false);
@@ -63,6 +66,7 @@ export const PlayPage: React.FC = () => {
     if (player?.displayName && isValidUsername(player.displayName)) {
       setUsernameInput(player.displayName);
       if (player.avatarColor) setSelectedColor(player.avatarColor);
+      setSelectedEmoji(player.avatarEmoji ?? null);
       setIsEditingName(false);
     } else {
       setIsEditingName(true);
@@ -116,7 +120,11 @@ export const PlayPage: React.FC = () => {
     setUsernameError(null);
     setIsSavingName(true);
     try {
-      await setPlayerName(usernameInput.trim(), selectedColor);
+      const res = await setPlayerName(usernameInput.trim(), selectedColor, selectedEmoji);
+      if (!res.ok) {
+        setUsernameError(res.error || 'Could not save your profile.');
+        return;
+      }
       setIsEditingName(false);
     } finally {
       setIsSavingName(false);
@@ -339,6 +347,19 @@ export const PlayPage: React.FC = () => {
                 </div>
               </div>
 
+              {/* Emoji avatar (shown everywhere in place of the initial) */}
+              <div>
+                <label className="block text-xs font-bold text-indian-navy-800 dark:text-indian-parchment-200 mb-1.5 uppercase tracking-wider">
+                  Avatar
+                </label>
+                <AvatarPicker
+                  value={selectedEmoji}
+                  onChange={setSelectedEmoji}
+                  fallbackLetter={(usernameInput.trim() || 'P').charAt(0).toUpperCase()}
+                  color={selectedColor}
+                />
+              </div>
+
               <div className="flex items-center gap-2 pt-1">
                 <Button
                   type="submit"
@@ -374,7 +395,7 @@ export const PlayPage: React.FC = () => {
                 style={{ backgroundColor: player?.avatarColor || selectedColor }}
                 className="w-6 h-6 rounded-full border-2 border-white shadow-xs flex items-center justify-center text-[10px] text-white font-black"
               >
-                {player?.displayName?.charAt(0).toUpperCase()}
+                {avatarLabel(player)}
               </div>
               <div className="text-xs">
                 <span className="text-gray-500 dark:text-gray-400">Playing as: </span>

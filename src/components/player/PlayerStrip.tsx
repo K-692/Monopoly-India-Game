@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { avatarLabel } from '@/domain/avatar';
 import { FinancialTransaction, PlayerState, PropertyState, PendingFinancialObligation } from '@/domain/game-types';
 import { Card } from '@/components/ui/Card';
 import { IndianRupee, Clock, Flag } from 'lucide-react';
@@ -166,7 +167,7 @@ export const PlayerStrip: React.FC<PlayerStripProps> = React.memo(({
                     style={{ backgroundColor: player.colorToken }}
                     className="w-5 h-5 rounded-full border-1.5 border-white shadow-token-glow flex items-center justify-center text-[9px] text-white font-black shrink-0"
                   >
-                    {player.displayName.charAt(0).toUpperCase()}
+                    {avatarLabel(player)}
                   </div>
 
                   {/* Name, Status & Turn Timer Header */}

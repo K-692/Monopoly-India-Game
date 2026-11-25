@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { avatarLabel } from '@/domain/avatar';
 import { createPortal } from 'react-dom';
 import { BOARD_SPACES, CIVIC_FUND_CARDS, MARKET_BUZZ_CARDS, getCardFinancialEffect } from '@/domain/board-config';
 import { CardAction, GameActionType, GameEvent, GameState, WalkingAnimationState } from '@/domain/game-types';
@@ -100,16 +101,9 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(({
       // Section 5: Start-Pass Notification Privacy & Immediate Trigger
       // Only show the credited amount to the relevant player who crossed START!
       // Triggers immediately as player crosses START without waiting for entire walking sequence to finish.
+      // START salary is credited and announced by the game store at the moment the pawn crosses START
       if (tx.type === 'START_REWARD') {
-        if (!isRecipient) return;
-        useToastStore.getState().addToast({
-          eventId: tx.id,
-          type: 'success',
-          title: 'START Salary',
-          message: `You received ₹${tx.amount.toLocaleString('en-IN')}`,
-          amount: tx.amount,
-          flow: 'CREDIT',
-        });
+        void isRecipient;
         return;
       }
     }
@@ -241,6 +235,30 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(({
       });
     }
   }, [gameState.activeCardPopup, gameState.turnNumber, walkingAnimation]);
+
+  // Big "YOUR TURN" splash, shown only on this player's screen each time their turn begins
+  const [yourTurnKey, setYourTurnKey] = useState<string | null>(null);
+  const lastYourTurnKeyRef = useRef<string | null>(null);
+  const meNow = gameState.players.find((p) => p.uid === userUid);
+  const myTurnStarts =
+    Boolean(userUid) &&
+    gameState.currentPlayerUid === userUid &&
+    gameState.status !== 'COMPLETED' &&
+    !gameState.handoff?.isActive &&
+    !meNow?.isBankrupt &&
+    !meNow?.isDisqualified;
+  const turnKey = `${gameState.gameId}_${gameState.turnNumber}_${gameState.currentPlayerUid}`;
+  useEffect(() => {
+    if (!myTurnStarts || lastYourTurnKeyRef.current === turnKey) return;
+    lastYourTurnKeyRef.current = turnKey;
+    setYourTurnKey(turnKey);
+  }, [myTurnStarts, turnKey]);
+  // The hide timer belongs to the splash itself, so re-renders of the turn state can never keep it up
+  useEffect(() => {
+    if (!yourTurnKey) return;
+    const t = setTimeout(() => setYourTurnKey(null), 1800);
+    return () => clearTimeout(t);
+  }, [yourTurnKey]);
 
   // Central Jail Transition Detection & Center Board Notification
   const prevJailStatusRef = useRef<Record<string, boolean> | null>(null);
@@ -751,6 +769,21 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(({
       data-testid="monopoly-board-grid"
       className="relative w-full h-full max-h-full aspect-square mx-auto p-0.5 sm:p-1 bg-indian-parchment-200 border-2 border-indian-parchment-400 rounded-xl shadow-board-elevation select-none flex flex-col justify-center overflow-hidden"
     >
+      {yourTurnKey && (
+        <div
+          key={yourTurnKey}
+          data-testid="your-turn-banner"
+          aria-live="assertive"
+          className="absolute inset-0 z-[100] flex items-center justify-center pointer-events-none"
+        >
+          <div className="animate-your-turn px-8 py-4 sm:px-12 sm:py-6 rounded-3xl bg-gradient-to-br from-indian-terracotta-500/95 to-amber-500/95 border-4 border-white shadow-[0_20px_60px_rgba(0,0,0,0.45)]">
+            <span className="block font-serif font-black text-4xl sm:text-6xl md:text-7xl tracking-wider text-white drop-shadow-[0_4px_8px_rgba(0,0,0,0.45)] whitespace-nowrap">
+              YOUR TURN
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* 11x11 Grid with Expanded Perimeter Dimensions and Spacious City Grids */}
       <div
         className="w-full h-full grid gap-[1px] bg-indian-parchment-400 rounded-lg overflow-hidden relative"
@@ -828,7 +861,7 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(({
                           isActivePawn && !isWalkingThisPawn && 'animate-pulse scale-105 ring-1 ring-white'
                         )}
                       >
-                        {p.displayName.charAt(0).toUpperCase()}
+                        {avatarLabel(p)}
                       </div>
                     );
                   })}
@@ -1522,6 +1555,7 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(({
           currentUserUid={userUid}
           turnNumber={gameState.turnNumber}
           activePlayerName={activePlayer?.displayName}
+          activePlayerEmoji={activePlayer?.avatarEmoji}
           activePlayerColor={activePlayer?.colorToken}
           turnTimeRemaining={gameState.turnTimeRemaining ?? 30}
           onClose={() => onSelectSpace(null)}
@@ -1552,6 +1586,7 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(({
               <div className="flex items-center gap-2">
                 <PopupTurnTimer
                   activePlayerName={activePlayer?.displayName}
+          activePlayerEmoji={activePlayer?.avatarEmoji}
                   activePlayerColor={activePlayer?.colorToken}
                   timeRemaining={gameState.turnTimeRemaining ?? 30}
                   isMyTurn={isMyTurn}

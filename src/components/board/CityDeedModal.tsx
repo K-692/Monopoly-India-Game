@@ -16,6 +16,7 @@ interface CityDeedModalProps {
   onClose: () => void;
   onDispatch?: (type: GameActionType, payload?: Record<string, unknown>) => void;
   activePlayerName?: string;
+  activePlayerEmoji?: string | null;
   activePlayerColor?: string;
   turnTimeRemaining?: number;
   readOnly?: boolean;
@@ -31,6 +32,7 @@ export const CityDeedModal: React.FC<CityDeedModalProps> = ({
   onClose,
   onDispatch: _onDispatch,
   activePlayerName,
+  activePlayerEmoji,
   activePlayerColor,
   turnTimeRemaining = 30,
   readOnly: _readOnly = false,
@@ -80,6 +82,7 @@ export const CityDeedModal: React.FC<CityDeedModalProps> = ({
           <div className="flex items-center gap-2">
             <PopupTurnTimer
               activePlayerName={activePlayerName}
+              activePlayerEmoji={activePlayerEmoji}
               activePlayerColor={activePlayerColor}
               timeRemaining={turnTimeRemaining}
               isMyTurn={Boolean(isMyTurn)}

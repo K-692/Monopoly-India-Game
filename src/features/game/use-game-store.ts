@@ -16,7 +16,7 @@ import {
 } from '@/domain/game-types';
 import { createInitialGame } from '@/domain/game-engine/create-initial-game';
 import { sound } from '@/lib/audio/sound-engine';
-import { HostCustomRules } from '@/domain/ruleset';
+import { HostCustomRules, GAME_CONSTANTS } from '@/domain/ruleset';
 import { getSocket } from '@/lib/socket/socket-client';
 import { useToastStore } from '@/components/feedback/toast-store';
 import { useAuthStore } from '@/features/auth/use-auth-store';
@@ -110,7 +110,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         commandId: 'init_' + Date.now(),
         actorUid: 'system',
         type: 'START_GAME',
-        summary: `Welcome to Indian Monopoly! ${Object.keys(members).length} tycoons assembled in Room #${roomId.slice(-6).toUpperCase()}. Let the trading begin!`,
+        summary: `Welcome to Indian Monopoly! ${Object.keys(members).length} tycoons assembled. Let the trading begin!`,
         payload: {},
         createdAt: Date.now(),
         versionAfter: 1,
@@ -179,6 +179,41 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       if (lastDispatchedCommandId) {
         clientPerf.recordActionRendered(lastDispatchedCommandId);
         lastDispatchedCommandId = null;
+      }
+    };
+
+    /** Shows the START salary immediately (balance, history entry, toast) while the pawn is still walking. */
+    const creditStartSalaryNow = (actorUid: string, rollId: string) => {
+      const shown = get().gameState;
+      if (!shown || shown.gameId !== gameId) return;
+      const held = pendingServerState && pendingServerState.gameId === gameId ? pendingServerState : null;
+      const shownTxIds = new Set((shown.transactions || []).map((t) => t.transactionId));
+      const tx = held?.transactions
+        ?.slice()
+        .reverse()
+        .find((t) => t.type === 'START_REWARD' && t.playerUid === actorUid && !shownTxIds.has(t.transactionId));
+      // The authoritative result is known and has no START salary (e.g. sent to jail): nothing to credit
+      if (held && !tx) return;
+      const amount = tx?.amount ?? shown.rules?.passStartReward ?? GAME_CONSTANTS.START_REWARD;
+      set((st) => {
+        if (!st.gameState || st.gameState.gameId !== gameId) return st;
+        return {
+          gameState: {
+            ...st.gameState,
+            players: st.gameState.players.map((p) => (p.uid === actorUid ? { ...p, cash: p.cash + amount } : p)),
+            transactions: tx ? [...(st.gameState.transactions || []), tx] : st.gameState.transactions,
+          },
+        };
+      });
+      if (actorUid === useAuthStore.getState().player?.uid) {
+        useToastStore.getState().addToast({
+          eventId: tx?.transactionId || `start_${rollId}`,
+          type: 'success',
+          title: 'START Salary',
+          message: `You received ₹${amount.toLocaleString('en-IN')}`,
+          amount,
+          flow: 'CREDIT',
+        });
       }
     };
 
@@ -290,6 +325,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
           // Phase 2: Token walking begins ONLY AFTER the roll finishes settling.
           // Sequential step-by-step movement along circular path (280ms per step for an easy-to-follow walk).
           let currentStep = 0;
+          let startSalaryShown = false;
           if (activeWalkingTimer) clearInterval(activeWalkingTimer);
 
           activeWalkingTimer = setInterval(() => {
@@ -307,6 +343,13 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
                 stepsRemaining,
               },
             });
+
+            // Crossing (or landing on) START: credit the salary the moment the pawn reaches it.
+            // Everything else (rent, tax, purchases) is applied when the pawn arrives at its tile.
+            if (nextPos === 0 && !startSalaryShown) {
+              startSalaryShown = true;
+              creditStartSalaryNow(actorUid, rollId);
+            }
 
             // Phase 3: Token reaches destination (snappy 180ms settle)
             if (currentStep >= totalSteps) {

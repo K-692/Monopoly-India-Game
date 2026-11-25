@@ -232,7 +232,11 @@ export const GamePage: React.FC = () => {
         <div className="flex items-center gap-2">
           <Badge variant="navy" className="text-xs font-bold flex items-center gap-1">
             <Users className="w-3.5 h-3.5" />
-            {`Room #${gameState.roomId.replace('room_', '').slice(0, 6).toUpperCase()}`}
+            {`Room #${
+              currentRoom && currentRoom.roomId === gameState.roomId && currentRoom.inviteCode
+                ? currentRoom.inviteCode
+                : '······'
+            }`}
           </Badge>
           <button
             onClick={() => setMobileDrawerOpen(!mobileDrawerOpen)}

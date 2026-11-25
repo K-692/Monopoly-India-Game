@@ -8,7 +8,7 @@ export type ClientToHostMessage =
   | {
       k: 'hello';
       sid: string;
-      auth: { uid: string; token: string; displayName: string; avatarColor: string };
+      auth: { uid: string; token: string; displayName: string; avatarColor: string; avatarEmoji?: string | null };
     }
   | { k: 'emit'; sid: string; ev: string; args: unknown[]; ack?: number }
   | { k: 'hb'; sid: string }

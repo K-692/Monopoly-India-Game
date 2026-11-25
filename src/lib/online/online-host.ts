@@ -163,7 +163,7 @@ export class OnlineHost {
   // ==========================================
 
   /** Connects the host's own UI as a zero-latency socket. */
-  async connectLocal(auth: { uid: string; token: string; displayName: string; avatarColor: string }, sink: DeliverFn, onKick: (reason: string) => void): Promise<VirtualServerSocket> {
+  async connectLocal(auth: { uid: string; token: string; displayName: string; avatarColor: string; avatarEmoji?: string | null }, sink: DeliverFn, onKick: (reason: string) => void): Promise<VirtualServerSocket> {
     await this.ready;
     this.ensureSession(auth);
     const socket = new VirtualServerSocket(
@@ -179,8 +179,8 @@ export class OnlineHost {
     return socket;
   }
 
-  private ensureSession(auth: { uid: string; token: string; displayName: string; avatarColor: string }): void {
-    this.roomManager.registerPlayer(auth.displayName || 'Player', auth.avatarColor, auth.token, undefined, auth.uid);
+  private ensureSession(auth: { uid: string; token: string; displayName: string; avatarColor: string; avatarEmoji?: string | null }): void {
+    this.roomManager.registerPlayer(auth.displayName || 'Player', auth.avatarColor, auth.token, undefined, auth.uid, auth.avatarEmoji ?? undefined);
   }
 
   // ==========================================

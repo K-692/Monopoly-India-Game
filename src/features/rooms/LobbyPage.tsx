@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { avatarLabel } from '@/domain/avatar';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useRoomStore } from '@/features/rooms/use-room-store';
 import { useAuthStore } from '@/features/auth/use-auth-store';
@@ -29,7 +30,9 @@ import {
 import QRCode from 'qrcode';
 import { copyToClipboard } from '@/lib/utils/clipboard';
 import { useToastStore } from '@/components/feedback/toast-store';
-import { isPublicHostingMode, isPrivateNetworkHost } from '@/lib/socket/socket-client';
+import { isPublicHostingMode, isPrivateNetworkHost, getSocket } from '@/lib/socket/socket-client';
+import { UserX, UserPen } from 'lucide-react';
+import type { RoomMember } from '@/domain/game-types';
 
 /** Deployment base path with trailing slash ('/' on LAN, '/Monopoly-India-Game/' on GitHub Pages). */
 const APP_BASE = (import.meta.env.BASE_URL || '/').replace(/\/*$/, '/');
@@ -241,6 +244,19 @@ export const LobbyPage: React.FC = () => {
     }
   };
 
+  const [kickingUid, setKickingUid] = useState<string | null>(null);
+  const handleKick = (uid: string, name: string) => {
+    if (!isHost || kickingUid) return;
+    if (!window.confirm(`Remove ${name} from the room?`)) return;
+    setKickingUid(uid);
+    getSocket().emit('room:kick', { uid }, (res: { ok: boolean; error?: string }) => {
+      setKickingUid(null);
+      if (!res?.ok) {
+        useToastStore.getState().addToast({ type: 'error', title: 'Could not remove player', message: res?.error || 'Try again.' });
+      }
+    });
+  };
+
   const handleStartRename = (cpuUid: string, currentName: string) => {
     setEditingCpuId(cpuUid);
     setEditingCpuName(currentName);
@@ -368,7 +384,60 @@ export const LobbyPage: React.FC = () => {
   }
 
   // Calculate remaining empty slots out of 6
-  const emptySlotCount = Math.max(0, TOTAL_ROOM_SLOTS - memberList.length);
+  // Fixed slots: each member keeps their slot number (a player who leaves gets it back when they return)
+  const slotEntries: Array<{ slot: number; member?: RoomMember }> = (() => {
+    const bySlot = new Map<number, RoomMember>();
+    const unslotted: RoomMember[] = [];
+    for (const m of [...memberList].sort((a, b) => (a.roomJoinSequence || 0) - (b.roomJoinSequence || 0))) {
+      if (m.slotIndex && m.slotIndex <= TOTAL_ROOM_SLOTS && !bySlot.has(m.slotIndex)) bySlot.set(m.slotIndex, m);
+      else unslotted.push(m);
+    }
+    for (const m of unslotted) {
+      for (let s = 1; s <= TOTAL_ROOM_SLOTS; s++) if (!bySlot.has(s)) { bySlot.set(s, m); break; }
+    }
+    return Array.from({ length: TOTAL_ROOM_SLOTS }, (_, i) => ({ slot: i + 1, member: bySlot.get(i + 1) }));
+  })();
+  const reservedSlotNumbers = new Set(Object.values(room.reservedSlots || {}));
+
+  const renderEmptySlot = (slotNumber: number) => {
+    return (
+              <div
+                key={`empty-slot-${slotNumber}`}
+                className="border-2 border-dashed border-indian-parchment-300 dark:border-indian-navy-700 rounded-xl p-3 flex items-center justify-between text-xs text-gray-400 font-medium bg-indian-parchment-100/30 dark:bg-indian-navy-900/30"
+              >
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full border border-dashed border-gray-300 dark:border-gray-700 flex items-center justify-center text-[11px] font-bold text-gray-400">
+                    {slotNumber}
+                  </div>
+                  <div>
+                    <span className="font-bold text-gray-500 dark:text-gray-400 text-xs block">
+                      Slot {slotNumber}: Available
+                    </span>
+                    <span className="text-[10px] text-gray-400">
+                      {reservedSlotNumbers.has(slotNumber) ? 'Held for a player who left' : 'Open for human or CPU'}
+                    </span>
+                  </div>
+                </div>
+
+                {isHost ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleAddCpu}
+                    disabled={isAddingCpu}
+                    className="text-[11px] h-7 px-2.5 flex items-center gap-1 border-blue-400 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/40 cursor-pointer disabled:opacity-50"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>Add CPU</span>
+                  </Button>
+                ) : (
+                  <span className="text-[10px] text-gray-400 italic">
+                    Waiting for player...
+                  </span>
+                )}
+              </div>
+            );
+  };
 
   return (
     <div className="flex-1 overflow-y-auto w-full px-4 py-6">
@@ -543,7 +612,8 @@ export const LobbyPage: React.FC = () => {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {/* Render Joined Players */}
-          {memberList.map((m, index) => {
+          {slotEntries.map(({ slot, member: m }) => {
+            if (!m) return renderEmptySlot(slot);
             const isCpu = Boolean(m.isCpu || m.playerType === 'COMPUTER');
             const isCurrentPlayer = player && m.uid === player.uid;
             const isEditingThisCpu = isCpu && editingCpuId === m.uid;
@@ -559,7 +629,7 @@ export const LobbyPage: React.FC = () => {
                     style={{ backgroundColor: m.colorToken }}
                     className="w-9 h-9 rounded-full border border-white text-white font-black text-sm flex items-center justify-center shadow-xs shrink-0"
                   >
-                    {m.displayName.charAt(0).toUpperCase()}
+                    {avatarLabel(m)}
                   </div>
 
                   <div className="min-w-0 flex-1">
@@ -617,9 +687,35 @@ export const LobbyPage: React.FC = () => {
                             <span>CPU</span>
                           </span>
                         ) : isCurrentPlayer ? (
-                          <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
-                            You
-                          </span>
+                          <>
+                            <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
+                              You
+                            </span>
+                            {room.status === 'LOBBY' && (
+                              <button
+                                type="button"
+                                data-testid="edit-my-profile"
+                                onClick={() => openNamePrompt()}
+                                className="inline-flex items-center gap-0.5 text-[9px] font-bold text-indian-terracotta-600 hover:underline cursor-pointer"
+                                title="Change your name or avatar"
+                              >
+                                <UserPen className="w-3 h-3" />
+                                <span>Edit</span>
+                              </button>
+                            )}
+                          </>
+                        ) : isHost && room.status === 'LOBBY' ? (
+                          <button
+                            type="button"
+                            data-testid={`kick-${m.uid}`}
+                            onClick={() => handleKick(m.uid, m.displayName)}
+                            disabled={kickingUid === m.uid}
+                            className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[9px] font-bold text-red-600 border border-red-300 hover:bg-red-50 dark:hover:bg-red-950/40 cursor-pointer disabled:opacity-50"
+                            title={`Remove ${m.displayName} from the room`}
+                          >
+                            {kickingUid === m.uid ? <Loader2 className="w-3 h-3 animate-spin" /> : <UserX className="w-3 h-3" />}
+                            <span>Kick</span>
+                          </button>
                         ) : null}
 
                         {/* Host controls for renaming/removing this CPU */}
@@ -652,7 +748,7 @@ export const LobbyPage: React.FC = () => {
                     )}
 
                     <span className="text-[10px] text-gray-500 block">
-                      Slot {index + 1} • {isCpu ? 'Computer Player' : isCurrentPlayer ? 'Local Player' : 'Human Player'}
+                      Slot {slot} • {isCpu ? 'Computer Player' : isCurrentPlayer ? 'Local Player' : 'Human Player'}
                     </span>
                   </div>
                 </div>
@@ -689,47 +785,6 @@ export const LobbyPage: React.FC = () => {
             );
           })}
 
-          {/* Render Remaining Empty Slots up to 6 */}
-          {Array.from({ length: emptySlotCount }).map((_, i) => {
-            const slotNumber = memberList.length + i + 1;
-            return (
-              <div
-                key={`empty-slot-${slotNumber}`}
-                className="border-2 border-dashed border-indian-parchment-300 dark:border-indian-navy-700 rounded-xl p-3 flex items-center justify-between text-xs text-gray-400 font-medium bg-indian-parchment-100/30 dark:bg-indian-navy-900/30"
-              >
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full border border-dashed border-gray-300 dark:border-gray-700 flex items-center justify-center text-[11px] font-bold text-gray-400">
-                    {slotNumber}
-                  </div>
-                  <div>
-                    <span className="font-bold text-gray-500 dark:text-gray-400 text-xs block">
-                      Slot {slotNumber}: Available
-                    </span>
-                    <span className="text-[10px] text-gray-400">
-                      Open for human or CPU
-                    </span>
-                  </div>
-                </div>
-
-                {isHost ? (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={handleAddCpu}
-                    disabled={isAddingCpu}
-                    className="text-[11px] h-7 px-2.5 flex items-center gap-1 border-blue-400 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/40 cursor-pointer disabled:opacity-50"
-                  >
-                    <Plus className="w-3 h-3" />
-                    <span>Add CPU</span>
-                  </Button>
-                ) : (
-                  <span className="text-[10px] text-gray-400 italic">
-                    Waiting for player...
-                  </span>
-                )}
-              </div>
-            );
-          })}
         </div>
       </div>
 

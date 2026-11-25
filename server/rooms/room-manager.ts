@@ -6,6 +6,7 @@
 
 import { hashToken, randomHex, randomInt, randomUUID, sha256Hex } from '../lib/isomorphic-crypto';
 import { RoomMember, TurnTimerSeconds } from '../../src/domain/game-types';
+import { sanitizeAvatarEmoji } from '../../src/domain/avatar';
 import {
   DEFAULT_HOST_RULES,
   HostCustomRules,
@@ -121,10 +122,12 @@ export class RoomManager {
     avatarColor?: string,
     existingToken?: string,
     ipAddress?: string,
-    preferredUid?: string
+    preferredUid?: string,
+    avatarEmoji?: string | null
   ): PlayerSessionPublic {
     const cleanName = (displayName || 'Player').trim().slice(0, 30);
     const chosenColor = avatarColor || PLAYER_PALETTE[0];
+    const chosenEmoji = avatarEmoji === undefined ? undefined : sanitizeAvatarEmoji(avatarEmoji);
 
     // Check if valid token was provided
     if (existingToken) {
@@ -135,6 +138,8 @@ export class RoomManager {
       if (existing) {
         existing.displayName = cleanName;
         existing.avatarColor = chosenColor;
+        if (chosenEmoji !== undefined) existing.avatarEmoji = chosenEmoji;
+        this.syncMemberProfile(existing);
         existing.lastSeenAt = Date.now();
         existing.expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
         if (ipAddress) existing.ipAddress = ipAddress;
@@ -146,6 +151,7 @@ export class RoomManager {
           token: existing.token,
           displayName: existing.displayName,
           avatarColor: existing.avatarColor,
+          avatarEmoji: existing.avatarEmoji ?? null,
         };
       }
     }
@@ -167,6 +173,7 @@ export class RoomManager {
       tokenHash,
       displayName: cleanName,
       avatarColor: chosenColor,
+      avatarEmoji: chosenEmoji ?? null,
       socketId: null,
       roomId: null,
       connected: false,
@@ -189,6 +196,7 @@ export class RoomManager {
       token: session.token,
       displayName: session.displayName,
       avatarColor: session.avatarColor,
+      avatarEmoji: session.avatarEmoji ?? null,
     };
   }
 
@@ -222,6 +230,7 @@ export class RoomManager {
       token: session.token,
       displayName: session.displayName,
       avatarColor: session.avatarColor,
+      avatarEmoji: session.avatarEmoji ?? null,
     };
   }
 
@@ -345,6 +354,8 @@ export class RoomManager {
       uid: hostUid,
       displayName: hostSession.displayName,
       photoURL: null,
+      avatarEmoji: hostSession.avatarEmoji ?? null,
+      slotIndex: 1,
       isReady: false,
       joinedAt: Date.now(),
       colorToken: hostSession.avatarColor || PLAYER_PALETTE[0],
@@ -412,6 +423,7 @@ export class RoomManager {
           colorToken: assignedColor,
           isCpu: true,
           playerType: 'COMPUTER',
+          slotIndex: 2 + i,
           roomJoinSequence: 2 + i,
           lastActivityAt: Date.now() + i + 1,
         };
@@ -509,11 +521,27 @@ export class RoomManager {
 
     const room = this.rooms.get(roomId)!;
 
+    if (room.kickedUids?.includes(playerUid)) {
+      return { ok: false, error: 'You were removed from this room by the host.' };
+    }
+
     // Reject joining if game has already progressed or completed
     if (room.status === 'IN_PROGRESS') {
       // Allow rejoining if the player is already an existing member of the match
       if (room.members[playerUid]) {
         playerSession.roomId = roomId;
+        this.store.saveSession(playerSession).catch(() => {});
+        return { ok: true, room };
+      }
+      // A player who left mid-game takes their seat back
+      const former = room.formerMembers?.[playerUid];
+      if (former) {
+        room.members[playerUid] = { ...former, lastActivityAt: Date.now() };
+        delete room.formerMembers![playerUid];
+        room.memberUids = Object.keys(room.members);
+        room.updatedAt = Date.now();
+        playerSession.roomId = roomId;
+        this.store.updateRoom(room).catch(() => {});
         this.store.saveSession(playerSession).catch(() => {});
         return { ok: true, room };
       }
@@ -566,6 +594,9 @@ export class RoomManager {
       uid: playerUid,
       displayName: playerSession.displayName,
       photoURL: null,
+      avatarEmoji: playerSession.avatarEmoji ?? null,
+      // Returning players get their previous slot back (even if they changed their name)
+      slotIndex: this.pickSlot(room, playerUid) ?? undefined,
       isReady: false,
       joinedAt: Date.now(),
       colorToken: assignedColor,
@@ -576,6 +607,8 @@ export class RoomManager {
     };
 
     room.members[playerUid] = newMember;
+    if (room.reservedSlots) delete room.reservedSlots[playerUid];
+    if (room.formerMembers) delete room.formerMembers[playerUid];
     room.memberUids = Object.keys(room.members);
     room.updatedAt = Date.now();
     playerSession.roomId = roomId;
@@ -700,6 +733,7 @@ export class RoomManager {
       colorToken: assignedColor,
       isCpu: true,
       playerType: 'COMPUTER',
+      slotIndex: this.pickSlot(room) ?? undefined,
       roomJoinSequence: nextSeq,
       lastActivityAt: Date.now(),
     };
@@ -844,6 +878,13 @@ export class RoomManager {
 
     if (!room) return { ok: true };
 
+    const leaving = room.members[playerUid];
+    if (leaving && !(leaving.isCpu || leaving.playerType === 'COMPUTER')) {
+      room.formerMembers = { ...(room.formerMembers || {}), [playerUid]: { ...leaving, isReady: false } };
+      if (room.status === 'LOBBY' && leaving.slotIndex) {
+        room.reservedSlots = { ...(room.reservedSlots || {}), [playerUid]: leaving.slotIndex };
+      }
+    }
     delete room.members[playerUid];
     room.memberUids = Object.keys(room.members);
     room.updatedAt = Date.now();
@@ -884,6 +925,120 @@ export class RoomManager {
     this.codeToRoomId.set(code, roomId);
     this.store.updateRoom(room).catch(() => {});
     return code;
+  }
+
+  /**
+   * Fixed lobby slots (1..maxPlayers). Members created before slots existed get slots in join order.
+   * A returning player gets their reserved slot back when it is free; new players skip slots that are
+   * reserved for someone else unless no other slot is free.
+   */
+  public pickSlot(room: ServerRoom, uid?: string): number | null {
+    const max = room.maxPlayers || 6;
+    const members = Object.values(room.members).sort(
+      (a, b) => (a.roomJoinSequence || 0) - (b.roomJoinSequence || 0) || a.joinedAt - b.joinedAt
+    );
+    const used = new Set<number>();
+    for (const m of members) if (m.slotIndex) used.add(m.slotIndex);
+    for (const m of members) {
+      if (!m.slotIndex) {
+        for (let s = 1; s <= max; s++) if (!used.has(s)) { m.slotIndex = s; used.add(s); break; }
+      }
+    }
+    const reserved = room.reservedSlots || {};
+    const mine = uid ? reserved[uid] : undefined;
+    if (mine && !used.has(mine)) return mine;
+    const reservedByOthers = new Set(Object.entries(reserved).filter(([k]) => k !== uid).map(([, v]) => v));
+    for (let s = 1; s <= max; s++) if (!used.has(s) && !reservedByOthers.has(s)) return s;
+    for (let s = 1; s <= max; s++) if (!used.has(s)) return s;
+    return null;
+  }
+
+  /** Copies a session's name/avatar onto its lobby membership (only while the room is in the lobby). */
+  private syncMemberProfile(session: PlayerSession): ServerRoom | null {
+    if (!session.roomId) return null;
+    const room = this.rooms.get(session.roomId);
+    const member = room?.members[session.uid];
+    if (!room || !member || room.status !== 'LOBBY') return null;
+    member.displayName = session.displayName;
+    member.avatarEmoji = session.avatarEmoji ?? null;
+    room.updatedAt = Date.now();
+    this.store.updateRoom(room).catch(() => {});
+    return room;
+  }
+
+  /**
+   * Updates a player's name and/or emoji avatar. In a lobby the change shows immediately for everyone;
+   * names must stay unique inside the room.
+   */
+  public updateProfile(
+    uid: string,
+    changes: { displayName?: string; avatarEmoji?: string | null; avatarColor?: string }
+  ): { ok: boolean; player?: PlayerSessionPublic; room?: ServerRoom; error?: string } {
+    const session = this.sessionsByUid.get(uid);
+    if (!session) return { ok: false, error: 'Unauthenticated' };
+    let nextName = session.displayName;
+    if (changes.displayName !== undefined) {
+      nextName = String(changes.displayName || '').trim().slice(0, 20);
+      if (nextName.length < 2) return { ok: false, error: 'Name must be 2–20 characters.' };
+    }
+    const room = session.roomId ? this.rooms.get(session.roomId) : undefined;
+    if (room && room.status === 'LOBBY') {
+      const clash = Object.values(room.members).some(
+        (m) => m.uid !== uid && m.displayName.trim().toLowerCase() === nextName.toLowerCase()
+      );
+      if (clash) return { ok: false, error: `A player named "${nextName}" is already in this room. Please choose a unique name.` };
+    }
+    session.displayName = nextName;
+    if (changes.avatarEmoji !== undefined) session.avatarEmoji = sanitizeAvatarEmoji(changes.avatarEmoji);
+    if (changes.avatarColor) session.avatarColor = changes.avatarColor;
+    session.lastSeenAt = Date.now();
+    this.store.saveSession(session).catch(() => {});
+    const updatedRoom = this.syncMemberProfile(session);
+    return {
+      ok: true,
+      room: updatedRoom || undefined,
+      player: {
+        uid: session.uid,
+        token: session.token,
+        displayName: session.displayName,
+        avatarColor: session.avatarColor,
+        avatarEmoji: session.avatarEmoji ?? null,
+      },
+    };
+  }
+
+  /** Host removes a human player from the waiting lobby. The player cannot rejoin this room. */
+  public kickMember(
+    roomId: string,
+    hostUid: string,
+    targetUid: string
+  ): { ok: boolean; room?: ServerRoom; error?: string } {
+    const room = this.rooms.get(roomId);
+    if (!room) return { ok: false, error: 'Room not found' };
+    if (room.hostUid !== hostUid) return { ok: false, error: 'Only the host can remove players.' };
+    if (room.status !== 'LOBBY') return { ok: false, error: 'Players can only be removed in the waiting lobby.' };
+    if (targetUid === hostUid) return { ok: false, error: 'The host cannot remove themselves.' };
+    const target = room.members[targetUid];
+    if (!target) return { ok: false, error: 'Player is not in this room.' };
+    if (target.isCpu || target.playerType === 'COMPUTER') return { ok: false, error: 'Use Remove CPU for computer players.' };
+    delete room.members[targetUid];
+    room.memberUids = Object.keys(room.members);
+    room.kickedUids = Array.from(new Set([...(room.kickedUids || []), targetUid]));
+    if (room.reservedSlots) delete room.reservedSlots[targetUid];
+    if (room.formerMembers) delete room.formerMembers[targetUid];
+    room.updatedAt = Date.now();
+    const session = this.sessionsByUid.get(targetUid);
+    if (session && session.roomId === roomId) {
+      session.roomId = null;
+      this.store.saveSession(session).catch(() => {});
+    }
+    this.store.updateRoom(room).catch(() => {});
+    return { ok: true, room };
+  }
+
+  /** Socket id currently bound to a player (if connected). */
+  public getSocketIdForUid(uid: string): string | null {
+    return this.sessionsByUid.get(uid)?.socketId || null;
   }
 
   private roomDeletedListeners: Array<(room: ServerRoom) => void> = [];

@@ -1,4 +1,5 @@
 import React from 'react';
+import { avatarLabel } from '@/domain/avatar';
 import { createPortal } from 'react-dom';
 import { FinancialTransaction, PlayerState, PropertyState, PendingFinancialObligation } from '@/domain/game-types';
 import { BOARD_SPACES } from '@/domain/board-config';
@@ -84,7 +85,7 @@ export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
               style={{ backgroundColor: player.colorToken }}
               className="w-8 h-8 rounded-full border-2 border-white shadow-md flex items-center justify-center text-white font-black text-sm shrink-0"
             >
-              {player.displayName.charAt(0).toUpperCase()}
+              {avatarLabel(player)}
             </div>
             <div>
               <div className="flex items-center gap-1.5">
@@ -290,7 +291,7 @@ export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
                 No financial transactions recorded yet.
               </div>
             ) : (
-              <div className="space-y-1.5 max-h-48 overflow-y-auto custom-scrollbar pr-1">
+              <div data-testid="tx-history-list" className="space-y-1.5 max-h-72 overflow-y-auto custom-scrollbar pr-1">
                 {playerTransactions.map((tx) => {
                   const isCredit = tx.direction === 'CREDIT';
 
@@ -299,8 +300,8 @@ export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
                       key={tx.transactionId}
                       className="p-2 rounded-xl bg-white dark:bg-indian-navy-950 border border-indian-parchment-300 dark:border-indian-navy-800 text-xs shadow-2xs"
                     >
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-start gap-2 min-w-0 flex-1">
                           <div
                             className={cn(
                               'w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-white font-bold',
@@ -314,10 +315,10 @@ export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
                             )}
                           </div>
                           <div className="min-w-0">
-                            <span className="font-bold text-xs block truncate text-indian-navy-950 dark:text-white">
+                            <span data-testid="tx-description" className="font-bold text-xs block whitespace-normal break-words leading-snug text-indian-navy-950 dark:text-white">
                               {tx.description}
                             </span>
-                            <div className="flex items-center gap-2 text-[10px] text-gray-500">
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-gray-500 break-words">
                               <span>{new Date(tx.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                               {tx.propertyName && <span>• {tx.propertyName}</span>}
                               {tx.counterpartyName && <span>• Counterparty: {tx.counterpartyName}</span>}

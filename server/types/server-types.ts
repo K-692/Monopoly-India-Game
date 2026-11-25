@@ -12,6 +12,8 @@ export interface PlayerSession {
   tokenHash?: string;
   displayName: string;
   avatarColor: string;
+  /** Chosen emoji avatar (null = show the name's first letter). */
+  avatarEmoji?: string | null;
   socketId: string | null;
   roomId: string | null;
   connected: boolean;
@@ -26,6 +28,7 @@ export interface PlayerSessionPublic {
   token: string;
   displayName: string;
   avatarColor: string;
+  avatarEmoji?: string | null;
 }
 
 export interface ServerRoom extends RoomState {
@@ -90,8 +93,18 @@ export interface GameCommandResponse {
  */
 export interface ClientToServerEvents {
   'player:register': (
-    data: { displayName: string; avatarColor?: string; token?: string },
+    data: { displayName: string; avatarColor?: string; token?: string; avatarEmoji?: string | null },
     callback: (res: PlayerAuthResponse) => void
+  ) => void;
+
+  'player:update-profile': (
+    data: { displayName?: string; avatarEmoji?: string | null; avatarColor?: string },
+    callback?: (res: { ok: boolean; player?: PlayerSessionPublic; error?: string }) => void
+  ) => void;
+
+  'room:kick': (
+    data: { uid: string },
+    callback?: (res: { ok: boolean; error?: string }) => void
   ) => void;
 
   'player:resume': (
@@ -172,6 +185,7 @@ export interface ServerToClientEvents {
   'room:created': (room: RoomState) => void;
   'room:joined': (room: RoomState) => void;
   'room:state': (room: RoomState) => void;
+  'room:kicked': (data: { roomId: string; message: string }) => void;
   'game:started': (data: { gameId: string; gameState: GameState }) => void;
   'game:state': (gameState: GameState) => void;
   'game:closed': (data: { gameId: string; roomId: string }) => void;

@@ -11,6 +11,8 @@ export interface PlayerIdentity {
   uid: string;
   displayName: string;
   avatarColor: string;
+  /** Emoji avatar (null = first letter of the name). */
+  avatarEmoji?: string | null;
 }
 
 interface PlayerAuthState {
@@ -21,7 +23,8 @@ interface PlayerAuthState {
   pendingRedirectUrl: string | null;
 
   initializeAuth: () => Promise<string | null>;
-  setPlayerName: (name: string, color?: string) => Promise<void>;
+  /** Sets name, colour and emoji avatar. Resolves with an error (e.g. name taken in the lobby) instead of throwing. */
+  setPlayerName: (name: string, color?: string, avatarEmoji?: string | null) => Promise<{ ok: boolean; error?: string }>;
   openNamePrompt: (redirectUrl?: string) => void;
   closeNamePrompt: () => void;
 }
@@ -40,15 +43,17 @@ function getStoredPlayerPreferences(): {
   color: string;
   uid: string | null;
   token: string | null;
+  avatarEmoji: string | null;
 } {
   if (typeof window === 'undefined') {
-    return { name: null, color: PLAYER_COLORS[0], uid: null, token: null };
+    return { name: null, color: PLAYER_COLORS[0], uid: null, token: null, avatarEmoji: null };
   }
   const name = localStorage.getItem('monopoly_player_name');
   const color = localStorage.getItem('monopoly_player_color') || PLAYER_COLORS[0];
   const uid = localStorage.getItem('monopoly_player_uid');
   const token = localStorage.getItem('monopoly_reconnect_token');
-  return { name, color, uid, token };
+  const avatarEmoji = localStorage.getItem('monopoly_player_avatar') || null;
+  return { name, color, uid, token, avatarEmoji };
 }
 
 export const useAuthStore = create<PlayerAuthState>((set, get) => {
@@ -60,6 +65,7 @@ export const useAuthStore = create<PlayerAuthState>((set, get) => {
           uid: initialPrefs.uid || '',
           displayName: initialPrefs.name,
           avatarColor: initialPrefs.color,
+          avatarEmoji: initialPrefs.avatarEmoji,
         }
       : null,
     reconnectToken: initialPrefs.token || null,
@@ -92,6 +98,7 @@ export const useAuthStore = create<PlayerAuthState>((set, get) => {
                   uid,
                   displayName: name,
                   avatarColor: color,
+                  avatarEmoji: prefs.avatarEmoji,
                 }
               : null,
           });
@@ -103,6 +110,8 @@ export const useAuthStore = create<PlayerAuthState>((set, get) => {
             // Attempt to resume existing session
             socket.emit('player:resume', { token: prefs.token, displayName: prefs.name || undefined }, (res) => {
               if (res.ok && res.player) {
+                // Make sure the session carries this device's avatar
+                socket.emit('player:update-profile', { avatarEmoji: prefs.avatarEmoji }, () => {});
                 finalizeLocal(res.player.uid, res.player.token, prefs.name, res.player.avatarColor);
               } else {
                 // Token invalid or server restarted: register new session
@@ -111,6 +120,7 @@ export const useAuthStore = create<PlayerAuthState>((set, get) => {
                   {
                     displayName: prefs.name || 'Player',
                     avatarColor: prefs.color,
+                    avatarEmoji: prefs.avatarEmoji,
                   },
                   (regRes) => {
                     if (regRes.ok && regRes.player) {
@@ -129,6 +139,7 @@ export const useAuthStore = create<PlayerAuthState>((set, get) => {
               {
                 displayName: prefs.name || 'Player',
                 avatarColor: prefs.color,
+                avatarEmoji: prefs.avatarEmoji,
               },
               (regRes) => {
                 if (regRes.ok && regRes.player) {
@@ -165,7 +176,7 @@ export const useAuthStore = create<PlayerAuthState>((set, get) => {
       });
     },
 
-    setPlayerName: async (name: string, chosenColor?: string) => {
+    setPlayerName: async (name: string, chosenColor?: string, chosenEmoji?: string | null) => {
       const cleanName = name.trim() || 'Player ' + Math.floor(100 + Math.random() * 900);
       const socket = getSocket();
       const currentPrefs = getStoredPlayerPreferences();
@@ -174,47 +185,63 @@ export const useAuthStore = create<PlayerAuthState>((set, get) => {
       if (!color) {
         color = PLAYER_COLORS[Math.floor(Math.random() * PLAYER_COLORS.length)];
       }
+      const avatarEmoji = chosenEmoji === undefined ? (get().player?.avatarEmoji ?? currentPrefs.avatarEmoji) : chosenEmoji;
 
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('monopoly_player_name', cleanName);
-        localStorage.setItem('monopoly_player_color', color);
-      }
-
-      // Update session on LAN server
-      const token = get().reconnectToken || currentPrefs.token;
-      socket.emit(
-        'player:register',
-        {
-          displayName: cleanName,
-          avatarColor: color,
-          token: token || undefined,
-        },
-        (res) => {
-          if (res.ok && res.player) {
-            if (typeof window !== 'undefined') {
-              localStorage.setItem('monopoly_player_uid', res.player.uid);
-              localStorage.setItem('monopoly_reconnect_token', res.player.token);
-            }
-            set({
-              reconnectToken: res.player.token,
-              player: {
-                uid: res.player.uid,
-                displayName: res.player.displayName,
-                avatarColor: res.player.avatarColor,
-              },
-            });
-          }
+      const persist = (uid: string, token?: string) => {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('monopoly_player_name', cleanName);
+          localStorage.setItem('monopoly_player_color', color);
+          if (avatarEmoji) localStorage.setItem('monopoly_player_avatar', avatarEmoji);
+          else localStorage.removeItem('monopoly_player_avatar');
+          if (uid) localStorage.setItem('monopoly_player_uid', uid);
+          if (token) localStorage.setItem('monopoly_reconnect_token', token);
         }
-      );
+        set((st) => ({
+          reconnectToken: token || st.reconnectToken,
+          player: { uid: uid || st.player?.uid || 'player_me', displayName: cleanName, avatarColor: color, avatarEmoji },
+          isNamePromptOpen: false,
+        }));
+      };
 
-      set({
-        player: {
-          uid: get().player?.uid || 'player_me',
-          displayName: cleanName,
-          avatarColor: color,
-        },
-        isNamePromptOpen: false,
+      const register = () =>
+        new Promise<{ ok: boolean; error?: string }>((resolve) => {
+          const token = get().reconnectToken || currentPrefs.token;
+          socket.emit(
+            'player:register',
+            { displayName: cleanName, avatarColor: color, token: token || undefined, avatarEmoji },
+            (res) => {
+              if (res.ok && res.player) {
+                persist(res.player.uid, res.player.token);
+                resolve({ ok: true });
+              } else {
+                resolve({ ok: false, error: res.error || 'Could not save your profile.' });
+              }
+            }
+          );
+        });
+
+      // Update the live session (and the lobby, if in one). Falls back to registering a new session.
+      const result = await new Promise<{ ok: boolean; error?: string; needsRegister?: boolean }>((resolve) => {
+        const timer = setTimeout(() => resolve({ ok: false, needsRegister: true }), 4000);
+        socket.emit('player:update-profile', { displayName: cleanName, avatarEmoji, avatarColor: color }, (res) => {
+          clearTimeout(timer);
+          if (res?.ok && res.player) {
+            persist(res.player.uid);
+            resolve({ ok: true });
+          } else if (res?.error === 'Unauthenticated') {
+            resolve({ ok: false, needsRegister: true });
+          } else {
+            resolve({ ok: false, error: res?.error || 'Could not save your profile.' });
+          }
+        });
       });
+      if (result.ok) return { ok: true };
+      if (result.needsRegister) {
+        const reg = await register();
+        if (!reg.ok) persist(get().player?.uid || currentPrefs.uid || '');
+        return { ok: true };
+      }
+      return { ok: false, error: result.error };
     },
 
     openNamePrompt: (redirectUrl) => {

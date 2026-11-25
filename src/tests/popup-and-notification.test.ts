@@ -4,42 +4,32 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { useToastStore } from '../components/feedback/toast-store';
+import { useToastStore, frontToastIndex } from '../components/feedback/toast-store';
 import { applyGameCommand } from '../domain/game-engine/engine';
 import { createInitialGame } from '../domain/game-engine/create-initial-game';
 import { sound } from '../lib/audio/sound-engine';
 
-describe('Requirement 4: Event Notification Deduplication & Single Active Toast', () => {
+describe('Requirement 4: Event Notification Deduplication & Stacked Pop-ups', () => {
   beforeEach(() => {
     useToastStore.getState().clearAll();
   });
 
-  it('maintains strictly only 1 active notification at a time', () => {
+  it('stacks pop-ups that happen together instead of replacing them', () => {
     const store = useToastStore.getState();
-
-    store.addToast({
-      eventId: 'evt_1',
-      type: 'info',
-      title: 'First Notification',
-      message: 'Message 1',
-      silent: true,
-    });
-
+    store.addToast({ eventId: 'evt_1', type: 'info', title: 'First Notification', message: 'Message 1', silent: true });
     expect(useToastStore.getState().toasts).toHaveLength(1);
-    expect(useToastStore.getState().toasts[0].title).toBe('First Notification');
+    store.addToast({ eventId: 'evt_2', type: 'success', title: 'Second Notification', message: 'Message 2', silent: true });
+    const titles = useToastStore.getState().toasts.map((t) => t.title);
+    expect(titles).toEqual(['First Notification', 'Second Notification']);
+  });
 
-    // Add a second distinct notification
-    store.addToast({
-      eventId: 'evt_2',
-      type: 'success',
-      title: 'Second Notification',
-      message: 'Message 2',
-      silent: true,
-    });
-
-    // Exactly 1 active toast remains (the newer notification replaces the previous)
-    expect(useToastStore.getState().toasts).toHaveLength(1);
-    expect(useToastStore.getState().toasts[0].title).toBe('Second Notification');
+  it('cycles the front pop-up back and forth every 3s / X', () => {
+    // X = 1: always the only one
+    expect(frontToastIndex(1, 2500)).toBe(0);
+    // X = 2: switches every 1500ms
+    expect([0, 1499, 1500, 2999, 3000].map((t) => frontToastIndex(2, t))).toEqual([0, 0, 1, 1, 0]);
+    // X = 3: switches every 1000ms, going 0,1,2,1,0,1,...
+    expect([0, 1000, 2000, 3000, 4000, 5000].map((t) => frontToastIndex(3, t))).toEqual([0, 1, 2, 1, 0, 1]);
   });
 
   it('deduplicates identical event IDs across channels', () => {
