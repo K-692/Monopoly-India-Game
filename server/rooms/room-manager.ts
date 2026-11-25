@@ -521,10 +521,6 @@ export class RoomManager {
 
     const room = this.rooms.get(roomId)!;
 
-    if (room.kickedUids?.includes(playerUid)) {
-      return { ok: false, error: 'You were removed from this room by the host.' };
-    }
-
     // Reject joining if game has already progressed or completed
     if (room.status === 'IN_PROGRESS') {
       // Allow rejoining if the player is already an existing member of the match
@@ -1007,7 +1003,7 @@ export class RoomManager {
     };
   }
 
-  /** Host removes a human player from the waiting lobby. The player cannot rejoin this room. */
+  /** Host removes a human player from the waiting lobby. They may join again later with the invite code. */
   public kickMember(
     roomId: string,
     hostUid: string,
@@ -1023,7 +1019,6 @@ export class RoomManager {
     if (target.isCpu || target.playerType === 'COMPUTER') return { ok: false, error: 'Use Remove CPU for computer players.' };
     delete room.members[targetUid];
     room.memberUids = Object.keys(room.members);
-    room.kickedUids = Array.from(new Set([...(room.kickedUids || []), targetUid]));
     if (room.reservedSlots) delete room.reservedSlots[targetUid];
     if (room.formerMembers) delete room.formerMembers[targetUid];
     room.updatedAt = Date.now();

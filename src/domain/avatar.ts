@@ -56,3 +56,16 @@ export function listPickerEmojis(): string[] {
   }
   return out;
 }
+
+/** Inline style for an avatar circle: the player's colour only when there is no emoji (emoji avatars have no background). */
+export function avatarBg(
+  p: { avatarEmoji?: string | null } | null | undefined,
+  color: string | undefined
+): Record<string, string> {
+  return p?.avatarEmoji ? {} : { backgroundColor: color || '#C85A32' };
+}
+
+/** Extra classes for an emoji avatar: no background, border or shadow, and a larger emoji. */
+export function emojiAvatarClass(p: { avatarEmoji?: string | null } | null | undefined, sizeClass: string): string {
+  return p?.avatarEmoji ? `bg-transparent border-0 shadow-none ${sizeClass} leading-none` : '';
+}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { avatarLabel } from '@/domain/avatar';
+import { avatarLabel, avatarBg, emojiAvatarClass } from '@/domain/avatar';
 import { Clock } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 
@@ -35,8 +35,8 @@ export const PopupTurnTimer: React.FC<PopupTurnTimerProps> = ({
       )}
     >
       <div
-        style={{ backgroundColor: activePlayerColor }}
-        className="w-4 h-4 rounded-full text-[8.5px] font-black text-white flex items-center justify-center border border-white shadow-xs shrink-0"
+        style={avatarBg({ avatarEmoji: activePlayerEmoji }, activePlayerColor)}
+        className={cn('w-4 h-4 rounded-full text-[8.5px] font-black text-white flex items-center justify-center border border-white shadow-xs shrink-0', emojiAvatarClass({ avatarEmoji: activePlayerEmoji }, 'text-sm'))}
       >
         {avatarLabel({ displayName: activePlayerName, avatarEmoji: activePlayerEmoji })}
       </div>

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { avatarLabel } from '@/domain/avatar';
+import { avatarLabel, avatarBg, emojiAvatarClass } from '@/domain/avatar';
+import { cn } from '@/lib/utils/cn';
 import { Link, useLocation } from 'react-router-dom';
 import { Volume2, VolumeX, Dices, Settings as SettingsIcon, Edit3, HelpCircle } from 'lucide-react';
 import { useAuthStore } from '@/features/auth/use-auth-store';
@@ -105,8 +106,8 @@ export const Header: React.FC = () => {
               className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded-lg border border-indian-parchment-300 dark:border-indian-navy-700 bg-white dark:bg-indian-navy-800 hover:border-indian-terracotta-400 transition-all text-left shrink-0 min-w-0"
             >
               <div
-                style={{ backgroundColor: player?.avatarColor || '#C85A32' }}
-                className="w-6 h-6 rounded-full text-white text-[10px] font-black flex items-center justify-center shadow-xs shrink-0"
+                style={avatarBg(player, player?.avatarColor || '#C85A32')}
+                className={cn('w-6 h-6 rounded-full text-white text-[10px] font-black flex items-center justify-center shadow-xs shrink-0', emojiAvatarClass(player, 'text-xl'))}
               >
                 {avatarLabel(player)}
               </div>

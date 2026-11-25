@@ -1,5 +1,5 @@
 import React from 'react';
-import { avatarLabel } from '@/domain/avatar';
+import { avatarLabel, avatarBg, emojiAvatarClass } from '@/domain/avatar';
 import { createPortal } from 'react-dom';
 import { FinancialTransaction, PlayerState, PropertyState, PendingFinancialObligation } from '@/domain/game-types';
 import { BOARD_SPACES } from '@/domain/board-config';
@@ -82,8 +82,8 @@ export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
         <div className="flex items-center justify-between p-3.5 border-b border-indian-parchment-200 dark:border-indian-navy-800">
           <div className="flex items-center gap-2.5">
             <div
-              style={{ backgroundColor: player.colorToken }}
-              className="w-8 h-8 rounded-full border-2 border-white shadow-md flex items-center justify-center text-white font-black text-sm shrink-0"
+              style={avatarBg(player, player.colorToken)}
+              className={cn('w-8 h-8 rounded-full border-2 border-white shadow-md flex items-center justify-center text-white font-black text-sm shrink-0', emojiAvatarClass(player, 'text-3xl'))}
             >
               {avatarLabel(player)}
             </div>

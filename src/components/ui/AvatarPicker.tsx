@@ -27,8 +27,11 @@ export const AvatarPicker: React.FC<AvatarPickerProps> = ({ value, onChange, fal
       <div className="flex items-center gap-3">
         <div
           data-testid="avatar-preview"
-          style={{ backgroundColor: color || '#C85A32' }}
-          className="w-12 h-12 rounded-full border-2 border-white shadow-md flex items-center justify-center text-2xl text-white font-black shrink-0"
+          style={value ? undefined : { backgroundColor: color || '#C85A32' }}
+          className={cn(
+            'w-12 h-12 rounded-full flex items-center justify-center text-white font-black shrink-0',
+            value ? 'text-4xl leading-none' : 'border-2 border-white shadow-md text-2xl'
+          )}
         >
           {value || fallbackLetter}
         </div>

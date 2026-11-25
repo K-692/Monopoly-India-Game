@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { avatarLabel } from '@/domain/avatar';
+import { avatarLabel, avatarBg, emojiAvatarClass } from '@/domain/avatar';
 import { createPortal } from 'react-dom';
 import { BOARD_SPACES, CIVIC_FUND_CARDS, MARKET_BUZZ_CARDS, getCardFinancialEffect } from '@/domain/board-config';
 import { CardAction, GameActionType, GameEvent, GameState, WalkingAnimationState } from '@/domain/game-types';
@@ -236,29 +236,24 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(({
     }
   }, [gameState.activeCardPopup, gameState.turnNumber, walkingAnimation]);
 
-  // Big "YOUR TURN" splash, shown only on this player's screen each time their turn begins
-  const [yourTurnKey, setYourTurnKey] = useState<string | null>(null);
-  const lastYourTurnKeyRef = useRef<string | null>(null);
+  // Big "YOUR TURN" banner: shown only on this player's screen from the start of their turn until the
+  // dice are rolled (by the player, or automatically when the turn timer runs out).
   const meNow = gameState.players.find((p) => p.uid === userUid);
-  const myTurnStarts =
+  const turnKey = `${gameState.gameId}_${gameState.turnNumber}_${gameState.currentPlayerUid}`;
+  const showYourTurn =
     Boolean(userUid) &&
     gameState.currentPlayerUid === userUid &&
     gameState.status !== 'COMPLETED' &&
-    !gameState.handoff?.isActive &&
     !meNow?.isBankrupt &&
-    !meNow?.isDisqualified;
-  const turnKey = `${gameState.gameId}_${gameState.turnNumber}_${gameState.currentPlayerUid}`;
-  useEffect(() => {
-    if (!myTurnStarts || lastYourTurnKeyRef.current === turnKey) return;
-    lastYourTurnKeyRef.current = turnKey;
-    setYourTurnKey(turnKey);
-  }, [myTurnStarts, turnKey]);
-  // The hide timer belongs to the splash itself, so re-renders of the turn state can never keep it up
-  useEffect(() => {
-    if (!yourTurnKey) return;
-    const t = setTimeout(() => setYourTurnKey(null), 1800);
-    return () => clearTimeout(t);
-  }, [yourTurnKey]);
+    !meNow?.isDisqualified &&
+    (gameState.phase === 'AWAIT_ROLL' || gameState.phase === 'JAIL_DECISION') &&
+    !gameState.handoff?.isActive &&
+    !gameState.pendingFinancialObligation &&
+    !isRolling &&
+    !walkingAnimation &&
+    (!gameState.movement || gameState.movement.isComplete) &&
+    pendingCommandType !== 'ROLL_DICE' &&
+    pendingCommandType !== 'TRY_DOUBLES';
 
   // Central Jail Transition Detection & Center Board Notification
   const prevJailStatusRef = useRef<Record<string, boolean> | null>(null);
@@ -769,14 +764,14 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(({
       data-testid="monopoly-board-grid"
       className="relative w-full h-full max-h-full aspect-square mx-auto p-0.5 sm:p-1 bg-indian-parchment-200 border-2 border-indian-parchment-400 rounded-xl shadow-board-elevation select-none flex flex-col justify-center overflow-hidden"
     >
-      {yourTurnKey && (
+      {showYourTurn && (
         <div
-          key={yourTurnKey}
+          key={turnKey}
           data-testid="your-turn-banner"
           aria-live="assertive"
           className="absolute inset-0 z-[100] flex items-center justify-center pointer-events-none"
         >
-          <div className="animate-your-turn px-8 py-4 sm:px-12 sm:py-6 rounded-3xl bg-gradient-to-br from-indian-terracotta-500/95 to-amber-500/95 border-4 border-white shadow-[0_20px_60px_rgba(0,0,0,0.45)]">
+          <div className="animate-scale-in px-8 py-4 sm:px-12 sm:py-6 rounded-3xl bg-gradient-to-br from-indian-terracotta-500/95 to-amber-500/95 border-4 border-white shadow-[0_20px_60px_rgba(0,0,0,0.45)]">
             <span className="block font-serif font-black text-4xl sm:text-6xl md:text-7xl tracking-wider text-white drop-shadow-[0_4px_8px_rgba(0,0,0,0.45)] whitespace-nowrap">
               YOUR TURN
             </span>
@@ -854,9 +849,10 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(({
                       <div
                         key={`elevated-pawn-${p.uid}-${space.spaceIndex}`}
                         title={`${p.displayName} (${space.name})`}
-                        style={{ backgroundColor: p.colorToken }}
+                        style={avatarBg(p, p.colorToken)}
                         className={cn(
                           'w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 border-white shadow-token-glow flex items-center justify-center text-[9px] sm:text-[10px] text-white font-black shrink-0 transition-transform duration-150',
+                          emojiAvatarClass(p, 'text-lg sm:text-xl drop-shadow-md'),
                           isWalkingThisPawn && 'scale-125 ring-2 ring-amber-400 animate-bounce',
                           isActivePawn && !isWalkingThisPawn && 'animate-pulse scale-105 ring-1 ring-white'
                         )}

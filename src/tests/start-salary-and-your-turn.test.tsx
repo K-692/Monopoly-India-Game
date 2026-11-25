@@ -86,32 +86,26 @@ describe('START salary timing', () => {
   });
 });
 
-describe('YOUR TURN splash', () => {
-  afterEach(() => vi.useRealTimers());
-
-  const board = (uid: string, state: GameState) => (
-    <GameBoard gameState={state} selectedSpaceIndex={null} onSelectSpace={vi.fn()} isRolling={false} onDispatch={vi.fn()} isMyTurn={state.currentPlayerUid === uid} userUid={uid} />
+describe('YOUR TURN banner', () => {
+  const board = (uid: string, state: GameState, isRolling = false) => (
+    <GameBoard gameState={state} selectedSpaceIndex={null} onSelectSpace={vi.fn()} isRolling={isRolling} onDispatch={vi.fn()} isMyTurn={state.currentPlayerUid === uid} userUid={uid} />
   );
 
-  it('shows YOUR TURN only to the active player, then fades away', () => {
+  it('stays on the active player’s screen until the dice are rolled, and never shows for others', () => {
     vi.useFakeTimers();
     const state = createInitialGame('room_x', 'game_t', members, undefined, 'u1', { forcedPlayerOrder: ['u1', 'u2'] });
-    const { unmount } = render(board('u1', state));
+    const view = render(board('u1', state));
     expect(screen.getByTestId('your-turn-banner')).toHaveTextContent('YOUR TURN');
-    act(() => { vi.advanceTimersByTime(1900); });
-    expect(screen.queryByTestId('your-turn-banner')).toBeNull();
-    unmount();
+    act(() => { vi.advanceTimersByTime(20000); });
+    expect(screen.getByTestId('your-turn-banner')).toBeInTheDocument(); // no timeout
 
-    // Turn-state re-renders (e.g. a handoff finishing) must not keep the splash up
-    const again = createInitialGame('room_x', 'game_t2', members, undefined, 'u1', { forcedPlayerOrder: ['u1', 'u2'] });
-    const view = render(board('u1', { ...again, handoff: { isActive: false } as GameState['handoff'] }));
-    expect(screen.getByTestId('your-turn-banner')).toBeInTheDocument();
-    act(() => { vi.advanceTimersByTime(600); });
-    view.rerender(board('u1', { ...again, handoff: { isActive: true } as GameState['handoff'] }));
-    view.rerender(board('u1', { ...again, handoff: { isActive: false } as GameState['handoff'] }));
-    act(() => { vi.advanceTimersByTime(1300); });
+    // Rolling (player click/Space or the app's auto-roll) removes it
+    view.rerender(board('u1', state, true));
+    expect(screen.queryByTestId('your-turn-banner')).toBeNull();
+    view.rerender(board('u1', { ...state, phase: 'MANAGEMENT' }));
     expect(screen.queryByTestId('your-turn-banner')).toBeNull();
     view.unmount();
+    vi.useRealTimers();
 
     render(board('u2', state));
     expect(screen.queryByTestId('your-turn-banner')).toBeNull();

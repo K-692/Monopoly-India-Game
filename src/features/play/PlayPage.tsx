@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore, PLAYER_COLORS } from '@/features/auth/use-auth-store';
 import { AvatarPicker } from '@/components/ui/AvatarPicker';
-import { avatarLabel } from '@/domain/avatar';
+import { avatarLabel, avatarBg, emojiAvatarClass } from '@/domain/avatar';
+import { cn } from '@/lib/utils/cn';
 import { useRoomStore } from '@/features/rooms/use-room-store';
 import { CreateRoomRulesModal } from '@/components/rooms/CreateRoomRulesModal';
 import { RulesModal } from '@/components/rules/RulesModal';
@@ -392,8 +393,8 @@ export const PlayPage: React.FC = () => {
           <div className="max-w-xl mx-auto mb-6 p-2.5 px-4 rounded-xl bg-white/80 dark:bg-indian-navy-900/80 border border-indian-parchment-300 dark:border-indian-navy-700 shadow-2xs flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <div
-                style={{ backgroundColor: player?.avatarColor || selectedColor }}
-                className="w-6 h-6 rounded-full border-2 border-white shadow-xs flex items-center justify-center text-[10px] text-white font-black"
+                style={avatarBg(player, player?.avatarColor || selectedColor)}
+                className={cn('w-6 h-6 rounded-full border-2 border-white shadow-xs flex items-center justify-center text-[10px] text-white font-black', emojiAvatarClass(player, 'text-xl'))}
               >
                 {avatarLabel(player)}
               </div>

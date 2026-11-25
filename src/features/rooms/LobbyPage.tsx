@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { avatarLabel } from '@/domain/avatar';
+import { avatarLabel, avatarBg, emojiAvatarClass } from '@/domain/avatar';
+import { cn } from '@/lib/utils/cn';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useRoomStore } from '@/features/rooms/use-room-store';
 import { useAuthStore } from '@/features/auth/use-auth-store';
@@ -626,8 +627,8 @@ export const LobbyPage: React.FC = () => {
               >
                 <div className="flex items-center gap-2.5 min-w-0 flex-1 mr-2">
                   <div
-                    style={{ backgroundColor: m.colorToken }}
-                    className="w-9 h-9 rounded-full border border-white text-white font-black text-sm flex items-center justify-center shadow-xs shrink-0"
+                    style={avatarBg(m, m.colorToken)}
+                    className={cn('w-9 h-9 rounded-full border border-white text-white font-black text-sm flex items-center justify-center shadow-xs shrink-0', emojiAvatarClass(m, 'text-3xl'))}
                   >
                     {avatarLabel(m)}
                   </div>

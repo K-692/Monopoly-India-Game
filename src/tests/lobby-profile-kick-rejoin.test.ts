@@ -90,7 +90,7 @@ describe('Profile edits in the lobby', () => {
 });
 
 describe('Host kick', () => {
-  it('removes the player, tells them, and blocks rejoining; only the host can kick', async () => {
+  it('removes the player and tells them; only the host can kick; they may rejoin later', async () => {
     const alice = await connect('Alice');
     const bob = await connect('Bob');
     const carol = await connect('Carol');
@@ -109,7 +109,8 @@ describe('Host kick', () => {
     expect([...bob.socket.rooms]).not.toContain(`room:${room.room.roomId}`);
 
     const back = await bob.emit<{ ok: boolean; error?: string }>('room:join', { inviteCode: room.room.inviteCode });
-    expect(back.ok).toBe(false);
+    expect(back.ok).toBe(true);
+    expect(roomManager.getRoom(room.room.roomId)!.members[bob.uid]).toBeTruthy();
   });
 });
 

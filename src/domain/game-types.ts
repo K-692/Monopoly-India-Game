@@ -470,8 +470,6 @@ export interface RoomState {
   reservedSlots?: Record<string, number>;
   /** Members who left, kept so they can rejoin (same slot, or their seat mid-game). */
   formerMembers?: Record<string, RoomMember>;
-  /** Players removed by the host; they cannot rejoin this room. */
-  kickedUids?: string[];
 }
 
 export interface EmoteReaction {

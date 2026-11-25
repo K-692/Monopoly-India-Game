@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { avatarLabel } from '@/domain/avatar';
+import { avatarLabel, avatarBg, emojiAvatarClass } from '@/domain/avatar';
 import { FinancialTransaction, PlayerState, PropertyState, PendingFinancialObligation } from '@/domain/game-types';
 import { Card } from '@/components/ui/Card';
 import { IndianRupee, Clock, Flag } from 'lucide-react';
@@ -164,8 +164,8 @@ export const PlayerStrip: React.FC<PlayerStripProps> = React.memo(({
                 <div className="flex items-center gap-1.5 min-w-0">
                   {/* Avatar with Player Token Color */}
                   <div
-                    style={{ backgroundColor: player.colorToken }}
-                    className="w-5 h-5 rounded-full border-1.5 border-white shadow-token-glow flex items-center justify-center text-[9px] text-white font-black shrink-0"
+                    style={avatarBg(player, player.colorToken)}
+                    className={cn('w-5 h-5 rounded-full border-1.5 border-white shadow-token-glow flex items-center justify-center text-[9px] text-white font-black shrink-0', emojiAvatarClass(player, 'text-lg'))}
                   >
                     {avatarLabel(player)}
                   </div>

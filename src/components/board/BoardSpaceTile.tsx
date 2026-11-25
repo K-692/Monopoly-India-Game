@@ -1,5 +1,5 @@
 import React from 'react';
-import { avatarLabel } from '@/domain/avatar';
+import { avatarLabel, avatarBg, emojiAvatarClass } from '@/domain/avatar';
 import { BoardSpaceDefinition, PlayerState, PropertyState } from '@/domain/game-types';
 import { getSpaceGridCoord } from './board-layout-utils';
 import { getCityPriceColor, getCityTextColor, getCityBorderColor } from '@/domain/city-colors';
@@ -116,8 +116,8 @@ export const BoardSpaceTile: React.FC<BoardSpaceTileProps> = React.memo(({
           <div
             key={p.uid}
             title={p.displayName}
-            style={{ backgroundColor: p.colorToken }}
-            className="w-5 h-5 sm:w-5.5 sm:h-5.5 rounded-full border-2 border-white shadow-token-glow flex items-center justify-center text-[9px] sm:text-[10px] text-white font-black animate-pulse shrink-0"
+            style={avatarBg(p, p.colorToken)}
+            className={cn('w-5 h-5 sm:w-5.5 sm:h-5.5 rounded-full border-2 border-white shadow-token-glow flex items-center justify-center text-[9px] sm:text-[10px] text-white font-black animate-pulse shrink-0', emojiAvatarClass(p, 'text-lg drop-shadow-md'))}
           >
             {avatarLabel(p)}
           </div>
