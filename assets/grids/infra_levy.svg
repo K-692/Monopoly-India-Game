@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 240" fill="none">
+  <defs>
+    <linearGradient id="bg_infra" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f8fafc" stop-opacity="0.95" />
+      <stop offset="100%" stop-color="#f1f5f9" stop-opacity="0.9" />
+    </linearGradient>
+    <linearGradient id="infra_slate" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#475569" />
+      <stop offset="100%" stop-color="#1e293b" />
+    </linearGradient>
+  </defs>
+  <rect width="200" height="240" fill="url(#bg_infra)" />
+  <!-- Infrastructure Cable Bridge & Highway Skyline -->
+  <g opacity="0.22" transform="translate(20, 50)">
+    <!-- Bridge Pylons -->
+    <path d="M40,20 L30,120 M40,20 L50,120" stroke="url(#infra_slate)" stroke-width="4" stroke-linecap="round" />
+    <path d="M120,20 L110,120 M120,20 L130,120" stroke="url(#infra_slate)" stroke-width="4" stroke-linecap="round" />
+    <!-- Cable Stay Lines -->
+    <path d="M40,30 L5,110 M40,50 L15,110 M40,70 L25,110" stroke="url(#infra_slate)" stroke-width="2" stroke-linecap="round" />
+    <path d="M40,30 L75,110 M40,50 L65,110 M40,70 L55,110" stroke="url(#infra_slate)" stroke-width="2" stroke-linecap="round" />
+    <path d="M120,30 L85,110 M120,50 L95,110 M120,70 L105,110" stroke="url(#infra_slate)" stroke-width="2" stroke-linecap="round" />
+    <path d="M120,30 L155,110 M120,50 L145,110 M120,70 L135,110" stroke="url(#infra_slate)" stroke-width="2" stroke-linecap="round" />
+    <!-- Bridge Road Deck -->
+    <rect x="0" y="105" width="160" height="12" rx="2" fill="url(#infra_slate)" />
+    <!-- Construction Crane -->
+    <path d="M140,40 L140,8 M125,16 L155,16" stroke="url(#infra_slate)" stroke-width="2.5" stroke-linecap="round" />
+  </g>
+</svg>
