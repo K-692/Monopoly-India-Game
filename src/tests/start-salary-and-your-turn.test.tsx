@@ -99,8 +99,20 @@ describe('YOUR TURN banner', () => {
     act(() => { vi.advanceTimersByTime(20000); });
     expect(screen.getByTestId('your-turn-banner')).toBeInTheDocument(); // no timeout
 
+    // It sits in the space above the ping (not over the dice)
+    const banner = screen.getByTestId('your-turn-banner');
+    expect(banner.closest('[data-testid="board-dice-container"]')).toBeNull();
+    const ping = screen.getByTestId('ping-indicator');
+    expect(banner.compareDocumentPosition(ping) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
     // Rolling (player click/Space or the app's auto-roll) removes it
     view.rerender(board('u1', state, true));
+    expect(screen.queryByTestId('your-turn-banner')).toBeNull();
+    // ...and it does not come back while the result is still arriving (phase still AWAIT_ROLL)
+    view.rerender(board('u1', state, false));
+    expect(screen.queryByTestId('your-turn-banner')).toBeNull();
+    // ...nor when a new dice result for this same turn shows up
+    view.rerender(board('u1', { ...state, dice: { rollId: 'r_new', first: 2, second: 3, total: 5, isDouble: false } as GameState['dice'] }));
     expect(screen.queryByTestId('your-turn-banner')).toBeNull();
     view.rerender(board('u1', { ...state, phase: 'MANAGEMENT' }));
     expect(screen.queryByTestId('your-turn-banner')).toBeNull();

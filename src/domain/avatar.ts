@@ -67,5 +67,6 @@ export function avatarBg(
 
 /** Extra classes for an emoji avatar: no background, border or shadow, and a larger emoji. */
 export function emojiAvatarClass(p: { avatarEmoji?: string | null } | null | undefined, sizeClass: string): string {
-  return p?.avatarEmoji ? `bg-transparent border-0 shadow-none ${sizeClass} leading-none` : '';
+  // Important modifiers so no border, ring, glow or background from the circle style can survive
+  return p?.avatarEmoji ? `!bg-transparent !border-0 !shadow-none !ring-0 ${sizeClass} leading-none` : '';
 }

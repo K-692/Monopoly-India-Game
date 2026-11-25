@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { avatarLabel, avatarBg, emojiAvatarClass } from '@/domain/avatar';
+import { avatarLabel, avatarBg } from '@/domain/avatar';
 import { createPortal } from 'react-dom';
 import { BOARD_SPACES, CIVIC_FUND_CARDS, MARKET_BUZZ_CARDS, getCardFinancialEffect } from '@/domain/board-config';
 import { CardAction, GameActionType, GameEvent, GameState, WalkingAnimationState } from '@/domain/game-types';
@@ -240,7 +240,25 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(({
   // dice are rolled (by the player, or automatically when the turn timer runs out).
   const meNow = gameState.players.find((p) => p.uid === userUid);
   const turnKey = `${gameState.gameId}_${gameState.turnNumber}_${gameState.currentPlayerUid}`;
+  // Once the player has rolled this turn (Space, dice click or auto-roll) the banner never comes back,
+  // even while the roll result is still on its way or after a doubles re-roll.
+  const [rolledTurnKey, setRolledTurnKey] = useState<string | null>(null);
+  const turnStartRollIdRef = useRef<{ key: string; rollId: string | null } | null>(null);
+  if (!turnStartRollIdRef.current || turnStartRollIdRef.current.key !== turnKey) {
+    turnStartRollIdRef.current = { key: turnKey, rollId: gameState.dice?.rollId ?? null };
+  }
+  const rollStartedNow =
+    isRolling ||
+    Boolean(walkingAnimation) ||
+    pendingCommandType === 'ROLL_DICE' ||
+    pendingCommandType === 'TRY_DOUBLES' ||
+    (gameState.dice?.rollId ?? null) !== turnStartRollIdRef.current.rollId;
+  useEffect(() => {
+    if (rollStartedNow && gameState.currentPlayerUid === userUid) setRolledTurnKey(turnKey);
+  }, [rollStartedNow, turnKey, gameState.currentPlayerUid, userUid]);
+  const hasRolledThisTurn = rolledTurnKey === turnKey || rollStartedNow;
   const showYourTurn =
+    !hasRolledThisTurn &&
     Boolean(userUid) &&
     gameState.currentPlayerUid === userUid &&
     gameState.status !== 'COMPLETED' &&
@@ -764,20 +782,6 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(({
       data-testid="monopoly-board-grid"
       className="relative w-full h-full max-h-full aspect-square mx-auto p-0.5 sm:p-1 bg-indian-parchment-200 border-2 border-indian-parchment-400 rounded-xl shadow-board-elevation select-none flex flex-col justify-center overflow-hidden"
     >
-      {showYourTurn && (
-        <div
-          key={turnKey}
-          data-testid="your-turn-banner"
-          aria-live="assertive"
-          className="absolute inset-0 z-[100] flex items-center justify-center pointer-events-none"
-        >
-          <div className="animate-scale-in px-8 py-4 sm:px-12 sm:py-6 rounded-3xl bg-gradient-to-br from-indian-terracotta-500/95 to-amber-500/95 border-4 border-white shadow-[0_20px_60px_rgba(0,0,0,0.45)]">
-            <span className="block font-serif font-black text-4xl sm:text-6xl md:text-7xl tracking-wider text-white drop-shadow-[0_4px_8px_rgba(0,0,0,0.45)] whitespace-nowrap">
-              YOUR TURN
-            </span>
-          </div>
-        </div>
-      )}
 
       {/* 11x11 Grid with Expanded Perimeter Dimensions and Spacious City Grids */}
       <div
@@ -850,12 +854,21 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(({
                         key={`elevated-pawn-${p.uid}-${space.spaceIndex}`}
                         title={`${p.displayName} (${space.name})`}
                         style={avatarBg(p, p.colorToken)}
-                        className={cn(
-                          'w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 border-white shadow-token-glow flex items-center justify-center text-[9px] sm:text-[10px] text-white font-black shrink-0 transition-transform duration-150',
-                          emojiAvatarClass(p, 'text-lg sm:text-xl drop-shadow-md'),
-                          isWalkingThisPawn && 'scale-125 ring-2 ring-amber-400 animate-bounce',
-                          isActivePawn && !isWalkingThisPawn && 'animate-pulse scale-105 ring-1 ring-white'
-                        )}
+                        data-testid={`board-token-${p.uid}`}
+                        className={
+                          p.avatarEmoji
+                            ? // Emoji avatar: the emoji alone, no circle, border, ring or glow
+                              cn(
+                                'w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center text-lg sm:text-xl leading-none shrink-0 transition-transform duration-150',
+                                isWalkingThisPawn && 'scale-125 animate-bounce',
+                                isActivePawn && !isWalkingThisPawn && 'animate-pulse scale-110'
+                              )
+                            : cn(
+                                'w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 border-white shadow-token-glow flex items-center justify-center text-[9px] sm:text-[10px] text-white font-black shrink-0 transition-transform duration-150',
+                                isWalkingThisPawn && 'scale-125 ring-2 ring-amber-400 animate-bounce',
+                                isActivePawn && !isWalkingThisPawn && 'animate-pulse scale-105 ring-1 ring-white'
+                              )
+                        }
                       >
                         {avatarLabel(p)}
                       </div>
@@ -966,12 +979,29 @@ export const GameBoard: React.FC<GameBoardProps> = React.memo(({
             <div className="flex-1 flex flex-col items-center z-20 min-w-[200px] shrink-0 min-h-0 h-full px-1 [perspective:1000px] w-full max-w-sm mx-auto">
               {/* Top slot (white space above the dice): turn, ping, mobile rule buttons */}
               <div className="flex-1 basis-0 min-h-0 w-full flex flex-col items-center justify-end gap-1 pb-1.5">
+              {/* Area above the ping: Turn label, with the YOUR TURN banner on top of it when it is my turn */}
+              <div className="relative flex-1 min-h-0 w-full flex flex-col items-center justify-end">
               <div
                 data-testid="board-turn-label"
                 className="max-w-full truncate text-[11px] sm:text-xs font-bold text-indian-navy-900 dark:text-indian-parchment-100"
                 title={`Turn: ${activeTurnName}`}
               >
                 Turn: <span className="font-black text-indian-terracotta-600 dark:text-amber-300">{activeTurnName}</span>
+              </div>
+              {showYourTurn && (
+                <div
+                  key={turnKey}
+                  data-testid="your-turn-banner"
+                  aria-live="assertive"
+                  className="absolute inset-x-0 bottom-0 z-[60] flex items-end justify-center pointer-events-none"
+                >
+                  <div className="animate-scale-in px-4 py-1.5 sm:px-6 sm:py-2 rounded-2xl bg-gradient-to-br from-indian-terracotta-500/95 to-amber-500/95 border-[3px] border-white shadow-[0_10px_30px_rgba(0,0,0,0.35)]">
+                    <span className="block font-serif font-black text-2xl sm:text-3xl lg:text-4xl tracking-wider text-white drop-shadow-[0_3px_6px_rgba(0,0,0,0.4)] whitespace-nowrap">
+                      YOUR TURN
+                    </span>
+                  </div>
+                </div>
+              )}
               </div>
               <PingIndicator variant="inline" />
               {/* Mobile Quick-Rule Access Buttons */}

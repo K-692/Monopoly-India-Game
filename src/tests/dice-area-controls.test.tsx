@@ -160,4 +160,14 @@ describe('Dice area controls', () => {
     const notice = screen.getByTestId('jail-center-notification');
     expect(notice.closest('[data-testid="board-dice-container"]')).not.toBeNull();
   });
+
+  it('draws emoji tokens on the board without any circle, border or ring', () => {
+    const state = stateWithOwnedCity('AWAIT_ROLL');
+    state.players = state.players.map((p) => (p.uid === 'user_1' ? { ...p, avatarEmoji: '🐯' } : p));
+    renderBoard(state);
+    const token = screen.getByTestId('board-token-user_1');
+    expect(token.textContent).toBe('🐯');
+    expect(token.className).not.toMatch(/rounded-full|border|ring|shadow/);
+    expect(token.getAttribute('style') || '').not.toContain('background');
+  });
 });
